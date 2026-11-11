@@ -21,7 +21,7 @@ The Laravel application must never connect directly to the WHMCS database.
 
 ## Existing application baseline
 
-The repository is an existing Laravel 13.17+ / PHP 8.3+ application using Inertia 3, React 19, TypeScript, Tailwind CSS 4, Fortify, Wayfinder, Pest 5, and PostgreSQL support through Laravel's `pgsql` connection.
+The repository is an existing Laravel 13.17+ / PHP 8.5+ application using Inertia 3, React 19, TypeScript, Tailwind CSS 4, Fortify, Wayfinder, Pest 5, and PostgreSQL support through Laravel's `pgsql` connection.
 
 Keep the starter-kit authentication, 2FA/passkey support, UI primitives, and existing application conventions. Do not replace the starter kit or introduce another frontend/backend stack.
 
