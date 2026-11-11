@@ -17,6 +17,7 @@ This runbook is for the ResellerBytes AI Operations application on the existing 
 Configure Forge environment variables. Do not commit .env or secrets.
 
 Required application settings:
+
 - APP_ENV=production
 - APP_DEBUG=false
 - APP_URL=https://ops.resellerbytes.com
@@ -76,8 +77,8 @@ Verify Redis recovery, queue processing, scheduler execution, and failure loggin
 4. Create a JSON file using the 20i hosting File Manager outside both the WHMCS installation root and the public document root:
 
     {
-      "integration_id": "YOUR-INTEGRATION-UUID",
-      "secret": "YOUR-64-CHARACTER-HEX-SECRET"
+    "integration_id": "YOUR-INTEGRATION-UUID",
+    "secret": "YOUR-64-CHARACTER-HEX-SECRET"
     }
 
 5. Set the file's exact permissions to 0600 and ensure the WHMCS PHP runtime user can read it.
