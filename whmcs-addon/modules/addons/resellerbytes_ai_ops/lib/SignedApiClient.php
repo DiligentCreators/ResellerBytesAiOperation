@@ -14,8 +14,8 @@ final class SignedApiClient
     private const ADDON_VERSION = '1.0.0';
 
     /**
-     * @param array{integration_id: string, secret: string} $credentials
-     * @param array<string, mixed> $diagnostics
+     * @param  array{integration_id: string, secret: string}  $credentials
+     * @param  array<string, mixed>  $diagnostics
      * @return array{http_status: int, duplicate: bool}
      */
     public function submit(array $credentials, array $diagnostics): array
@@ -105,8 +105,8 @@ final class SignedApiClient
     private function uuidV4(): string
     {
         $bytes = random_bytes(16);
-        $bytes[6] = chr((ord($bytes[6]) & 0x0f) | 0x40);
-        $bytes[8] = chr((ord($bytes[8]) & 0x3f) | 0x80);
+        $bytes[6] = chr((ord($bytes[6]) & 0x0F) | 0x40);
+        $bytes[8] = chr((ord($bytes[8]) & 0x3F) | 0x80);
         $hex = bin2hex($bytes);
 
         return implode('-', [
