@@ -43,8 +43,11 @@ class AnalyzeDiagnosticRun implements ShouldQueue
                 return null;
             }
 
-            if ($run->status === 'analyzing'
-                && $run->analysis_started_at?->greaterThan(now()->subMinutes(10))) {
+            if ($run->status === 'analyzing') {
+                if ($run->analysis_started_at?->greaterThan(now()->subMinutes(10))) {
+                    return null;
+                }
+            } elseif (! in_array($run->status, ['received', 'queued', 'analysis_failed'], true)) {
                 return null;
             }
 
