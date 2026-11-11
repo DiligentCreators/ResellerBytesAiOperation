@@ -39,6 +39,7 @@ final class DiagnosticCollector
             'whmcs_version' => $this->whmcsVersion(),
             'web_php_version' => PHP_VERSION,
             'error_display_disabled' => $this->errorDisplayDisabled(),
+            'configuration_file_writable' => $this->configurationFileWritable(),
         ];
 
         $serverSoftware = $_SERVER['SERVER_SOFTWARE'] ?? '';
@@ -84,15 +85,11 @@ final class DiagnosticCollector
             ],
         ];
 
-        if (defined('ROOTDIR')) {
-            $configurationFile = rtrim((string) ROOTDIR, DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR.'configuration.php';
-
-            if (is_file($configurationFile) && is_writable($configurationFile)) {
-                $payload['warnings'] = [[
-                    'code' => 'configuration_file_writable',
-                    'severity' => 'warning',
-                ]];
-            }
+        if ($payload['system']['configuration_file_writable'] === true) {
+            $payload['warnings'] = [[
+                'code' => 'configuration_file_writable',
+                'severity' => 'warning',
+            ]];
         }
 
         return $payload;
@@ -148,11 +145,28 @@ final class DiagnosticCollector
         return null;
     }
 
-    private function errorDisplayDisabled(): bool
+    private function errorDisplayDisabled(): ?bool
     {
-        $value = strtolower(trim((string) ini_get('display_errors')));
+        $setting = ini_get('display_errors');
 
-        return in_array($value, ['', '0', 'off', 'false', 'no'], true);
+        if (! is_string($setting)) {
+            return null;
+        }
+
+        $value = strtolower(trim($setting));
+
+        return in_array($value, ['0', 'off', 'false', 'no'], true);
+    }
+
+    private function configurationFileWritable(): ?bool
+    {
+        if (! defined('ROOTDIR')) {
+            return null;
+        }
+
+        $configurationFile = rtrim((string) ROOTDIR, DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR.'configuration.php';
+
+        return is_file($configurationFile) ? is_writable($configurationFile) : null;
     }
 
     /**
