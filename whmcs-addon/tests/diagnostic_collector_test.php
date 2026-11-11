@@ -21,7 +21,7 @@ namespace WHMCS\Database {
     {
         public static function connection(): object
         {
-            return new class() {
+            return new class {
                 public function select(string $query): array
                 {
                     if ($query !== 'SELECT VERSION() AS version') {
@@ -39,7 +39,7 @@ namespace {
     use ResellerBytesAiOps\DiagnosticCollector;
     use RuntimeException;
 
-    require_once __DIR__ . '/../modules/addons/resellerbytes_ai_ops/lib/DiagnosticCollector.php';
+    require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/DiagnosticCollector.php';
 
     function assertCollectorCondition(bool $condition, string $message): void
     {
@@ -48,11 +48,11 @@ namespace {
         }
     }
 
-    $root = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'resellerbytes-ai-collector-' . bin2hex(random_bytes(8));
+    $root = sys_get_temp_dir().DIRECTORY_SEPARATOR.'resellerbytes-ai-collector-'.bin2hex(random_bytes(8));
     mkdir($root, 0700, true);
     define('ROOTDIR', $root);
 
-    file_put_contents($root . DIRECTORY_SEPARATOR . 'configuration.php', '<?php');
+    file_put_contents($root.DIRECTORY_SEPARATOR.'configuration.php', '<?php');
     $_SERVER['SERVER_SOFTWARE'] = 'Apache/2.4.62';
     ini_set('display_errors', '0');
 
@@ -74,7 +74,7 @@ namespace {
         assertCollectorCondition(strpos($encoded, 'portal.example.test') === false, 'The configured system URL was transmitted.');
         assertCollectorCondition(strpos($encoded, 'customer') === false, 'Unexpected customer-related data was transmitted.');
     } finally {
-        $configurationFile = $root . DIRECTORY_SEPARATOR . 'configuration.php';
+        $configurationFile = $root.DIRECTORY_SEPARATOR.'configuration.php';
 
         if (is_file($configurationFile)) {
             unlink($configurationFile);
