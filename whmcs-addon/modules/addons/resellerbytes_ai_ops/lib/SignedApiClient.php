@@ -55,7 +55,7 @@ final class SignedApiClient
             throw new RuntimeException('http_client_initialization_failed');
         }
 
-        curl_setopt_array($handle, [
+        $options = [
             CURLOPT_POST => true,
             CURLOPT_POSTFIELDS => $body,
             CURLOPT_HTTPHEADER => [
@@ -74,7 +74,13 @@ final class SignedApiClient
             CURLOPT_SSL_VERIFYHOST => 2,
             CURLOPT_PROTOCOLS => CURLPROTO_HTTPS,
             CURLOPT_USERAGENT => 'ResellerBytes-AI-Ops-WHMCS/'.self::ADDON_VERSION,
-        ]);
+        ];
+
+        if (! curl_setopt_array($handle, $options)) {
+            curl_close($handle);
+
+            throw new RuntimeException('http_client_configuration_failed');
+        }
 
         $responseBody = curl_exec($handle);
         $httpStatus = (int) curl_getinfo($handle, CURLINFO_HTTP_CODE);
