@@ -30,11 +30,11 @@ final class CredentialsFile
         $root = realpath($whmcsRoot);
         $document = $documentRoot !== '' ? realpath($documentRoot) : false;
         $configuredPath = self::normalizeAbsolutePath($configuredPath);
-        $rootLexical = self::normalizeAbsolutePath($whmcsRoot);
+        $rootLexical = $whmcsRoot !== '' ? self::normalizeAbsolutePath($whmcsRoot) : false;
         $documentLexical = $documentRoot !== '' ? self::normalizeAbsolutePath($documentRoot) : false;
 
         if (($root !== false && self::isWithinDirectory($path, $root))
-            || self::isWithinDirectory($configuredPath, $rootLexical)
+            || ($rootLexical !== false && self::isWithinDirectory($configuredPath, $rootLexical))
             || ($document !== false && self::isWithinDirectory($path, $document))
             || ($documentLexical !== false && self::isWithinDirectory($configuredPath, $documentLexical))) {
             throw new RuntimeException('credentials_file_must_be_outside_web_root');
