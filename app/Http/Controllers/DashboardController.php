@@ -26,7 +26,7 @@ class DashboardController extends Controller
                 'received_at' => $run->received_at?->toIso8601String(),
                 'whmcs_version' => data_get($run->payload, 'system.whmcs_version', 'Unknown'),
                 'findings_count' => $run->findings_count,
-                'integration_name' => $run->integration?->name ?? 'Unknown integration',
+                'integration_name' => $run->integration->name,
             ]);
 
         return Inertia::render('dashboard', [
