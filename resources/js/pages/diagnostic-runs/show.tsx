@@ -85,7 +85,9 @@ export default function DiagnosticRunShow({ run }: Props) {
                 <section className="rounded-xl border bg-card p-5">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div>
-                            <h2 className="font-semibold">AI diagnostic analysis</h2>
+                            <h2 className="font-semibold">
+                                AI diagnostic analysis
+                            </h2>
                             <p className="mt-1 text-sm text-muted-foreground">
                                 {run.status === 'analyzed'
                                     ? 'Analysis completed. Recommendations are advisory and require manual review.'
@@ -96,20 +98,52 @@ export default function DiagnosticRunShow({ run }: Props) {
                                         : 'This snapshot has been received but has not yet been analyzed.'}
                             </p>
                         </div>
-                        {run.ai_configured && ['received', 'analysis_failed'].includes(run.status) && (
-                            <button
-                                type="button"
-                                onClick={() => router.post('/diagnostic-runs/' + run.id + '/reanalyze', {}, { preserveScroll: true })}
-                                className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-                            >
-                                {run.status === 'analysis_failed' ? 'Retry analysis' : 'Analyze snapshot'}
-                            </button>
-                        )}
+                        {run.ai_configured &&
+                            ['received', 'analysis_failed'].includes(
+                                run.status,
+                            ) && (
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        router.post(
+                                            '/diagnostic-runs/' +
+                                                run.id +
+                                                '/reanalyze',
+                                            {},
+                                            { preserveScroll: true },
+                                        )
+                                    }
+                                    className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                                >
+                                    {run.status === 'analysis_failed'
+                                        ? 'Retry analysis'
+                                        : 'Analyze snapshot'}
+                                </button>
+                            )}
                     </div>
-                    {run.analysis_error_code && <p className="mt-3 text-xs text-destructive">Safe error code: {run.analysis_error_code}</p>}
-                    {run.analysis_summary && <p className="mt-4 whitespace-pre-wrap text-sm leading-7">{run.analysis_summary}</p>}
-                    {run.status === 'analyzed' && run.findings.length === 0 && run.no_findings_reason && <p className="mt-3 text-sm text-muted-foreground">{run.no_findings_reason}</p>}
-                    {!run.ai_configured && run.status === 'received' && <p className="mt-3 text-xs text-amber-600">Configure OPENAI_API_KEY in the Forge environment before requesting analysis.</p>}
+                    {run.analysis_error_code && (
+                        <p className="mt-3 text-xs text-destructive">
+                            Safe error code: {run.analysis_error_code}
+                        </p>
+                    )}
+                    {run.analysis_summary && (
+                        <p className="mt-4 text-sm leading-7 whitespace-pre-wrap">
+                            {run.analysis_summary}
+                        </p>
+                    )}
+                    {run.status === 'analyzed' &&
+                        run.findings.length === 0 &&
+                        run.no_findings_reason && (
+                            <p className="mt-3 text-sm text-muted-foreground">
+                                {run.no_findings_reason}
+                            </p>
+                        )}
+                    {!run.ai_configured && run.status === 'received' && (
+                        <p className="mt-3 text-xs text-amber-600">
+                            Configure OPENAI_API_KEY in the Forge environment
+                            before requesting analysis.
+                        </p>
+                    )}
                 </section>
                 <section className="rounded-xl border bg-card">
                     <div className="border-b p-5">
