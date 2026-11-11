@@ -34,8 +34,6 @@ class DiagnosticRunController extends Controller
         ]);
     }
 
-
-
     public function reanalyze(DiagnosticRun $diagnosticRun): RedirectResponse
     {
         abort_unless(filled(config('services.openai.key')), 503, 'AI analysis is not configured.');
