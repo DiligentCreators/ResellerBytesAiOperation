@@ -29,14 +29,20 @@ class RevokeWhmcsIntegration extends Command
                 return true;
             }
 
-            $integration->forceFill(['status' => 'revoked'])->save();
+            $version = $integration->secret_version + 1;
+
+            $integration->forceFill([
+                'status' => 'revoked',
+                'secret' => bin2hex(random_bytes(32)),
+                'secret_version' => $version,
+            ])->save();
 
             AuditEvent::create([
                 'actor_type' => 'system_operator',
                 'event_type' => 'whmcs_integration.revoked',
                 'subject_type' => 'whmcs_integration',
                 'subject_id' => $integration->id,
-                'metadata' => [],
+                'metadata' => ['secret_version' => $version],
                 'occurred_at' => now(),
             ]);
 
