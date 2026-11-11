@@ -66,6 +66,7 @@ namespace {
         assertCollectorCondition($payload['system']['web_server'] === 'Apache', 'Web server value was not sanitized.');
         assertCollectorCondition($payload['system']['error_display_disabled'] === true, 'Error display state was not collected.');
         assertCollectorCondition(isset($payload['php']['extensions']['curl']), 'Allowlisted PHP extensions were not collected.');
+        assertCollectorCondition($payload['system']['configuration_file_writable'] === true, 'Configuration file writability was not observed.');
         assertCollectorCondition(isset($payload['warnings'][0]['code']), 'Configuration file writability warning was not collected.');
         assertCollectorCondition(! array_key_exists('cron_php_version', $payload['system']), 'Unobservable cron PHP version was reported.');
         assertCollectorCondition(! array_key_exists('modules', $payload), 'Module status was reported without a verified collector.');
