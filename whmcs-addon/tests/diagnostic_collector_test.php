@@ -14,7 +14,7 @@ namespace WHMCS\Config {
     }
 }
 
-namespace WHMCS\\Database {
+namespace WHMCS\Database {
     final class Capsule
     {
         public static function connection(): object
