@@ -46,7 +46,7 @@ Never commit the credentials file or paste its contents into tickets, chat, or l
 Do not install this addon on production until the Laravel API is deployed, the integration secret has been created, and the production-pilot checklist has been approved.
 
 1. Take and verify a restorable WHMCS files/database backup.
-2. WHMCS does not provide a built-in ZIP addon-module uploader. Upload and extract the supplied ZIP into /modules/addons using the 20i hosting File Manager (no FTP is required when File Manager upload/extract is available). The resulting path must be /modules/addons/resellerbytes_ai_ops/resellerbytes_ai_ops.php.
+2. WHMCS does not provide a built-in ZIP addon-module uploader. Use 20i File Manager to upload without FTP. If the panel offers Extract, extract the ZIP into /modules/addons. Otherwise extract it locally, create /modules/addons/resellerbytes_ai_ops and its lib subfolder, then upload the four PHP files through File Manager while preserving paths. The resulting path must be /modules/addons/resellerbytes_ai_ops/resellerbytes_ai_ops.php.
 3. Create the credentials JSON file outside the web root and set its permissions to 0600.
 4. In WHMCS, activate ResellerBytes AI Operations under Addon Modules.
 5. Configure the absolute credentials-file path.
