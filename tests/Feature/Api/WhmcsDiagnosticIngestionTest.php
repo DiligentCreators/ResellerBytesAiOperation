@@ -237,3 +237,22 @@ test('rejects request bodies larger than the ingestion limit', function () {
     expect(DiagnosticRun::count())->toBe(0)
         ->and(IntegrationRequestNonce::count())->toBe(0);
 });
+
+
+test('rejects unsigned query parameters on the ingestion endpoint', function () {
+    $integration = createSignedTestIntegration();
+    $signed = makeSignedSnapshot($integration);
+
+    $this->call(
+        'POST',
+        '/api/v1/whmcs/diagnostic-snapshots?source=untrusted',
+        [],
+        [],
+        [],
+        $signed['headers'],
+        $signed['body'],
+    )->assertBadRequest();
+
+    expect(DiagnosticRun::count())->toBe(0)
+        ->and(IntegrationRequestNonce::count())->toBe(0);
+});
