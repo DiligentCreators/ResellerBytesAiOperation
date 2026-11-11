@@ -3,10 +3,6 @@
 use App\Models\DiagnosticRun;
 use App\Models\IntegrationRequestNonce;
 use App\Models\WhmcsIntegration;
-use Illuminate\Database\QueryException;
-use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 
 function createWhmcsIntegration(array $overrides = []): WhmcsIntegration
 {
@@ -22,7 +18,7 @@ test('integration secrets are encrypted at rest and hidden from serialization', 
     $secret = 'test-secret-that-must-never-be-serialized';
     $integration = createWhmcsIntegration(['secret' => $secret]);
 
-    $storedSecret = DB::table('whmcs_integrations')
+    $storedSecret = \Illuminate\Support\Facades\DB::table('whmcs_integrations')
         ->where('id', $integration->id)
         ->value('secret');
 
@@ -37,11 +33,11 @@ test('diagnostic snapshots belong to an integration and retain structured payloa
 
     $run = DiagnosticRun::create([
         'integration_id' => $integration->id,
-        'snapshot_uuid' => (string) Str::uuid(),
+        'snapshot_uuid' => (string) \Illuminate\Support\Str::uuid(),
         'schema_version' => '1.0',
         'addon_version' => '1.0.0',
         'status' => 'received',
-        'collected_at' => Carbon::now(),
+        'collected_at' => \Illuminate\Support\Carbon::now(),
         'received_at' => Carbon::now(),
         'payload' => [
             'whmcs' => ['version' => '8.13.7'],
@@ -67,5 +63,5 @@ test('an integration nonce cannot be inserted twice', function () {
     IntegrationRequestNonce::create($attributes);
 
     expect(fn () => IntegrationRequestNonce::create($attributes))
-        ->toThrow(QueryException::class);
+        ->toThrow(\Illuminate\Database\QueryException::class);
 });
