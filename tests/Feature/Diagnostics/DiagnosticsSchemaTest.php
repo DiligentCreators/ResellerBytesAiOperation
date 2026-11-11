@@ -37,8 +37,8 @@ test('diagnostic snapshots belong to an integration and retain structured payloa
         'schema_version' => '1.0',
         'addon_version' => '1.0.0',
         'status' => 'received',
-        'collected_at' => \Illuminate\Support\Carbon::now(),
-        'received_at' => Carbon::now(),
+        'collected_at' => \Illuminate\Support\\Illuminate\Support\Carbon::now(),
+        'received_at' => \Illuminate\Support\Carbon::now(),
         'payload' => [
             'whmcs' => ['version' => '8.13.7'],
             'php' => ['web_version' => '8.1.34'],
@@ -56,8 +56,8 @@ test('an integration nonce cannot be inserted twice', function () {
     $attributes = [
         'integration_id' => $integration->id,
         'nonce' => 'one-time-request-nonce',
-        'expires_at' => Carbon::now()->addMinutes(5),
-        'created_at' => Carbon::now(),
+        'expires_at' => \Illuminate\Support\Carbon::now()->addMinutes(5),
+        'created_at' => \Illuminate\Support\Carbon::now(),
     ];
 
     IntegrationRequestNonce::create($attributes);
