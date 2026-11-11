@@ -75,10 +75,11 @@ jobs:
           npm ci
           npm run build
 
-      - name: Temporary setup page formatter output
+      - name: Temporary formatter output
         run: |
           npm run check:fix
-          git diff --no-color -- README.md resources/js/pages/whmcs-addon/setup.tsx
+          vendor/bin/pint app/Http/Controllers/DiagnosticRunController.php tests/Feature/Api/WhmcsDiagnosticIngestionTest.php whmcs-addon/tests/signed_api_client_test.php
+          git diff --no-color -- README.md resources/js/pages/whmcs-addon/setup.tsx app/Http/Controllers/DiagnosticRunController.php tests/Feature/Api/WhmcsDiagnosticIngestionTest.php whmcs-addon/tests/signed_api_client_test.php
 
       - name: Run CI Checks
         run: composer ci:check
