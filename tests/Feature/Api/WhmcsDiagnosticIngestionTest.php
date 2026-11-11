@@ -19,10 +19,37 @@ function makeSignedSnapshot(WhmcsIntegration $integration, array $overrides = []
             'system' => [
                 'whmcs_version' => '8.13.7',
                 'web_php_version' => '8.1.34',
-                'cron_php_version' => '8.3.36',
+                'database_version' => '10.11.19-MariaDB',
+                'web_server' => 'Apache',
+                'application_url_configured' => true,
+                'error_display_disabled' => true,
+                'configuration_file_writable' => true,
+            ],
+            'php' => [
+                'memory_limit' => '512M',
+                'extensions' => [
+                    'curl' => true,
+                    'json' => true,
+                ],
             ],
             'warnings' => [
-                ['code' => 'cron_php_mismatch', 'severity' => 'warning'],
+                ['code' => 'configuration_file_writable', 'severity' => 'warning'],
+            ],
+            'collector' => [
+                'capabilities' => [
+                    'web_php_version',
+                    'whmcs_version',
+                    'database_server_version',
+                    'php_extension_availability',
+                    'php_memory_limit',
+                    'configuration_file_writability',
+                ],
+                'limitations' => [
+                    'cron_php_version_not_observable',
+                    'module_status_not_collected',
+                    'hosting_panel_configuration_not_observable',
+                    'ssl_certificate_not_verified',
+                ],
             ],
         ],
     ], $overrides);
@@ -199,8 +226,7 @@ test('rejects a repeated snapshot identifier when its payload digest changes', f
             'system' => [
                 'whmcs_version' => '8.13.7',
                 'web_php_version' => '8.1.34',
-                'cron_php_version' => '8.3.36',
-                'database_version' => 'MariaDB 10.11.19',
+                'database_version' => '10.11.19-MariaDB',
             ],
         ],
     ]);
