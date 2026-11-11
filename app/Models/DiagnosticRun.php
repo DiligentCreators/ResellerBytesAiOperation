@@ -7,6 +7,28 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * @property string $id
+ * @property string $integration_id
+ * @property string $snapshot_uuid
+ * @property string $schema_version
+ * @property string $addon_version
+ * @property string $status
+ * @property \Illuminate\Support\Carbon|null $collected_at
+ * @property \Illuminate\Support\Carbon|null $received_at
+ * @property array<string, mixed> $payload
+ * @property string $payload_sha256
+ * @property string|null $analysis_summary
+ * @property string|null $no_findings_reason
+ * @property \Illuminate\Support\Carbon|null $analysis_started_at
+ * @property \Illuminate\Support\Carbon|null $analysis_completed_at
+ * @property string|null $analysis_error_code
+ * @property int $analysis_attempts
+ * @property array<string, int>|null $analysis_usage
+ * @property-read WhmcsIntegration $integration
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, DiagnosticFinding> $findings
+ * @property-read int $findings_count
+ */
 class DiagnosticRun extends Model
 {
     use HasUuids;
