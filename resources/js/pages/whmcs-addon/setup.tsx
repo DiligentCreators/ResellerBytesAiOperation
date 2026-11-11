@@ -69,7 +69,10 @@ export default function WhmcsAddonSetup({
                                 not include credentials or secrets.
                             </p>
                             <p className="mt-2 text-xs text-muted-foreground">
-                                AI analysis: {aiConfigured ? 'API key configured' : 'OPENAI_API_KEY must be configured in the Forge environment before analysis can run.'}
+                                AI analysis:{' '}
+                                {aiConfigured
+                                    ? 'API key configured'
+                                    : 'OPENAI_API_KEY must be configured in the Forge environment before analysis can run.'}
                             </p>
                             <div className="mt-4 flex flex-wrap gap-2">
                                 {downloadAvailable ? (
@@ -109,12 +112,13 @@ export default function WhmcsAddonSetup({
                             <p className="mt-1 text-sm text-muted-foreground">
                                 WHMCS activates addon modules from its Admin
                                 Area, but module files must first exist in
-                                /modules/addons. 20i File Manager supports browser
-                                uploads without FTP. If your panel exposes an
-                                Extract action, upload and extract the ZIP there.
-                                Otherwise, extract it locally and upload the four
-                                PHP files through File Manager, preserving the
-                                resellerbytes_ai_ops/lib folder structure.
+                                /modules/addons. 20i File Manager supports
+                                browser uploads without FTP. If your panel
+                                exposes an Extract action, upload and extract
+                                the ZIP there. Otherwise, extract it locally and
+                                upload the four PHP files through File Manager,
+                                preserving the resellerbytes_ai_ops/lib folder
+                                structure.
                             </p>
                             <a
                                 href="https://docs.20i.com/managed-cloud-servers/complete-guide-to-the-20i-file-manager"
