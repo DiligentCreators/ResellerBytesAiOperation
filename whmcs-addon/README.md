@@ -11,7 +11,8 @@ The addon:
 - Checks whether configuration.php is writable; it never reads the file contents.
 - Sends one signed HTTPS POST to https://ops.resellerbytes.com/api/v1/whmcs/diagnostic-snapshots.
 - Does not query customer, invoice, transaction, payment, hosting, domain, or registrar records.
-- Does not write to the WHMCS database, execute shell commands, or call WHMCS business APIs.
+- Issues no SQL writes, creates no custom WHMCS tables, and does not modify business records. WHMCS stores the non-secret credentials-file path in its standard addon settings when an administrator configures the module.
+- Does not execute shell commands or call WHMCS business APIs.
 - Does not install a hook or register a cron task.
 - Does not change the existing 20i provisioning or ResellerClub registrar modules.
 
