@@ -6,7 +6,7 @@ use ResellerBytesAiOps\SignedApiClient;
 use Throwable;
 
 if (! defined('WHMCS')) {
-    die('This file cannot be accessed directly');
+    exit('This file cannot be accessed directly');
 }
 
 require_once __DIR__.'/lib/CredentialsFile.php';
@@ -72,8 +72,8 @@ function resellerbytes_ai_ops_output(array $vars): void
                 (string) ($_SERVER['DOCUMENT_ROOT'] ?? ''),
             );
 
-            $diagnostics = (new DiagnosticCollector())->collect();
-            $result = (new SignedApiClient())->submit($credentials, $diagnostics);
+            $diagnostics = (new DiagnosticCollector)->collect();
+            $result = (new SignedApiClient)->submit($credentials, $diagnostics);
 
             $message = $result['duplicate']
                 ? 'This diagnostic snapshot was already received. No duplicate record was created.'
