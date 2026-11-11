@@ -10,6 +10,7 @@ This checklist is mandatory before installing or running the WHMCS addon against
 - [ ] Laravel `.env` uses `CACHE_STORE=redis`, `SESSION_DRIVER=redis`, and `QUEUE_CONNECTION=redis` with distinct cache/default logical database indexes.
 - [ ] A supervised queue worker is configured with a timeout shorter than Redis `retry_after`.
 - [ ] Redis restart/recovery behavior has been tested before relying on it for sessions and background jobs.
+- [ ] Forge's Laravel scheduler is active (`schedule:run` every minute), so expired HMAC nonces are pruned every 15 minutes.
 
 ## Preconditions
 
