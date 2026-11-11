@@ -181,6 +181,9 @@ PROMPT;
         ];
     }
 
+    /**
+     * @param array<string, mixed> $response
+     */
     private function extractOutputText(array $response): ?string
     {
         foreach ($response['output'] ?? [] as $item) {
@@ -252,9 +255,21 @@ PROMPT;
             }
         }
 
-        return $validated;
+        /** @var array<int, array<string, mixed>> $findings */
+        $findings = array_values($validated['findings']);
+
+        return [
+            'summary' => (string) $validated['summary'],
+            'no_findings_reason' => is_string($validated['no_findings_reason'])
+                ? $validated['no_findings_reason']
+                : null,
+            'findings' => $findings,
+        ];
     }
 
+    /**
+     * @param array<string, mixed> $payload
+     */
     private function hasEvidencePath(array $payload, string $path): bool
     {
         if ($path === '' || str_contains($path, '..')) {
