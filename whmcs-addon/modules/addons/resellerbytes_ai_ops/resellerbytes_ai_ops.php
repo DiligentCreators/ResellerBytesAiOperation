@@ -1,12 +1,17 @@
 <?php
 
+use ResellerBytesAiOps\CredentialsFile;
+use ResellerBytesAiOps\DiagnosticCollector;
+use ResellerBytesAiOps\SignedApiClient;
+use Throwable;
+
 if (! defined('WHMCS')) {
     die('This file cannot be accessed directly');
 }
 
-require_once __DIR__.'/lib/CredentialsFile.php';
-require_once __DIR__.'/lib/DiagnosticCollector.php';
-require_once __DIR__.'/lib/SignedApiClient.php';
+require_once __DIR__ . '/lib/CredentialsFile.php';
+require_once __DIR__ . '/lib/DiagnosticCollector.php';
+require_once __DIR__ . '/lib/SignedApiClient.php';
 
 function resellerbytes_ai_ops_config(): array
 {
@@ -61,20 +66,20 @@ function resellerbytes_ai_ops_output(array $vars): void
 
     if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['run_diagnostics'])) {
         try {
-            $credentials = \ResellerBytesAiOps\CredentialsFile::load(
+            $credentials = CredentialsFile::load(
                 (string) ($vars['credentials_file'] ?? ''),
                 defined('ROOTDIR') ? (string) ROOTDIR : '',
                 (string) ($_SERVER['DOCUMENT_ROOT'] ?? ''),
             );
 
-            $diagnostics = (new \ResellerBytesAiOps\DiagnosticCollector())->collect();
-            $result = (new \ResellerBytesAiOps\SignedApiClient())->submit($credentials, $diagnostics);
+            $diagnostics = (new DiagnosticCollector())->collect();
+            $result = (new SignedApiClient())->submit($credentials, $diagnostics);
 
             $message = $result['duplicate']
                 ? 'This diagnostic snapshot was already received. No duplicate record was created.'
                 : 'Diagnostic snapshot submitted successfully. No WHMCS business data was changed.';
             $messageType = 'success';
-        } catch (\Throwable $exception) {
+        } catch (Throwable $exception) {
             // Never display paths, secrets, remote response bodies, or exception details.
             $message = 'Diagnostics were not submitted. Verify the credentials file path, file permissions, HTTPS connectivity, and API configuration.';
             $messageType = 'danger';
@@ -89,7 +94,7 @@ function resellerbytes_ai_ops_output(array $vars): void
         . '<p>It does not modify WHMCS customers, invoices, payments, hosting services, domains, or existing provisioning/registrar modules.</p>';
 
     if ($message !== '') {
-        $output .= '<div class="alert alert-'.htmlspecialchars($messageType, ENT_QUOTES, 'UTF-8').'">'
+        $output .= '<div class="alert alert-' . htmlspecialchars($messageType, ENT_QUOTES, 'UTF-8') . '">'
             . htmlspecialchars($message, ENT_QUOTES, 'UTF-8')
             . '</div>';
     }
@@ -99,8 +104,8 @@ function resellerbytes_ai_ops_output(array $vars): void
     } else {
         $token = htmlspecialchars((string) generate_token('plain'), ENT_QUOTES, 'UTF-8');
 
-        $output .= '<form method="post" action="'.$escapedModuleLink.'">'
-            . '<input type="hidden" name="token" value="'.$token.'">'
+        $output .= '<form method="post" action="' . $escapedModuleLink . '">'
+            . '<input type="hidden" name="token" value="' . $token . '">'
             . '<button type="submit" name="run_diagnostics" value="1" class="btn btn-primary">'
             . 'Run diagnostics once'
             . '</button>'
