@@ -2,6 +2,10 @@
 
 namespace ResellerBytesAiOps;
 
+use Throwable;
+use WHMCS\Config\Setting;
+use WHMCS\Database\Capsule;
+
 final class DiagnosticCollector
 {
     private const ALLOWED_EXTENSIONS = [
@@ -98,14 +102,14 @@ final class DiagnosticCollector
     private function whmcsVersion(): string
     {
         try {
-            if (class_exists('WHMCS\\Config\\Setting')) {
-                $version = \WHMCS\Config\Setting::getValue('Version');
+            if (class_exists(Setting::class)) {
+                $version = Setting::getValue('Version');
 
                 if (is_string($version) && $version !== '') {
                     return substr($version, 0, 32);
                 }
             }
-        } catch (\Throwable $exception) {
+        } catch (Throwable $exception) {
             // Missing visibility is represented as unknown, never as healthy.
         }
 
@@ -115,15 +119,15 @@ final class DiagnosticCollector
     private function databaseVersion(): ?string
     {
         try {
-            if (class_exists('WHMCS\\Database\\Capsule')) {
-                $rows = \WHMCS\Database\Capsule::connection()->select('SELECT VERSION() AS version');
+            if (class_exists(Capsule::class)) {
+                $rows = Capsule::connection()->select('SELECT VERSION() AS version');
                 $version = $rows[0]->version ?? null;
 
                 return is_string($version) && $version !== ''
                     ? substr($version, 0, 64)
                     : null;
             }
-        } catch (\Throwable $exception) {
+        } catch (Throwable $exception) {
             // Database version visibility is optional; do not expose connection details.
         }
 
@@ -133,12 +137,12 @@ final class DiagnosticCollector
     private function systemUrl(): ?string
     {
         try {
-            if (class_exists('WHMCS\\Config\\Setting')) {
-                $url = \WHMCS\Config\Setting::getValue('SystemURL');
+            if (class_exists(Setting::class)) {
+                $url = Setting::getValue('SystemURL');
 
                 return is_string($url) ? $url : null;
             }
-        } catch (\Throwable $exception) {
+        } catch (Throwable $exception) {
             // Do not expose configuration values or exception details.
         }
 
