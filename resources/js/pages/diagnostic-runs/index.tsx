@@ -1,4 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
+import { Pagination } from '@/components/pagination';
 import { Activity } from 'lucide-react';
 
 type Run = {
@@ -10,7 +11,7 @@ type Run = {
     findings_count: number;
     integration_name: string;
 };
-type Props = { runs: { data: Run[] } };
+type Props = { runs: { data: Run[]; links: { url: string | null; label: string; active: boolean }[] } };
 
 function date(value: string | null) {
     return value
@@ -107,6 +108,7 @@ export default function DiagnosticRunsIndex({ runs }: Props) {
                             </table>
                         </div>
                     )}
+                    <Pagination links={runs.links} />
                 </section>
             </div>
         </>
