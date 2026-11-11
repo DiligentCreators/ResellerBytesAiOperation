@@ -19,6 +19,8 @@ it('downloads a WHMCS addon archive with the expected module structure', functio
     $response = $this->actingAs($user)->get('/whmcs-addon/download');
 
     $response->assertDownload('resellerbytes-ai-ops-whmcs-v1.0.0.zip');
+    $response->assertHeader('Cache-Control', 'private, no-store, max-age=0');
+    $response->assertHeader('X-Content-Type-Options', 'nosniff');
 
     $file = $response->baseResponse->getFile();
     expect($file)->not->toBeNull();
