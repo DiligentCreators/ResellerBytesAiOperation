@@ -20,7 +20,7 @@ This checklist is mandatory before installing or running the WHMCS addon against
 - [ ] A current, restorable backup of the WHMCS files and database has been confirmed by the operator.
 - [ ] A maintenance window and rollback owner have been identified.
 - [ ] The integration was created using `php artisan whmcs:integration:create` from an authorized server shell.
-- [ ] The one-time integration secret was stored securely and configured in the reviewed addon without committing or logging it.
+- [ ] The one-time integration secret is stored only in the external credentials JSON file; WHMCS addon settings contain only that file's path.
 - [ ] The HTTPS certificate and destination hostname have been independently verified.
 - [ ] The collector schema and redaction rules have been reviewed against the exact payload that will be transmitted.
 - [ ] The WHMCS addon passed its PHP 8.1 syntax and credential-file tests.
