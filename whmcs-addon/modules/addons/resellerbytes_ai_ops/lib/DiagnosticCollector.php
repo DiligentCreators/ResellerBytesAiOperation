@@ -116,7 +116,7 @@ final class DiagnosticCollector
     {
         try {
             if (class_exists('WHMCS\\Database\\Capsule')) {
-                $rows = \WHMCS\\Database\\Capsule::connection()->select('SELECT VERSION() AS version');
+                $rows = \WHMCS\Database\Capsule::connection()->select('SELECT VERSION() AS version');
                 $version = $rows[0]->version ?? null;
 
                 return is_string($version) && $version !== ''
