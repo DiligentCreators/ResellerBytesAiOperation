@@ -2,6 +2,15 @@
 
 This checklist is mandatory before installing or running the WHMCS addon against the live ResellerBytes installation.
 
+## Laravel application Redis preflight
+
+- [ ] The Forge PHP 8.5 CLI runtime has the native Redis extension enabled (`php -m` includes `redis`).
+- [ ] Redis is reachable locally (`redis-cli ping` returns `PONG`) and is not publicly exposed.
+- [ ] Redis authentication, memory limit, `noeviction` policy, persistence, and monitoring are configured and reviewed.
+- [ ] Laravel `.env` uses `CACHE_STORE=redis`, `SESSION_DRIVER=redis`, and `QUEUE_CONNECTION=redis` with distinct cache/default logical database indexes.
+- [ ] A supervised queue worker is configured with a timeout shorter than Redis `retry_after`.
+- [ ] Redis restart/recovery behavior has been tested before relying on it for sessions and background jobs.
+
 ## Preconditions
 
 - [ ] The Laravel application and ingestion API have passed automated tests and security review.
