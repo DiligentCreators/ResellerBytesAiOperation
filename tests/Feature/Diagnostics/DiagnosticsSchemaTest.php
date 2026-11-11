@@ -5,8 +5,8 @@ use App\Models\IntegrationRequestNonce;
 use App\Models\WhmcsIntegration;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 function createWhmcsIntegration(array $overrides = []): WhmcsIntegration
 {
