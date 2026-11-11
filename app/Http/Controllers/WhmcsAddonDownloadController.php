@@ -35,6 +35,7 @@ class WhmcsAddonDownloadController extends Controller
         }
 
         try {
+            $manifest = [];
             $files = new RecursiveIteratorIterator(
                 new RecursiveDirectoryIterator($sourceDirectory, FilesystemIterator::SKIP_DOTS),
             );
@@ -46,11 +47,17 @@ class WhmcsAddonDownloadController extends Controller
 
                 $absolutePath = $file->getPathname();
                 $relativePath = substr($absolutePath, strlen($sourceDirectory) + 1);
-                $archive->addFile($absolutePath, 'resellerbytes_ai_ops/'.$relativePath);
+                if (! $archive->addFile($absolutePath, 'resellerbytes_ai_ops/'.$relativePath)) {
+                    throw new RuntimeException('Unable to add an addon file to the archive.');
+                }
+
+                $manifest[] = hash_file('sha256', $absolutePath).'  '.$relativePath;
             }
 
+            sort($manifest, SORT_STRING);
             $archive->addFromString('INSTALLATION.txt', $this->installationInstructions());
             $archive->addFromString('VERSION.txt', (string) config('services.whmcs_addon.version', '1.0.0'));
+            $archive->addFromString('SHA256SUMS.txt', implode("\n", $manifest)."\n");
 
             if (! $archive->close()) {
                 throw new RuntimeException('Unable to finalize the WHMCS addon archive.');
