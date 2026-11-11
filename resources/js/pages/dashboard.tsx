@@ -25,6 +25,7 @@ type Props = {
     addon: {
         version: string;
         download_available: boolean;
+        ai_configured: boolean;
     };
 };
 
@@ -140,6 +141,9 @@ export default function Dashboard({ stats, latestRuns, addon }: Props) {
                             <h2 className="font-semibold">WHMCS diagnostic addon</h2>
                             <p className="mt-1 text-sm text-muted-foreground">
                                 Version {addon.version} · Manual-only · Read-only collector
+                            </p>
+                            <p className="mt-2 text-xs text-muted-foreground">
+                                AI analysis: {addon.ai_configured ? 'Configured' : 'API key not configured — snapshots can still be received, but analysis will remain pending.'}
                             </p>
                         </div>
                         <div className="flex flex-wrap gap-2">
