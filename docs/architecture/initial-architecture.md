@@ -59,7 +59,7 @@ The addon is a small WHMCS-local collector and outbound client. It:
 - Sends one-way HTTPS requests to the operations API.
 - Signs each request using an installation-specific HMAC secret.
 - Does not call WHMCS provisioning, registrar, billing, suspension, termination, or customer-management APIs.
-- Does not write to WHMCS business tables or change WHMCS configuration.
+- Issues no SQL writes and does not modify WHMCS business records or system settings. WHMCS core stores only the non-secret credentials-file path in its standard addon settings table.
 - Does not read or transmit full configuration files, database credentials, API tokens, payment data, or unbounded logs.
 
 The current PHP 8.1-compatible addon release is manual-only and has no hooks or cron registration. Its only outbound destination is the fixed HTTPS ingestion endpoint. It reads the WHMCS version and configured system URL through the WHMCS settings model, reporting the URL as a boolean rather than transmitting it, and executes one read-only `SELECT VERSION()` query to identify the database server version. The HMAC secret is never stored in `tbladdonmodules`: the operator supplies a JSON credentials file outside both the WHMCS root and document root, with mode `0600`; addon settings store only the file path. The addon rejects credentials files inside the web root or with group/world permissions. Its current collector reports web PHP/runtime capabilities, the database server version, and a configuration-file writability signal; it explicitly declares cron PHP, module status, hosting-panel configuration, and certificate verification as not observed.
