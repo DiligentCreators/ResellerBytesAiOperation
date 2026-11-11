@@ -66,7 +66,7 @@ function openAiResponseForAnalysis(array $analysis): array
 beforeEach(function () {
     config([
         'services.openai.key' => 'test-api-key',
-        'services.openai.model' => 'gpt-6.1-sol',
+        'services.openai.model' => 'gpt-5.6-sol',
         'services.openai.timeout' => 45,
     ]);
 });
@@ -109,7 +109,7 @@ it('requests strict structured analysis without storing the response remotely', 
 
     Http::assertSent(function ($request) {
         return $request->url() === 'https://api.openai.com/v1/responses'
-            && $request['model'] === 'gpt-6.1-sol'
+            && $request['model'] === 'gpt-5.6-sol'
             && $request['store'] === false
             && $request['text']['format']['type'] === 'json_schema'
             && $request['text']['format']['strict'] === true;
