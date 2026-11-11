@@ -3,14 +3,13 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class DiagnosticRun extends Model
 {
-    use HasFactory, HasUuids;
+    use HasUuids;
 
     protected $fillable = [
         'integration_id',
@@ -34,11 +33,17 @@ class DiagnosticRun extends Model
         ];
     }
 
+    /**
+     * @return BelongsTo<WhmcsIntegration, $this>
+     */
     public function integration(): BelongsTo
     {
         return $this->belongsTo(WhmcsIntegration::class, 'integration_id');
     }
 
+    /**
+     * @return HasMany<DiagnosticFinding, $this>
+     */
     public function findings(): HasMany
     {
         return $this->hasMany(DiagnosticFinding::class);
