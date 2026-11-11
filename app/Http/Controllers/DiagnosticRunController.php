@@ -7,6 +7,8 @@ use App\Models\AuditEvent;
 use App\Models\DiagnosticRun;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -44,8 +46,22 @@ class DiagnosticRunController extends Controller
             ]);
         }
 
-        AnalyzeDiagnosticRun::dispatch($diagnosticRun->id)->afterCommit();
         $diagnosticRun->forceFill(['status' => 'queued'])->save();
+
+        try {
+            AnalyzeDiagnosticRun::dispatch($diagnosticRun->id)->afterCommit();
+        } catch (Throwable $exception) {
+            $diagnosticRun->forceFill(['status' => 'analysis_failed'])->save();
+
+            Log::warning('Manual diagnostic analysis could not be queued.', [
+                'diagnostic_run_id' => $diagnosticRun->id,
+                'exception_class' => $exception::class,
+            ]);
+
+            return back()->withErrors([
+                'analysis' => 'The analysis queue is unavailable. The snapshot has been preserved.',
+            ]);
+        }
 
         AuditEvent::create([
             'actor_type' => 'user',
