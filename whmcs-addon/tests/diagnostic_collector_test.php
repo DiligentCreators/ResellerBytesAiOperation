@@ -15,11 +15,13 @@ namespace WHMCS\Config {
 }
 
 namespace WHMCS\Database {
+    use RuntimeException;
+
     final class Capsule
     {
         public static function connection(): object
         {
-            return new class {
+            return new class() {
                 public function select(string $query): array
                 {
                     if ($query !== 'SELECT VERSION() AS version') {
@@ -34,7 +36,10 @@ namespace WHMCS\Database {
 }
 
 namespace {
-    require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/DiagnosticCollector.php';
+    use ResellerBytesAiOps\DiagnosticCollector;
+    use RuntimeException;
+
+    require_once __DIR__ . '/../modules/addons/resellerbytes_ai_ops/lib/DiagnosticCollector.php';
 
     function assertCollectorCondition(bool $condition, string $message): void
     {
@@ -43,16 +48,16 @@ namespace {
         }
     }
 
-    $root = sys_get_temp_dir().DIRECTORY_SEPARATOR.'resellerbytes-ai-collector-'.bin2hex(random_bytes(8));
+    $root = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'resellerbytes-ai-collector-' . bin2hex(random_bytes(8));
     mkdir($root, 0700, true);
     define('ROOTDIR', $root);
 
-    file_put_contents($root.DIRECTORY_SEPARATOR.'configuration.php', '<?php');
+    file_put_contents($root . DIRECTORY_SEPARATOR . 'configuration.php', '<?php');
     $_SERVER['SERVER_SOFTWARE'] = 'Apache/2.4.62';
     ini_set('display_errors', '0');
 
     try {
-        $payload = (new \ResellerBytesAiOps\DiagnosticCollector())->collect();
+        $payload = (new DiagnosticCollector())->collect();
 
         assertCollectorCondition($payload['system']['whmcs_version'] === '8.13.7-release.1', 'WHMCS version was not collected.');
         assertCollectorCondition($payload['system']['database_version'] === '10.11.19-MariaDB', 'Database version was not collected using the read-only version query.');
@@ -69,7 +74,7 @@ namespace {
         assertCollectorCondition(strpos($encoded, 'portal.example.test') === false, 'The configured system URL was transmitted.');
         assertCollectorCondition(strpos($encoded, 'customer') === false, 'Unexpected customer-related data was transmitted.');
     } finally {
-        $configurationFile = $root.DIRECTORY_SEPARATOR.'configuration.php';
+        $configurationFile = $root . DIRECTORY_SEPARATOR . 'configuration.php';
 
         if (is_file($configurationFile)) {
             unlink($configurationFile);
