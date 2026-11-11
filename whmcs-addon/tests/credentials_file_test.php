@@ -59,7 +59,7 @@ try {
     chmod($credentialsPath, 0400);
 
     assertCredentialsFailure(
-        static fn () => \\ResellerBytesAiOps\\CredentialsFile::load($credentialsPath, $whmcsRoot, $documentRoot),
+        static fn () => \ResellerBytesAiOps\CredentialsFile::load($credentialsPath, $whmcsRoot, $documentRoot),
         'Credentials file without the required 0600 mode was accepted.',
     );
 
