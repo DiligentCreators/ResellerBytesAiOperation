@@ -30,6 +30,7 @@ jobs:
         run: |
           find whmcs-addon/modules/addons/resellerbytes_ai_ops -type f -name '*.php' -print0 | xargs -0 -n1 php -l
           php whmcs-addon/tests/credentials_file_test.php
+          php whmcs-addon/tests/diagnostic_collector_test.php
 
   ci:
     runs-on: ubuntu-latest
