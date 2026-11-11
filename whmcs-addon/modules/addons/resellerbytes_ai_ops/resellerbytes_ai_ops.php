@@ -8,10 +8,6 @@ require_once __DIR__.'/lib/CredentialsFile.php';
 require_once __DIR__.'/lib/DiagnosticCollector.php';
 require_once __DIR__.'/lib/SignedApiClient.php';
 
-use ResellerBytesAiOps\CredentialsFile;
-use ResellerBytesAiOps\DiagnosticCollector;
-use ResellerBytesAiOps\SignedApiClient;
-
 function resellerbytes_ai_ops_config(): array
 {
     return [
@@ -26,7 +22,7 @@ function resellerbytes_ai_ops_config(): array
                 'Type' => 'text',
                 'Size' => '80',
                 'Default' => '',
-                'Description' => 'Absolute path to a JSON credentials file outside the WHMCS web root. The file must be owned by the PHP runtime user and have permissions 0600.',
+                'Description' => 'Absolute path to a JSON credentials file outside the WHMCS web root. The file must be readable by the PHP runtime user and have permissions 0600.',
             ],
         ],
     ];
@@ -65,14 +61,14 @@ function resellerbytes_ai_ops_output(array $vars): void
 
     if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['run_diagnostics'])) {
         try {
-            $credentials = CredentialsFile::load(
+            $credentials = \ResellerBytesAiOps\CredentialsFile::load(
                 (string) ($vars['credentials_file'] ?? ''),
                 defined('ROOTDIR') ? (string) ROOTDIR : '',
                 (string) ($_SERVER['DOCUMENT_ROOT'] ?? ''),
             );
 
-            $diagnostics = (new DiagnosticCollector())->collect();
-            $result = (new SignedApiClient())->submit($credentials, $diagnostics);
+            $diagnostics = (new \ResellerBytesAiOps\DiagnosticCollector())->collect();
+            $result = (new \ResellerBytesAiOps\SignedApiClient())->submit($credentials, $diagnostics);
 
             $message = $result['duplicate']
                 ? 'This diagnostic snapshot was already received. No duplicate record was created.'
