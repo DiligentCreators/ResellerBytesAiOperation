@@ -76,12 +76,18 @@ test('revokes an integration and records the action', function () {
         'secret_version' => 1,
     ]);
 
+    $oldSecret = $integration->secret;
+
     $this->artisan('whmcs:integration:revoke', ['integration' => $integration->id])
         ->expectsOutputToContain('WHMCS integration is revoked.')
         ->assertSuccessful();
 
     expect($integration->fresh()->status)->toBe('revoked')
-        ->and(AuditEvent::where('event_type', 'whmcs_integration.revoked')->count())->toBe(1);
+        ->and($integration->fresh()->secret)->not->toBe($oldSecret)
+        ->and($integration->fresh()->secret_version)->toBe(2)
+        ->and(AuditEvent::where('event_type', 'whmcs_integration.revoked')->count())->toBe(1)
+        ->and(AuditEvent::query()->where('event_type', 'whmcs_integration.revoked')->first()->metadata)
+        ->toBe(['secret_version' => 2]);
 });
 
 test('rejects an invalid integration name without creating a record', function () {
