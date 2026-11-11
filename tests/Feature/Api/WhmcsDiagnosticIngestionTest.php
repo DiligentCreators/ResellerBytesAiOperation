@@ -305,3 +305,36 @@ test('queues AI analysis after a snapshot is committed when an API key is config
         return DiagnosticRun::whereKey($job->diagnosticRunId)->exists();
     });
 });
+
+
+test('rejects arbitrary collector metadata instead of forwarding it to AI', function () {
+    $integration = createSignedTestIntegration();
+    $signed = makeSignedSnapshot($integration, [
+        'payload' => [
+            'collector' => [
+                'capabilities' => ['customer@example.test'],
+            ],
+        ],
+    ]);
+
+    $this->call('POST', '/api/v1/whmcs/diagnostic-snapshots', [], [], [], $signed['headers'], $signed['body'])
+        ->assertUnprocessable();
+
+    expect(DiagnosticRun::count())->toBe(0);
+});
+
+test('rejects module or cron telemetry until a reviewed collector supports it', function () {
+    $integration = createSignedTestIntegration();
+    $signed = makeSignedSnapshot($integration, [
+        'payload' => [
+            'modules' => [
+                ['identifier' => 'customer_private_value', 'status' => 'enabled'],
+            ],
+        ],
+    ]);
+
+    $this->call('POST', '/api/v1/whmcs/diagnostic-snapshots', [], [], [], $signed['headers'], $signed['body'])
+        ->assertUnprocessable();
+
+    expect(DiagnosticRun::count())->toBe(0);
+});
