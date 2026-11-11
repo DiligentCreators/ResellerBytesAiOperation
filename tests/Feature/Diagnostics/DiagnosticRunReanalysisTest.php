@@ -42,6 +42,7 @@ it('allows a verified operator to queue analysis for a received snapshot', funct
         ->assertRedirect();
 
     Queue::assertPushed(AnalyzeDiagnosticRun::class, fn (AnalyzeDiagnosticRun $job) => $job->diagnosticRunId === $run->id);
+    expect($run->fresh()->status)->toBe('queued');
     expect(AuditEvent::where('event_type', 'diagnostic_run.analysis_requested')->count())->toBe(1);
 });
 
