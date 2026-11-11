@@ -1,4 +1,5 @@
 import { Head } from '@inertiajs/react';
+import { Pagination } from '@/components/pagination';
 import { Copy, Server } from 'lucide-react';
 
 type Integration = {
@@ -9,7 +10,7 @@ type Integration = {
     last_seen_at: string | null;
     diagnostic_runs_count: number;
 };
-type Props = { integrations: { data: Integration[] } };
+type Props = { integrations: { data: Integration[]; links: { url: string | null; label: string; active: boolean }[] } };
 
 function date(value: string | null) {
     return value
@@ -135,6 +136,7 @@ export default function IntegrationsIndex({ integrations }: Props) {
                             </table>
                         </div>
                     )}
+                    <Pagination links={integrations.links} />
                 </section>
             </div>
         </>
