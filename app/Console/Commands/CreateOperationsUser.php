@@ -68,7 +68,7 @@ class CreateOperationsUser extends Command
                 'event_type' => 'operations_user.created',
                 'subject_type' => 'user',
                 'subject_id' => (string) $user->id,
-                'metadata' => ['email' => $user->email],
+                'metadata' => [],
                 'occurred_at' => now(),
             ]);
 
