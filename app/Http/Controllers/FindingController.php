@@ -21,7 +21,7 @@ class FindingController extends Controller
                 'severity' => $finding->severity,
                 'status' => $finding->status,
                 'created_at' => $finding->created_at?->toIso8601String(),
-                'integration_name' => $finding->diagnosticRun?->integration->name,
+                'integration_name' => $finding->diagnosticRun->integration->name,
                 'diagnostic_run_id' => $finding->diagnostic_run_id,
             ]);
 
@@ -48,7 +48,7 @@ class FindingController extends Controller
                 'evidence' => $finding->evidence,
                 'confidence' => $finding->confidence,
                 'created_at' => $finding->created_at?->toIso8601String(),
-                'integration_name' => $finding->diagnosticRun?->integration->name,
+                'integration_name' => $finding->diagnosticRun->integration->name,
                 'diagnostic_run_id' => $finding->diagnostic_run_id,
                 'recommendations' => $finding->recommendations->map(fn ($recommendation): array => [
                     'id' => $recommendation->id,
