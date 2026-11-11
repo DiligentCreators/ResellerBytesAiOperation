@@ -75,14 +75,5 @@ jobs:
           npm ci
           npm run build
 
-      - name: Temporary formatter output
-        run: |
-          npm run check:fix
-          vendor/bin/pint
-          git diff --no-color -- resources/js '*.php'
-
       - name: Run CI Checks
-        env:
-          COLUMNS: 300
-          TERM: xterm-256color
         run: composer ci:check
