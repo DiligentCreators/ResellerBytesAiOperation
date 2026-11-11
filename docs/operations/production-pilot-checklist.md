@@ -4,7 +4,7 @@ This checklist is mandatory before installing or running the WHMCS addon against
 
 ## Laravel application Redis preflight
 
-- [ ] The Forge PHP 8.5 CLI runtime has the native Redis extension enabled (`php -m` includes `redis`).
+- [ ] The Forge PHP 8.5 CLI runtime has the native Redis and ZIP extensions enabled (`php -m` includes `redis` and `zip`); ZIP is required for authenticated addon downloads.
 - [ ] Redis is reachable locally (`redis-cli ping` returns `PONG`) and is not publicly exposed.
 - [ ] Redis authentication, memory limit, `noeviction` policy, persistence, and monitoring are configured and reviewed.
 - [ ] Laravel `.env` uses `CACHE_STORE=redis`, `SESSION_DRIVER=redis`, and `QUEUE_CONNECTION=redis` with distinct cache/default logical database indexes.
