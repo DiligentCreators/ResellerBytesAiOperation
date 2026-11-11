@@ -26,7 +26,7 @@ class DiagnosticRunController extends Controller
                 'whmcs_version' => data_get($run->payload, 'system.whmcs_version', 'Unknown'),
                 'received_at' => $run->received_at?->toIso8601String(),
                 'findings_count' => $run->findings_count,
-                'integration_name' => $run->integration?->name ?? 'Unknown integration',
+                'integration_name' => $run->integration->name,
             ]);
 
         return Inertia::render('diagnostic-runs/index', [
@@ -78,7 +78,7 @@ class DiagnosticRunController extends Controller
                 'collected_at' => $diagnosticRun->collected_at?->toIso8601String(),
                 'received_at' => $diagnosticRun->received_at?->toIso8601String(),
                 'payload' => $diagnosticRun->payload,
-                'integration_name' => $diagnosticRun->integration?->name ?? 'Unknown integration',
+                'integration_name' => $diagnosticRun->integration->name,
                 'ai_configured' => filled(config('services.openai.key')),
                 'analysis_summary' => $diagnosticRun->analysis_summary,
                 'analysis_error_code' => $diagnosticRun->analysis_error_code,
