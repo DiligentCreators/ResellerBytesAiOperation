@@ -42,4 +42,8 @@ return [
         'timeout' => (int) env('OPENAI_TIMEOUT', 45),
     ],
 
+    'whmcs_addon' => [
+        'version' => env('WHMCS_ADDON_VERSION', '1.0.0'),
+    ],
+
 ];
