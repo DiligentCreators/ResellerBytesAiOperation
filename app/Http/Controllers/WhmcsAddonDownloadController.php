@@ -60,6 +60,10 @@ class WhmcsAddonDownloadController extends Controller
                 $manifest[] = $checksum.'  '.$relativePath;
             }
 
+            if ($manifest === []) {
+                throw new RuntimeException('The WHMCS addon source package is empty.');
+            }
+
             sort($manifest, SORT_STRING);
             if (! $archive->addFromString('INSTALLATION.txt', $this->installationInstructions())
                 || ! $archive->addFromString('VERSION.txt', (string) config('services.whmcs_addon.version', '1.0.0'))
