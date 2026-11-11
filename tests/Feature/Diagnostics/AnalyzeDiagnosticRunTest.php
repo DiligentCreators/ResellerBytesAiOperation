@@ -5,6 +5,7 @@ use App\Models\DiagnosticFinding;
 use App\Models\DiagnosticRun;
 use App\Models\WhmcsIntegration;
 use App\Services\Diagnostics\WhmcsDiagnosticAnalyzer;
+use Illuminate\Support\Str;
 use RuntimeException;
 
 it('persists validated AI findings and recommendations against their source snapshot', function () {
@@ -17,7 +18,7 @@ it('persists validated AI findings and recommendations against their source snap
 
     $run = DiagnosticRun::create([
         'integration_id' => $integration->id,
-        'snapshot_uuid' => (string) Illuminate\Support\Str::uuid(),
+        'snapshot_uuid' => (string) Str::uuid(),
         'schema_version' => '1.0',
         'addon_version' => '1.0.0',
         'status' => 'received',
@@ -80,7 +81,7 @@ it('marks a failed analysis attempt without modifying the source diagnostic payl
 
     $run = DiagnosticRun::create([
         'integration_id' => $integration->id,
-        'snapshot_uuid' => (string) Illuminate\Support\Str::uuid(),
+        'snapshot_uuid' => (string) Str::uuid(),
         'schema_version' => '1.0',
         'addon_version' => '1.0.0',
         'status' => 'received',
