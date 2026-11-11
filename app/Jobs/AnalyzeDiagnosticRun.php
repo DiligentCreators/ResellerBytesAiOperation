@@ -128,7 +128,7 @@ class AnalyzeDiagnosticRun implements ShouldQueue
 
             $lockedRun->forceFill([
                 'status' => 'analyzed',
-                'analysis_model' => (string) config('services.openai.model', 'gpt-6.1-sol'),
+                'analysis_model' => (string) config('services.openai.model', 'gpt-5.6-sol'),
                 'analysis_prompt_version' => WhmcsDiagnosticAnalyzer::PROMPT_VERSION,
                 'analysis_response_id' => $result['response_id'],
                 'analysis_summary' => $result['summary'],
