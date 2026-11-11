@@ -38,7 +38,7 @@ Required application settings:
 - REDIS_DB=0
 - REDIS_CACHE_DB=1
 - OPENAI_API_KEY from a dedicated OpenAI API project
-- OPENAI_MODEL=gpt-6.1-sol
+- OPENAI_MODEL=gpt-5.6-sol
 - OPENAI_REASONING_EFFORT=medium
 - WHMCS_ADDON_VERSION=1.0.0
 
