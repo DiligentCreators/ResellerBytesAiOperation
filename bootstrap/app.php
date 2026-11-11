@@ -1,6 +1,7 @@
 <?php
 
 use App\Console\Commands\CreateWhmcsIntegration;
+use App\Console\Commands\PruneWhmcsIntegrationNonces;
 use App\Console\Commands\RevokeWhmcsIntegration;
 use App\Console\Commands\RotateWhmcsIntegrationSecret;
 use App\Http\Middleware\HandleAppearance;
@@ -20,6 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withCommands([
         CreateWhmcsIntegration::class,
+        PruneWhmcsIntegrationNonces::class,
         RotateWhmcsIntegrationSecret::class,
         RevokeWhmcsIntegration::class,
     ])
