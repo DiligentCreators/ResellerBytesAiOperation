@@ -8,9 +8,9 @@ use App\Models\DiagnosticRun;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
-use Throwable;
 use Inertia\Inertia;
 use Inertia\Response;
+use Throwable;
 
 class DiagnosticRunController extends Controller
 {
