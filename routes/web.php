@@ -14,6 +14,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('integrations', [WhmcsIntegrationController::class, 'index'])->name('integrations.index');
     Route::get('diagnostic-runs', [DiagnosticRunController::class, 'index'])->name('diagnostic-runs.index');
     Route::get('diagnostic-runs/{diagnosticRun}', [DiagnosticRunController::class, 'show'])->name('diagnostic-runs.show');
+    Route::post('diagnostic-runs/{diagnosticRun}/reanalyze', [DiagnosticRunController::class, 'reanalyze'])->middleware('throttle:5,1')->name('diagnostic-runs.reanalyze');
     Route::get('findings', [FindingController::class, 'index'])->name('findings.index');
     Route::get('findings/{finding}', [FindingController::class, 'show'])->name('findings.show');
     Route::get('whmcs-addon/download', WhmcsAddonDownloadController::class)->name('whmcs-addon.download');
