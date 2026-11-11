@@ -184,7 +184,6 @@ test('rejects snapshots from revoked integrations', function () {
     expect(DiagnosticRun::count())->toBe(0);
 });
 
-
 test('rejects a repeated snapshot identifier when its payload digest changes', function () {
     $integration = createSignedTestIntegration();
     $snapshotUuid = (string) Str::uuid();
@@ -216,7 +215,7 @@ test('rejects request bodies larger than the ingestion limit', function () {
     $body = str_repeat('x', 262145);
     $timestamp = now()->timestamp;
     $nonce = Str::random(64);
-    $canonical = implode("\\n", [
+    $canonical = implode("\n", [
         'POST',
         '/api/v1/whmcs/diagnostic-snapshots',
         (string) $timestamp,
