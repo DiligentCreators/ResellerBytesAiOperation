@@ -4,6 +4,7 @@ use App\Models\DiagnosticRun;
 use App\Models\WhmcsIntegration;
 use App\Services\Diagnostics\WhmcsDiagnosticAnalyzer;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 use RuntimeException;
 
 function makeDiagnosticRunForAiTest(array $payload = []): DiagnosticRun
@@ -17,7 +18,7 @@ function makeDiagnosticRunForAiTest(array $payload = []): DiagnosticRun
 
     return DiagnosticRun::create([
         'integration_id' => $integration->id,
-        'snapshot_uuid' => (string) Illuminate\Support\Str::uuid(),
+        'snapshot_uuid' => (string) Str::uuid(),
         'schema_version' => '1.0',
         'addon_version' => '1.0.0',
         'status' => 'received',
