@@ -3,7 +3,7 @@
 use ResellerBytesAiOps\CredentialsFile;
 use RuntimeException;
 
-require_once __DIR__ . '/../modules/addons/resellerbytes_ai_ops/lib/CredentialsFile.php';
+require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/CredentialsFile.php';
 
 function assertSameValue($expected, $actual, string $message): void
 {
@@ -23,11 +23,11 @@ function assertCredentialsFailure(callable $callback, string $message): void
     throw new RuntimeException($message);
 }
 
-$base = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'resellerbytes-ai-ops-' . bin2hex(random_bytes(8));
-$whmcsRoot = $base . DIRECTORY_SEPARATOR . 'whmcs';
+$base = sys_get_temp_dir().DIRECTORY_SEPARATOR.'resellerbytes-ai-ops-'.bin2hex(random_bytes(8));
+$whmcsRoot = $base.DIRECTORY_SEPARATOR.'whmcs';
 $documentRoot = $whmcsRoot;
-$credentialsPath = $base . DIRECTORY_SEPARATOR . 'credentials.json';
-$insidePath = $whmcsRoot . DIRECTORY_SEPARATOR . 'credentials.json';
+$credentialsPath = $base.DIRECTORY_SEPARATOR.'credentials.json';
+$insidePath = $whmcsRoot.DIRECTORY_SEPARATOR.'credentials.json';
 
 mkdir($base, 0700, true);
 mkdir($whmcsRoot, 0700, true);
