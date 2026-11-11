@@ -67,6 +67,6 @@ Deactivation does not delete or modify the external credentials file.
 
 ## Automated checks
 
-The command php tests/credentials_file_test.php exercises the external-file, web-root exclusion, and exact file-permission protections. The command php tests/diagnostic_collector_test.php verifies the allowlisted payload, sanitized system URL, read-only database-version query, and explicit collector limitations.
+The command php tests/credentials_file_test.php exercises the external-file, web-root exclusion, and exact file-permission protections. The command php tests/diagnostic_collector_test.php verifies the allowlisted payload, sanitized system URL, read-only database-version query, and explicit collector limitations. The command php tests/signed_api_client_test.php verifies the HMAC canonical request signature, request headers, fixed HTTPS destination, and TLS/redirect settings without making a network request.
 
-The repository CI syntax-checks every addon PHP file and runs both standalone tests using PHP 8.1, matching the WHMCS web runtime baseline.
+The repository CI syntax-checks every addon PHP file and runs all three standalone tests using PHP 8.1, matching the WHMCS web runtime baseline.
