@@ -74,10 +74,13 @@ class StoreDiagnosticSnapshotController extends Controller
         }
 
         if (filled(config('services.openai.key'))) {
+            $run->forceFill(['status' => 'queued'])->save();
+
             try {
                 AnalyzeDiagnosticRun::dispatch($run->id)->afterCommit();
-                $run->forceFill(['status' => 'queued'])->save();
             } catch (Throwable $exception) {
+                $run->forceFill(['status' => 'received'])->save();
+
                 Log::warning('Diagnostic analysis could not be queued.', [
                     'diagnostic_run_id' => $run->id,
                     'exception_class' => $exception::class,
