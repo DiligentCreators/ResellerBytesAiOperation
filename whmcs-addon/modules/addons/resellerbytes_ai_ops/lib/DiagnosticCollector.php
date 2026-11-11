@@ -155,6 +155,10 @@ final class DiagnosticCollector
 
         $value = strtolower(trim($setting));
 
+        if ($value === '') {
+            return null;
+        }
+
         return in_array($value, ['0', 'off', 'false', 'no'], true);
     }
 
