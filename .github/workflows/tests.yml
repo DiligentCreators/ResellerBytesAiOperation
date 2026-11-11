@@ -75,5 +75,10 @@ jobs:
           npm ci
           npm run build
 
+      - name: Temporary setup page formatter output
+        run: |
+          npm run check:fix
+          git diff --no-color -- resources/js/pages/whmcs-addon/setup.tsx
+
       - name: Run CI Checks
         run: composer ci:check
