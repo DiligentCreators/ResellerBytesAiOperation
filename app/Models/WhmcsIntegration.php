@@ -2,9 +2,11 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
 /**
  * @property string $id
@@ -13,8 +15,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string $secret
  * @property int $secret_version
  * @property string|null $addon_version
- * @property \Illuminate\Support\Carbon|null $last_seen_at
- * @property-read \Illuminate\Database\Eloquent\Collection<int, DiagnosticRun> $diagnosticRuns
+ * @property Carbon|null $last_seen_at
+ * @property-read Collection<int, DiagnosticRun> $diagnosticRuns
  * @property-read int $diagnostic_runs_count
  */
 class WhmcsIntegration extends Model
