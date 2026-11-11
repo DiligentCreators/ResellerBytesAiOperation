@@ -21,22 +21,32 @@ final class CredentialsFile
             throw new RuntimeException('credentials_file_path_must_be_absolute');
         }
 
+        if ($whmcsRoot === '' || $documentRoot === ''
+            || $whmcsRoot[0] !== DIRECTORY_SEPARATOR
+            || $documentRoot[0] !== DIRECTORY_SEPARATOR) {
+            throw new RuntimeException('credentials_file_root_paths_unavailable');
+        }
+
+        $root = realpath($whmcsRoot);
+        $document = realpath($documentRoot);
         $path = realpath($configuredPath);
+
+        if ($root === false || $document === false) {
+            throw new RuntimeException('credentials_file_root_paths_unavailable');
+        }
 
         if ($path === false || ! is_file($path) || ! is_readable($path)) {
             throw new RuntimeException('credentials_file_unavailable');
         }
 
-        $root = realpath($whmcsRoot);
-        $document = $documentRoot !== '' ? realpath($documentRoot) : false;
         $configuredPath = self::normalizeAbsolutePath($configuredPath);
-        $rootLexical = $whmcsRoot !== '' ? self::normalizeAbsolutePath($whmcsRoot) : false;
-        $documentLexical = $documentRoot !== '' ? self::normalizeAbsolutePath($documentRoot) : false;
+        $rootLexical = self::normalizeAbsolutePath($whmcsRoot);
+        $documentLexical = self::normalizeAbsolutePath($documentRoot);
 
-        if (($root !== false && self::isWithinDirectory($path, $root))
-            || ($rootLexical !== false && self::isWithinDirectory($configuredPath, $rootLexical))
-            || ($document !== false && self::isWithinDirectory($path, $document))
-            || ($documentLexical !== false && self::isWithinDirectory($configuredPath, $documentLexical))) {
+        if (self::isWithinDirectory($path, $root)
+            || self::isWithinDirectory($configuredPath, $rootLexical)
+            || self::isWithinDirectory($path, $document)
+            || self::isWithinDirectory($configuredPath, $documentLexical)) {
             throw new RuntimeException('credentials_file_must_be_outside_web_root');
         }
 
