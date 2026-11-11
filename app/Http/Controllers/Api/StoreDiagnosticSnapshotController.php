@@ -10,6 +10,7 @@ use App\Models\WhmcsIntegration;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class StoreDiagnosticSnapshotController extends Controller
 {
@@ -20,58 +21,73 @@ class StoreDiagnosticSnapshotController extends Controller
         $validated = $request->validated();
         $payloadHash = hash('sha256', $request->getContent());
 
-        $existing = DiagnosticRun::query()
-            ->where('integration_id', $integration->id)
-            ->where('snapshot_uuid', $validated['snapshot_uuid'])
-            ->first();
+        $existing = $this->findExistingRun($integration, $validated['snapshot_uuid']);
 
         if ($existing) {
-            return $this->acceptedResponse($existing, duplicate: true);
+            return $this->idempotentResponse($existing, $payloadHash);
         }
 
         try {
-            $run = DiagnosticRun::create([
-                'integration_id' => $integration->id,
-                'snapshot_uuid' => $validated['snapshot_uuid'],
-                'schema_version' => $validated['schema_version'],
-                'addon_version' => $validated['addon_version'],
-                'status' => 'received',
-                'collected_at' => Carbon::parse($validated['collected_at']),
-                'received_at' => now(),
-                'payload' => $validated['payload'],
-                'payload_sha256' => $payloadHash,
-            ]);
-        } catch (QueryException) {
-            // A concurrent retry may have inserted the same integration/snapshot pair.
-            $run = DiagnosticRun::query()
-                ->where('integration_id', $integration->id)
-                ->where('snapshot_uuid', $validated['snapshot_uuid'])
-                ->first();
+            $run = DB::transaction(function () use ($integration, $validated, $payloadHash, $request): DiagnosticRun {
+                $run = DiagnosticRun::create([
+                    'integration_id' => $integration->id,
+                    'snapshot_uuid' => $validated['snapshot_uuid'],
+                    'schema_version' => $validated['schema_version'],
+                    'addon_version' => $validated['addon_version'],
+                    'status' => 'received',
+                    'collected_at' => Carbon::parse($validated['collected_at']),
+                    'received_at' => now(),
+                    'payload' => $validated['payload'],
+                    'payload_sha256' => $payloadHash,
+                ]);
 
-            if (! $run) {
-                throw new \RuntimeException('Unable to persist diagnostic snapshot.');
+                $integration->forceFill([
+                    'addon_version' => $validated['addon_version'],
+                    'last_seen_at' => now(),
+                ])->save();
+
+                AuditEvent::create([
+                    'actor_type' => 'integration',
+                    'actor_id' => $integration->id,
+                    'event_type' => 'diagnostic_snapshot.accepted',
+                    'subject_type' => 'diagnostic_run',
+                    'subject_id' => $run->id,
+                    'metadata' => ['payload_sha256' => $payloadHash],
+                    'ip_address' => $request->ip(),
+                    'occurred_at' => now(),
+                ]);
+
+                return $run;
+            });
+        } catch (QueryException $exception) {
+            // A concurrent retry may have inserted the same integration/snapshot pair.
+            $existing = $this->findExistingRun($integration, $validated['snapshot_uuid']);
+
+            if (! $existing) {
+                throw $exception;
             }
 
-            return $this->acceptedResponse($run, duplicate: true);
+            return $this->idempotentResponse($existing, $payloadHash);
         }
 
-        $integration->forceFill([
-            'addon_version' => $validated['addon_version'],
-            'last_seen_at' => now(),
-        ])->save();
-
-        AuditEvent::create([
-            'actor_type' => 'integration',
-            'actor_id' => $integration->id,
-            'event_type' => 'diagnostic_snapshot.accepted',
-            'subject_type' => 'diagnostic_run',
-            'subject_id' => $run->id,
-            'metadata' => ['payload_sha256' => $payloadHash],
-            'ip_address' => $request->ip(),
-            'occurred_at' => now(),
-        ]);
-
         return $this->acceptedResponse($run, duplicate: false);
+    }
+
+    private function findExistingRun(WhmcsIntegration $integration, string $snapshotUuid): ?DiagnosticRun
+    {
+        return DiagnosticRun::query()
+            ->where('integration_id', $integration->id)
+            ->where('snapshot_uuid', $snapshotUuid)
+            ->first();
+    }
+
+    private function idempotentResponse(DiagnosticRun $run, string $payloadHash): JsonResponse
+    {
+        if (! hash_equals($run->payload_sha256, $payloadHash)) {
+            return response()->json(['message' => 'Snapshot identifier conflict.'], 409);
+        }
+
+        return $this->acceptedResponse($run, duplicate: true);
     }
 
     private function acceptedResponse(DiagnosticRun $run, bool $duplicate): JsonResponse
