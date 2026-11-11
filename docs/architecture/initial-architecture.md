@@ -82,7 +82,7 @@ Use UUIDs for integration, run, finding, and recommendation identifiers. Use Pos
 - Addon version and last-seen timestamp
 - Created/updated timestamps
 
-The integration secret is generated server-side and shown only once to an authorized operator during explicit integration provisioning. There is no public integration-registration endpoint.
+The integration secret is generated server-side by the `whmcs:integration:create` Artisan command and shown only once to an authorized server operator. The `whmcs:integration:rotate` command immediately invalidates the previous secret and displays the replacement once; the addon must be updated immediately. The `whmcs:integration:revoke` command disables the integration. These lifecycle actions are recorded in the audit log. There is no public integration-registration endpoint and no dashboard secret-reveal endpoint.
 
 ### `diagnostic_runs`
 
@@ -137,6 +137,18 @@ This durable uniqueness constraint prevents concurrent replay of a previously ac
 - Occurred-at timestamp
 
 Never store credentials, raw request signatures, full request bodies, or unredacted exceptions in audit metadata.
+
+## Integration operator commands
+
+Run these commands only from an authenticated server shell by an authorized operator:
+
+```bash
+php artisan whmcs:integration:create "ResellerBytes Production"
+php artisan whmcs:integration:rotate <integration-uuid>
+php artisan whmcs:integration:revoke <integration-uuid>
+```
+
+Create and rotate display a newly generated 256-bit secret once. Store it in a password manager and configure it in the WHMCS addon over a secure administrative process. Do not paste it into tickets, chat, source control, shell scripts, CI variables without an approved secret store, or logs. Rotation has no overlap/grace period: the old secret stops working immediately. Revocation is immediate and repeat-safe. No command ever displays an existing secret.
 
 ## API contract (first release)
 
