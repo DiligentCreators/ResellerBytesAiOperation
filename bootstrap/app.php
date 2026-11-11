@@ -1,5 +1,8 @@
 <?php
 
+use App\Console\Commands\CreateWhmcsIntegration;
+use App\Console\Commands\RevokeWhmcsIntegration;
+use App\Console\Commands\RotateWhmcsIntegrationSecret;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use Illuminate\Foundation\Application;
@@ -15,7 +18,12 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
-    ->withCommands([\n        CreateWhmcsIntegration::class,\n        RotateWhmcsIntegrationSecret::class,\n        RevokeWhmcsIntegration::class,\n    ])\n    ->withMiddleware(function (Middleware $middleware): void {
+    ->withCommands([
+        CreateWhmcsIntegration::class,
+        RotateWhmcsIntegrationSecret::class,
+        RevokeWhmcsIntegration::class,
+    ])
+    ->withMiddleware(function (Middleware $middleware): void {
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
 
         $middleware->web(append: [
