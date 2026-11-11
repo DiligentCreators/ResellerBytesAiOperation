@@ -96,9 +96,13 @@ function resellerbytes_ai_ops_output(array $vars): void
     ]);
 
     if ($message !== '') {
-        $output .= '<div class="alert alert-'.htmlspecialchars($messageType, ENT_QUOTES, 'UTF-8').'">'
-            . htmlspecialchars($message, ENT_QUOTES, 'UTF-8')
-            . '</div>';
+        $output .= implode('', [
+            '<div class="alert alert-',
+            htmlspecialchars($messageType, ENT_QUOTES, 'UTF-8'),
+            '">',
+            htmlspecialchars($message, ENT_QUOTES, 'UTF-8'),
+            '</div>',
+        ]);
     }
 
     if (! function_exists('generate_token')) {
@@ -106,12 +110,18 @@ function resellerbytes_ai_ops_output(array $vars): void
     } else {
         $token = htmlspecialchars((string) generate_token('plain'), ENT_QUOTES, 'UTF-8');
 
-        $output .= '<form method="post" action="'.$escapedModuleLink.'">'
-            . '<input type="hidden" name="token" value="'.$token.'">'
-            . '<button type="submit" name="run_diagnostics" value="1" class="btn btn-primary">'
-            . 'Run diagnostics once'
-            . '</button>'
-            . '</form>';
+        $output .= implode('', [
+            '<form method="post" action="',
+            $escapedModuleLink,
+            '">',
+            '<input type="hidden" name="token" value="',
+            $token,
+            '">',
+            '<button type="submit" name="run_diagnostics" value="1" class="btn btn-primary">',
+            'Run diagnostics once',
+            '</button>',
+            '</form>',
+        ]);
     }
 
     $output .= '</div></div>';
