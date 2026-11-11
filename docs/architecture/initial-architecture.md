@@ -145,7 +145,7 @@ Unique constraint: integration + snapshot UUID.
 - Expiry timestamp
 - Unique constraint on integration + nonce
 
-This durable uniqueness constraint prevents concurrent replay of a previously accepted signed request. Expired nonce rows may be pruned by a bounded scheduled task.
+This durable uniqueness constraint prevents concurrent replay of a previously accepted signed request. The `whmcs:nonces:prune` command deletes expired rows in batches of at most 1,000 and caps each run at 10,000 deletions; Laravel schedules it every 15 minutes with overlap protection.
 
 ### `audit_events`
 
