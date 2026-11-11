@@ -299,7 +299,8 @@ test('queues AI analysis after a snapshot is committed when an API key is config
         [],
         $signed['headers'],
         $signed['body'],
-    )->assertAccepted();
+    )->assertAccepted()
+        ->assertJsonPath('data.status', 'queued');
 
     Queue::assertPushed(AnalyzeDiagnosticRun::class, function (AnalyzeDiagnosticRun $job) {
         return DiagnosticRun::whereKey($job->diagnosticRunId)->exists();
