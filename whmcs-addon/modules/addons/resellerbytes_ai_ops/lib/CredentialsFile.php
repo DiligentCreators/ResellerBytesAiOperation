@@ -39,6 +39,10 @@ final class CredentialsFile
             throw new RuntimeException('credentials_file_unavailable');
         }
 
+        if (self::normalizeAbsolutePath($configuredPath) !== $path) {
+            throw new RuntimeException('credentials_file_symlink_not_allowed');
+        }
+
         $configuredPath = self::normalizeAbsolutePath($configuredPath);
         $rootLexical = self::normalizeAbsolutePath($whmcsRoot);
         $documentLexical = self::normalizeAbsolutePath($documentRoot);
