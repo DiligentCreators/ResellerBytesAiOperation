@@ -36,7 +36,7 @@ test('diagnostic snapshots belong to an integration and retain structured payloa
 
     $run = DiagnosticRun::create([
         'integration_id' => $integration->id,
-        'snapshot_uuid' => (string) str()->uuid(),
+        'snapshot_uuid' => (string) Str::uuid(),
         'schema_version' => '1.0',
         'addon_version' => '1.0.0',
         'status' => 'received',
