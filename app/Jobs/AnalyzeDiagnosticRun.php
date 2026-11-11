@@ -83,6 +83,8 @@ class AnalyzeDiagnosticRun implements ShouldQueue
 
             $lockedRun->findings()->delete();
 
+            $createdFingerprints = [];
+
             foreach ($result['findings'] as $findingData) {
                 $evidencePaths = array_values(array_unique($findingData['evidence_paths']));
                 sort($evidencePaths, SORT_STRING);
@@ -93,6 +95,11 @@ class AnalyzeDiagnosticRun implements ShouldQueue
                     implode('|', $evidencePaths),
                 ]));
 
+                if (isset($createdFingerprints[$fingerprint])) {
+                    continue;
+                }
+
+                $createdFingerprints[$fingerprint] = true;
                 $evidence = [];
 
                 foreach ($evidencePaths as $path) {
