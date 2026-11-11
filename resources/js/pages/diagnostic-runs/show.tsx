@@ -91,9 +91,11 @@ export default function DiagnosticRunShow({ run }: Props) {
                             <p className="mt-1 text-sm text-muted-foreground">
                                 {run.status === 'analyzed'
                                     ? 'Analysis completed. Recommendations are advisory and require manual review.'
-                                    : run.status === 'analyzing'
-                                      ? 'Analysis is currently being processed by the queue worker.'
-                                      : run.status === 'analysis_failed'
+                                    : run.status === 'queued'
+                                      ? 'Analysis is queued and waiting for a worker.'
+                                      : run.status === 'analyzing'
+                                        ? 'Analysis is currently being processed by the queue worker.'
+                                        : run.status === 'analysis_failed'
                                         ? 'The previous analysis attempt failed. The source snapshot remains intact.'
                                         : 'This snapshot has been received but has not yet been analyzed.'}
                             </p>
