@@ -1,5 +1,6 @@
 <?php
 
+use App\Console\Commands\CreateOperationsUser;
 use App\Console\Commands\CreateWhmcsIntegration;
 use App\Console\Commands\PruneWhmcsIntegrationNonces;
 use App\Console\Commands\RevokeWhmcsIntegration;
@@ -20,6 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withCommands([
+        CreateOperationsUser::class,
         CreateWhmcsIntegration::class,
         PruneWhmcsIntegrationNonces::class,
         RotateWhmcsIntegrationSecret::class,
