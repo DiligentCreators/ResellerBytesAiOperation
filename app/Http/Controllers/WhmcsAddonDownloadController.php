@@ -104,9 +104,11 @@ Compatibility
 - cURL PHP extension enabled
 
 Important: WHMCS does not provide a built-in ZIP addon-module uploader.
-This ZIP is the official package, but its folder must first be extracted
-into the WHMCS modules/addons directory using your hosting File Manager.
-FTP is not required if your hosting File Manager supports ZIP extraction.
+Use the 20i File Manager to upload files without an FTP client. If your
+File Manager offers an Extract action, upload and extract this ZIP into
+modules/addons. If it does not, extract the ZIP on your computer, create
+the resellerbytes_ai_ops folder and its lib subfolder in modules/addons,
+then upload the four PHP files through File Manager while preserving paths.
 
 Installation
 1. Take and verify a restorable WHMCS files and database backup.
