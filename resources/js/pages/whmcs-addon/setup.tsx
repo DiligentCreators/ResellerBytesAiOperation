@@ -18,7 +18,7 @@ const steps = [
     'Take and verify a restorable WHMCS files and database backup.',
     'Open your 20i hosting control panel and launch File Manager.',
     'Navigate to the WHMCS installation directory, then modules/addons.',
-    'Download the ZIP below, upload it into modules/addons, and use File Manager to extract it there.',
+    'If File Manager offers Extract, upload and extract the ZIP into modules/addons. Otherwise, extract it locally and upload the four PHP files through File Manager, preserving the folder structure.',
     'Confirm modules/addons/resellerbytes_ai_ops/resellerbytes_ai_ops.php exists.',
     'In WHMCS Admin, open Configuration → System Settings → Addon Modules and activate ResellerBytes AI Operations.',
     'Configure the addon with the absolute path to the external credentials JSON file. The secret itself must not be entered into WHMCS settings.',
@@ -29,6 +29,7 @@ const steps = [
 export default function WhmcsAddonSetup({
     addonVersion,
     downloadAvailable,
+    aiConfigured,
 }: Props) {
     return (
         <>
