@@ -75,6 +75,11 @@ jobs:
           npm ci
           npm run build
 
+      - name: Temporary frontend formatter output
+        run: |
+          npm run check:fix
+          git diff --no-color -- resources/js
+
       - name: Run CI Checks
         env:
           COLUMNS: 300
