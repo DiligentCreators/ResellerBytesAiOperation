@@ -18,7 +18,7 @@ class AuthenticateWhmcsIntegration
 
     public function handle(Request $request, Closure $next): Response
     {
-        if (! $request->isJson() || strlen($request->getContent()) > self::MAX_BODY_BYTES) {
+        if ($request->query->count() > 0 || ! $request->isJson() || strlen($request->getContent()) > self::MAX_BODY_BYTES) {
             return response()->json(['message' => 'Invalid request.'], 400);
         }
 
