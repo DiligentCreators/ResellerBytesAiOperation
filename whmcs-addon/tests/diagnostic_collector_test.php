@@ -21,7 +21,8 @@ namespace WHMCS\Database {
     {
         public static function connection(): object
         {
-            return new class {
+            return new class
+            {
                 public function select(string $query): array
                 {
                     if ($query !== 'SELECT VERSION() AS version') {
@@ -57,7 +58,7 @@ namespace {
     ini_set('display_errors', '0');
 
     try {
-        $payload = (new DiagnosticCollector())->collect();
+        $payload = (new DiagnosticCollector)->collect();
 
         assertCollectorCondition($payload['system']['whmcs_version'] === '8.13.7-release.1', 'WHMCS version was not collected.');
         assertCollectorCondition($payload['system']['database_version'] === '10.11.19-MariaDB', 'Database version was not collected using the read-only version query.');
