@@ -13,6 +13,8 @@ final class SignedApiClient
 
     private const ADDON_VERSION = '1.0.0';
 
+    private const MAX_RESPONSE_BYTES = 16384;
+
     /**
      * @param  array{integration_id: string, secret: string}  $credentials
      * @param  array<string, mixed>  $diagnostics
@@ -66,7 +68,16 @@ final class SignedApiClient
                 'X-RB-Nonce: '.$nonce,
                 'X-RB-Signature: '.$signature,
             ],
-            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_RETURNTRANSFER => false,
+            CURLOPT_WRITEFUNCTION => static function ($handle, string $chunk) use (&$responseBody): int {
+                if (strlen($responseBody) + strlen($chunk) > self::MAX_RESPONSE_BYTES) {
+                    return 0;
+                }
+
+                $responseBody .= $chunk;
+
+                return strlen($chunk);
+            },
             CURLOPT_CONNECTTIMEOUT => 5,
             CURLOPT_TIMEOUT => 15,
             CURLOPT_FOLLOWLOCATION => false,
@@ -82,11 +93,11 @@ final class SignedApiClient
             throw new RuntimeException('http_client_configuration_failed');
         }
 
-        $responseBody = curl_exec($handle);
+        $executed = curl_exec($handle);
         $httpStatus = (int) curl_getinfo($handle, CURLINFO_HTTP_CODE);
         curl_close($handle);
 
-        if (! is_string($responseBody) || ! in_array($httpStatus, [200, 202], true)) {
+        if ($executed !== true || $responseBody === '' || ! in_array($httpStatus, [200, 202], true)) {
             throw new RuntimeException('diagnostic_submission_failed');
         }
 
