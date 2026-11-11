@@ -12,6 +12,19 @@ This checklist is mandatory before installing or running the WHMCS addon against
 - [ ] Redis restart/recovery behavior has been tested before relying on it for sessions and background jobs.
 - [ ] Forge's Laravel scheduler is active (`schedule:run` every minute), so expired HMAC nonces are pruned every 15 minutes.
 
+
+## Application access and AI analysis
+
+- [ ] Public self-registration is disabled; no public account-creation route is available.
+- [ ] The first verified dashboard operator was created through php artisan ops:user:create "Operations Admin" operator@example.com; the password was entered through hidden terminal prompts.
+- [ ] Two-factor authentication or a passkey is enabled for every production operator.
+- [ ] OPENAI_API_KEY is configured only in the Forge environment, never in source control or WHMCS.
+- [ ] The configured OpenAI model is available to the API project and the project has an appropriate spend limit.
+- [ ] The Redis queue worker is running and supervised; the scheduler is active.
+- [ ] A test snapshot has completed AI analysis, its evidence paths match the stored sanitized payload, and recommendations are clearly marked manual-only.
+- [ ] A provider failure leaves the original diagnostic snapshot intact and records only a sanitized error code.
+- [ ] The dashboard shows no findings as not yet analyzed until analysis has completed; an empty findings list is not treated as proof of health.
+
 ## Preconditions
 
 - [ ] The Laravel application and ingestion API have passed automated tests and security review.
