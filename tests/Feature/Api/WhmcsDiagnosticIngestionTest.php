@@ -4,6 +4,8 @@ use App\Models\AuditEvent;
 use App\Models\DiagnosticRun;
 use App\Models\IntegrationRequestNonce;
 use App\Models\WhmcsIntegration;
+use App\Jobs\AnalyzeDiagnosticRun;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 
 function makeSignedSnapshot(WhmcsIntegration $integration, array $overrides = [], ?string $nonce = null, ?int $timestamp = null): array
@@ -254,4 +256,27 @@ test('rejects unsigned query parameters on the ingestion endpoint', function () 
 
     expect(DiagnosticRun::count())->toBe(0)
         ->and(IntegrationRequestNonce::count())->toBe(0);
+});
+
+
+test('queues AI analysis after a snapshot is committed when an API key is configured', function () {
+    config(['services.openai.key' => 'test-api-key']);
+    Queue::fake();
+
+    $integration = createSignedTestIntegration();
+    $signed = makeSignedSnapshot($integration);
+
+    $this->call(
+        'POST',
+        '/api/v1/whmcs/diagnostic-snapshots',
+        [],
+        [],
+        [],
+        $signed['headers'],
+        $signed['body'],
+    )->assertAccepted();
+
+    Queue::assertPushed(AnalyzeDiagnosticRun::class, function (AnalyzeDiagnosticRun $job) {
+        return DiagnosticRun::whereKey($job->diagnosticRunId)->exists();
+    });
 });
