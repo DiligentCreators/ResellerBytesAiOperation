@@ -73,7 +73,15 @@ class AuthenticateWhmcsIntegration
                 'expires_at' => now()->addMinutes(10),
                 'created_at' => now(),
             ]);
-        } catch (QueryException) {
+        } catch (QueryException $exception) {
+            $sqlState = $exception->errorInfo[0] ?? null;
+            $isUniqueViolation = $sqlState === '23505'
+                || ($sqlState === '23000' && preg_match('/unique constraint|duplicate entry/i', $exception->getMessage()));
+
+            if (! $isUniqueViolation) {
+                throw $exception;
+            }
+
             return response()->json(['message' => 'Request already used.'], 409);
         }
 
