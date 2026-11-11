@@ -135,7 +135,10 @@ test('rejects a nonce that has already been used', function () {
 test('treats a repeated snapshot identifier as idempotent when signed with a fresh nonce', function () {
     $integration = createSignedTestIntegration();
     $snapshotUuid = (string) Str::uuid();
-    $overrides = ['snapshot_uuid' => $snapshotUuid];
+    $overrides = [
+        'snapshot_uuid' => $snapshotUuid,
+        'collected_at' => now()->toIso8601String(),
+    ];
     $first = makeSignedSnapshot($integration, $overrides);
     $second = makeSignedSnapshot($integration, $overrides);
 
