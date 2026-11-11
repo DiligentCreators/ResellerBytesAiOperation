@@ -37,7 +37,7 @@ function resellerbytes_ai_ops_activate(): array
 {
     return [
         'status' => 'success',
-        'description' => 'The addon is activated. No WHMCS tables or business data are created or modified.',
+        'description' => 'The addon is activated. No custom WHMCS tables are created and no business records are modified.',
     ];
 }
 
