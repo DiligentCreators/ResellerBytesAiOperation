@@ -161,7 +161,7 @@ LOWERCASE_HEX_SHA256_OF_RAW_BODY
 
 The signature is lowercase hexadecimal HMAC-SHA256 using the integration's secret. Compare signatures with a constant-time comparison. Validate the raw body digest before JSON parsing. Reject stale timestamps, malformed headers, unknown/revoked integrations, invalid signatures, reused nonces, invalid schema versions, oversized bodies, and invalid payloads.
 
-A repeated snapshot UUID for the same integration is idempotent: return the already accepted run without duplicating it. A reused nonce with a different request must be rejected.
+A repeated snapshot UUID for the same integration is idempotent only when the raw-body SHA-256 digest matches the original request; return the existing run without duplicating it. Reusing a snapshot UUID with a different payload is an idempotency conflict (HTTP 409). A reused nonce is rejected (HTTP 409).
 
 The endpoint must not return the integration secret or any internal diagnostic configuration.
 
@@ -171,10 +171,10 @@ The schema may include:
 
 - WHMCS version and addon/collector version
 - Web PHP version and explicitly observable runtime capabilities
-- Required PHP extension/function availability as booleans
+- Allowlisted PHP extension availability as booleans
 - Cron last-run timestamp and observable completion state
 - Installed module identifiers and enabled/disabled state, excluding credentials and settings
-- Sanitized system-health warning identifiers and safe explanatory text
+- Sanitized system-health warning identifiers and severity only; arbitrary warning text is not accepted
 - Selected filesystem permission checks only where the addon can reliably observe them
 - Collector capability/limitation declarations
 
