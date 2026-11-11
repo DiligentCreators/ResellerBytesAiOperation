@@ -12,6 +12,8 @@ use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class StoreDiagnosticSnapshotController extends Controller
 {
@@ -72,7 +74,14 @@ class StoreDiagnosticSnapshotController extends Controller
         }
 
         if (filled(config('services.openai.key'))) {
-            AnalyzeDiagnosticRun::dispatch($run->id)->afterCommit();
+            try {
+                AnalyzeDiagnosticRun::dispatch($run->id)->afterCommit();
+            } catch (Throwable $exception) {
+                Log::warning('Diagnostic analysis could not be queued.', [
+                    'diagnostic_run_id' => $run->id,
+                    'exception_class' => $exception::class,
+                ]);
+            }
         }
 
         return $this->acceptedResponse($run, duplicate: false);
