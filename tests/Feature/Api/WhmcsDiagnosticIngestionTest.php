@@ -29,7 +29,7 @@ function makeSignedSnapshot(WhmcsIntegration $integration, array $overrides = []
     $timestamp ??= now()->timestamp;
     $nonce ??= Str::random(64);
     $path = '/api/v1/whmcs/diagnostic-snapshots';
-    $canonical = implode("\n", [
+    $canonical = implode(chr(10), [
         'POST',
         $path,
         (string) $timestamp,
@@ -218,7 +218,7 @@ test('rejects request bodies larger than the ingestion limit', function () {
     $body = str_repeat('x', 262145);
     $timestamp = now()->timestamp;
     $nonce = Str::random(64);
-    $canonical = implode("\n", [
+    $canonical = implode(chr(10), [
         'POST',
         '/api/v1/whmcs/diagnostic-snapshots',
         (string) $timestamp,
@@ -237,7 +237,6 @@ test('rejects request bodies larger than the ingestion limit', function () {
     expect(DiagnosticRun::count())->toBe(0)
         ->and(IntegrationRequestNonce::count())->toBe(0);
 });
-
 
 test('rejects unsigned query parameters on the ingestion endpoint', function () {
     $integration = createSignedTestIntegration();
