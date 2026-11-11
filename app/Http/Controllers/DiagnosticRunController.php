@@ -2,7 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\AnalyzeDiagnosticRun;
+use App\Models\AuditEvent;
 use App\Models\DiagnosticRun;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -30,6 +34,33 @@ class DiagnosticRunController extends Controller
         ]);
     }
 
+
+
+    public function reanalyze(DiagnosticRun $diagnosticRun): RedirectResponse
+    {
+        abort_unless(filled(config('services.openai.key')), 503, 'AI analysis is not configured.');
+
+        if (! in_array($diagnosticRun->status, ['received', 'analysis_failed'], true)) {
+            return back()->withErrors([
+                'analysis' => 'This diagnostic run is already being analyzed or has completed analysis.',
+            ]);
+        }
+
+        AnalyzeDiagnosticRun::dispatch($diagnosticRun->id)->afterCommit();
+
+        AuditEvent::create([
+            'actor_type' => 'user',
+            'actor_id' => (string) Auth::id(),
+            'event_type' => 'diagnostic_run.analysis_requested',
+            'subject_type' => 'diagnostic_run',
+            'subject_id' => $diagnosticRun->id,
+            'metadata' => [],
+            'occurred_at' => now(),
+        ]);
+
+        return back()->with('success', 'Diagnostic analysis has been queued.');
+    }
+
     public function show(DiagnosticRun $diagnosticRun): Response
     {
         $diagnosticRun->load([
@@ -48,6 +79,10 @@ class DiagnosticRunController extends Controller
                 'received_at' => $diagnosticRun->received_at?->toIso8601String(),
                 'payload' => $diagnosticRun->payload,
                 'integration_name' => $diagnosticRun->integration?->name ?? 'Unknown integration',
+                'ai_configured' => filled(config('services.openai.key')),
+                'analysis_summary' => $diagnosticRun->analysis_summary,
+                'analysis_error_code' => $diagnosticRun->analysis_error_code,
+                'no_findings_reason' => $diagnosticRun->no_findings_reason,
                 'findings' => $diagnosticRun->findings->map(fn ($finding): array => [
                     'id' => $finding->id,
                     'title' => $finding->title,
