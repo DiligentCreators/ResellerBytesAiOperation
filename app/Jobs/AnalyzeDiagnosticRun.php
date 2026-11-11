@@ -29,9 +29,7 @@ class AnalyzeDiagnosticRun implements ShouldQueue
      */
     public array $backoff = [60, 300, 900];
 
-    public function __construct(public string $diagnosticRunId)
-    {
-    }
+    public function __construct(public string $diagnosticRunId) {}
 
     public function handle(WhmcsDiagnosticAnalyzer $analyzer): void
     {
