@@ -11,6 +11,7 @@ import {
 type Props = {
     addonVersion: string;
     downloadAvailable: boolean;
+    aiConfigured: boolean;
 };
 
 const steps = [
@@ -65,6 +66,9 @@ export default function WhmcsAddonSetup({
                                 This package contains only the WHMCS addon
                                 folder and an installation text file. It does
                                 not include credentials or secrets.
+                            </p>
+                            <p className="mt-2 text-xs text-muted-foreground">
+                                AI analysis: {aiConfigured ? 'API key configured' : 'OPENAI_API_KEY must be configured in the Forge environment before analysis can run.'}
                             </p>
                             <div className="mt-4 flex flex-wrap gap-2">
                                 {downloadAvailable ? (
