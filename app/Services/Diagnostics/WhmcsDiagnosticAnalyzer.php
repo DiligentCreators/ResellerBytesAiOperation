@@ -286,6 +286,6 @@ PROMPT;
             $value = $value[$segment];
         }
 
-        return true;
+        return $value !== null && $value !== '' && $value !== 'unknown';
     }
 }
