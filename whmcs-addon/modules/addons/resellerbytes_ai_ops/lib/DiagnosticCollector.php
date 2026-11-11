@@ -44,6 +44,12 @@ final class DiagnosticCollector
             $system['web_server'] = substr($matches[1], 0, 64);
         }
 
+        $databaseVersion = $this->databaseVersion();
+
+        if ($databaseVersion !== null) {
+            $system['database_version'] = $databaseVersion;
+        }
+
         $systemUrl = $this->systemUrl();
 
         if ($systemUrl !== null) {
@@ -60,13 +66,13 @@ final class DiagnosticCollector
                 'capabilities' => [
                     'web_php_version',
                     'whmcs_version',
+                    'database_server_version',
                     'php_extension_availability',
                     'php_memory_limit',
                     'configuration_file_writability',
                 ],
                 'limitations' => [
                     'cron_php_version_not_observable',
-                    'database_server_version_not_collected',
                     'module_status_not_collected',
                     'hosting_panel_configuration_not_observable',
                     'ssl_certificate_not_verified',
@@ -104,6 +110,24 @@ final class DiagnosticCollector
         }
 
         return 'unknown';
+    }
+
+    private function databaseVersion(): ?string
+    {
+        try {
+            if (class_exists('WHMCS\\Database\\Capsule')) {
+                $rows = \\WHMCS\\Database\\Capsule::connection()->select('SELECT VERSION() AS version');
+                $version = $rows[0]->version ?? null;
+
+                return is_string($version) && $version !== ''
+                    ? substr($version, 0, 64)
+                    : null;
+            }
+        } catch (\\Throwable $exception) {
+            // Database version visibility is optional; do not expose connection details.
+        }
+
+        return null;
     }
 
     private function systemUrl(): ?string
