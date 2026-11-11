@@ -115,6 +115,14 @@ export default function WhmcsAddonSetup({
                                 PHP files through File Manager, preserving the
                                 resellerbytes_ai_ops/lib folder structure.
                             </p>
+                            <a
+                                href="https://docs.20i.com/managed-cloud-servers/complete-guide-to-the-20i-file-manager"
+                                target="_blank"
+                                rel="noreferrer"
+                                className="mt-2 inline-flex text-xs font-medium text-primary hover:underline"
+                            >
+                                Read the 20i File Manager guide
+                            </a>
                         </div>
                     </div>
                 </section>
