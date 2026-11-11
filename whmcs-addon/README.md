@@ -7,7 +7,7 @@ This addon is the WHMCS-side, read-only diagnostic collector for WHMCS 8.13.7 an
 The addon:
 
 - Collects a small allowlist of technical runtime signals.
-- Reads only the WHMCS Version and SystemURL settings through the WHMCS settings model.
+- Reads the WHMCS Version and SystemURL settings through the WHMCS settings model, and executes one read-only SELECT VERSION() query to identify the database server version.
 - Checks whether configuration.php is writable; it never reads the file contents.
 - Sends one signed HTTPS POST to https://ops.resellerbytes.com/api/v1/whmcs/diagnostic-snapshots.
 - Does not query customer, invoice, transaction, payment, hosting, domain, or registrar records.
@@ -15,7 +15,7 @@ The addon:
 - Does not install a hook or register a cron task.
 - Does not change the existing 20i provisioning or ResellerClub registrar modules.
 
-The collector explicitly reports what it cannot observe, including the system-cron PHP runtime, database server version, module status, hosting-panel configuration, and certificate verification. Missing visibility is not reported as healthy.
+The collector explicitly reports what it cannot observe, including the system-cron PHP runtime, module status, hosting-panel configuration, and certificate verification. Missing visibility is not reported as healthy.
 
 ## Credentials storage
 
