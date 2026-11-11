@@ -29,9 +29,14 @@ final class CredentialsFile
 
         $root = realpath($whmcsRoot);
         $document = $documentRoot !== '' ? realpath($documentRoot) : false;
+        $configuredPath = self::normalizeAbsolutePath($configuredPath);
+        $rootLexical = self::normalizeAbsolutePath($whmcsRoot);
+        $documentLexical = $documentRoot !== '' ? self::normalizeAbsolutePath($documentRoot) : false;
 
         if (($root !== false && self::isWithinDirectory($path, $root))
-            || ($document !== false && self::isWithinDirectory($path, $document))) {
+            || self::isWithinDirectory($configuredPath, $rootLexical)
+            || ($document !== false && self::isWithinDirectory($path, $document))
+            || ($documentLexical !== false && self::isWithinDirectory($configuredPath, $documentLexical))) {
             throw new RuntimeException('credentials_file_must_be_outside_web_root');
         }
 
@@ -76,6 +81,27 @@ final class CredentialsFile
             'integration_id' => strtolower($credentials['integration_id']),
             'secret' => $credentials['secret'],
         ];
+    }
+
+    private static function normalizeAbsolutePath(string $path): string
+    {
+        $segments = [];
+
+        foreach (explode(DIRECTORY_SEPARATOR, $path) as $segment) {
+            if ($segment === '' || $segment === '.') {
+                continue;
+            }
+
+            if ($segment === '..') {
+                array_pop($segments);
+
+                continue;
+            }
+
+            $segments[] = $segment;
+        }
+
+        return DIRECTORY_SEPARATOR.implode(DIRECTORY_SEPARATOR, $segments);
     }
 
     private static function isWithinDirectory(string $path, string $directory): bool
