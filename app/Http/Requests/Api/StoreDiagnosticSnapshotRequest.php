@@ -12,6 +12,9 @@ class StoreDiagnosticSnapshotRequest extends FormRequest
         return $this->attributes->has('whmcs_integration');
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function rules(): array
     {
         return [
@@ -56,6 +59,9 @@ class StoreDiagnosticSnapshotRequest extends FormRequest
         ];
     }
 
+    /**
+     * @return array<int, callable(Validator): void>
+     */
     public function after(): array
     {
         return [
