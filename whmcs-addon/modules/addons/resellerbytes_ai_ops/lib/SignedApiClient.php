@@ -2,6 +2,7 @@
 
 namespace ResellerBytesAiOps;
 
+use JsonException;
 use RuntimeException;
 
 final class SignedApiClient
@@ -33,7 +34,7 @@ final class SignedApiClient
 
         try {
             $body = json_encode($snapshot, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
-        } catch (\JsonException $exception) {
+        } catch (JsonException $exception) {
             throw new RuntimeException('snapshot_encoding_failed');
         }
 
@@ -60,10 +61,10 @@ final class SignedApiClient
             CURLOPT_HTTPHEADER => [
                 'Accept: application/json',
                 'Content-Type: application/json',
-                'X-RB-Integration: '.$credentials['integration_id'],
-                'X-RB-Timestamp: '.$timestamp,
-                'X-RB-Nonce: '.$nonce,
-                'X-RB-Signature: '.$signature,
+                'X-RB-Integration: ' . $credentials['integration_id'],
+                'X-RB-Timestamp: ' . $timestamp,
+                'X-RB-Nonce: ' . $nonce,
+                'X-RB-Signature: ' . $signature,
             ],
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_CONNECTTIMEOUT => 5,
@@ -72,7 +73,7 @@ final class SignedApiClient
             CURLOPT_SSL_VERIFYPEER => true,
             CURLOPT_SSL_VERIFYHOST => 2,
             CURLOPT_PROTOCOLS => CURLPROTO_HTTPS,
-            CURLOPT_USERAGENT => 'ResellerBytes-AI-Ops-WHMCS/'.self::ADDON_VERSION,
+            CURLOPT_USERAGENT => 'ResellerBytes-AI-Ops-WHMCS/' . self::ADDON_VERSION,
         ]);
 
         $responseBody = curl_exec($handle);
@@ -85,7 +86,7 @@ final class SignedApiClient
 
         try {
             $response = json_decode($responseBody, true, 8, JSON_THROW_ON_ERROR);
-        } catch (\JsonException $exception) {
+        } catch (JsonException $exception) {
             throw new RuntimeException('diagnostic_response_invalid');
         }
 
@@ -108,10 +109,10 @@ final class SignedApiClient
         $bytes[8] = chr((ord($bytes[8]) & 0x3f) | 0x80);
         $hex = bin2hex($bytes);
 
-        return substr($hex, 0, 8).'-'
-            .substr($hex, 8, 4).'-'
-            .substr($hex, 12, 4).'-'
-            .substr($hex, 16, 4).'-'
-            .substr($hex, 20, 12);
+        return substr($hex, 0, 8) . '-'
+            . substr($hex, 8, 4) . '-'
+            . substr($hex, 12, 4) . '-'
+            . substr($hex, 16, 4) . '-'
+            . substr($hex, 20, 12);
     }
 }
