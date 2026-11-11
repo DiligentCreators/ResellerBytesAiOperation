@@ -108,7 +108,7 @@ namespace {
     $GLOBALS['rb_mock_response_body'] = str_repeat('x', 17000);
 
     try {
-        (new SignedApiClient())->submit([
+        (new \ResellerBytesAiOps\SignedApiClient())->submit([
             'integration_id' => 'a3a5d8b4-51b1-4c27-8f61-8e6f7d4a9c10',
             'secret' => str_repeat('b', 64),
         ], [
