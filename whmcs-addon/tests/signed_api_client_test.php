@@ -17,9 +17,12 @@ namespace ResellerBytesAiOps {
         return true;
     }
 
-    function curl_exec(object $handle): string
+    function curl_exec(object $handle): bool
     {
-        return '{"data":{"duplicate":false}}';
+        $responseBody = $GLOBALS['rb_mock_response_body'] ?? '{"data":{"duplicate":false}}';
+        $callback = $GLOBALS['rb_mock_curl_options'][CURLOPT_WRITEFUNCTION];
+
+        return $callback($handle, $responseBody) === strlen($responseBody);
     }
 
     function curl_getinfo(object $handle, int $option): int
@@ -98,4 +101,24 @@ namespace {
     assertSignedClientCondition($options[CURLOPT_PROTOCOLS] === CURLPROTO_HTTPS, 'The client is not restricted to HTTPS.');
 
     echo "WHMCS addon signed API client tests passed.\n";
+}
+
+
+namespace {
+    $GLOBALS['rb_mock_response_body'] = str_repeat('x', 17000);
+
+    try {
+        (new SignedApiClient())->submit([
+            'integration_id' => 'a3a5d8b4-51b1-4c27-8f61-8e6f7d4a9c10',
+            'secret' => str_repeat('b', 64),
+        ], [
+            'system' => ['whmcs_version' => '8.13.7'],
+        ]);
+
+        throw new RuntimeException('Oversized API response was accepted.');
+    } catch (RuntimeException $exception) {
+        if ($exception->getMessage() !== 'diagnostic_submission_failed') {
+            throw $exception;
+        }
+    }
 }
