@@ -116,14 +116,14 @@ final class DiagnosticCollector
     {
         try {
             if (class_exists('WHMCS\\Database\\Capsule')) {
-                $rows = \\WHMCS\\Database\\Capsule::connection()->select('SELECT VERSION() AS version');
+                $rows = \WHMCS\\Database\\Capsule::connection()->select('SELECT VERSION() AS version');
                 $version = $rows[0]->version ?? null;
 
                 return is_string($version) && $version !== ''
                     ? substr($version, 0, 64)
                     : null;
             }
-        } catch (\\Throwable $exception) {
+        } catch (\Throwable $exception) {
             // Database version visibility is optional; do not expose connection details.
         }
 
