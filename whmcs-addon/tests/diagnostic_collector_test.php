@@ -14,6 +14,25 @@ namespace WHMCS\Config {
     }
 }
 
+namespace WHMCS\\Database {
+    final class Capsule
+    {
+        public static function connection(): object
+        {
+            return new class {
+                public function select(string $query): array
+                {
+                    if ($query !== 'SELECT VERSION() AS version') {
+                        throw new RuntimeException('Unexpected database query.');
+                    }
+
+                    return [(object) ['version' => '10.11.19-MariaDB']];
+                }
+            };
+        }
+    }
+}
+
 namespace {
     require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/DiagnosticCollector.php';
 
@@ -36,6 +55,7 @@ namespace {
         $payload = (new \ResellerBytesAiOps\DiagnosticCollector())->collect();
 
         assertCollectorCondition($payload['system']['whmcs_version'] === '8.13.7-release.1', 'WHMCS version was not collected.');
+        assertCollectorCondition($payload['system']['database_version'] === '10.11.19-MariaDB', 'Database version was not collected using the read-only version query.');
         assertCollectorCondition($payload['system']['application_url_configured'] === true, 'System URL status was not collected.');
         assertCollectorCondition($payload['system']['web_server'] === 'Apache', 'Web server value was not sanitized.');
         assertCollectorCondition($payload['system']['error_display_disabled'] === true, 'Error display state was not collected.');
