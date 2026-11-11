@@ -1,14 +1,14 @@
 <?php
 
-namespace App\\Http\\Middleware;
+namespace App\Http\Middleware;
 
-use App\\Models\\IntegrationRequestNonce;
-use App\\Models\\WhmcsIntegration;
+use App\Models\IntegrationRequestNonce;
+use App\Models\WhmcsIntegration;
 use Closure;
-use Illuminate\\Database\\QueryException;
-use Illuminate\\Http\\Request;
-use Illuminate\\Support\\Str;
-use Symfony\\Component\\HttpFoundation\\Response;
+use Illuminate\Database\QueryException;
+use Illuminate\Http\Request;
+use Illuminate\Support\Str;
+use Symfony\Component\HttpFoundation\Response;
 
 class AuthenticateWhmcsIntegration
 {
@@ -29,9 +29,9 @@ class AuthenticateWhmcsIntegration
 
         if (
             ! is_string($integrationId) || ! Str::isUuid($integrationId)
-            || ! is_string($timestamp) || ! preg_match('/\\A[0-9]{10}\\z/', $timestamp)
-            || ! is_string($nonce) || ! preg_match('/\\A[A-Za-z0-9_-]{32,128}\\z/', $nonce)
-            || ! is_string($signature) || ! preg_match('/\\A[a-f0-9]{64}\\z/', $signature)
+            || ! is_string($timestamp) || ! preg_match('/\A[0-9]{10}\z/', $timestamp)
+            || ! is_string($nonce) || ! preg_match('/\A[A-Za-z0-9_-]{32,128}\z/', $nonce)
+            || ! is_string($signature) || ! preg_match('/\A[a-f0-9]{64}\z/', $signature)
         ) {
             return response()->json(['message' => 'Unauthenticated.'], 401);
         }
@@ -53,7 +53,7 @@ class AuthenticateWhmcsIntegration
         }
 
         $bodyHash = hash('sha256', $request->getContent());
-        $canonicalMessage = implode("\\n", [
+        $canonicalMessage = implode("\n", [
             strtoupper($request->method()),
             $request->getPathInfo(),
             $timestamp,
