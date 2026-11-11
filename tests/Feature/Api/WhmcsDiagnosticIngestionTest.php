@@ -183,3 +183,55 @@ test('rejects snapshots from revoked integrations', function () {
 
     expect(DiagnosticRun::count())->toBe(0);
 });
+
+
+test('rejects a repeated snapshot identifier when its payload digest changes', function () {
+    $integration = createSignedTestIntegration();
+    $snapshotUuid = (string) Str::uuid();
+    $first = makeSignedSnapshot($integration, ['snapshot_uuid' => $snapshotUuid]);
+    $changed = makeSignedSnapshot($integration, [
+        'snapshot_uuid' => $snapshotUuid,
+        'payload' => [
+            'system' => [
+                'whmcs_version' => '8.13.7',
+                'web_php_version' => '8.1.34',
+                'cron_php_version' => '8.3.36',
+                'database_version' => 'MariaDB 10.11.19',
+            ],
+        ],
+    ]);
+
+    $this->call('POST', '/api/v1/whmcs/diagnostic-snapshots', [], [], [], $first['headers'], $first['body'])
+        ->assertAccepted();
+
+    $this->call('POST', '/api/v1/whmcs/diagnostic-snapshots', [], [], [], $changed['headers'], $changed['body'])
+        ->assertStatus(409)
+        ->assertJsonPath('message', 'Snapshot identifier conflict.');
+
+    expect(DiagnosticRun::count())->toBe(1);
+});
+
+test('rejects request bodies larger than the ingestion limit', function () {
+    $integration = createSignedTestIntegration();
+    $body = str_repeat('x', 262145);
+    $timestamp = now()->timestamp;
+    $nonce = Str::random(64);
+    $canonical = implode("\\n", [
+        'POST',
+        '/api/v1/whmcs/diagnostic-snapshots',
+        (string) $timestamp,
+        $nonce,
+        hash('sha256', $body),
+    ]);
+
+    $this->call('POST', '/api/v1/whmcs/diagnostic-snapshots', [], [], [], [
+        'CONTENT_TYPE' => 'application/json',
+        'HTTP_X_RB_INTEGRATION' => $integration->id,
+        'HTTP_X_RB_TIMESTAMP' => (string) $timestamp,
+        'HTTP_X_RB_NONCE' => $nonce,
+        'HTTP_X_RB_SIGNATURE' => hash_hmac('sha256', $canonical, $integration->secret),
+    ], $body)->assertBadRequest();
+
+    expect(DiagnosticRun::count())->toBe(0)
+        ->and(IntegrationRequestNonce::count())->toBe(0);
+});
