@@ -76,4 +76,7 @@ jobs:
           npm run build
 
       - name: Run CI Checks
+        env:
+          COLUMNS: 300
+          TERM: xterm-256color
         run: composer ci:check
