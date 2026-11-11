@@ -28,6 +28,7 @@ $whmcsRoot = $base.DIRECTORY_SEPARATOR.'whmcs';
 $documentRoot = $whmcsRoot;
 $credentialsPath = $base.DIRECTORY_SEPARATOR.'credentials.json';
 $insidePath = $whmcsRoot.DIRECTORY_SEPARATOR.'credentials.json';
+$symlinkPath = $whmcsRoot.DIRECTORY_SEPARATOR.'credentials-link.json';
 
 mkdir($base, 0700, true);
 mkdir($whmcsRoot, 0700, true);
@@ -59,6 +60,17 @@ try {
         'Credentials file inside the web root was accepted.',
     );
 
+    if (! symlink($credentialsPath, $symlinkPath)) {
+        throw new RuntimeException('Could not create symlink test fixture.');
+    }
+
+    assertCredentialsFailure(
+        static fn () => CredentialsFile::load($symlinkPath, $whmcsRoot, $documentRoot),
+        'Credentials symlink inside the web root was accepted.',
+    );
+
+    unlink($symlinkPath);
+
     chmod($credentialsPath, 0400);
 
     assertCredentialsFailure(
@@ -73,6 +85,10 @@ try {
         'World-readable credentials file was accepted.',
     );
 } finally {
+    if (is_link($symlinkPath)) {
+        unlink($symlinkPath);
+    }
+
     if (is_file($insidePath)) {
         unlink($insidePath);
     }
