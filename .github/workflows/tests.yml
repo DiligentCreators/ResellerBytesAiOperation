@@ -58,7 +58,7 @@ jobs:
         with:
           php-version: '8.5'
           tools: composer:v2
-          extensions: redis
+          extensions: redis, zip
           coverage: none
 
       - name: Setup Node
