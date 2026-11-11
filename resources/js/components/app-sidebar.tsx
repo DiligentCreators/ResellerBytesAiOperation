@@ -1,5 +1,5 @@
 import { Link } from '@inertiajs/react';
-import { BookOpen, FolderGit2, LayoutGrid } from 'lucide-react';
+import { Activity, BookOpen, Download, LayoutDashboard, ShieldAlert } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
@@ -18,21 +18,31 @@ import type { NavItem } from '@/types';
 
 const mainNavItems: NavItem[] = [
     {
-        title: 'Dashboard',
+        title: 'Overview',
         href: dashboard(),
-        icon: LayoutGrid,
+        icon: LayoutDashboard,
+    },
+    {
+        title: 'Diagnostic Runs',
+        href: '/diagnostic-runs',
+        icon: Activity,
+    },
+    {
+        title: 'Findings',
+        href: '/findings',
+        icon: ShieldAlert,
+    },
+    {
+        title: 'WHMCS Addon & Setup',
+        href: '/whmcs-addon/setup',
+        icon: Download,
     },
 ];
 
 const footerNavItems: NavItem[] = [
     {
-        title: 'Repository',
-        href: 'https://github.com/laravel/react-starter-kit',
-        icon: FolderGit2,
-    },
-    {
-        title: 'Documentation',
-        href: 'https://laravel.com/docs/starter-kits#react',
+        title: 'WHMCS Documentation',
+        href: 'https://docs.whmcs.com/8-13/addon-modules/',
         icon: BookOpen,
     },
 ];
