@@ -9,7 +9,7 @@ This checklist is mandatory before installing or running the WHMCS addon against
 - [ ] The addon has been statically inspected; no shell execution, SQL writes, WHMCS business API calls, or outbound destinations other than the configured operations API are present.
 - [ ] A current, restorable backup of the WHMCS files and database has been confirmed by the operator.
 - [ ] A maintenance window and rollback owner have been identified.
-- [ ] The integration secret has been provisioned through the authorized operations workflow and stored securely.
+- [ ] The integration was created using `php artisan whmcs:integration:create` from an authorized server shell.\n- [ ] The one-time integration secret was stored securely and configured in the reviewed addon without committing or logging it.
 - [ ] The HTTPS certificate and destination hostname have been independently verified.
 - [ ] The collector schema and redaction rules have been reviewed against the exact payload that will be transmitted.
 
