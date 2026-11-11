@@ -3,12 +3,12 @@
 use App\Models\DiagnosticRun;
 use App\Models\IntegrationRequestNonce;
 use App\Models\WhmcsIntegration;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Database\QueryException;
 use Illuminate\Support\Str;
 
-function createWhmcsIntegration(array $overrides = []): \\App\\Models\\WhmcsIntegration
+function createWhmcsIntegration(array $overrides = []): WhmcsIntegration
 {
     return WhmcsIntegration::create(array_merge([
         'name' => 'Production WHMCS',
@@ -41,7 +41,7 @@ test('diagnostic snapshots belong to an integration and retain structured payloa
         'schema_version' => '1.0',
         'addon_version' => '1.0.0',
         'status' => 'received',
-        'collected_at' => \Illuminate\Support\Carbon::now(),
+        'collected_at' => Carbon::now(),
         'received_at' => Carbon::now(),
         'payload' => [
             'whmcs' => ['version' => '8.13.7'],
