@@ -88,7 +88,7 @@ class StoreDiagnosticSnapshotController extends Controller
             }
         }
 
-        return $this->acceptedResponse($run, duplicate: false);
+        return $this->acceptedResponse($run->refresh(), duplicate: false);
     }
 
     private function findExistingRun(WhmcsIntegration $integration, string $snapshotUuid): ?DiagnosticRun
