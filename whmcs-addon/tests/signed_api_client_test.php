@@ -1,6 +1,8 @@
 <?php
 
 namespace ResellerBytesAiOps {
+    use stdClass;
+
     function curl_init(string $url): object
     {
         $GLOBALS['rb_mock_curl_url'] = $url;
