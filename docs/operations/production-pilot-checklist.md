@@ -12,7 +12,6 @@ This checklist is mandatory before installing or running the WHMCS addon against
 - [ ] Redis restart/recovery behavior has been tested before relying on it for sessions and background jobs.
 - [ ] Forge's Laravel scheduler is active (`schedule:run` every minute), so expired HMAC nonces are pruned every 15 minutes.
 
-
 ## Application access and AI analysis
 
 - [ ] Public self-registration is disabled; no public account-creation route is available.
