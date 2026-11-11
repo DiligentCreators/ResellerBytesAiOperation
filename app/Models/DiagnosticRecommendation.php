@@ -3,13 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class DiagnosticRecommendation extends Model
 {
-    use HasFactory, HasUuids;
+    use HasUuids;
 
     protected $fillable = [
         'diagnostic_finding_id',
@@ -26,6 +25,9 @@ class DiagnosticRecommendation extends Model
         ];
     }
 
+    /**
+     * @return BelongsTo<DiagnosticFinding, $this>
+     */
     public function finding(): BelongsTo
     {
         return $this->belongsTo(DiagnosticFinding::class, 'diagnostic_finding_id');
