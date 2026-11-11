@@ -75,10 +75,11 @@ jobs:
           npm ci
           npm run build
 
-      - name: Temporary frontend formatter output
+      - name: Temporary formatter output
         run: |
           npm run check:fix
-          git diff --no-color -- resources/js
+          vendor/bin/pint
+          git diff --no-color -- resources/js '*.php'
 
       - name: Run CI Checks
         env:
