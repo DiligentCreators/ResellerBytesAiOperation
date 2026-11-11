@@ -1,4 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
+import { Pagination } from '@/components/pagination';
 import { ShieldAlert } from 'lucide-react';
 
 type Finding = {
@@ -11,7 +12,7 @@ type Finding = {
     integration_name: string;
     diagnostic_run_id: string;
 };
-type Props = { findings: { data: Finding[] } };
+type Props = { findings: { data: Finding[]; links: { url: string | null; label: string; active: boolean }[] } };
 
 export default function FindingsIndex({ findings }: Props) {
     return (
@@ -95,6 +96,7 @@ export default function FindingsIndex({ findings }: Props) {
                             </table>
                         </div>
                     )}
+                    <Pagination links={findings.links} />
                 </section>
             </div>
         </>
