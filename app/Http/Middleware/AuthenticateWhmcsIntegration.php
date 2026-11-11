@@ -37,8 +37,9 @@ class AuthenticateWhmcsIntegration
         }
 
         $requestTime = (int) $timestamp;
+        $currentTimestamp = (int) now()->timestamp;
 
-        if (abs(now()->timestamp - $requestTime) > self::CLOCK_SKEW_SECONDS) {
+        if (abs($currentTimestamp - $requestTime) > self::CLOCK_SKEW_SECONDS) {
             return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
