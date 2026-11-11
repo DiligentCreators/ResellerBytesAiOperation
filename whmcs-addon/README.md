@@ -34,8 +34,9 @@ Example file contents:
 The addon configuration stores only the absolute path to this file. It validates that:
 
 - The resolved file exists and is readable.
-- The file is outside the WHMCS root and document root.
-- The file has no group or world permissions.
+- The configured path and resolved file are outside the WHMCS root and document root, including symlink-path checks.
+- Both root paths must resolve; otherwise the addon fails closed.
+- The file has exactly mode 0600.
 - The JSON contains exactly the integration UUID and 256-bit secret.
 
 Never commit the credentials file or paste its contents into tickets, chat, or logs.
@@ -68,6 +69,6 @@ Deactivation does not delete or modify the external credentials file.
 
 ## Automated checks
 
-The command php tests/credentials_file_test.php exercises the external-file, web-root exclusion, and exact file-permission protections. The command php tests/diagnostic_collector_test.php verifies the allowlisted payload, sanitized system URL, read-only database-version query, and explicit collector limitations. The command php tests/signed_api_client_test.php verifies the HMAC canonical request signature, request headers, fixed HTTPS destination, and TLS/redirect settings without making a network request.
+The command php tests/credentials_file_test.php exercises the external-file, web-root and symlink exclusion, absolute-path enforcement, and exact file-permission protections. The command php tests/diagnostic_collector_test.php verifies the allowlisted payload, sanitized system URL, read-only database-version query, and explicit collector limitations. The command php tests/signed_api_client_test.php verifies the HMAC canonical request signature, request headers, fixed HTTPS destination, and TLS/redirect settings without making a network request.
 
 The repository CI syntax-checks every addon PHP file and runs all three standalone tests using PHP 8.1, matching the WHMCS web runtime baseline.
