@@ -78,6 +78,7 @@ WHMCS manages addon activation in its Admin Area but does not provide a built-in
 ## Verification
 
 CI runs:
+
 - PHP 8.5 application checks, PHPStan, Pint, TypeScript, frontend lint/format checks, and Pest tests.
 - Redis 7 service integration tests.
 - PHP 8.1 syntax and standalone tests for the WHMCS addon.
