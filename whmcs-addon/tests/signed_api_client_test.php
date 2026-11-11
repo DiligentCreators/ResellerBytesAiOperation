@@ -7,7 +7,7 @@ namespace ResellerBytesAiOps {
     {
         $GLOBALS['rb_mock_curl_url'] = $url;
 
-        return new stdClass();
+        return new stdClass;
     }
 
     function curl_setopt_array(object $handle, array $options): bool
@@ -27,16 +27,14 @@ namespace ResellerBytesAiOps {
         return 202;
     }
 
-    function curl_close(object $handle): void
-    {
-    }
+    function curl_close(object $handle): void {}
 }
 
 namespace {
     use ResellerBytesAiOps\SignedApiClient;
     use RuntimeException;
 
-    require_once __DIR__ . '/../modules/addons/resellerbytes_ai_ops/lib/SignedApiClient.php';
+    require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/SignedApiClient.php';
 
     function assertSignedClientCondition(bool $condition, string $message): void
     {
@@ -47,7 +45,7 @@ namespace {
 
     $integrationId = 'a3a5d8b4-51b1-4c27-8f61-8e6f7d4a9c10';
     $secret = str_repeat('b', 64);
-    $result = (new SignedApiClient())->submit([
+    $result = (new SignedApiClient)->submit([
         'integration_id' => $integrationId,
         'secret' => $secret,
     ], [
