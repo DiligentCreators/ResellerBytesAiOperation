@@ -103,11 +103,13 @@ export default function WhmcsAddonSetup({
                             </h2>
                             <p className="mt-1 text-sm text-muted-foreground">
                                 WHMCS activates addon modules from its Admin
-                                Area, but the module files must first exist in
-                                /modules/addons. You can avoid FTP: upload and
-                                extract this ZIP using the 20i hosting File
-                                Manager, then activate and configure it in WHMCS
-                                Admin.
+                                Area, but module files must first exist in
+                                /modules/addons. 20i File Manager supports browser
+                                uploads without FTP. If your panel exposes an
+                                Extract action, upload and extract the ZIP there.
+                                Otherwise, extract it locally and upload the four
+                                PHP files through File Manager, preserving the
+                                resellerbytes_ai_ops/lib folder structure.
                             </p>
                         </div>
                     </div>
