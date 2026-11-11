@@ -3,13 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class WhmcsIntegration extends Model
 {
-    use HasFactory, HasUuids;
+    use HasUuids;
 
     protected $fillable = [
         'name',
@@ -33,11 +32,17 @@ class WhmcsIntegration extends Model
         ];
     }
 
+    /**
+     * @return HasMany<DiagnosticRun, $this>
+     */
     public function diagnosticRuns(): HasMany
     {
         return $this->hasMany(DiagnosticRun::class, 'integration_id');
     }
 
+    /**
+     * @return HasMany<IntegrationRequestNonce, $this>
+     */
     public function requestNonces(): HasMany
     {
         return $this->hasMany(IntegrationRequestNonce::class, 'integration_id');
