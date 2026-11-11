@@ -45,6 +45,9 @@ class WhmcsDiagnosticAnalyzer
                 'model' => (string) config('services.openai.model', 'gpt-6.1-sol'),
                 'store' => false,
                 'max_output_tokens' => 3000,
+                'reasoning' => [
+                    'effort' => (string) config('services.openai.reasoning_effort', 'medium'),
+                ],
                 'input' => [
                     [
                         'role' => 'system',
@@ -202,6 +205,12 @@ PROMPT;
      */
     private function validateOutput(array $decoded, array $payload): array
     {
+        $unexpectedKeys = array_diff(array_keys($decoded), ['summary', 'no_findings_reason', 'findings']);
+
+        if ($unexpectedKeys !== []) {
+            throw new RuntimeException('provider_output_schema_invalid');
+        }
+
         $validator = Validator::make($decoded, [
             'summary' => ['required', 'string', 'min:1', 'max:5000'],
             'no_findings_reason' => ['present', 'nullable', 'string', 'max:2000'],
