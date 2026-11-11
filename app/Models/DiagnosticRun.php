@@ -22,6 +22,16 @@ class DiagnosticRun extends Model
         'payload',
         'payload_sha256',
         'failure_code',
+        'analysis_model',
+        'analysis_prompt_version',
+        'analysis_response_id',
+        'analysis_summary',
+        'no_findings_reason',
+        'analysis_started_at',
+        'analysis_completed_at',
+        'analysis_error_code',
+        'analysis_attempts',
+        'analysis_usage',
     ];
 
     protected function casts(): array
@@ -30,6 +40,9 @@ class DiagnosticRun extends Model
             'collected_at' => 'immutable_datetime',
             'received_at' => 'immutable_datetime',
             'payload' => 'array',
+            'analysis_started_at' => 'immutable_datetime',
+            'analysis_completed_at' => 'immutable_datetime',
+            'analysis_usage' => 'array',
         ];
     }
 
