@@ -6,6 +6,15 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property string $id
+ * @property string $diagnostic_finding_id
+ * @property string $recommendation
+ * @property string $rationale
+ * @property string $risk_level
+ * @property bool $requires_manual_action
+ * @property-read DiagnosticFinding $finding
+ */
 class DiagnosticRecommendation extends Model
 {
     use HasUuids;
