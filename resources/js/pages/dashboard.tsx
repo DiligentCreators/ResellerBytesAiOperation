@@ -222,7 +222,10 @@ export default function Dashboard({ stats, latestRuns, addon }: Props) {
                                 Read-only collector
                             </p>
                             <p className="mt-2 text-xs text-muted-foreground">
-                                AI analysis: {addon.ai_configured ? 'Configured' : 'API key not configured — snapshots can still be received, but analysis will remain pending.'}
+                                AI analysis:{' '}
+                                {addon.ai_configured
+                                    ? 'Configured'
+                                    : 'API key not configured — snapshots can still be received, but analysis will remain pending.'}
                             </p>
                         </div>
                         <div className="flex flex-wrap gap-2">
