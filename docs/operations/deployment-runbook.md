@@ -6,7 +6,7 @@ This runbook is for the ResellerBytes AI Operations application on the existing 
 
 - Confirm the feature branch has passed CI, security review, and the pull request has been merged to main.
 - Confirm Forge has PHP 8.5 CLI and FPM available for the Laravel application.
-- Confirm PHP extensions: pdo_pgsql, redis, zip, curl, mbstring, openssl, fileinfo, tokenizer, xml, ctype, bcmath, and intl.
+- Confirm PHP 8.5 extensions in both CLI and FPM: pdo_pgsql, redis, zip, curl, mbstring, openssl, fileinfo, tokenizer, xml, ctype, bcmath, and intl. Redis is required by FPM sessions/cache and the CLI queue worker; ZIP is required by the authenticated web download route. Restart the relevant Forge PHP-FPM service after changing extensions.
 - Confirm PostgreSQL is local/private and a dedicated least-privilege database user exists.
 - Confirm Redis is local/private, authenticated where appropriate, persisted, monitored, and configured with noeviction.
 - Confirm the application domain and HTTPS certificate are ready.
