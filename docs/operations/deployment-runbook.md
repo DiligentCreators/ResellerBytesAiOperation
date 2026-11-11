@@ -87,7 +87,7 @@ Verify Redis recovery, queue processing, scheduler execution, and failure loggin
 
 1. Sign in to the ResellerBytes AI Operations dashboard.
 2. Open WHMCS Addon & Setup and download the versioned ZIP package.
-3. WHMCS does not provide a built-in addon ZIP uploader. Use the 20i hosting File Manager to upload and extract the ZIP into the WHMCS modules/addons directory. FTP is not required if File Manager upload and extraction are available.
+3. WHMCS does not provide a built-in addon ZIP uploader. 20i documents browser-based uploads through File Manager without FTP. If your File Manager exposes an Extract action, upload and extract the ZIP into modules/addons. Otherwise, extract it locally and upload the four PHP files through File Manager, preserving the resellerbytes_ai_ops/lib folder structure.
 4. Confirm modules/addons/resellerbytes_ai_ops/resellerbytes_ai_ops.php exists.
 5. In WHMCS Admin, open Configuration > System Settings > Addon Modules.
 6. Activate ResellerBytes AI Operations.
