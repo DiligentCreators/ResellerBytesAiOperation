@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Str;
 
-function createWhmcsIntegration(array $overrides = []): WhmcsIntegration
+function createWhmcsIntegration(array $overrides = []): \\App\\Models\\WhmcsIntegration
 {
     return WhmcsIntegration::create(array_merge([
         'name' => 'Production WHMCS',
