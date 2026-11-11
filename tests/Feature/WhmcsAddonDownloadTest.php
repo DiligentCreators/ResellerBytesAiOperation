@@ -1,7 +1,6 @@
 <?php
 
 use App\Models\User;
-use ZipArchive;
 
 it('requires an authenticated verified user to download the WHMCS addon', function () {
     $this->get('/whmcs-addon/download')
@@ -9,7 +8,7 @@ it('requires an authenticated verified user to download the WHMCS addon', functi
 });
 
 it('downloads a WHMCS addon archive with the expected module structure', function () {
-    if (! class_exists(ZipArchive::class)) {
+    if (! class_exists(\ZipArchive::class)) {
         $this->markTestSkipped('The PHP ZIP extension is required.');
     }
 
@@ -24,13 +23,14 @@ it('downloads a WHMCS addon archive with the expected module structure', functio
     $file = $response->baseResponse->getFile();
     expect($file)->not->toBeNull();
 
-    $archive = new ZipArchive;
+    $archive = new \ZipArchive;
     expect($archive->open($file->getPathname()))->toBeTrue();
 
     expect($archive->locateName('resellerbytes_ai_ops/resellerbytes_ai_ops.php'))->not->toBeFalse();
     expect($archive->locateName('resellerbytes_ai_ops/lib/CredentialsFile.php'))->not->toBeFalse();
     expect($archive->locateName('INSTALLATION.txt'))->not->toBeFalse();
     expect($archive->locateName('VERSION.txt'))->not->toBeFalse();
+    expect($archive->locateName('SHA256SUMS.txt'))->not->toBeFalse();
     expect($archive->locateName('configuration.php'))->toBeFalse();
 
     $archive->close();
