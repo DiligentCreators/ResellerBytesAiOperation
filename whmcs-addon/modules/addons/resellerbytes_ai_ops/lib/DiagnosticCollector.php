@@ -85,8 +85,7 @@ final class DiagnosticCollector
         ];
 
         if (defined('ROOTDIR')) {
-            $configurationFile = rtrim((string) ROOTDIR, DIRECTORY_SEPARATOR)
-                . DIRECTORY_SEPARATOR . 'configuration.php';
+            $configurationFile = rtrim((string) ROOTDIR, DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR.'configuration.php';
 
             if (is_file($configurationFile) && is_writable($configurationFile)) {
                 $payload['warnings'] = [[
