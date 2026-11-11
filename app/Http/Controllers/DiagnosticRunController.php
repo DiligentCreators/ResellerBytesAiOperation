@@ -45,6 +45,7 @@ class DiagnosticRunController extends Controller
         }
 
         AnalyzeDiagnosticRun::dispatch($diagnosticRun->id)->afterCommit();
+        $diagnosticRun->forceFill(['status' => 'queued'])->save();
 
         AuditEvent::create([
             'actor_type' => 'user',
