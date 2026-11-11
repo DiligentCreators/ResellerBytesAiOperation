@@ -43,6 +43,7 @@ class DashboardController extends Controller
             'addon' => [
                 'version' => config('services.whmcs_addon.version', '1.0.0'),
                 'download_available' => class_exists(\ZipArchive::class),
+                'ai_configured' => filled(config('services.openai.key')),
             ],
         ]);
     }
