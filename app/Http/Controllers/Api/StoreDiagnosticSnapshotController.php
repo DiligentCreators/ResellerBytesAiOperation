@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\AnalyzeDiagnosticRun;
 use App\Http\Requests\Api\StoreDiagnosticSnapshotRequest;
 use App\Models\AuditEvent;
 use App\Models\DiagnosticRun;
@@ -68,6 +69,10 @@ class StoreDiagnosticSnapshotController extends Controller
             }
 
             return $this->idempotentResponse($existing, $payloadHash);
+        }
+
+        if (filled(config('services.openai.key'))) {
+            AnalyzeDiagnosticRun::dispatch($run->id)->afterCommit();
         }
 
         return $this->acceptedResponse($run, duplicate: false);
