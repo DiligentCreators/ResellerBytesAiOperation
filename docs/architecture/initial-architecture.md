@@ -170,7 +170,7 @@ php artisan whmcs:integration:rotate <integration-uuid>
 php artisan whmcs:integration:revoke <integration-uuid>
 ```
 
-Create and rotate display a newly generated 256-bit secret once. Store it in a password manager and configure it in the WHMCS addon over a secure administrative process. Do not paste it into tickets, chat, source control, shell scripts, CI variables without an approved secret store, or logs. Rotation has no overlap/grace period: the old secret stops working immediately. Revocation is immediate and repeat-safe. No command ever displays an existing secret.
+Create and rotate display a newly generated 256-bit secret once. Store it in a password manager, then place it in the external WHMCS credentials JSON file outside the document root with mode `0600`; configure only that file path in WHMCS addon settings. Do not paste the secret into tickets, chat, source control, shell scripts, CI variables without an approved secret store, or logs. Rotation has no overlap/grace period: the old secret stops working immediately. Revocation is immediate and repeat-safe. No command ever displays an existing secret.
 
 ## API contract (first release)
 
