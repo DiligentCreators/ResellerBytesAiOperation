@@ -75,6 +75,11 @@ jobs:
           npm ci
           npm run build
 
+      - name: Inspect Pint formatting for WHMCS addon
+        run: |
+          vendor/bin/pint whmcs-addon/modules/addons/resellerbytes_ai_ops whmcs-addon/tests
+          git diff --unified=1 -- whmcs-addon
+
       - name: Run CI Checks
         env:
           COLUMNS: 300
