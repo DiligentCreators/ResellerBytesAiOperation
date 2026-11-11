@@ -6,8 +6,8 @@ use FilesystemIterator;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use RuntimeException;
-use ZipArchive;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use ZipArchive;
 
 class WhmcsAddonDownloadController extends Controller
 {
