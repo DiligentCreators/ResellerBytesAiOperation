@@ -1,5 +1,12 @@
 import { Link } from '@inertiajs/react';
-import { Activity, BookOpen, Download, LayoutDashboard, Server, ShieldAlert } from 'lucide-react';
+import {
+    Activity,
+    BookOpen,
+    Download,
+    LayoutDashboard,
+    Server,
+    ShieldAlert,
+} from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
