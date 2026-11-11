@@ -19,6 +19,26 @@ Confirmed production context:
 
 The Laravel application must never connect directly to the WHMCS database.
 
+## Application infrastructure and Redis
+
+PostgreSQL is the durable system of record for integrations, sanitized diagnostic snapshots, findings, recommendations, and audit events. Redis is the default high-speed infrastructure backend for:
+
+- Application cache and cache locks (logical Redis database 1)
+- Authenticated web sessions (logical Redis database 0)
+- Asynchronous Laravel queues (logical Redis database 0)
+
+Use the native `phpredis` PHP extension. Redis keys use an application-specific prefix to avoid collisions with other services on the Forge host. Keep Redis bound to localhost/private networking, enable authentication where supported, and never expose port 6379 publicly.
+
+Redis logical databases are keyspace separation only; they do not provide separate memory limits or eviction policies. Because queues and sessions share the Redis instance with cache, configure adequate memory, monitor usage, and use a `noeviction` policy so Redis does not silently evict queued jobs or active sessions. Cache writes may fail when memory is exhausted, so monitor and alert before reaching the limit. Enable appropriate Redis persistence (AOF and/or RDB) and include Redis in the server backup/restore and recovery plan. For larger workloads, split cache from queue/session Redis into separately managed instances.
+
+Run a dedicated Laravel queue worker under Forge/supervisor, for example:
+
+    php artisan queue:work redis --queue=default --sleep=1 --tries=3 --timeout=90
+
+The Redis queue `retry_after` is 120 seconds; worker timeout must remain shorter than that value. Restart workers after deployments with `php artisan queue:restart`. Do not use `queue:work` as an unmonitored foreground production process.
+
+The CI pipeline installs the PHP Redis extension and runs a Redis 7 service. Automated tests exercise Redis cache, session, and queue connections. The PHPUnit test suite may still override default drivers with in-memory/synchronous backends for isolated tests.
+
 ## Existing application baseline
 
 The repository is an existing Laravel 13.17+ / PHP 8.5+ application using Inertia 3, React 19, TypeScript, Tailwind CSS 4, Fortify, Wayfinder, Pest 5, and PostgreSQL support through Laravel's `pgsql` connection.
