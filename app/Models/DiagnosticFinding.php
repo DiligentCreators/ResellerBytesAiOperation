@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -19,7 +20,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $confidence
  * @property string $status
  * @property-read DiagnosticRun $diagnosticRun
- * @property-read \Illuminate\Database\Eloquent\Collection<int, DiagnosticRecommendation> $recommendations
+ * @property-read Collection<int, DiagnosticRecommendation> $recommendations
  */
 class DiagnosticFinding extends Model
 {
