@@ -27,6 +27,10 @@ Required application settings:
 - DB_USERNAME and DB_PASSWORD for the dedicated PostgreSQL user
 - CACHE_STORE=redis
 - SESSION_DRIVER=redis
+- SESSION_ENCRYPT=true
+- SESSION_SECURE_COOKIE=true
+- SESSION_HTTP_ONLY=true
+- SESSION_SAME_SITE=lax
 - QUEUE_CONNECTION=redis
 - REDIS_HOST=127.0.0.1
 - REDIS_PORT=6379
