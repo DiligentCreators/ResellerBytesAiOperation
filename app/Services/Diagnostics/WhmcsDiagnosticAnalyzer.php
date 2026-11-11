@@ -41,7 +41,7 @@ class WhmcsDiagnosticAnalyzer
             ->connectTimeout(10)
             ->timeout((int) config('services.openai.timeout', 45))
             ->post('https://api.openai.com/v1/responses', [
-                'model' => (string) config('services.openai.model', 'gpt-6.1-sol'),
+                'model' => (string) config('services.openai.model', 'gpt-5.6-sol'),
                 'store' => false,
                 'max_output_tokens' => 3000,
                 'reasoning' => [
