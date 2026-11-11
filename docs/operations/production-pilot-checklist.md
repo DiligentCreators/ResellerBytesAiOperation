@@ -23,6 +23,10 @@ This checklist is mandatory before installing or running the WHMCS addon against
 - [ ] The one-time integration secret was stored securely and configured in the reviewed addon without committing or logging it.
 - [ ] The HTTPS certificate and destination hostname have been independently verified.
 - [ ] The collector schema and redaction rules have been reviewed against the exact payload that will be transmitted.
+- [ ] The WHMCS addon passed its PHP 8.1 syntax and credential-file tests.
+- [ ] The HMAC credentials JSON file is outside both WHMCS and the document root, has mode `0600`, and is readable by the WHMCS PHP runtime user.
+- [ ] WHMCS addon settings contain only the credentials-file path; the HMAC secret is not stored in `tbladdonmodules`.
+- [ ] The addon has no enabled cron task or hook, and its only outbound destination is the verified HTTPS operations API.
 
 ## First-run restrictions
 
