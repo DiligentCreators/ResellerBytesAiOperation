@@ -307,7 +307,6 @@ test('queues AI analysis after a snapshot is committed when an API key is config
     });
 });
 
-
 test('rejects arbitrary collector metadata instead of forwarding it to AI', function () {
     $integration = createSignedTestIntegration();
     $signed = makeSignedSnapshot($integration, [
