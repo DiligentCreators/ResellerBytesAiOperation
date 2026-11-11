@@ -17,6 +17,10 @@ final class CredentialsFile
             throw new RuntimeException('credentials_file_not_configured');
         }
 
+        if ($configuredPath[0] !== DIRECTORY_SEPARATOR) {
+            throw new RuntimeException('credentials_file_path_must_be_absolute');
+        }
+
         $path = realpath($configuredPath);
 
         if ($path === false || ! is_file($path) || ! is_readable($path)) {
@@ -33,7 +37,7 @@ final class CredentialsFile
 
         $permissions = fileperms($path);
 
-        if ($permissions === false || ($permissions & 0077) !== 0) {
+        if ($permissions === false || ($permissions & 0777) !== 0600) {
             throw new RuntimeException('credentials_file_permissions_invalid');
         }
 
