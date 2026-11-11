@@ -5,7 +5,6 @@ namespace App\Services\Diagnostics;
 use App\Models\DiagnosticRun;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\ValidationException;
 use RuntimeException;
 
 class WhmcsDiagnosticAnalyzer
@@ -182,7 +181,7 @@ PROMPT;
     }
 
     /**
-     * @param array<string, mixed> $response
+     * @param  array<string, mixed>  $response
      */
     private function extractOutputText(array $response): ?string
     {
@@ -202,8 +201,8 @@ PROMPT;
     }
 
     /**
-     * @param array<string, mixed> $decoded
-     * @param array<string, mixed> $payload
+     * @param  array<string, mixed>  $decoded
+     * @param  array<string, mixed>  $payload
      * @return array{summary: string, no_findings_reason: ?string, findings: array<int, array<string, mixed>>}
      */
     private function validateOutput(array $decoded, array $payload): array
@@ -268,7 +267,7 @@ PROMPT;
     }
 
     /**
-     * @param array<string, mixed> $payload
+     * @param  array<string, mixed>  $payload
      */
     private function hasEvidencePath(array $payload, string $path): bool
     {
