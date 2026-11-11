@@ -114,7 +114,7 @@ Installation
 1. Take and verify a restorable WHMCS files and database backup.
 2. Open your hosting control panel's File Manager.
 3. Open the WHMCS installation directory, then modules/addons.
-4. Upload this ZIP into modules/addons and use the File Manager's Extract action.
+4. If File Manager offers Extract, upload and extract this ZIP into modules/addons. Otherwise, extract it locally and upload the four PHP files while preserving the folder structure.
 5. Confirm this exact path exists:
    modules/addons/resellerbytes_ai_ops/resellerbytes_ai_ops.php
 6. In WHMCS Admin, open Configuration > System Settings > Addon Modules.
