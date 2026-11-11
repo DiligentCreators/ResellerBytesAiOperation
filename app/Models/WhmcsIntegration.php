@@ -6,6 +6,17 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * @property string $id
+ * @property string $name
+ * @property string $status
+ * @property string $secret
+ * @property int $secret_version
+ * @property string|null $addon_version
+ * @property \Illuminate\Support\Carbon|null $last_seen_at
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, DiagnosticRun> $diagnosticRuns
+ * @property-read int $diagnostic_runs_count
+ */
 class WhmcsIntegration extends Model
 {
     use HasUuids;
