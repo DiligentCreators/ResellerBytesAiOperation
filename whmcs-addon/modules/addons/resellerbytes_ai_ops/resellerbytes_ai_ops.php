@@ -9,9 +9,9 @@ if (! defined('WHMCS')) {
     die('This file cannot be accessed directly');
 }
 
-require_once __DIR__ . '/lib/CredentialsFile.php';
-require_once __DIR__ . '/lib/DiagnosticCollector.php';
-require_once __DIR__ . '/lib/SignedApiClient.php';
+require_once __DIR__.'/lib/CredentialsFile.php';
+require_once __DIR__.'/lib/DiagnosticCollector.php';
+require_once __DIR__.'/lib/SignedApiClient.php';
 
 function resellerbytes_ai_ops_config(): array
 {
@@ -87,14 +87,16 @@ function resellerbytes_ai_ops_output(array $vars): void
     }
 
     $escapedModuleLink = htmlspecialchars($moduleLink, ENT_QUOTES, 'UTF-8');
-    $output = '<div class="panel panel-default">'
-        . '<div class="panel-heading"><strong>Read-only diagnostics</strong></div>'
-        . '<div class="panel-body">'
-        . '<p>This action collects an allowlisted set of technical signals and sends one signed HTTPS request to ResellerBytes AI Operations.</p>'
-        . '<p>It does not modify WHMCS customers, invoices, payments, hosting services, domains, or existing provisioning/registrar modules.</p>';
+    $output = implode('', [
+        '<div class="panel panel-default">',
+        '<div class="panel-heading"><strong>Read-only diagnostics</strong></div>',
+        '<div class="panel-body">',
+        '<p>This action collects an allowlisted set of technical signals and sends one signed HTTPS request to ResellerBytes AI Operations.</p>',
+        '<p>It does not modify WHMCS customers, invoices, payments, hosting services, domains, or existing provisioning/registrar modules.</p>',
+    ]);
 
     if ($message !== '') {
-        $output .= '<div class="alert alert-' . htmlspecialchars($messageType, ENT_QUOTES, 'UTF-8') . '">'
+        $output .= '<div class="alert alert-'.htmlspecialchars($messageType, ENT_QUOTES, 'UTF-8').'">'
             . htmlspecialchars($message, ENT_QUOTES, 'UTF-8')
             . '</div>';
     }
@@ -104,8 +106,8 @@ function resellerbytes_ai_ops_output(array $vars): void
     } else {
         $token = htmlspecialchars((string) generate_token('plain'), ENT_QUOTES, 'UTF-8');
 
-        $output .= '<form method="post" action="' . $escapedModuleLink . '">'
-            . '<input type="hidden" name="token" value="' . $token . '">'
+        $output .= '<form method="post" action="'.$escapedModuleLink.'">'
+            . '<input type="hidden" name="token" value="'.$token.'">'
             . '<button type="submit" name="run_diagnostics" value="1" class="btn btn-primary">'
             . 'Run diagnostics once'
             . '</button>'
