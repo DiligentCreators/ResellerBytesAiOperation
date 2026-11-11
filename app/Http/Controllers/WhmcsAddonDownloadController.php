@@ -26,7 +26,7 @@ class WhmcsAddonDownloadController extends Controller
         }
 
         $archive = new ZipArchive;
-        $opened = $archive->open($temporaryPath, ZipArchive::OVERWRITE);
+        $opened = $archive->open($temporaryPath, ZipArchive::CREATE | ZipArchive::OVERWRITE);
 
         if ($opened !== true) {
             @unlink($temporaryPath);
@@ -51,13 +51,21 @@ class WhmcsAddonDownloadController extends Controller
                     throw new RuntimeException('Unable to add an addon file to the archive.');
                 }
 
-                $manifest[] = hash_file('sha256', $absolutePath).'  '.$relativePath;
+                $checksum = hash_file('sha256', $absolutePath);
+
+                if ($checksum === false) {
+                    throw new RuntimeException('Unable to calculate an addon file checksum.');
+                }
+
+                $manifest[] = $checksum.'  '.$relativePath;
             }
 
             sort($manifest, SORT_STRING);
-            $archive->addFromString('INSTALLATION.txt', $this->installationInstructions());
-            $archive->addFromString('VERSION.txt', (string) config('services.whmcs_addon.version', '1.0.0'));
-            $archive->addFromString('SHA256SUMS.txt', implode("\n", $manifest)."\n");
+            if (! $archive->addFromString('INSTALLATION.txt', $this->installationInstructions())
+                || ! $archive->addFromString('VERSION.txt', (string) config('services.whmcs_addon.version', '1.0.0'))
+                || ! $archive->addFromString('SHA256SUMS.txt', implode("\n", $manifest)."\n")) {
+                throw new RuntimeException('Unable to write the addon archive manifest.');
+            }
 
             if (! $archive->close()) {
                 throw new RuntimeException('Unable to finalize the WHMCS addon archive.');
