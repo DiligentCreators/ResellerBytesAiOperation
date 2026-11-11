@@ -7,7 +7,7 @@ namespace ResellerBytesAiOps {
     {
         $GLOBALS['rb_mock_curl_url'] = $url;
 
-        return new \stdClass();
+        return new stdClass();
     }
 
     function curl_setopt_array(object $handle, array $options): bool
