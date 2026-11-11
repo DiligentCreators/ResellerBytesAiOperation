@@ -18,7 +18,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('diagnostic-runs/{diagnosticRun}/reanalyze', [DiagnosticRunController::class, 'reanalyze'])->middleware('throttle:5,1')->name('diagnostic-runs.reanalyze');
     Route::get('findings', [FindingController::class, 'index'])->name('findings.index');
     Route::get('findings/{finding}', [FindingController::class, 'show'])->name('findings.show');
-    Route::get('whmcs-addon/download', WhmcsAddonDownloadController::class)->name('whmcs-addon.download');
+    Route::get('whmcs-addon/download', WhmcsAddonDownloadController::class)->middleware('throttle:10,1')->name('whmcs-addon.download');
     Route::get('whmcs-addon/setup', WhmcsAddonSetupController::class)->name('whmcs-addon.setup');
 });
 
