@@ -1,8 +1,8 @@
 <?php
 
-use App\\Models\\IntegrationRequestNonce;
-use App\\Models\\WhmcsIntegration;
-use Illuminate\\Support\\Carbon;
+use App\Models\IntegrationRequestNonce;
+use App\Models\WhmcsIntegration;
+use Illuminate\Support\Carbon;
 
 test('prunes expired integration nonces but preserves active replay protections', function () {
     $integration = WhmcsIntegration::create([
