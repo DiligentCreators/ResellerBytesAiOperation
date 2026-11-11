@@ -1,6 +1,6 @@
 <?php
 
-use Illuminate\\Support\\Str;
+use Illuminate\Support\Str;
 
 test('rejects timestamps that are not ten-digit Unix seconds', function () {
     $this->call('POST', '/api/v1/whmcs/diagnostic-snapshots', [], [], [], [
