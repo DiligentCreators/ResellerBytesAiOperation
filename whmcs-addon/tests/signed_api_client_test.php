@@ -120,7 +120,7 @@ namespace {
         ]);
 
         throw new \RuntimeException('Oversized API response was accepted.');
-    } catch (RuntimeException $exception) {
+    } catch (\\RuntimeException $exception) {
         if ($exception->getMessage() !== 'diagnostic_submission_failed') {
             throw $exception;
         }
