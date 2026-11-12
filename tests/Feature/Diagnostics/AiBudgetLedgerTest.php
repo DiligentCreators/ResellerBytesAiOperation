@@ -1,6 +1,8 @@
 <?php
 
 use App\Models\AiBudgetPeriod;
+use App\Models\AuditEvent;
+use App\Models\User;
 use App\Models\AiUsageAttempt;
 use App\Models\DiagnosticRun;
 use App\Models\WhmcsIntegration;
