@@ -130,3 +130,30 @@ The approved target architecture and phased delivery plan are documented in hybr
 - The main CI failure is confirmed as Markdown formatting in docs/operations/ai-budget-and-retention-policy.md and docs/operations/engineering-progress.md; the frontend build completed successfully in that run.
 - Do not treat the branch as green or release-ready until formatting is corrected and a new consolidated CI run passes.
 - No merge, deployment, migration, or destructive pruning is authorized by this architecture decision.
+
+## Current branch-head verification — 2026-11-12
+
+This section supersedes earlier CI-status statements above where they conflict with the latest verified repository evidence.
+
+- Latest reviewed PR check run: [43277780912](https://github.com/DiligentCreators/ResellerBytesAiOperation/actions/runs/43277780912) — both `ci` and `whmcs-addon-php81` completed successfully.
+- Verified CI summary for that run: formatting, lint, frontend build, TypeScript, Pint, PHPStan, and Pest passed; Pest reported 109 passed and 2 skipped (457 assertions).
+- PR #2 remains a draft. No review submissions or inline review threads were present at the time of this check.
+- The AI budget ledger migration `2026_11_12_000008_create_ai_budget_ledger_tables.php` is present on the review branch. It has not been applied to production.
+- The branch includes global UTC daily/monthly budget reservations, per-attempt usage accounting, idempotent settlement, conservative holds for ambiguous submitted requests, and tests for budget limits and failure states.
+- The global budget is **not active in production** until the migration is applied under an approved deployment plan and PostgreSQL concurrency, worker-crash, provider-timeout, and deployment verification are completed.
+- Authenticated operator reconciliation for ambiguous provider attempts remains unimplemented. Such reservations must remain held; do not manually release them without an approved evidence-based reconciliation procedure.
+- Retention cleanup remains design-only. No pruning, destructive migration, or production migration has been run.
+- Production Ed25519 signing keys still require generation and storage in the deployment secret manager, followed by ZIP signature verification against the approved fingerprint.
+- Database-level audit immutability and the integration-deletion/history lifecycle remain release gates.
+- The approved hybrid SaaS architecture remains a target design. Tenant isolation, commercial billing, entitlement enforcement, and white-label capabilities are not represented as completed implementation.
+
+## Next engineering sequence
+
+1. Complete PostgreSQL concurrency and failure-mode verification for the AI ledger on a disposable test database; do not use production data.
+2. Design and test an authenticated, auditable reconciliation workflow for ambiguous provider attempts before any operational release.
+3. Decide and implement the database-level audit-integrity boundary, then test privileged and query-builder bypass paths.
+4. Confirm integration deletion semantics and preserve required diagnostic, usage, and audit history.
+5. Generate and verify production signing keys through the approved secret-management process.
+6. Complete the production pilot checklist, backup/restore rehearsal, and one-shot read-only WHMCS pilot only after explicit deployment approval.
+
+A green CI run is necessary but does not close these release gates or authorize merge, migration, or deployment.
