@@ -16,7 +16,10 @@ export function Pagination({ links }: Props) {
     }
 
     return (
-        <nav aria-label="Pagination" className="flex flex-wrap items-center gap-2 border-t p-4">
+        <nav
+            aria-label="Pagination"
+            className="flex flex-wrap items-center gap-2 border-t p-4"
+        >
             {links.map((link, index) => {
                 const label = link.label
                     .replaceAll('&laquo;', '‹')
