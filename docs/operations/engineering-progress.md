@@ -33,9 +33,10 @@ Last reviewed: 2026-11-12
 
 ### Authentication and operator access review
 
-- Dashboard, integrations, diagnostic runs, findings, addon download, and addon setup routes are protected by `auth` and `verified`; no explicit operator-role/authorization middleware was observed on these routes.
+- Dashboard, integrations, diagnostic runs, findings, addon download, and addon setup routes require authentication, verified email, and confirmed TOTP-based two-factor authentication through `EnsureTwoFactorEnabled`.
+- Operators without confirmed TOTP are redirected to security settings; the security page remains reachable so they can enroll and confirm the authenticator before operational access. Password confirmation remains required by the security route.
 - Fortify public registration is not enabled in the inspected feature configuration. The explicit operator-provisioning command creates a verified account and applies a strong password policy.
-- Two-factor authentication and passkeys are enabled as available Fortify features, but the inspected dashboard routes do not enforce completed MFA/passkey enrollment. The provisioning command only instructs the operator to configure one after first sign-in.
+- Passkeys remain available as an additional authentication option, but are not treated as a substitute for confirmed TOTP because the application does not yet track authentication assurance per session. The last-operator deletion safeguard remains pending.
 - A self-service profile deletion route is available to authenticated, verified users. Confirm the intended account lifecycle and protect against accidental removal of the last usable operator account.
 - The trusted-operator model may be acceptable if all accounts are provisioned through a controlled process, but this assumption needs an explicit production control and verification of all account-creation paths.
 
@@ -50,8 +51,8 @@ Last reviewed: 2026-11-12
 - `AnalyzeDiagnosticRun` uses a database row lock, a 100-second analysis lease, a 90-second job timeout, three attempts, and bounded backoff. Provider exceptions set a safe error code and are rethrown for queue retry; the failed hook records terminal failure.
 - The Redis queue uses a 120-second `retry_after`, which is longer than the job timeout and lease. This is a coherent baseline, but crash/recovery behavior for jobs left in `queued` state should be covered by an explicit reconciliation test or mechanism.
 - Snapshot ingestion records the accepted snapshot and its audit event transactionally, then queues analysis. Dispatch failures are handled in the inspected controller paths, but a process interruption between persisting `queued` and successful enqueue remains a recovery scenario to validate.
-- Manual reanalysis checks status on a previously loaded model and then changes it before dispatch; the check-and-transition is not atomic, so concurrent requests can enqueue duplicate jobs. The job's row lock prevents simultaneous analysis execution, but does not eliminate duplicate queue entries or duplicate request audit events.
-- Both ingestion and manual reanalysis retain a crash window between persisting `queued` and successful queue publication. A durable outbox or bounded reconciliation mechanism is still needed; do not assume the current exception handlers cover process termination.
+- Manual reanalysis now locks the diagnostic-run row and performs the allowed-status check, `queued` transition, and audit-event creation in one database transaction. Queue dispatch occurs after commit; a concurrent request cannot independently claim the same initial status.
+- Ingestion and manual reanalysis can still be interrupted after persisting `queued` but before queue publication. A bounded `diagnostics:recover-queued` scheduler command now atomically claims stale queued rows and re-dispatches them every five minutes. This is bounded reconciliation, not a transactional outbox; a delayed queue can still produce duplicate queue entries, while job-level locking protects analysis execution.
 - The authenticated addon download controller builds the ZIP from the addon source directory, skips symlink files, and embeds per-file SHA-256 checksums plus a version. The checksum manifest is inside the same archive, so it detects accidental corruption only when compared with a separately trusted checksum; it is not an independent authenticity signature.
 - No confirmed production-blocking defect was established in this focused source pass. The review is not a substitute for a full independent penetration test.
 
@@ -61,13 +62,15 @@ Last reviewed: 2026-11-12
 - Corrected the Pint strict-types formatting failure in the signed API client test. This correction is pending CI verification.
 - Completed a focused source review of route authorization, operator provisioning, audit-event model behavior, queue execution/retry handling, and addon ZIP/checksum generation. Findings above are documented for remediation or operator disposition.
 - Added an Eloquent-level append-only guard to `AuditEvent` and a focused Pest feature test. Execution of this new test and the full suite is pending; this change does not provide database-level immutability.
+- Added mandatory confirmed TOTP enforcement to operational dashboard, integration, diagnostic, findings, and addon routes, with a clear redirect to the security setup page and focused access-control tests. The security enrollment page remains accessible before enrollment.
+- Confirmed the manual reanalysis transaction/row lock and added bounded stale-queue recovery. Runtime tests and latest-commit CI are still pending.
 - Pull request: [#2 — release-readiness review](https://github.com/DiligentCreators/ResellerBytesAiOperation/pull/2).
 
 ## Remaining release gates
 
 1. Approve and implement the stronger audit-integrity boundary: database-level controls and/or export to separately controlled append-only storage. The current Eloquent guard is defense-in-depth only.
-2. Confirm the trusted-operator account model, verify every account-creation path, and decide whether MFA/passkey enrollment must be mandatory before dashboard access. Protect the last operator account from accidental deletion.
-3. Add or verify reconciliation for diagnostic runs persisted as `queued` but not actually enqueued; test dispatch failures, process interruption, duplicate dispatch, and stale leases.
+2. Confirm the trusted-operator account model and verify every account-creation path. The mandatory confirmed-TOTP gate is implemented for operational routes; protect the last operator account from accidental deletion and validate the login/enrollment flow in runtime tests.
+3. Test the bounded stale-queue recovery against dispatch failures, process interruption, duplicate dispatch, delayed queue workers, and stale leases; assess whether a transactional outbox is justified.
 4. Provide an independently trusted addon ZIP checksum or signature for deployment verification; the embedded manifest alone is not an authenticity guarantee.
 5. Define and approve data-retention periods for diagnostic snapshots/findings/recommendations and audit events. Do not enable destructive automated pruning until an operator-approved policy exists; implement dry-run, bounded batches, opt-in configuration, and tests as part of that approved change.
 6. Review and test the integration deletion lifecycle, including the cascade effect on diagnostic history.
