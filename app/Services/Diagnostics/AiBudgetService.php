@@ -219,7 +219,8 @@ class AiBudgetService
      */
     private function priceCard(string $model, ?string $version = null): array
     {
-        $card = config("ai_budget.price_cards.{$model}");
+        $priceCards = config('ai_budget.price_cards', []);
+        $card = is_array($priceCards) ? ($priceCards[$model] ?? null) : null;
         if (! is_array($card)
             || ! is_string($card['version'] ?? null)
             || ! is_numeric($card['input_tenths_micro_usd_per_token'] ?? null)

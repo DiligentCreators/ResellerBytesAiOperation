@@ -39,7 +39,9 @@ beforeEach(function () {
     config()->set('ai_budget.monthly_limit_micro_usd', 50_000_000);
     config()->set('ai_budget.max_input_bytes', 65_536);
     config()->set('ai_budget.max_output_tokens', 3_000);
-    config()->set('ai_budget.price_cards.gpt-5.6-sol.valid_until', '2099-12-31T23:59:59Z');
+    $priceCards = config('ai_budget.price_cards');
+    $priceCards['gpt-5.6-sol']['valid_until'] = '2099-12-31T23:59:59Z';
+    config()->set('ai_budget.price_cards', $priceCards);
 });
 
 afterEach(function () {
@@ -137,7 +139,9 @@ it('settles an old attempt using its stored price rates after the price card exp
     $attempt = $service->reserve($run, 'gpt-5.6-sol', '2026-11-12.1');
 
     $service->markSubmitted($attempt);
-    config()->set('ai_budget.price_cards.gpt-5.6-sol.valid_until', '2026-11-11T23:59:59Z');
+    $priceCards = config('ai_budget.price_cards');
+    $priceCards['gpt-5.6-sol']['valid_until'] = '2026-11-11T23:59:59Z';
+    config()->set('ai_budget.price_cards', $priceCards);
 
     $service->settle($attempt, [
         'input_tokens' => 1_000,
