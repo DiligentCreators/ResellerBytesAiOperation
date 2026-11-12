@@ -132,21 +132,21 @@ namespace {
     function assertSignedClientFailure(string $expectedMessage, string $label): void
     {
         try {
-            (new SignedApiClient)->submit([
+            (new \ResellerBytesAiOps\SignedApiClient)->submit([
                 'integration_id' => 'a3a5d8b4-51b1-4c27-8f61-8e6f7d4a9c10',
                 'secret' => str_repeat('b', 64),
             ], [
                 'system' => ['whmcs_version' => '8.13.7'],
             ]);
-        } catch (\\RuntimeException $exception) {
+        } catch (\RuntimeException $exception) {
             if ($exception->getMessage() === $expectedMessage) {
                 return;
             }
 
-            throw new \\RuntimeException($label.' returned an unexpected error code.');
+            throw new \RuntimeException($label.' returned an unexpected error code.');
         }
 
-        throw new RuntimeException($label.' was unexpectedly accepted.');
+        throw new \RuntimeException($label.' was unexpectedly accepted.');
     }
 
     $GLOBALS['rb_mock_response_body'] = '{"data":{"duplicate":false}}';
@@ -164,5 +164,5 @@ namespace {
     $GLOBALS['rb_mock_curl_exec_result'] = false;
     assertSignedClientFailure('diagnostic_submission_failed', 'cURL transport failure');
 
-    echo "WHMCS addon signed API client failure-path tests passed.\\n";
+    echo "WHMCS addon signed API client failure-path tests passed.\n";
 }
