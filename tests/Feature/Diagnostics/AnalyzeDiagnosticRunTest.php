@@ -200,7 +200,6 @@ it('does not start a duplicate analysis while the current worker lease is active
         ->and($run->fresh()->analysis_attempts)->toBe(1);
 });
 
-
 it('keeps a submitted provider timeout ambiguous and blocks an automatic duplicate charge', function () {
     $integration = WhmcsIntegration::create([
         'name' => 'Ambiguous provider timeout test',
