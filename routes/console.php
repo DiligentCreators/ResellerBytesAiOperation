@@ -137,7 +137,7 @@ Artisan::command('diagnostics:recover-queued {--stale-minutes=15} {--limit=100}'
                     ? Carbon::parse($run->analysis_started_at)->lessThanOrEqualTo($cutoff)
                     : Carbon::parse($run->updated_at)->lessThanOrEqualTo($cutoff));
 
-            if (! $isStaleQueued && ! $isStaleAnalyzing) {
+            if ($isStaleQueued === false && $isStaleAnalyzing === false) {
                 return 'skipped';
             }
 
