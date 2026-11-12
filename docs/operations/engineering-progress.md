@@ -184,7 +184,6 @@ Verified PR #2 head: `41d939164a2c787d5feced121e4dfc24b823068b`.
 - Remaining release gates include PostgreSQL concurrency and worker/provider failure tests, database-level audit immutability, integration deletion/history lifecycle, retention dry-run and restore rehearsal, production signing-key generation/secret management, and deployment/pilot approval.
 - The hybrid SaaS tenant, dual-billing, entitlement, and white-label roadmap remains a separate implementation phase; it is not claimed as delivered by this release-readiness PR.
 
-
 ## PostgreSQL multi-process AI budget concurrency harness — 2026-11-13
 
 - Added `tests/Concurrency/ai_budget_reservation.php`, a standalone PostgreSQL-only integration harness that launches eight independent PHP worker processes against eight pre-created diagnostic runs.
