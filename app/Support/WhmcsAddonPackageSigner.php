@@ -50,7 +50,7 @@ class WhmcsAddonPackageSigner
         $secretKey = base64_decode((string) config('services.whmcs_addon.signing_secret_key'), true);
         $publicKey = base64_decode((string) config('services.whmcs_addon.signing_public_key'), true);
 
-        if ($secretKey === false || strlen($secretKey) !== SODIUM_CRYPTO_SIGN_SECRETKEYBYTES
+        if ($secretKey === false || $secretKey === '' || strlen($secretKey) !== SODIUM_CRYPTO_SIGN_SECRETKEYBYTES
             || $publicKey === false || strlen($publicKey) !== SODIUM_CRYPTO_SIGN_PUBLICKEYBYTES) {
             throw new RuntimeException('A valid WHMCS addon Ed25519 signing key pair is not configured.');
         }
