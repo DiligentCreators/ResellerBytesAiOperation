@@ -286,6 +286,10 @@ PROMPT;
             $value = $value[$segment];
         }
 
-        return $value !== null && $value !== '' && $value !== 'unknown';
+        if ($value === null || $value === '' || $value === 'unknown' || $value === []) {
+            return false;
+        }
+
+        return ! is_string($value) || trim($value) !== '';
     }
 }
