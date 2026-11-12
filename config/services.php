@@ -2,18 +2,6 @@
 
 return [
 
-    /*
-    |--------------------------------------------------------------------------
-    | Third Party Services
-    |--------------------------------------------------------------------------
-    |
-    | This file is for storing the credentials for third party services such
-    | as Resend, Postmark, AWS, and more. This file provides the de facto
-    | location for this type of information, allowing packages to have
-    | a conventional file to locate the various service credentials.
-    |
-    */
-
     'postmark' => [
         'key' => env('POSTMARK_API_KEY'),
     ],
@@ -44,6 +32,8 @@ return [
 
     'whmcs_addon' => [
         'version' => env('WHMCS_ADDON_VERSION', '1.0.0'),
+        'signing_secret_key' => env('WHMCS_ADDON_SIGNING_SECRET_KEY'),
+        'signing_public_key' => env('WHMCS_ADDON_SIGNING_PUBLIC_KEY'),
     ],
 
 ];

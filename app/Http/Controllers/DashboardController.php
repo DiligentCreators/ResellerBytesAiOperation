@@ -5,12 +5,13 @@ namespace App\Http\Controllers;
 use App\Models\DiagnosticFinding;
 use App\Models\DiagnosticRun;
 use App\Models\WhmcsIntegration;
+use App\Support\WhmcsAddonPackageSigner;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class DashboardController extends Controller
 {
-    public function __invoke(): Response
+    public function __invoke(WhmcsAddonPackageSigner $signer): Response
     {
         $latestRuns = DiagnosticRun::query()
             ->with('integration:id,name')
@@ -29,6 +30,8 @@ class DashboardController extends Controller
                 'integration_name' => $run->integration->name,
             ]);
 
+        $signingConfigured = $signer->isConfigured();
+
         return Inertia::render('dashboard', [
             'stats' => [
                 'active_integrations' => WhmcsIntegration::query()->where('status', 'active')->count(),
@@ -42,8 +45,9 @@ class DashboardController extends Controller
             'latestRuns' => $latestRuns,
             'addon' => [
                 'version' => config('services.whmcs_addon.version', '1.0.0'),
-                'download_available' => class_exists(\ZipArchive::class),
+                'download_available' => class_exists(\ZipArchive::class) && $signingConfigured,
                 'ai_configured' => filled(config('services.openai.key')),
+                'signing_key_fingerprint' => $signingConfigured ? $signer->fingerprint() : null,
             ],
         ]);
     }

@@ -18,6 +18,23 @@ The addon:
 
 The collector explicitly reports what it cannot observe, including the system-cron PHP runtime, module status, hosting-panel configuration, and certificate verification. Missing visibility is not reported as healthy.
 
+## Package authenticity
+
+The operations application signs the version and sorted SHA-256 manifest with an Ed25519 key. The ZIP contains:
+
+- SHA256SUMS.txt — SHA-256 checksums for every addon source file.
+- SIGNATURE.ed25519 — detached Ed25519 signature over the version and exact manifest bytes.
+- SIGNING-PUBLIC-KEY.txt — base64-encoded public key.
+- SIGNING-KEY-FINGERPRINT.txt — SHA-256 fingerprint of the raw public key.
+
+Before installation, compare the fingerprint in the archive with the fingerprint shown separately on the authenticated operations dashboard. A matching fingerprint establishes which public key to trust; the signature then authenticates the version and file manifest. Do not install if the values differ or signature verification fails.
+
+To verify the signature with PHP 8.1+ and Sodium after extracting the archive, run this from the extracted package directory (the command is intentionally explicit and does not execute addon code):
+
+    php -r '$m=file_get_contents("SHA256SUMS.txt"); $v=trim(file_get_contents("VERSION.txt")); $s=base64_decode(trim(file_get_contents("SIGNATURE.ed25519")),true); $p=base64_decode(trim(file_get_contents("SIGNING-PUBLIC-KEY.txt")),true); $f=trim(file_get_contents("SIGNING-KEY-FINGERPRINT.txt")); if(!is_string($m)||!is_string($s)||!is_string($p)||!hash_equals($f,hash("sha256",$p))||!sodium_crypto_sign_verify_detached($s,"resellerbytes-ai-ops-package-v1\nversion=".$v."\n".$m."\n",$p)){fwrite(STDERR,"Package signature verification FAILED\n"); exit(1);} foreach(explode("\n",trim($m)) as $line){if(!preg_match("/^([a-f0-9]{64})  (.+)$/",$line,$x)){exit(1);} $path="resellerbytes_ai_ops/".$x[2]; if(!is_file($path)||!hash_equals($x[1],hash_file("sha256",$path))){fwrite(STDERR,"Checksum mismatch: ".$path."\n"); exit(1);}} echo "Package signature and file checksums verified.\n";'
+
+This verifies integrity and signature consistency. The public-key fingerprint must still be compared with the independently displayed dashboard fingerprint; a fingerprint stored only inside the ZIP is not a trust anchor.
+
 ## Credentials storage
 
 Do not put the HMAC secret in WHMCS addon configuration fields. WHMCS 8.13's addon settings model does not document encrypted-at-rest storage for addon values.
@@ -47,12 +64,13 @@ Do not install this addon on production until the Laravel API is deployed, the i
 
 1. Take and verify a restorable WHMCS files/database backup.
 2. WHMCS does not provide a built-in ZIP addon-module uploader. Use 20i File Manager to upload without FTP. If the panel offers Extract, extract the ZIP into /modules/addons. Otherwise extract it locally, create /modules/addons/resellerbytes_ai_ops and its lib subfolder, then upload the four PHP files through File Manager while preserving paths. The resulting path must be /modules/addons/resellerbytes_ai_ops/resellerbytes_ai_ops.php.
-3. Create the credentials JSON file outside the web root and set its permissions to 0600.
-4. In WHMCS, activate ResellerBytes AI Operations under Addon Modules.
-5. Configure the absolute credentials-file path.
-6. Grant addon access only to trusted administrator roles.
-7. Open the addon page and run Run diagnostics once manually.
-8. Confirm the accepted snapshot and inspect its exact payload in the operations application.
+3. Verify the ZIP signature and compare its signing-key fingerprint with the authenticated operations dashboard before extracting or installing.
+4. Create the credentials JSON file outside the web root and set its permissions to 0600.
+5. In WHMCS, activate ResellerBytes AI Operations under Addon Modules.
+6. Configure the absolute credentials-file path.
+7. Grant addon access only to trusted administrator roles.
+8. Open the addon page and run Run diagnostics once manually.
+9. Confirm the accepted snapshot and inspect its exact payload in the operations application.
 
 Do not configure a cron or recurring run during the first pilot. A successful manual run is required before any separate scheduling decision.
 
