@@ -7,7 +7,9 @@ use App\Models\DiagnosticRun;
 use App\Models\User;
 use App\Models\WhmcsIntegration;
 use App\Services\Diagnostics\AiBudgetService;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use RuntimeException;
 
