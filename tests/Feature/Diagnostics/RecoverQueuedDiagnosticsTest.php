@@ -79,3 +79,42 @@ it('respects the bounded recovery batch limit', function () {
     expect($olderRun->fresh()->updated_at->greaterThan(now()->subMinute()))->toBeTrue();
     expect($newerRun->fresh()->updated_at->lessThan(now()->subMinute()))->toBeTrue();
 });
+
+
+it('recovers abandoned analyzing runs only after the lease and queue visibility window', function () {
+    Queue::fake();
+
+    $staleRun = createQueuedRecoveryTestRun();
+    $freshRun = createQueuedRecoveryTestRun();
+
+    DB::table('diagnostic_runs')
+        ->where('id', $staleRun->id)
+        ->update([
+            'status' => 'analyzing',
+            'analysis_started_at' => now()->subMinutes(20),
+            'updated_at' => now()->subMinutes(20),
+        ]);
+
+    DB::table('diagnostic_runs')
+        ->where('id', $freshRun->id)
+        ->update([
+            'status' => 'analyzing',
+            'analysis_started_at' => now()->subMinutes(5),
+            'updated_at' => now()->subMinutes(5),
+        ]);
+
+    expect(Artisan::call('diagnostics:recover-queued'))->toBe(0);
+
+    Queue::assertPushed(
+        AnalyzeDiagnosticRun::class,
+        fn (AnalyzeDiagnosticRun $job): bool => $job->diagnosticRunId === $staleRun->id,
+    );
+    Queue::assertNotPushed(
+        AnalyzeDiagnosticRun::class,
+        fn (AnalyzeDiagnosticRun $job): bool => $job->diagnosticRunId === $freshRun->id,
+    );
+
+    expect($staleRun->fresh()->status)->toBe('queued');
+    expect($staleRun->fresh()->analysis_started_at)->toBeNull();
+    expect($freshRun->fresh()->status)->toBe('analyzing');
+});

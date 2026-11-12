@@ -89,3 +89,22 @@ Last reviewed: 2026-11-12
 - **Blocked** means a required safety precondition or external operator action is outstanding.
 
 This document records review evidence; it does not certify the application as production-ready.
+
+
+## Operator-approved budget and retention policy — 2026-11-12
+
+- Global AI budget targets approved: USD 5.00 per UTC day and USD 50.00 per UTC calendar month.
+- Diagnostic snapshot retention target approved: 90 days, including dependent findings and recommendations.
+- Audit-event retention target approved: 2,555 days (approximately seven years), separate from diagnostic retention.
+- These are policy targets only. No budget enforcement is active solely because these values were approved.
+- The design calls for atomic daily/monthly reservations, integer micro-USD accounting, versioned model pricing, idempotent usage settlement, and conservative handling of ambiguous provider outcomes.
+- No budget-ledger or retention migration has been added in this step. Schema changes remain reserved for the final consolidated migration batch.
+- No destructive migration or pruning has been run or authorized by this work.
+
+## Additional queue recovery hardening
+
+- The bounded `diagnostics:recover-queued` command now also identifies abandoned `analyzing` rows whose analysis lease is older than the effective stale threshold.
+- The threshold is never shorter than the configured queue retry visibility window, the 90-second job timeout, and the 100-second analysis lease, plus a safety margin.
+- A stale row is atomically returned to `queued`, its old lease timestamp is cleared, and a replacement job is dispatched. Fresh `analyzing` rows remain untouched.
+- Focused feature coverage was added for stale versus fresh `analyzing` recovery. Runtime CI verification is pending.
+- This remains bounded reconciliation, not a transactional outbox; duplicate queue entries remain possible, while the job-level row lock and lease protect execution.
