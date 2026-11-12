@@ -209,7 +209,7 @@ it('does not allow collector metadata to support diagnostic findings', function 
         'no_findings_reason' => null,
         'findings' => [
             [
-                'category' => 'compatibility',
+                'category' => 'other',
                 'severity' => 'warning',
                 'title' => 'Cron PHP runtime mismatch',
                 'summary' => 'A mismatch cannot be established from a limitation marker.',
