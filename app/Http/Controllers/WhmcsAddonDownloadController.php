@@ -83,17 +83,19 @@ class WhmcsAddonDownloadController extends Controller
 
         $version = preg_replace('/[^0-9A-Za-z._-]/', '-', (string) config('services.whmcs_addon.version', '1.0.0'));
 
-        return response()
-            ->download(
-                $temporaryPath,
-                'resellerbytes-ai-ops-whmcs-v'.$version.'.zip',
-                [
-                    'Content-Type' => 'application/zip',
-                    'Cache-Control' => 'private, no-store, max-age=0',
-                    'X-Content-Type-Options' => 'nosniff',
-                ],
-            )
-            ->deleteFileAfterSend(true);
+        $download = response()->download(
+            $temporaryPath,
+            'resellerbytes-ai-ops-whmcs-v'.$version.'.zip',
+            [
+                'Content-Type' => 'application/zip',
+                'X-Content-Type-Options' => 'nosniff',
+            ],
+        );
+
+        $download->setPrivate();
+        $download->headers->set('Cache-Control', 'private, no-store, max-age=0');
+
+        return $download->deleteFileAfterSend(true);
     }
 
     private function installationInstructions(): string
