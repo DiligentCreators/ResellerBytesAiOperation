@@ -19,6 +19,8 @@ class AiUsageAttempt extends Model
         'input_tenths_micro_usd_per_token',
         'cached_input_tenths_micro_usd_per_token',
         'output_tenths_micro_usd_per_token',
+        'daily_period_start',
+        'monthly_period_start',
         'status',
         'reserved_micro_usd',
         'settled_micro_usd',
