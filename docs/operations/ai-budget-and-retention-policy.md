@@ -90,3 +90,24 @@ Migration `2026_11_12_000008_create_ai_budget_ledger_tables.php` adds the daily/
 - An authenticated operator reconciliation workflow is not yet implemented; ambiguous attempts must remain held until a reviewed reconciliation process is added.
 - No destructive migration or data-pruning command is run as part of this design.
 - No provider price is hard-coded in this document; price-card values must be verified against the provider's current official pricing when implementation is prepared.
+
+## Ambiguous provider-attempt reconciliation
+
+An attempt marked `ambiguous` represents a request that may have reached the provider but whose billable outcome was not confirmed. Its reservation remains held and blocks another billable attempt for the same diagnostic run.
+
+A trusted operator may release that reservation only after independently checking provider-side request history or obtaining provider support evidence that the request was not accepted and no charge was incurred. A timeout, missing local response ID, or absence of a visible response in the application is not sufficient evidence.
+
+The guarded server-side command is:
+
+```sh
+php artisan ai-budget:reconcile-no-charge ATTEMPT_UUID \
+  --operator=operator@example.com \
+  --evidence=PROVIDER_DASHBOARD_CASE_OR_REQUEST_REFERENCE \
+  --note="Verified provider request history shows no accepted request and no charge."
+```
+
+The command requires an existing operator account with confirmed TOTP MFA, a non-empty evidence reference, a substantive note, and a second explicit interactive confirmation. It accepts only an `ambiguous` attempt. The reservation release, attempt state transition, reconciliation metadata, and append-only audit event are committed in one database transaction. Repeated reconciliation is rejected.
+
+This command supports only the verified **not charged** outcome. It does not guess token usage, fabricate a provider response ID, or release an attempt when the provider outcome remains unknown. If provider evidence confirms a charge, do not use this command; preserve the hold and follow a separately reviewed settlement procedure. Keep provider evidence in the approved restricted evidence store and reference it without copying secrets into the audit record.
+
+The command is a privileged operational control, not a substitute for provider evidence, database-level audit immutability, or a formal two-person approval policy. Production use remains blocked until PostgreSQL transaction/concurrency tests and the full CI workflow pass.
