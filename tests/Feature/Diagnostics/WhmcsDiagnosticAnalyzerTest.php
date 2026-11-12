@@ -168,7 +168,6 @@ it('does not call the provider when no API key is configured', function () {
         ->toThrow(RuntimeException::class, 'provider_not_configured');
 });
 
-
 it('rejects evidence paths whose values are explicitly unknown', function () {
     $run = makeDiagnosticRunForAiTest([
         'system' => [
@@ -198,7 +197,6 @@ it('rejects evidence paths whose values are explicitly unknown', function () {
     expect(fn () => app(WhmcsDiagnosticAnalyzer::class)->analyze($run))
         ->toThrow(RuntimeException::class, 'provider_evidence_reference_invalid');
 });
-
 
 it('does not allow collector metadata to support diagnostic findings', function () {
     $run = makeDiagnosticRunForAiTest([
