@@ -115,6 +115,40 @@ it('keeps an ambiguous submitted reservation and blocks a second billable attemp
         ->toThrow(RuntimeException::class, 'budget_attempt_unresolved');
 });
 
+
+it('releases an ambiguous reservation only through audited no-charge reconciliation', function () {
+    $run = makeBudgetDiagnosticRun();
+    $service = app(AiBudgetService::class);
+    $attempt = $service->reserve($run, 'gpt-5.6-sol', '2026-11-12.1');
+    $service->markSubmitted($attempt);
+    $service->markAmbiguous($attempt, 'provider_timeout_after_submit');
+
+    $operator = User::factory()->create();
+    $service->reconcileConfirmedNoCharge(
+        $attempt,
+        (string) $operator->getKey(),
+        'provider-console-case-123',
+        'Verified provider request history shows no accepted request and no charge.',
+    );
+
+    expect($attempt->fresh()->status)->toBe('released')
+        ->and($attempt->fresh()->failure_code)->toBe('reconciled_not_charged')
+        ->and($attempt->fresh()->reconciled_by)->toBe((string) $operator->getKey())
+        ->and($attempt->fresh()->reconciled_at)->not->toBeNull()
+        ->and(AiBudgetPeriod::query()->where('period_type', 'daily')->sole()->reserved_micro_usd)->toBe(0)
+        ->and(AiBudgetPeriod::query()->where('period_type', 'monthly')->sole()->reserved_micro_usd)->toBe(0)
+        ->and(AuditEvent::query()->where('event_type', 'ai_usage_attempt.reconciled_not_charged')->count())->toBe(1);
+
+    expect(fn () => $service->reconcileConfirmedNoCharge(
+        $attempt->fresh(),
+        (string) $operator->getKey(),
+        'provider-console-case-123',
+        'Repeated reconciliation must be rejected as the attempt is no longer ambiguous.',
+    ))->toThrow(RuntimeException::class, 'budget_attempt_not_reconcilable');
+
+    expect(AuditEvent::query()->where('event_type', 'ai_usage_attempt.reconciled_not_charged')->count())->toBe(1);
+});
+
 it('records actual provider cost when usage exceeds the reserved ceiling', function () {
     $run = makeBudgetDiagnosticRun();
     $service = app(AiBudgetService::class);
