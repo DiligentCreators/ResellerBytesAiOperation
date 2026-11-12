@@ -80,7 +80,6 @@ it('respects the bounded recovery batch limit', function () {
     expect($newerRun->fresh()->updated_at->lessThan(now()->subMinute()))->toBeTrue();
 });
 
-
 it('recovers abandoned analyzing runs only after the lease and queue visibility window', function () {
     Queue::fake();
 
