@@ -55,9 +55,6 @@ class WhmcsAddonPackageSigner
             throw new RuntimeException('A valid WHMCS addon Ed25519 signing key pair is not configured.');
         }
 
-        /** @var non-empty-string $secretKey */
-        $secretKey = $secretKey;
-
         $derivedPublicKey = sodium_crypto_sign_publickey_from_secretkey($secretKey);
 
         if (! hash_equals($derivedPublicKey, $publicKey)) {
