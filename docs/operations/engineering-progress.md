@@ -5,29 +5,44 @@ Last reviewed: 2026-11-12
 ## Verified repository baseline
 
 - Repository: `DiligentCreators/ResellerBytesAiOperation`
-- Reviewed branch: `main`
-- Latest reviewed commit: `757e2bf75907e1d6d970c921faadee24c7445b47` (`feat: add ResellerBytes AI Operations foundation`)
-- The foundation commit describes the read-only WHMCS diagnostics, AI analysis, dashboard, and versioned addon package foundation.
-- The README and architecture/runbook documents define a Laravel 13 / PHP 8.5 operations application, separate PostgreSQL storage, Redis-backed queues/cache/sessions, and a PHP 8.1-compatible WHMCS addon.
-- The WHMCS addon is explicitly manual-first and read-only. It must not alter WHMCS business records, call provisioning/registrar APIs, or change the existing 20i and ResellerClub modules.
-- The live pilot requires an operator-approved backup, security review, and one-shot manual execution. Deployment is not authorized by this review.
+- Main baseline: `757e2bf75907e1d6d970c921faadee24c7445b47`
+- Review branch: `work/release-readiness-audit`
+- The foundation provides a read-only WHMCS diagnostics addon, signed API ingestion, queued AI analysis, dashboard, and versioned addon package.
+- The application targets Laravel 13 / PHP 8.5 with PostgreSQL and Redis; the WHMCS addon targets PHP 8.1.
+- The addon is manual-first and read-only. It must not alter WHMCS business records, call provisioning/registrar APIs, or change existing 20i and ResellerClub modules.
+- No deployment or live WHMCS installation change has been performed.
 
-## Release gate findings
+## CI evidence
 
-1. **CI evidence is not yet verified.** The latest reviewed commit returned no combined commit status entries. This is not evidence of a passing CI run; the actual workflow run and job results still need to be inspected.
-2. **Automated test execution is pending independent verification.** The README documents application CI checks and three standalone PHP 8.1 addon tests, but this review did not execute those tests.
-3. **Production preconditions remain operator-owned.** Forge PHP 8.5 extensions, PostgreSQL/Redis configuration, supervised queue worker, scheduler, SMTP, operator MFA/passkey, and spend limits must be checked in the target environment.
-4. **The WHMCS pilot remains blocked** until a restorable backup, approved maintenance window/rollback owner, exact addon ZIP/checksum review, external credentials file with exact mode 0600, and one-shot read-only test are confirmed.
-5. **No deployment has been performed.** No live WHMCS installation or production infrastructure was changed during this review.
+- GitHub Actions run [43207784623](https://github.com/DiligentCreators/ResellerBytesAiOperation/actions/runs/43207784623) completed successfully for the documentation review pull request.
+- Both jobs passed: `whmcs-addon-php81` and `ci`.
+- The PHP 8.1 job completed addon PHP syntax validation and all three standalone addon tests.
+- The application CI job completed Composer setup, Node setup, frontend build, and `composer ci:check`.
+- The main-branch run [43126184415](https://github.com/DiligentCreators/ResellerBytesAiOperation/actions/runs/43126184415) also completed successfully.
+- These results establish that those specific commits passed the configured workflow; they do not certify production readiness.
 
-## Next engineering actions
+## Source review observations
 
-- Inspect the actual repository tree and current CI workflow definitions.
-- Obtain and review the latest CI workflow run, including every job result and failure log where applicable.
-- Run the full application test/static-analysis/frontend checks and the standalone PHP 8.1 addon tests in a reproducible checkout.
-- Perform a focused security review of HMAC canonicalization, replay/idempotency handling, strict snapshot validation, redaction, AI structured-output validation, evidence-path verification, and ZIP package contents.
-- Fix verified defects on an isolated branch, add regression tests, and open a reviewable pull request.
-- Keep production deployment and the live WHMCS pilot gated on explicit operator approval.
+- HMAC request signing uses a fixed HTTPS endpoint, a canonical method/path/timestamp/nonce/body-digest message, a random nonce, TLS peer/host verification, disabled redirects, and a bounded response body.
+- Server middleware validates timestamp skew, signature, integration status, request size, query-string absence, and one-time nonce use.
+- The addon credential loader requires an absolute path outside the WHMCS/document roots, rejects symlinks, enforces exact mode `0600`, bounds file size, and validates the JSON structure.
+- The collector uses an allowlist of technical signals and does not transmit the configured system URL or customer/billing records.
+- The AI analyzer treats the snapshot as untrusted evidence, requests strict structured output, validates finding fields, and rejects evidence paths that do not resolve to observed snapshot values.
+- No confirmed production-blocking defect was established in this focused source pass. The review is not a substitute for a full independent penetration test.
+
+## Work started on this branch
+
+- Expanded the standalone signed API client test to exercise HTTP 500 responses, malformed JSON, empty responses, and cURL transport failures in addition to successful signing, TLS/redirect settings, and oversized response handling.
+- The new test changes are awaiting their own CI run; they are not yet marked as passing.
+- Pull request: [#2 — release-readiness review](https://github.com/DiligentCreators/ResellerBytesAiOperation/pull/2).
+
+## Remaining release gates
+
+1. Verify the new failure-path tests on the latest branch commit.
+2. Review the addon ZIP contents, download/setup flow, and package checksum generation.
+3. Continue application-level review of authentication/authorization, audit logging, data retention, queue failure recovery, and AI evidence handling.
+4. Confirm production infrastructure settings: PHP extensions, PostgreSQL/Redis connectivity, queue worker, scheduler, SMTP, operator MFA/passkey, and spend limits.
+5. Require an operator-approved restorable backup, maintenance window, rollback owner, exact addon ZIP/checksum review, external credentials file with mode `0600`, and one-shot read-only WHMCS pilot before any deployment.
 
 ## Status vocabulary
 
