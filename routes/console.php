@@ -21,7 +21,7 @@ Artisan::command('ai-budget:reconcile-no-charge {attempt} {--operator=} {--evide
     $evidenceReference = trim((string) $this->option('evidence'));
     $note = trim((string) $this->option('note'));
 
-    if ($operatorEmail === '' || $evidenceReference === '' || mb_strlen($note) < 20 || mb_strlen($note) > 1000) {
+    if ($operatorEmail === '' || $evidenceReference === '' || mb_strlen($evidenceReference) > 255 || mb_strlen($note) < 20 || mb_strlen($note) > 1000) {
         $this->error('Provide --operator, --evidence, and a --note between 20 and 1000 characters.');
 
         return 1;
@@ -29,6 +29,7 @@ Artisan::command('ai-budget:reconcile-no-charge {attempt} {--operator=} {--evide
 
     $operator = User::query()
         ->where('email', $operatorEmail)
+        ->whereNotNull('email_verified_at')
         ->whereNotNull('two_factor_confirmed_at')
         ->first();
 
