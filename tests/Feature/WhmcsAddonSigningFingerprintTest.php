@@ -32,12 +32,18 @@ it('exposes the trusted signing fingerprint separately from the downloaded archi
         'email_verified_at' => now(),
     ]);
 
-    $this->actingAs($user)
-        ->get('/whmcs-addon/signing-key-fingerprint')
+    $response = $this->actingAs($user)
+        ->get('/whmcs-addon/signing-key-fingerprint');
+
+    $response
         ->assertOk()
-        ->assertHeader('Cache-Control', 'private, no-store, max-age=0')
         ->assertHeader('X-Content-Type-Options', 'nosniff')
         ->assertSee($fingerprint, false);
+
+    expect($response->headers->get('Cache-Control'))
+        ->toContain('private')
+        ->toContain('no-store')
+        ->toContain('max-age=0');
 });
 
 it('does not expose a fingerprint when the signing key is unavailable', function () {
