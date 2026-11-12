@@ -30,7 +30,7 @@ class StoreDiagnosticSnapshotRequest extends FormRequest
             'payload.system.web_server' => ['sometimes', 'nullable', 'string', 'max:64', 'regex:/\A[A-Za-z0-9._-]+\z/'],
             'payload.system.application_url_configured' => ['sometimes', 'boolean'],
             'payload.system.error_display_disabled' => ['present', 'nullable', 'boolean'],
-            'payload.system.configuration_file_writable' => ['required', 'nullable', 'boolean'],
+            'payload.system.configuration_file_writable' => ['present', 'nullable', 'boolean'],
             'payload.php' => ['required', 'array:memory_limit,extensions'],
             'payload.php.memory_limit' => ['required', 'string', 'max:32', 'regex:/\A(?:-?[0-9]+[KMG]?|unknown)\z/'],
             'payload.php.extensions' => ['required', 'array:curl,json,mbstring,openssl,pdo,pdo_mysql,soap,xml,gd,iconv,intl,zip,zlib,fileinfo,bcmath,ioncube_loader,sodium'],
