@@ -166,7 +166,7 @@ test('treats a repeated snapshot identifier as idempotent when signed with a fre
     $snapshotUuid = (string) Str::uuid();
     $overrides = [
         'snapshot_uuid' => $snapshotUuid,
-        'collected_at' => now()->utc()->format('Y-m-d\\TH:i:s\\Z'),
+        'collected_at' => now()->utc()->format('Y-m-d\TH:i:s\Z'),
     ];
     $first = makeSignedSnapshot($integration, $overrides);
     $second = makeSignedSnapshot($integration, $overrides);
