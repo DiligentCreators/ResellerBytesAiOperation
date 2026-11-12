@@ -11,7 +11,12 @@ type Run = {
     findings_count: number;
     integration_name: string;
 };
-type Props = { runs: { data: Run[]; links: { url: string | null; label: string; active: boolean }[] } };
+type Props = {
+    runs: {
+        data: Run[];
+        links: { url: string | null; label: string; active: boolean }[];
+    };
+};
 
 function date(value: string | null) {
     return value
