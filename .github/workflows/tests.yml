@@ -75,10 +75,5 @@ jobs:
           npm ci
           npm run build
 
-      - name: Apply policy Markdown formatter and print result
-        run: |
-          npx vp check --fix
-          cat docs/operations/ai-budget-and-retention-policy.md
-
       - name: Run CI Checks
         run: composer ci:check

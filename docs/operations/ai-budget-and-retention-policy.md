@@ -48,6 +48,7 @@ The request token ceilings must be enforceable, not estimates alone. The current
 ### Required persistence components
 
 The final consolidated schema batch is expected to provide:
+
 - UTC daily/monthly budget-period rows with approved limit, committed amount, reserved amount, and lockable period identity.
 - Per-attempt usage/reservation ledger rows with unique attempt identity, model and prompt metadata, price-card version, token counts, monetary amounts, state, timestamps, provider response ID, and reconciliation metadata.
 - Appropriate uniqueness and lookup indexes for idempotent settlement, run history, and period accounting.
