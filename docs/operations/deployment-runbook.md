@@ -42,7 +42,7 @@ Required application settings:
 - OPENAI_REASONING_EFFORT=medium
 - WHMCS_ADDON_VERSION=1.0.0
 
-Configure production SMTP before relying on password-reset emails. Set `MAIL_MAILER=smtp`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_ENCRYPTION`, `MAIL_FROM_ADDRESS`, and `MAIL_FROM_NAME` to your approved mail provider, then test a password-reset email. Do not leave the example `MAIL_MAILER=log` setting in production.
+Configure production SMTP before relying on password-reset emails. Set `MAIL_MAILER=smtp`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_SCHEME` (`smtp` for STARTTLS or `smtps` for implicit TLS), `MAIL_FROM_ADDRESS`, and `MAIL_FROM_NAME` to your approved mail provider, then test a password-reset email. Do not leave the example `MAIL_MAILER=log` setting in production.
 
 Set a sensible OpenAI project spend limit and monitor usage. AI analysis must never receive credentials, customer records, invoices, payment details, or raw configuration files.
 
