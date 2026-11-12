@@ -7,11 +7,11 @@ use App\Models\AiUsageAttempt;
 use App\Models\DiagnosticRun;
 use App\Models\WhmcsIntegration;
 use App\Services\Diagnostics\AiBudgetService;
-require dirname(__DIR__, 2).'/vendor/autoload.php';
-
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+
+require dirname(__DIR__, 2).'/vendor/autoload.php';
 
 $app = require dirname(__DIR__, 2).'/bootstrap/app.php';
 $app->make(Kernel::class)->bootstrap();
