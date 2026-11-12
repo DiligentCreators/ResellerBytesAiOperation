@@ -12,7 +12,7 @@ it('downloads a WHMCS addon archive with the expected module structure', functio
         $this->markTestSkipped('The PHP ZIP extension is required.');
     }
 
-    $user = User::factory()->create([
+    $user = User::factory()->withTwoFactor()->create([
         'email_verified_at' => now(),
     ]);
 
@@ -48,4 +48,12 @@ it('does not expose the WHMCS addon download to unverified users', function () {
     $this->actingAs($user)
         ->get('/whmcs-addon/download')
         ->assertRedirect(route('verification.notice'));
+});
+
+it('does not expose the WHMCS addon download before two-factor authentication is confirmed', function () {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->get('/whmcs-addon/download')
+        ->assertRedirect(route('security.edit'));
 });

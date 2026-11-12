@@ -6,11 +6,12 @@ use App\Http\Controllers\FindingController;
 use App\Http\Controllers\WhmcsAddonDownloadController;
 use App\Http\Controllers\WhmcsAddonSetupController;
 use App\Http\Controllers\WhmcsIntegrationController;
+use App\Http\Middleware\EnsureTwoFactorEnabled;
 use Illuminate\Support\Facades\Route;
 
 Route::inertia('/', 'welcome')->name('home');
 
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['auth', 'verified', EnsureTwoFactorEnabled::class])->group(function () {
     Route::get('dashboard', DashboardController::class)->name('dashboard');
     Route::get('integrations', [WhmcsIntegrationController::class, 'index'])->name('integrations.index');
     Route::get('diagnostic-runs', [DiagnosticRunController::class, 'index'])->name('diagnostic-runs.index');
