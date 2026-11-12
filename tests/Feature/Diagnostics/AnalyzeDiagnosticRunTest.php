@@ -1,6 +1,8 @@
 <?php
 
 use App\Jobs\AnalyzeDiagnosticRun;
+use App\Models\AiBudgetPeriod;
+use App\Models\AiUsageAttempt;
 use App\Models\DiagnosticFinding;
 use App\Models\DiagnosticRun;
 use App\Models\WhmcsIntegration;
@@ -196,4 +198,58 @@ it('does not start a duplicate analysis while the current worker lease is active
 
     expect($run->fresh()->status)->toBe('analyzing')
         ->and($run->fresh()->analysis_attempts)->toBe(1);
+});
+
+
+it('keeps a submitted provider timeout ambiguous and blocks an automatic duplicate charge', function () {
+    $integration = WhmcsIntegration::create([
+        'name' => 'Ambiguous provider timeout test',
+        'status' => 'active',
+        'secret' => bin2hex(random_bytes(32)),
+        'secret_version' => 1,
+    ]);
+
+    $run = DiagnosticRun::create([
+        'integration_id' => $integration->id,
+        'snapshot_uuid' => (string) Str::uuid(),
+        'schema_version' => '1.0',
+        'addon_version' => '1.0.0',
+        'status' => 'received',
+        'collected_at' => now(),
+        'received_at' => now(),
+        'payload' => ['system' => ['whmcs_version' => '8.13.7']],
+        'payload_sha256' => str_repeat('f', 64),
+    ]);
+
+    $analyzer = Mockery::mock(WhmcsDiagnosticAnalyzer::class);
+    $analyzer->shouldReceive('analyze')->once()->andReturnUsing(function ($model, $beforeSubmit) {
+        $beforeSubmit();
+
+        throw new RuntimeException('provider_request_failed');
+    });
+
+    $job = new AnalyzeDiagnosticRun($run->id);
+    $budget = app(AiBudgetService::class);
+
+    expect(fn () => $job->handle($analyzer, $budget))
+        ->toThrow(RuntimeException::class, 'provider_request_failed');
+
+    $attempt = AiUsageAttempt::query()->where('diagnostic_run_id', $run->id)->sole();
+    $periods = AiBudgetPeriod::query()->get();
+
+    expect($attempt->status)->toBe('ambiguous')
+        ->and($attempt->reserved_micro_usd)->toBeGreaterThan(0)
+        ->and($periods)->toHaveCount(2);
+
+    foreach ($periods as $period) {
+        expect($period->reserved_micro_usd)->toBe($attempt->reserved_micro_usd)
+            ->and($period->committed_micro_usd)->toBe(0);
+    }
+
+    expect(fn () => $job->handle($analyzer, $budget))
+        ->toThrow(RuntimeException::class, 'budget_attempt_unresolved');
+
+    expect(AiUsageAttempt::query()->where('diagnostic_run_id', $run->id)->count())->toBe(1)
+        ->and($attempt->fresh()->status)->toBe('ambiguous')
+        ->and($run->fresh()->status)->toBe('analysis_failed');
 });
