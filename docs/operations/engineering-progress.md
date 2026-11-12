@@ -19,7 +19,7 @@ Last reviewed: 2026-11-12
 - Latest reviewed run [43228161983](https://github.com/DiligentCreators/ResellerBytesAiOperation/actions/runs/43228161983) is **not green**: `whmcs-addon-php81` passed, while `ci` failed at Pint's `fully_qualified_strict_types` formatting check for `whmcs-addon/tests/signed_api_client_test.php`.
 - The frontend build and earlier formatting/lint steps completed in that failed run; the workflow stopped at the Pint test before the remaining test suite could establish a pass.
 - The strict-types formatting issue was still present in the PR merge-check run [43230275243](https://github.com/DiligentCreators/ResellerBytesAiOperation/actions/runs/43230275243): `whmcs-addon-php81` passed, while `ci` failed at the same Pint rule in `whmcs-addon/tests/signed_api_client_test.php`. The test now removes redundant leading backslashes from global `RuntimeException` references and imports `SignedApiClient` in the final namespace block. This correction is pending CI verification; no new CI has been intentionally triggered.
-- Run [43245822574](https://github.com/DiligentCreators/ResellerBytesAiOperation/actions/runs/43245822574) passed the WHMCS PHP 8.1 addon job but failed the main CI job at `npm run check` because `resources/js/pages/dashboard.tsx` required formatting. The workflow stopped before Pint, PHPStan, or Pest. The dashboard formatting correction is prepared; no subsequent run has been triggered yet.
+- Run [43245822574](https://github.com/DiligentCreators/ResellerBytesAiOperation/actions/runs/43245822574) passed the WHMCS PHP 8.1 addon job but failed the main CI job at `npm run check` because `resources/js/pages/dashboard.tsx` required formatting. The workflow stopped before Pint, PHPStan, or Pest. The dashboard formatting correction was committed in the subsequent formatting fix; that corrected head still requires a fresh CI result.
 - These results apply only to the commits and checks identified above; they do not certify production readiness.
 
 ## Source review observations
@@ -38,7 +38,7 @@ Last reviewed: 2026-11-12
 - Operators without confirmed TOTP are redirected to security settings; the security page remains reachable so they can enroll and confirm the authenticator before operational access. Password confirmation remains required by the security route.
 - Fortify public registration is not enabled in the inspected feature configuration. The explicit operator-provisioning command creates a verified account and applies a strong password policy.
 - Passkeys remain available as an additional authentication option, but are not treated as a substitute for confirmed TOTP because the application does not yet track authentication assurance per session. The last-operator deletion safeguard remains pending.
-- A self-service profile deletion route is available to authenticated, verified users. Confirm the intended account lifecycle and protect against accidental removal of the last usable operator account.
+- A self-service profile deletion route is available to authenticated, verified users. It now locks the operator rows and blocks deletion when only one account remains; focused feature coverage protects the last account while allowing deletion when another operator exists.
 - The trusted-operator model may be acceptable if all accounts are provisioned through a controlled process, but this assumption needs an explicit production control and verification of all account-creation paths.
 
 ### Audit-event integrity review

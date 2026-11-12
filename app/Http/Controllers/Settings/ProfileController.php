@@ -9,6 +9,9 @@ use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
+use App\Models\User;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -48,11 +51,24 @@ class ProfileController extends Controller
      */
     public function destroy(ProfileDeleteRequest $request): RedirectResponse
     {
-        $user = $request->user();
+        $userId = $request->user()->getKey();
+
+        DB::transaction(function () use ($userId): void {
+            $userIds = User::query()
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->pluck('id');
+
+            if ($userIds->count() <= 1) {
+                throw ValidationException::withMessages([
+                    'password' => 'The last operations account cannot be deleted. Create another operator account first.',
+                ]);
+            }
+
+            User::query()->whereKey($userId)->delete();
+        });
 
         Auth::logout();
-
-        $user->delete();
 
         $request->session()->invalidate();
         $request->session()->regenerateToken();
