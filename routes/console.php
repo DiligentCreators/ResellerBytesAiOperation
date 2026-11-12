@@ -11,6 +11,65 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
+
+Artisan::command('ai-budget:reconcile-no-charge {attempt} {--operator=} {--evidence=} {--note=}', function (AiBudgetService $budget) {
+    $attemptId = (string) $this->argument('attempt');
+    $operatorEmail = trim((string) $this->option('operator'));
+    $evidenceReference = trim((string) $this->option('evidence'));
+    $note = trim((string) $this->option('note'));
+
+    if ($operatorEmail === '' || $evidenceReference === '' || mb_strlen($note) < 20 || mb_strlen($note) > 1000) {
+        $this->error('Provide --operator, --evidence, and a --note between 20 and 1000 characters.');
+
+        return 1;
+    }
+
+    $operator = User::query()
+        ->where('email', $operatorEmail)
+        ->whereNotNull('two_factor_confirmed_at')
+        ->first();
+
+    if (! $operator) {
+        $this->error('The operator account was not found or has not confirmed TOTP MFA.');
+
+        return 1;
+    }
+
+    $attempt = AiUsageAttempt::query()->find($attemptId);
+    if (! $attempt || $attempt->status !== 'ambiguous') {
+        $this->error('Only an existing ambiguous AI usage attempt can be reconciled.');
+
+        return 1;
+    }
+
+    $this->warn('This releases a held reservation. Verify provider-side evidence that the request was NOT accepted and no charge was incurred.');
+    $this->line('Attempt: '.$attempt->id.' | Model: '.$attempt->model.' | Reserved micro-USD: '.$attempt->reserved_micro_usd);
+    $this->line('Operator: '.$operator->email.' | Evidence reference: '.$evidenceReference);
+
+    if (! $this->confirm('Have you independently verified the provider evidence and approve this no-charge reconciliation?', false)) {
+        $this->comment('No changes made.');
+
+        return 1;
+    }
+
+    try {
+        $budget->reconcileConfirmedNoCharge(
+            $attempt,
+            (string) $operator->getKey(),
+            $evidenceReference,
+            $note,
+        );
+    } catch (Throwable $exception) {
+        $this->error('Reconciliation failed: '.$exception->getMessage());
+
+        return 1;
+    }
+
+    $this->info('Ambiguous reservation reconciled as confirmed not charged. Audit event recorded.');
+
+    return 0;
+})->purpose('Release an ambiguous AI reservation only after evidence-based operator verification');
+
 Artisan::command('diagnostics:recover-queued {--stale-minutes=15} {--limit=100}', function () {
     $staleMinutes = max(5, min(1440, (int) $this->option('stale-minutes')));
     $limit = max(1, min(500, (int) $this->option('limit')));
