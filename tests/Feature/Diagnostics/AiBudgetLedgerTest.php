@@ -7,9 +7,8 @@ use App\Models\DiagnosticRun;
 use App\Models\User;
 use App\Models\WhmcsIntegration;
 use App\Services\Diagnostics\AiBudgetService;
-use Illuminate\Database\QueryException;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Str;
 use RuntimeException;
 
@@ -184,14 +183,21 @@ it('rolls back an ambiguous reservation release when the audit insert fails', fu
     $service->markAmbiguous($attempt, 'provider_timeout_after_submit');
     $operator = User::factory()->create();
 
-    DB::statement("CREATE TRIGGER reject_audit_insert BEFORE INSERT ON audit_events BEGIN SELECT RAISE(ABORT, 'audit_insert_rejected'); END");
+    $auditCreatingEvent = 'eloquent.creating: '.AuditEvent::class;
+    Event::listen($auditCreatingEvent, static function (): never {
+        throw new RuntimeException('audit_insert_rejected');
+    });
 
-    expect(fn () => $service->reconcileConfirmedNoCharge(
-        $attempt,
-        (string) $operator->getKey(),
-        'provider-console-case-rollback',
-        'Provider request history confirms no accepted request or charge.',
-    ))->toThrow(QueryException::class);
+    try {
+        expect(fn () => $service->reconcileConfirmedNoCharge(
+            $attempt,
+            (string) $operator->getKey(),
+            'provider-console-case-rollback',
+            'Provider request history confirms no accepted request or charge.',
+        ))->toThrow(RuntimeException::class, 'audit_insert_rejected');
+    } finally {
+        Event::forget($auditCreatingEvent);
+    }
 
     expect($attempt->fresh()->status)->toBe('ambiguous')
         ->and(AiBudgetPeriod::query()->where('period_type', 'daily')->sole()->reserved_micro_usd)->toBe($attempt->reserved_micro_usd)
