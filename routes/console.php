@@ -15,7 +15,14 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Artisan::command('ai-budget:reconcile-no-charge {attempt} {--operator=} {--evidence=} {--note=}', function (AiBudgetService $budget) {
-    $attemptId = (string) $this->argument('attempt');
+    $attemptArgument = $this->argument('attempt');
+    $attemptId = is_string($attemptArgument) ? trim($attemptArgument) : '';
+
+    if ($attemptId === '') {
+        $this->error('Provide a valid AI usage attempt UUID.');
+
+        return 1;
+    }
     $operatorOption = $this->option('operator');
     $evidenceOption = $this->option('evidence');
     $noteOption = $this->option('note');
