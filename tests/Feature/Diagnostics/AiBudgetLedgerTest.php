@@ -1,10 +1,10 @@
 <?php
 
 use App\Models\AiBudgetPeriod;
-use App\Models\AuditEvent;
-use App\Models\User;
 use App\Models\AiUsageAttempt;
+use App\Models\AuditEvent;
 use App\Models\DiagnosticRun;
+use App\Models\User;
 use App\Models\WhmcsIntegration;
 use App\Services\Diagnostics\AiBudgetService;
 use Illuminate\Support\Carbon;
