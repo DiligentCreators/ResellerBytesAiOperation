@@ -167,3 +167,34 @@ it('does not call the provider when no API key is configured', function () {
     expect(fn () => app(WhmcsDiagnosticAnalyzer::class)->analyze(makeDiagnosticRunForAiTest()))
         ->toThrow(RuntimeException::class, 'provider_not_configured');
 });
+
+
+it('rejects evidence paths whose values are explicitly unknown', function () {
+    $run = makeDiagnosticRunForAiTest([
+        'system' => [
+            'configuration_file_writable' => null,
+        ],
+    ]);
+    $analysis = [
+        'summary' => 'The configuration file may be writable.',
+        'no_findings_reason' => null,
+        'findings' => [
+            [
+                'category' => 'security',
+                'severity' => 'warning',
+                'title' => 'Configuration file is writable',
+                'summary' => 'This finding has no observed value to support it.',
+                'evidence_paths' => ['system.configuration_file_writable'],
+                'confidence' => 0.95,
+                'recommendations' => [],
+            ],
+        ],
+    ];
+
+    Http::fake([
+        'https://api.openai.com/v1/responses' => Http::response(openAiResponseForAnalysis($analysis), 200),
+    ]);
+
+    expect(fn () => app(WhmcsDiagnosticAnalyzer::class)->analyze($run))
+        ->toThrow(RuntimeException::class, 'provider_evidence_reference_invalid');
+});
