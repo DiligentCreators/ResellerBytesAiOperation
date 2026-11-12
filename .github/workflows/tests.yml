@@ -75,5 +75,10 @@ jobs:
           npm ci
           npm run build
 
+      - name: Temporary pagination formatter output
+        run: |
+          npm run check:fix
+          git diff --no-color -- resources/js/components/pagination.tsx resources/js/pages/diagnostic-runs/index.tsx resources/js/pages/diagnostic-runs/show.tsx resources/js/pages/findings/index.tsx
+
       - name: Run CI Checks
         run: composer ci:check
