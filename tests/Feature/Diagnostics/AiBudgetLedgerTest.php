@@ -150,6 +150,29 @@ it('releases an ambiguous reservation only through audited no-charge reconciliat
     expect(AuditEvent::query()->where('event_type', 'ai_usage_attempt.reconciled_not_charged')->count())->toBe(1);
 });
 
+it('rolls back an ambiguous reservation release when the audit insert fails', function () {
+    $run = makeBudgetDiagnosticRun();
+    $service = app(AiBudgetService::class);
+    $attempt = $service->reserve($run, 'gpt-5.6-sol', '2026-11-12.1');
+    $service->markSubmitted($attempt);
+    $service->markAmbiguous($attempt, 'provider_timeout_after_submit');
+    $operator = User::factory()->create();
+
+    DB::statement("CREATE TRIGGER reject_audit_insert BEFORE INSERT ON audit_events BEGIN SELECT RAISE(ABORT, 'audit_insert_rejected'); END");
+
+    expect(fn () => $service->reconcileConfirmedNoCharge(
+        $attempt,
+        (string) $operator->getKey(),
+        'provider-console-case-rollback',
+        'Provider request history confirms no accepted request or charge.',
+    ))->toThrow(QueryException::class);
+
+    expect($attempt->fresh()->status)->toBe('ambiguous')
+        ->and(AiBudgetPeriod::query()->where('period_type', 'daily')->sole()->reserved_micro_usd)->toBe($attempt->reserved_micro_usd)
+        ->and(AiBudgetPeriod::query()->where('period_type', 'monthly')->sole()->reserved_micro_usd)->toBe($attempt->reserved_micro_usd)
+        ->and(AuditEvent::query()->where('event_type', 'ai_usage_attempt.reconciled_not_charged')->count())->toBe(0);
+});
+
 it('records actual provider cost when usage exceeds the reserved ceiling', function () {
     $run = makeBudgetDiagnosticRun();
     $service = app(AiBudgetService::class);
