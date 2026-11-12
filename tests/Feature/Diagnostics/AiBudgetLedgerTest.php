@@ -117,7 +117,6 @@ it('keeps an ambiguous submitted reservation and blocks a second billable attemp
         ->toThrow(RuntimeException::class, 'budget_attempt_unresolved');
 });
 
-
 it('releases an ambiguous reservation only through audited no-charge reconciliation', function () {
     $run = makeBudgetDiagnosticRun();
     $service = app(AiBudgetService::class);
