@@ -92,7 +92,7 @@ class WhmcsDiagnosticAnalyzer
         if (is_array($body) && $afterResponse !== null && is_array($body['usage'] ?? null)
             && array_key_exists('input_tokens', $body['usage'])
             && array_key_exists('output_tokens', $body['usage'])) {
-            $usage = is_array($body['usage'] ?? null) ? $body['usage'] : [];
+            $usage = $body['usage'];
             $afterResponse($body, [
                 'input_tokens' => max(0, (int) ($usage['input_tokens'] ?? 0)),
                 'cached_input_tokens' => max(0, (int) ($usage['input_tokens_details']['cached_tokens'] ?? 0)),

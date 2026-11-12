@@ -119,6 +119,9 @@ class AiBudgetService
         }, 3);
     }
 
+    /**
+     * @param  array{input_tokens?: int, cached_input_tokens?: int, output_tokens?: int, total_tokens?: int}  $usage
+     */
     public function settle(AiUsageAttempt $attempt, array $usage, ?string $responseId): void
     {
         DB::transaction(function () use ($attempt, $usage, $responseId): void {
@@ -159,14 +162,20 @@ class AiBudgetService
                 ])->save();
             }
 
+            $totalTokens = max(0, (int) ($usage['total_tokens'] ?? 0));
+            if ($totalTokens === 0) {
+                $totalTokens = $input + $output;
+            }
+
             $locked->forceFill([
                 'status' => 'settled',
                 'settled_micro_usd' => $cost,
                 'input_tokens' => $input,
                 'cached_input_tokens' => $cached,
                 'output_tokens' => $output,
-                'total_tokens' => max(0, (int) ($usage['total_tokens'] ?? ($input + $output))),
+                'total_tokens' => $totalTokens,
                 'provider_response_id' => $responseId,
+                'failure_code' => $cost > $locked->reserved_micro_usd ? 'reservation_overrun' : null,
                 'settled_at' => now(),
             ])->save();
         }, 3);
@@ -205,6 +214,9 @@ class AiBudgetService
         }, 3);
     }
 
+    /**
+     * @return array{version: string, input_tenths_micro_usd_per_token: int, output_tenths_micro_usd_per_token: int, cached_input_tenths_micro_usd_per_token: int, valid_until: string}
+     */
     private function priceCard(string $model, ?string $version = null): array
     {
         $card = config("ai_budget.price_cards.{$model}");
@@ -222,6 +234,9 @@ class AiBudgetService
         ];
     }
 
+    /**
+     * @return array<int, array{type: string, start: string}>
+     */
     private function periodKeysForAttempt(AiUsageAttempt $attempt): array
     {
         // Preserve the exact UTC periods charged at reservation time, even if settlement crosses a boundary.

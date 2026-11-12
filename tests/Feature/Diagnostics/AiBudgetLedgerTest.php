@@ -113,6 +113,43 @@ it('keeps an ambiguous submitted reservation and blocks a second billable attemp
         ->toThrow(RuntimeException::class, 'budget_attempt_unresolved');
 });
 
+it('records actual provider cost when usage exceeds the reserved ceiling', function () {
+    $run = makeBudgetDiagnosticRun();
+    $service = app(AiBudgetService::class);
+    $attempt = $service->reserve($run, 'gpt-5.6-sol', '2026-11-12.1');
+
+    $service->markSubmitted($attempt);
+    $service->settle($attempt, [
+        'input_tokens' => 65_536,
+        'cached_input_tokens' => 0,
+        'output_tokens' => 3_001,
+        'total_tokens' => 68_537,
+    ], 'resp_budget_overrun_1');
+
+    expect($attempt->fresh()->settled_micro_usd)->toBe(322_164)
+        ->and($attempt->fresh()->failure_code)->toBe('reservation_overrun')
+        ->and(AiBudgetPeriod::query()->where('period_type', 'daily')->sole()->committed_micro_usd)->toBe(322_164);
+});
+
+it('settles an old attempt using its stored price rates after the price card expires', function () {
+    $run = makeBudgetDiagnosticRun();
+    $service = app(AiBudgetService::class);
+    $attempt = $service->reserve($run, 'gpt-5.6-sol', '2026-11-12.1');
+
+    $service->markSubmitted($attempt);
+    config()->set('ai_budget.price_cards.gpt-5.6-sol.valid_until', '2026-11-11T23:59:59Z');
+
+    $service->settle($attempt, [
+        'input_tokens' => 1_000,
+        'cached_input_tokens' => 0,
+        'output_tokens' => 500,
+        'total_tokens' => 1_500,
+    ], 'resp_budget_expired_card_1');
+
+    expect($attempt->fresh()->status)->toBe('settled')
+        ->and($attempt->fresh()->settled_micro_usd)->toBe(14_000);
+});
+
 it('refuses to reserve against an expired model price card', function () {
     config()->set('ai_budget.price_cards.gpt-5.6-sol.valid_until', '2026-11-11T23:59:59Z');
     $run = makeBudgetDiagnosticRun();
