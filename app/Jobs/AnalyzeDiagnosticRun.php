@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Models\DiagnosticFinding;
 use App\Models\DiagnosticRun;
+use App\Services\Diagnostics\AiBudgetService;
 use App\Services\Diagnostics\WhmcsDiagnosticAnalyzer;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -20,20 +21,18 @@ class AnalyzeDiagnosticRun implements ShouldQueue
     use Queueable;
     use SerializesModels;
 
-    public int $tries = 3;
+    public int $tries = 1;
 
     public int $timeout = 90;
 
     private const ANALYSIS_LEASE_SECONDS = 100;
 
-    /**
-     * @var array<int, int>
-     */
+    /** @var array<int, int> */
     public array $backoff = [60, 300, 900];
 
     public function __construct(public string $diagnosticRunId) {}
 
-    public function handle(WhmcsDiagnosticAnalyzer $analyzer): void
+    public function handle(WhmcsDiagnosticAnalyzer $analyzer, AiBudgetService $budget): void
     {
         $run = DB::transaction(function (): ?DiagnosticRun {
             $run = DiagnosticRun::query()
@@ -67,9 +66,34 @@ class AnalyzeDiagnosticRun implements ShouldQueue
             return;
         }
 
+        $attempt = null;
+
         try {
-            $result = $analyzer->analyze($run);
+            $model = (string) config('services.openai.model', 'gpt-5.6-sol');
+            $attempt = $budget->reserve($run, $model, WhmcsDiagnosticAnalyzer::PROMPT_VERSION);
+
+            $result = $analyzer->analyze(
+                $run,
+                fn () => $budget->markSubmitted($attempt),
+                function (array $body, array $usage) use ($budget, $attempt): void {
+                    $responseId = is_string($body['id'] ?? null) ? substr($body['id'], 0, 100) : null;
+                    $budget->settle($attempt, $usage, $responseId);
+                },
+            );
         } catch (Throwable $exception) {
+            if ($attempt !== null) {
+                try {
+                    $attempt->refresh();
+                    if ($attempt->status === 'reserved') {
+                        $budget->releaseBeforeSubmit($attempt, $this->safeErrorCode($exception));
+                    } elseif ($attempt->status === 'submitted') {
+                        $budget->markAmbiguous($attempt, $this->safeErrorCode($exception));
+                    }
+                } catch (Throwable) {
+                    // Preserve the original failure; unresolved reservations remain counted.
+                }
+            }
+
             $run->forceFill([
                 'status' => 'analysis_failed',
                 'analysis_error_code' => $this->safeErrorCode($exception),
@@ -85,7 +109,6 @@ class AnalyzeDiagnosticRun implements ShouldQueue
                 ->firstOrFail();
 
             $lockedRun->findings()->delete();
-
             $createdFingerprints = [];
 
             foreach ($result['findings'] as $findingData) {
@@ -104,7 +127,6 @@ class AnalyzeDiagnosticRun implements ShouldQueue
 
                 $createdFingerprints[$fingerprint] = true;
                 $evidence = [];
-
                 foreach ($evidencePaths as $path) {
                     $evidence[$path] = data_get($lockedRun->payload, $path);
                 }
@@ -170,6 +192,16 @@ class AnalyzeDiagnosticRun implements ShouldQueue
             'provider_no_findings_reason_missing',
             'provider_no_findings_reason_unexpected',
             'provider_evidence_reference_invalid',
+            'budget_input_limit_exceeded',
+            'budget_configuration_invalid',
+            'budget_attempt_unresolved',
+            'budget_attempt_not_reservable',
+            'budget_exhausted',
+            'budget_limit_configuration_changed',
+            'budget_price_card_unavailable',
+            'budget_price_card_expired',
+            'budget_usage_invalid',
+            'provider_usage_missing',
         ];
 
         $message = $exception?->getMessage() ?? '';

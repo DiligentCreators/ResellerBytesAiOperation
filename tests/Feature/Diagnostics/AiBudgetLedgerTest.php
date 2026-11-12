@@ -1,0 +1,122 @@
+<?php
+
+use App\Models\AiBudgetPeriod;
+use App\Models\AiUsageAttempt;
+use App\Models\DiagnosticRun;
+use App\Models\WhmcsIntegration;
+use App\Services\Diagnostics\AiBudgetService;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
+use RuntimeException;
+
+function makeBudgetDiagnosticRun(int $attempts = 1): DiagnosticRun
+{
+    $integration = WhmcsIntegration::create([
+        'name' => 'AI budget ledger test',
+        'status' => 'active',
+        'secret' => bin2hex(random_bytes(32)),
+        'secret_version' => 1,
+    ]);
+
+    return DiagnosticRun::create([
+        'integration_id' => $integration->id,
+        'snapshot_uuid' => (string) Str::uuid(),
+        'schema_version' => '1.0',
+        'addon_version' => '1.0.0',
+        'status' => 'analyzing',
+        'analysis_started_at' => now(),
+        'analysis_attempts' => $attempts,
+        'collected_at' => now(),
+        'received_at' => now(),
+        'payload' => ['system' => ['whmcs_version' => '8.13.7']],
+        'payload_sha256' => str_repeat('f', 64),
+    ]);
+}
+
+beforeEach(function () {
+    Carbon::setTestNow(Carbon::parse('2026-11-12T12:00:00Z'));
+    config()->set('ai_budget.daily_limit_micro_usd', 5_000_000);
+    config()->set('ai_budget.monthly_limit_micro_usd', 50_000_000);
+    config()->set('ai_budget.max_input_bytes', 65_536);
+    config()->set('ai_budget.max_output_tokens', 3_000);
+    config()->set('ai_budget.price_cards.gpt-5.6-sol.valid_until', '2099-12-31T23:59:59Z');
+});
+
+afterEach(function () {
+    Carbon::setTestNow();
+});
+
+it('reserves both UTC budgets and settles provider usage idempotently', function () {
+    $run = makeBudgetDiagnosticRun();
+    $service = app(AiBudgetService::class);
+    $attempt = $service->reserve($run, 'gpt-5.6-sol', '2026-11-12.1');
+
+    expect($attempt->status)->toBe('reserved')
+        ->and($attempt->reserved_micro_usd)->toBe(322_144);
+
+    $service->markSubmitted($attempt);
+    $service->settle($attempt, [
+        'input_tokens' => 1_000,
+        'cached_input_tokens' => 0,
+        'output_tokens' => 500,
+        'total_tokens' => 1_500,
+    ], 'resp_budget_test_1');
+
+    $service->settle($attempt, [
+        'input_tokens' => 1_000,
+        'cached_input_tokens' => 0,
+        'output_tokens' => 500,
+        'total_tokens' => 1_500,
+    ], 'resp_budget_test_1');
+
+    expect($attempt->fresh()->status)->toBe('settled')
+        ->and($attempt->fresh()->settled_micro_usd)->toBe(14_000)
+        ->and(AiBudgetPeriod::query()->where('period_type', 'daily')->sole()->reserved_micro_usd)->toBe(0)
+        ->and(AiBudgetPeriod::query()->where('period_type', 'daily')->sole()->committed_micro_usd)->toBe(14_000)
+        ->and(AiBudgetPeriod::query()->where('period_type', 'monthly')->sole()->committed_micro_usd)->toBe(14_000);
+});
+
+it('blocks a reservation when either UTC budget has insufficient capacity', function () {
+    config()->set('ai_budget.daily_limit_micro_usd', 100_000);
+    $run = makeBudgetDiagnosticRun();
+
+    expect(fn () => app(AiBudgetService::class)->reserve($run, 'gpt-5.6-sol', '2026-11-12.1'))
+        ->toThrow(RuntimeException::class, 'budget_exhausted');
+
+    expect(AiUsageAttempt::query()->count())->toBe(0)
+        ->and(AiBudgetPeriod::query()->where('period_type', 'daily')->sole()->reserved_micro_usd)->toBe(0);
+});
+
+it('releases a reservation only when the provider request was not submitted', function () {
+    $run = makeBudgetDiagnosticRun();
+    $service = app(AiBudgetService::class);
+    $attempt = $service->reserve($run, 'gpt-5.6-sol', '2026-11-12.1');
+
+    $service->releaseBeforeSubmit($attempt, 'local_request_validation_failed');
+
+    expect($attempt->fresh()->status)->toBe('released')
+        ->and(AiBudgetPeriod::query()->where('period_type', 'daily')->sole()->reserved_micro_usd)->toBe(0);
+});
+
+it('keeps an ambiguous submitted reservation and blocks a second billable attempt', function () {
+    $run = makeBudgetDiagnosticRun();
+    $service = app(AiBudgetService::class);
+    $attempt = $service->reserve($run, 'gpt-5.6-sol', '2026-11-12.1');
+
+    $service->markSubmitted($attempt);
+    $service->markAmbiguous($attempt, 'provider_timeout_after_submit');
+    $run->forceFill(['analysis_attempts' => 2])->save();
+
+    expect($attempt->fresh()->status)->toBe('ambiguous')
+        ->and(AiBudgetPeriod::query()->where('period_type', 'daily')->sole()->reserved_micro_usd)->toBe(322_144)
+        ->and(fn () => $service->reserve($run->fresh(), 'gpt-5.6-sol', '2026-11-12.1'))
+            ->toThrow(RuntimeException::class, 'budget_attempt_unresolved');
+});
+
+it('refuses to reserve against an expired model price card', function () {
+    config()->set('ai_budget.price_cards.gpt-5.6-sol.valid_until', '2026-11-11T23:59:59Z');
+    $run = makeBudgetDiagnosticRun();
+
+    expect(fn () => app(AiBudgetService::class)->reserve($run, 'gpt-5.6-sol', '2026-11-12.1'))
+        ->toThrow(RuntimeException::class, 'budget_price_card_expired');
+});

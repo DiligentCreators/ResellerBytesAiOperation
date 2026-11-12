@@ -1,6 +1,6 @@
 # AI spend and data-retention policy design
 
-Status: operator-approved policy targets; implementation design only
+Status: spend ledger implementation in progress; retention remains design only
 Reviewed: 2026-11-12
 Applies to: ResellerBytes AI Operations
 
@@ -13,7 +13,7 @@ Applies to: ResellerBytes AI Operations
 
 The daily and monthly limits apply to the application as a whole, across all WHMCS integrations and operators. The monthly limit is independent of the daily limit; both must have available capacity before a provider request is submitted. Period boundaries use UTC to keep accounting deterministic across operators and hosting locations.
 
-These values are policy targets, not proof that enforcement is active. Until the budget ledger and reservation path are implemented and verified, the application must not describe the limits as enforced.
+The implementation adds UTC daily/monthly period rows, per-attempt reservations, pre-submit state, usage settlement, and conservative ambiguous-outcome holds. Enforcement remains gated on CI, PostgreSQL concurrency verification, and deployment migration. Do not describe production limits as active until that migration has been applied and verified.
 
 ## AI budget enforcement design
 
@@ -22,7 +22,7 @@ These values are policy targets, not proof that enforcement is active. Until the
 - Record every provider attempt independently, linked to the diagnostic run and a unique attempt identifier.
 - Store input tokens, output tokens, total tokens, provider response ID (when available), model, prompt version, price-card version, reservation amount, settled amount, and lifecycle status.
 - Store monetary values as integer micro-USD (one millionth of a US dollar); do not use floating-point arithmetic for budget decisions.
-- Use a versioned model price card. The price card must identify the model and effective date and hold input/output price rates. Never silently apply a new rate to historical usage.
+- Use a versioned model price card. The price card identifies the model, rate version, and expiry. The current `gpt-5.6-sol` short-context card is pinned to the official November 2026 rate and expires at 2026-11-30 23:59:59 UTC; reservations fail closed after expiry until the card is reviewed and updated. Never silently apply a new rate to historical usage.
 - Compute settled cost from provider-reported token usage and the price card that was active when the reservation was made. Round cost upward to the smallest accounting unit so rounding cannot understate spend.
 
 ### Reservation and concurrency
@@ -34,7 +34,7 @@ These values are policy targets, not proof that enforcement is active. Until the
 5. Mark the reservation as submitted before sending the provider request. On a completed response, persist the response ID and usage promptly, then settle the reservation atomically: move the actual charge into committed spend and release only the unused reserved amount.
 6. A duplicate settlement must be idempotent, keyed by the unique attempt/response identity.
 
-The request token ceilings must be enforceable, not estimates alone. The current analyzer limits output to 3,000 tokens and the ingestion endpoint bounds the snapshot body, but an explicit conservative input-token ceiling and a reviewed tokenizer/byte-bound strategy are still required before reservations can be called hard limits.
+The analyzer enforces a 65,536-byte ceiling across the system prompt, serialized snapshot, and JSON schema. UTF-8 token count cannot exceed byte count, so the full byte ceiling is used as a conservative input-token reservation bound. Output is capped at 3,000 tokens in the provider request. The configured limits are shared by the reservation calculator and analyzer request.
 
 ### Failure and retry handling
 
@@ -47,13 +47,13 @@ The request token ceilings must be enforceable, not estimates alone. The current
 
 ### Required persistence components
 
-The final consolidated schema batch is expected to provide:
+The ledger migration `2026_11_12_000008_create_ai_budget_ledger_tables.php` provides:
 
 - UTC daily/monthly budget-period rows with approved limit, committed amount, reserved amount, and lockable period identity.
 - Per-attempt usage/reservation ledger rows with unique attempt identity, model and prompt metadata, price-card version, token counts, monetary amounts, state, timestamps, provider response ID, and reconciliation metadata.
 - Appropriate uniqueness and lookup indexes for idempotent settlement, run history, and period accounting.
 
-No schema migration is added in this design-only step. Database changes will be consolidated into the agreed final migration batch.
+Migration `2026_11_12_000008_create_ai_budget_ledger_tables.php` adds the daily/monthly budget periods and per-attempt ledger. It has not been run against production.
 
 ## Data-retention design
 
@@ -78,13 +78,15 @@ No schema migration is added in this design-only step. Database changes will be 
 
 1. Approve and implement the versioned provider price card and enforceable input/output token ceilings.
 2. Implement atomic daily/monthly reservations, idempotent settlement, and ambiguous-outcome reconciliation.
-3. Test simultaneous reservations at both budget boundaries, duplicate settlement, provider errors, timeout-after-submit, worker crash, and retry suppression for unresolved attempts.
+3. CI tests cover reservation limits, idempotent settlement, pre-submit release, ambiguous timeout hold, unresolved-attempt retry blocking, and expired price cards. PostgreSQL concurrency tests, provider failure/timeout integration tests, worker-crash simulation, and operator reconciliation workflow remain release gates.
 4. Add the budget ledger and retention metadata in the final consolidated migration batch; do not run migrations as part of this work.
 5. Implement retention dry-run reporting and bounded cleanup with dependency and legal-hold tests. Do not execute pruning during development or deployment preparation.
 6. Verify database restore and audit retention/export controls before enabling either scheduled cleanup path.
 
 ## Current non-goals
 
-- No live OpenAI spend cap is claimed until reservation enforcement is implemented.
+- No production OpenAI spend cap is claimed until the migration is applied and PostgreSQL concurrency and deployment verification pass.
+- Automated queue retries are disabled for billable analysis attempts; unresolved submitted attempts remain reserved and block another billable attempt. Explicit manual reanalysis is possible only after the prior attempt is settled or reconciled.
+- An authenticated operator reconciliation workflow is not yet implemented; ambiguous attempts must remain held until a reviewed reconciliation process is added.
 - No destructive migration or data-pruning command is run as part of this design.
 - No provider price is hard-coded in this document; price-card values must be verified against the provider's current official pricing when implementation is prepared.

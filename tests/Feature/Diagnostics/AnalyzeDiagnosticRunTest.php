@@ -4,6 +4,7 @@ use App\Jobs\AnalyzeDiagnosticRun;
 use App\Models\DiagnosticFinding;
 use App\Models\DiagnosticRun;
 use App\Models\WhmcsIntegration;
+use App\Services\Diagnostics\AiBudgetService;
 use App\Services\Diagnostics\WhmcsDiagnosticAnalyzer;
 use Illuminate\Support\Str;
 use RuntimeException;
@@ -32,8 +33,20 @@ it('persists validated AI findings and recommendations against their source snap
     ]);
 
     $analyzer = Mockery::mock(WhmcsDiagnosticAnalyzer::class);
-    $analyzer->shouldReceive('analyze')->once()->with(Mockery::on(fn ($model) => $model->is($run)))
-        ->andReturn([
+    $analyzer->shouldReceive('analyze')->once()->with(
+        Mockery::on(fn ($model) => $model->is($run)),
+        Mockery::on(fn ($callback) => is_callable($callback)),
+        Mockery::on(fn ($callback) => is_callable($callback)),
+    )->andReturnUsing(function ($model, $beforeSubmit, $afterResponse) {
+        $beforeSubmit();
+        $afterResponse(['id' => 'resp_test_456'], [
+            'input_tokens' => 100,
+            'cached_input_tokens' => 0,
+            'output_tokens' => 50,
+            'total_tokens' => 150,
+        ]);
+
+        return [
             'summary' => 'A writable configuration file was observed.',
             'no_findings_reason' => null,
             'findings' => [
@@ -55,9 +68,10 @@ it('persists validated AI findings and recommendations against their source snap
             ],
             'response_id' => 'resp_test_456',
             'usage' => ['input_tokens' => 100, 'output_tokens' => 50, 'total_tokens' => 150],
-        ]);
+        ];
+    });
 
-    (new AnalyzeDiagnosticRun($run->id))->handle($analyzer);
+    (new AnalyzeDiagnosticRun($run->id))->handle($analyzer, app(AiBudgetService::class));
 
     $freshRun = $run->fresh();
     $finding = DiagnosticFinding::query()->with('recommendations')->sole();
@@ -94,7 +108,7 @@ it('marks a failed analysis attempt without modifying the source diagnostic payl
     $analyzer = Mockery::mock(WhmcsDiagnosticAnalyzer::class);
     $analyzer->shouldReceive('analyze')->once()->andThrow(new RuntimeException('provider_request_failed'));
 
-    expect(fn () => (new AnalyzeDiagnosticRun($run->id))->handle($analyzer))
+    expect(fn () => (new AnalyzeDiagnosticRun($run->id))->handle($analyzer, app(AiBudgetService::class)))
         ->toThrow(RuntimeException::class, 'provider_request_failed');
 
     expect($run->fresh()->status)->toBe('analysis_failed')
@@ -125,15 +139,29 @@ it('reclaims an analysis lease after the queue retry visibility timeout', functi
     ]);
 
     $analyzer = Mockery::mock(WhmcsDiagnosticAnalyzer::class);
-    $analyzer->shouldReceive('analyze')->once()->andReturn([
-        'summary' => 'The available snapshot contains limited runtime evidence.',
-        'no_findings_reason' => 'No actionable issue is supported by the available evidence.',
-        'findings' => [],
-        'response_id' => 'resp_recovered_123',
-        'usage' => ['input_tokens' => 100, 'output_tokens' => 30, 'total_tokens' => 130],
-    ]);
+    $analyzer->shouldReceive('analyze')->once()->with(
+        Mockery::type(DiagnosticRun::class),
+        Mockery::on(fn ($callback) => is_callable($callback)),
+        Mockery::on(fn ($callback) => is_callable($callback)),
+    )->andReturnUsing(function ($model, $beforeSubmit, $afterResponse) {
+        $beforeSubmit();
+        $afterResponse(['id' => 'resp_recovered_123'], [
+            'input_tokens' => 100,
+            'cached_input_tokens' => 0,
+            'output_tokens' => 30,
+            'total_tokens' => 130,
+        ]);
 
-    (new AnalyzeDiagnosticRun($run->id))->handle($analyzer);
+        return [
+            'summary' => 'The available snapshot contains limited runtime evidence.',
+            'no_findings_reason' => 'No actionable issue is supported by the available evidence.',
+            'findings' => [],
+            'response_id' => 'resp_recovered_123',
+            'usage' => ['input_tokens' => 100, 'output_tokens' => 30, 'total_tokens' => 130],
+        ];
+    });
+
+    (new AnalyzeDiagnosticRun($run->id))->handle($analyzer, app(AiBudgetService::class));
 
     expect($run->fresh()->status)->toBe('analyzed')
         ->and($run->fresh()->analysis_attempts)->toBe(2);
@@ -164,7 +192,7 @@ it('does not start a duplicate analysis while the current worker lease is active
     $analyzer = Mockery::mock(WhmcsDiagnosticAnalyzer::class);
     $analyzer->shouldNotReceive('analyze');
 
-    (new AnalyzeDiagnosticRun($run->id))->handle($analyzer);
+    (new AnalyzeDiagnosticRun($run->id))->handle($analyzer, app(AiBudgetService::class));
 
     expect($run->fresh()->status)->toBe('analyzing')
         ->and($run->fresh()->analysis_attempts)->toBe(1);
