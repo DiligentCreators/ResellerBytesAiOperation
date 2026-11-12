@@ -14,7 +14,6 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-
 Artisan::command('ai-budget:reconcile-no-charge {attempt} {--operator=} {--evidence=} {--note=}', function (AiBudgetService $budget) {
     $attemptId = (string) $this->argument('attempt');
     $operatorEmail = trim((string) $this->option('operator'));
