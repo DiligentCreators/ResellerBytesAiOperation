@@ -225,7 +225,7 @@ test('rejects a repeated snapshot identifier when its payload digest changes', f
         'payload' => [
             'system' => [
                 'whmcs_version' => '8.13.7',
-                'web_php_version' => '8.1.34',
+                'web_php_version' => '8.2.0',
                 'database_version' => '10.11.19-MariaDB',
             ],
         ],
