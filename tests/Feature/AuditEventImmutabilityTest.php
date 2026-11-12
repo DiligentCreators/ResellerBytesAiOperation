@@ -1,7 +1,7 @@
 <?php
 
-use App\\Models\\AuditEvent;
-use Illuminate\\Foundation\\Testing\\RefreshDatabase;
+use App\Models\AuditEvent;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
