@@ -24,6 +24,8 @@ class AnalyzeDiagnosticRun implements ShouldQueue
 
     public int $timeout = 90;
 
+    private const ANALYSIS_LEASE_SECONDS = 100;
+
     /**
      * @var array<int, int>
      */
@@ -44,7 +46,7 @@ class AnalyzeDiagnosticRun implements ShouldQueue
             }
 
             if ($run->status === 'analyzing') {
-                if ($run->analysis_started_at?->greaterThan(now()->subMinutes(10))) {
+                if ($run->analysis_started_at?->greaterThan(now()->subSeconds(self::ANALYSIS_LEASE_SECONDS))) {
                     return null;
                 }
             } elseif (! in_array($run->status, ['received', 'queued', 'analysis_failed'], true)) {
