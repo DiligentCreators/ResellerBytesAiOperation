@@ -39,14 +39,13 @@ namespace ResellerBytesAiOps {
 
 namespace {
     use ResellerBytesAiOps\SignedApiClient;
-    use RuntimeException;
 
     require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/SignedApiClient.php';
 
     function assertSignedClientCondition(bool $condition, string $message): void
     {
         if (! $condition) {
-            throw new RuntimeException($message);
+            throw new \\RuntimeException($message);
         }
     }
 
@@ -120,7 +119,7 @@ namespace {
             'system' => ['whmcs_version' => '8.13.7'],
         ]);
 
-        throw new RuntimeException('Oversized API response was accepted.');
+        throw new \\RuntimeException('Oversized API response was accepted.');
     } catch (RuntimeException $exception) {
         if ($exception->getMessage() !== 'diagnostic_submission_failed') {
             throw $exception;
