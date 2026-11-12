@@ -39,14 +39,13 @@ namespace ResellerBytesAiOps {
 
 namespace {
     use ResellerBytesAiOps\SignedApiClient;
-    use RuntimeException;
 
     require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/SignedApiClient.php';
 
     function assertSignedClientCondition(bool $condition, string $message): void
     {
         if (! $condition) {
-            throw new RuntimeException($message);
+            throw new \RuntimeException($message);
         }
     }
 
@@ -120,8 +119,8 @@ namespace {
             'system' => ['whmcs_version' => '8.13.7'],
         ]);
 
-        throw new RuntimeException('Oversized API response was accepted.');
-    } catch (RuntimeException $exception) {
+        throw new \RuntimeException('Oversized API response was accepted.');
+    } catch (\RuntimeException $exception) {
         if ($exception->getMessage() !== 'diagnostic_submission_failed') {
             throw $exception;
         }
@@ -138,15 +137,15 @@ namespace {
             ], [
                 'system' => ['whmcs_version' => '8.13.7'],
             ]);
-        } catch (RuntimeException $exception) {
+        } catch (\RuntimeException $exception) {
             if ($exception->getMessage() === $expectedMessage) {
                 return;
             }
 
-            throw new RuntimeException($label.' returned an unexpected error code.');
+            throw new \RuntimeException($label.' returned an unexpected error code.');
         }
 
-        throw new RuntimeException($label.' was unexpectedly accepted.');
+        throw new \RuntimeException($label.' was unexpectedly accepted.');
     }
 
     $GLOBALS['rb_mock_response_body'] = '{"data":{"duplicate":false}}';
