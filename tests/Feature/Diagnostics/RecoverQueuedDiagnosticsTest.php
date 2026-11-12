@@ -5,10 +5,10 @@ use App\Models\AiBudgetPeriod;
 use App\Models\AiUsageAttempt;
 use App\Models\DiagnosticRun;
 use App\Models\WhmcsIntegration;
+use App\Services\Diagnostics\AiBudgetService;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
-use App\Services\Diagnostics\AiBudgetService;
 use Illuminate\Support\Str;
 
 function createQueuedRecoveryTestRun(): DiagnosticRun
@@ -130,7 +130,6 @@ it('recovers abandoned analyzing runs only after the lease and queue visibility 
     expect($freshRun->fresh()->status)->toBe('analyzing');
     expect($freshNullLeaseRun->fresh()->status)->toBe('analyzing');
 });
-
 
 it('marks a stale submitted provider attempt ambiguous and holds it for operator review', function () {
     Queue::fake();
