@@ -33,7 +33,6 @@ type Props = {
         version: string;
         download_available: boolean;
         ai_configured: boolean;
-        signing_key_fingerprint: string | null;
     };
 };
 
@@ -228,12 +227,6 @@ export default function Dashboard({ stats, latestRuns, addon }: Props) {
                                     ? 'Configured'
                                     : 'API key not configured — snapshots can still be received, but analysis will remain pending.'}
                             </p>
-                            {addon.signing_key_fingerprint && (
-                                <p className="mt-2 break-all text-xs text-muted-foreground">
-                                    {'Package signing key SHA-256: '}
-                                    <code>{addon.signing_key_fingerprint}</code>
-                                </p>
-                            )}
                         </div>
                         <div className="flex flex-wrap gap-2">
                             {addon.download_available ? (
@@ -245,7 +238,8 @@ export default function Dashboard({ stats, latestRuns, addon }: Props) {
                                 </a>
                             ) : (
                                 <span className="text-sm text-muted-foreground">
-                                    {'ZIP download unavailable until package signing is configured.'}
+                                    ZIP download unavailable until PHP ZIP
+                                    support is enabled.
                                 </span>
                             )}
                             <Link

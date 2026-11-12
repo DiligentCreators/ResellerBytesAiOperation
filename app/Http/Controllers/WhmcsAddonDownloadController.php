@@ -137,7 +137,7 @@ Compatibility
 
 Package authenticity
 - This archive includes an Ed25519 signature over the version and sorted SHA-256 file manifest.
-- Verify SIGNATURE.ed25519 with SIGNING-PUBLIC-KEY.txt and compare the SHA-256 public-key fingerprint with the independently displayed fingerprint in the authenticated operations dashboard before installation.
+- Verify SIGNATURE.ed25519 with SIGNING-PUBLIC-KEY.txt and compare the SHA-256 public-key fingerprint with the authenticated signing-key fingerprint endpoint at /whmcs-addon/signing-key-fingerprint before installation.
 - Do not install the addon if signature verification fails or the fingerprint does not match.
 
 Important: WHMCS does not provide a built-in ZIP addon-module uploader.
@@ -149,7 +149,7 @@ then upload the four PHP files through File Manager while preserving paths.
 
 Installation
 1. Take and verify a restorable WHMCS files and database backup.
-2. Verify the package signature and independently displayed key fingerprint.
+2. Verify the package signature and fingerprint returned by the authenticated signing-key fingerprint endpoint.
 3. Open your hosting control panel's File Manager.
 4. Open the WHMCS installation directory, then modules/addons.
 5. If File Manager offers Extract, upload and extract this ZIP into modules/addons. Otherwise, extract the ZIP locally and upload the four PHP files while preserving paths.

@@ -47,7 +47,6 @@ class DashboardController extends Controller
                 'version' => config('services.whmcs_addon.version', '1.0.0'),
                 'download_available' => class_exists(\ZipArchive::class) && $signingConfigured,
                 'ai_configured' => filled(config('services.openai.key')),
-                'signing_key_fingerprint' => $signingConfigured ? $signer->fingerprint() : null,
             ],
         ]);
     }
