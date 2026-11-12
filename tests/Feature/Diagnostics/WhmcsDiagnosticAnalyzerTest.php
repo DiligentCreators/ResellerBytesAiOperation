@@ -198,3 +198,34 @@ it('rejects evidence paths whose values are explicitly unknown', function () {
     expect(fn () => app(WhmcsDiagnosticAnalyzer::class)->analyze($run))
         ->toThrow(RuntimeException::class, 'provider_evidence_reference_invalid');
 });
+
+
+it('does not allow collector metadata to support diagnostic findings', function () {
+    $run = makeDiagnosticRunForAiTest([
+        'collector' => [
+            'limitations' => ['cron_php_version_not_observable'],
+        ],
+    ]);
+    $analysis = [
+        'summary' => 'The cron PHP runtime is mismatched.',
+        'no_findings_reason' => null,
+        'findings' => [
+            [
+                'category' => 'compatibility',
+                'severity' => 'warning',
+                'title' => 'Cron PHP runtime mismatch',
+                'summary' => 'A mismatch cannot be established from a limitation marker.',
+                'evidence_paths' => ['collector.limitations.0'],
+                'confidence' => 0.9,
+                'recommendations' => [],
+            ],
+        ],
+    ];
+
+    Http::fake([
+        'https://api.openai.com/v1/responses' => Http::response(openAiResponseForAnalysis($analysis), 200),
+    ]);
+
+    expect(fn () => app(WhmcsDiagnosticAnalyzer::class)->analyze($run))
+        ->toThrow(RuntimeException::class, 'provider_evidence_reference_invalid');
+});
