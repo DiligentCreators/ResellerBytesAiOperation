@@ -191,6 +191,62 @@ class AiBudgetService
         }, 3);
     }
 
+    /**
+     * Release an ambiguous reservation only after an operator verifies from the provider
+     * dashboard or support evidence that no billable request was accepted.
+     */
+    public function reconcileConfirmedNoCharge(
+        AiUsageAttempt $attempt,
+        string $operatorId,
+        string $evidenceReference,
+        string $note,
+    ): void {
+        DB::transaction(function () use ($attempt, $operatorId, $evidenceReference, $note): void {
+            $locked = AiUsageAttempt::query()->whereKey($attempt->id)->lockForUpdate()->firstOrFail();
+
+            if ($locked->status !== 'ambiguous') {
+                throw new RuntimeException('budget_attempt_not_reconcilable');
+            }
+
+            foreach ($this->periodKeysForAttempt($locked) as $period) {
+                $budgetPeriod = AiBudgetPeriod::query()
+                    ->where('period_type', $period['type'])
+                    ->whereDate('period_start', $period['start'])
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                if ($budgetPeriod->reserved_micro_usd < $locked->reserved_micro_usd) {
+                    throw new RuntimeException('budget_reservation_invariant_failed');
+                }
+
+                $budgetPeriod->decrement('reserved_micro_usd', $locked->reserved_micro_usd);
+            }
+
+            $locked->forceFill([
+                'status' => 'released',
+                'failure_code' => 'reconciled_not_charged',
+                'reconciled_at' => now(),
+                'reconciled_by' => $operatorId,
+                'reconciliation_note' => $note.' [evidence: '.$evidenceReference.']',
+            ])->save();
+
+            \\App\\Models\\AuditEvent::create([
+                'actor_type' => 'user',
+                'actor_id' => $operatorId,
+                'event_type' => 'ai_usage_attempt.reconciled_not_charged',
+                'subject_type' => 'ai_usage_attempt',
+                'subject_id' => $locked->id,
+                'metadata' => [
+                    'evidence_reference' => $evidenceReference,
+                    'note' => $note,
+                    'reserved_micro_usd_released' => $locked->reserved_micro_usd,
+                    'model' => $locked->model,
+                ],
+                'occurred_at' => now(),
+            ]);
+        }, 3);
+    }
+
     public function releaseBeforeSubmit(AiUsageAttempt $attempt, string $failureCode): void
     {
         DB::transaction(function () use ($attempt, $failureCode): void {
