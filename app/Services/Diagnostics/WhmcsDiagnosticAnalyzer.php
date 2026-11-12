@@ -225,7 +225,7 @@ PROMPT;
             'findings.*.evidence_paths' => ['required', 'array', 'min:1', 'max:10'],
             'findings.*.evidence_paths.*' => ['required', 'string', 'max:200'],
             'findings.*.confidence' => ['required', 'numeric', 'between:0,1'],
-            'findings.*.recommendations' => ['required', 'array', 'max:5'],
+            'findings.*.recommendations' => ['present', 'array', 'max:5'],
             'findings.*.recommendations.*' => ['required', 'array:recommendation,rationale,risk_level'],
             'findings.*.recommendations.*.recommendation' => ['required', 'string', 'min:1', 'max:2000'],
             'findings.*.recommendations.*.rationale' => ['required', 'string', 'min:1', 'max:2000'],
