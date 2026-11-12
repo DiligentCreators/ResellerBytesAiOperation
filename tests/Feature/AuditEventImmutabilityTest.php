@@ -2,7 +2,6 @@
 
 use App\\Models\\AuditEvent;
 use Illuminate\\Foundation\\Testing\\RefreshDatabase;
-use LogicException;
 
 uses(RefreshDatabase::class);
 
