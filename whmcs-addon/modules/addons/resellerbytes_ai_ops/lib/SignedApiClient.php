@@ -57,6 +57,8 @@ final class SignedApiClient
             throw new RuntimeException('http_client_initialization_failed');
         }
 
+        $responseBody = '';
+
         $options = [
             CURLOPT_POST => true,
             CURLOPT_POSTFIELDS => $body,
