@@ -50,7 +50,7 @@ Artisan::command('diagnostics:recover-queued {--stale-minutes=15} {--limit=100}'
 
     $this->info("Dispatched {$dispatched} stale queued diagnostic run(s).");
 
-    return self::SUCCESS;
+    return 0;
 })->purpose('Re-dispatch stale queued diagnostic analyses with bounded retries');
 
 Schedule::command('whmcs:nonces:prune')
