@@ -141,7 +141,7 @@ This section supersedes earlier CI-status statements above where they conflict w
 - The AI budget ledger migration `2026_11_12_000008_create_ai_budget_ledger_tables.php` is present on the review branch. It has not been applied to production.
 - The branch includes global UTC daily/monthly budget reservations, per-attempt usage accounting, idempotent settlement, conservative holds for ambiguous submitted requests, and tests for budget limits and failure states.
 - The global budget is **not active in production** until the migration is applied under an approved deployment plan and PostgreSQL concurrency, worker-crash, provider-timeout, and deployment verification are completed.
-- Authenticated operator reconciliation for ambiguous provider attempts remains unimplemented. Such reservations must remain held; do not manually release them without an approved evidence-based reconciliation procedure.
+- At the time of this historical entry, authenticated operator reconciliation was not yet implemented. The later reconciliation implementation and its current limitations are recorded below.
 - Retention cleanup remains design-only. No pruning, destructive migration, or production migration has been run.
 - Production Ed25519 signing keys still require generation and storage in the deployment secret manager, followed by ZIP signature verification against the approved fingerprint.
 - Database-level audit immutability and the integration-deletion/history lifecycle remain release gates.
@@ -149,12 +149,12 @@ This section supersedes earlier CI-status statements above where they conflict w
 
 ## Next engineering sequence
 
-1. Complete PostgreSQL concurrency and failure-mode verification for the AI ledger on a disposable test database; do not use production data.
-2. Design and test an authenticated, auditable reconciliation workflow for ambiguous provider attempts before any operational release.
+1. Add true concurrent PostgreSQL reservation tests and worker-crash/provider-timeout failure-mode tests; current PostgreSQL CI validates database integration but not simultaneous race behaviour.
+2. Security-review the reconciliation command, including whether confirmed TOTP configuration is sufficient or a fresh MFA challenge/two-person approval is required for operational use.
 3. Decide and implement the database-level audit-integrity boundary, then test privileged and query-builder bypass paths.
 4. Confirm integration deletion semantics and preserve required diagnostic, usage, and audit history.
 5. Generate and verify production signing keys through the approved secret-management process.
-6. Complete the production pilot checklist, backup/restore rehearsal, and one-shot read-only WHMCS pilot only after explicit deployment approval.
+6. Complete retention dry-run controls, production pilot checklist, backup/restore rehearsal, and one-shot read-only WHMCS pilot only after explicit deployment approval.
 
 A green CI run is necessary but does not close these release gates or authorize merge, migration, or deployment.
 
@@ -165,5 +165,22 @@ A green CI run is necessary but does not close these release gates or authorize 
 - The reconciliation service locks the attempt and both original UTC budget periods, verifies the held reservation invariant, releases the reservation, records operator/evidence metadata, and appends an audit event in the same database transaction.
 - Added a feature test for successful reconciliation, budget reservation release, audit creation, and rejection of repeated reconciliation.
 - Documented the evidence standard and operational command in `docs/operations/ai-budget-and-retention-policy.md`.
-- This is source implementation only. The test has not yet been executed in this environment; PostgreSQL concurrency, rollback, and end-to-end CLI tests remain pending. No ambiguous production reservation has been changed.
+- This was source implementation only at the time of the entry. Subsequent CI execution, rollback tests, CLI tests, and PostgreSQL integration results are recorded in the current branch-head verification below. No ambiguous production reservation has been changed.
 - This command deliberately does not resolve a confirmed-charge outcome. Such attempts remain held until a separately reviewed provider-usage settlement workflow exists.
+
+
+## Current branch-head verification — 2026-11-12 (supersedes earlier status entries)
+
+Verified PR #2 head: `41d939164a2c787d5feced121e4dfc24b823068b`.
+
+- Workflow run [43286897952](https://github.com/DiligentCreators/ResellerBytesAiOperation/actions/runs/43286897952) completed successfully on this exact head. The main CI job and WHMCS PHP 8.1 compatibility job passed.
+- Main CI checks: all 84 frontend files formatted; lint found no warnings/errors in 70 files; TypeScript check passed; Pint passed across 119 files; PHPStan completed successfully; Pest reported 118 passed, 2 skipped, and 501 assertions.
+- Added a PostgreSQL 16 service job. Both AI budget ledger and reconciliation command feature suites passed against PostgreSQL: 16 tests, 68 assertions.
+- Added command-level tests for missing operator identity, unconfirmed MFA, unverified email, operator cancellation, successful reconciliation, and rejection of already-resolved attempts.
+- Added a transaction rollback test proving that an audit-event write failure leaves the ambiguous attempt and both budget reservations unchanged.
+- Added reservation-invariant checks to settlement and pre-submit release; the service now fails closed if either period does not hold the full reservation.
+- The PostgreSQL job validates real PostgreSQL migrations, JSONB storage, transaction behaviour, and row-lock code paths. It does **not** yet prove simultaneous concurrent reservations under load; a dedicated multi-process concurrency test remains a release gate.
+- The reconciliation command checks verified email and confirmed TOTP enrollment, then requires an interactive approval. It does not validate a fresh one-time code at command execution; security review must decide whether a fresh challenge or two-person approval is required before production use.
+- PR #2 remains open and Draft. No merge, production migration, live WHMCS change, or deployment has occurred. The AI budget migration remains branch-only and the spend cap is not active in production.
+- Remaining release gates include PostgreSQL concurrency and worker/provider failure tests, database-level audit immutability, integration deletion/history lifecycle, retention dry-run and restore rehearsal, production signing-key generation/secret management, and deployment/pilot approval.
+- The hybrid SaaS tenant, dual-billing, entitlement, and white-label roadmap remains a separate implementation phase; it is not claimed as delivered by this release-readiness PR.
