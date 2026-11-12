@@ -16,9 +16,12 @@ Artisan::command('inspire', function () {
 
 Artisan::command('ai-budget:reconcile-no-charge {attempt} {--operator=} {--evidence=} {--note=}', function (AiBudgetService $budget) {
     $attemptId = (string) $this->argument('attempt');
-    $operatorEmail = trim((string) $this->option('operator'));
-    $evidenceReference = trim((string) $this->option('evidence'));
-    $note = trim((string) $this->option('note'));
+    $operatorOption = $this->option('operator');
+    $evidenceOption = $this->option('evidence');
+    $noteOption = $this->option('note');
+    $operatorEmail = is_string($operatorOption) ? trim($operatorOption) : '';
+    $evidenceReference = is_string($evidenceOption) ? trim($evidenceOption) : '';
+    $note = is_string($noteOption) ? trim($noteOption) : '';
 
     if ($operatorEmail === '' || $evidenceReference === '' || mb_strlen($evidenceReference) > 255 || mb_strlen($note) < 20 || mb_strlen($note) > 1000) {
         $this->error('Provide --operator, --evidence, and a --note between 20 and 1000 characters.');
@@ -38,7 +41,7 @@ Artisan::command('ai-budget:reconcile-no-charge {attempt} {--operator=} {--evide
         return 1;
     }
 
-    $attempt = AiUsageAttempt::query()->find($attemptId);
+    $attempt = AiUsageAttempt::query()->whereKey($attemptId)->first();
     if ($attempt === null || $attempt->status !== 'ambiguous') {
         $this->error('Only an existing ambiguous AI usage attempt can be reconciled.');
 
