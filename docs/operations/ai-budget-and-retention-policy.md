@@ -1,17 +1,17 @@
 # AI spend and data-retention policy design
 
-Status: operator-approved policy targets; implementation design only  
-Reviewed: 2026-11-12  
+Status: operator-approved policy targets; implementation design only
+Reviewed: 2026-11-12
 Applies to: ResellerBytes AI Operations
 
 ## Approved limits and retention periods
 
-| Control | Approved target |
-|---|---:|
-| Global AI spend limit per UTC day | USD 5.00 |
-| Global AI spend limit per UTC calendar month | USD 50.00 |
-| Diagnostic snapshot retention | 90 days |
-| Audit event retention | 2,555 days (approximately seven years) |
+| Control                                      | Approved target                        |
+| -------------------------------------------- | -------------------------------------: |
+| Global AI spend limit per UTC day            | USD 5.00                               |
+| Global AI spend limit per UTC calendar month | USD 50.00                              |
+| Diagnostic snapshot retention                | 90 days                                |
+| Audit event retention                        | 2,555 days (approximately seven years) |
 
 The daily and monthly limits apply to the application as a whole, across all WHMCS integrations and operators. The monthly limit is independent of the daily limit; both must have available capacity before a provider request is submitted. Period boundaries use UTC to keep accounting deterministic across operators and hosting locations.
 

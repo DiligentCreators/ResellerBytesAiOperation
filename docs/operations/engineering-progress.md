@@ -90,7 +90,6 @@ Last reviewed: 2026-11-12
 
 This document records review evidence; it does not certify the application as production-ready.
 
-
 ## Operator-approved budget and retention policy — 2026-11-12
 
 - Global AI budget targets approved: USD 5.00 per UTC day and USD 50.00 per UTC calendar month.
@@ -108,7 +107,6 @@ This document records review evidence; it does not certify the application as pr
 - A stale row is atomically returned to `queued`, its old lease timestamp is cleared, and a replacement job is dispatched. Fresh `analyzing` rows remain untouched.
 - Focused feature coverage was added for stale versus fresh `analyzing` recovery. Runtime CI verification is pending.
 - This remains bounded reconciliation, not a transactional outbox; duplicate queue entries remain possible, while the job-level row lock and lease protect execution.
-
 
 ## Approved hybrid SaaS direction — 2026-11-12
 

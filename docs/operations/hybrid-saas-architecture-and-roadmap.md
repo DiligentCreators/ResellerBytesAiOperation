@@ -10,11 +10,11 @@ Follow a hybrid path: validate the platform internally for ResellerBytes hosting
 
 ## 2. Approved architecture decisions
 
-| Area | Approved decision | Implementation consequence |
-| --- | --- | --- |
-| Hosting and data | One shared application and shared database | Strict tenant isolation at every data-access boundary. |
-| Billing | Automated recurring billing and manual invoices/payments | One subscription, billing-event, and entitlement model reconciles both paths. |
-| Branding | ResellerBytes brand plus white-label path | Tenant-configurable branding; advanced white-label capabilities follow the first commercial release. |
+| Area             | Approved decision                                        | Implementation consequence                                                                           |
+| ---------------- | -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| Hosting and data | One shared application and shared database               | Strict tenant isolation at every data-access boundary.                                               |
+| Billing          | Automated recurring billing and manual invoices/payments | One subscription, billing-event, and entitlement model reconciles both paths.                        |
+| Branding         | ResellerBytes brand plus white-label path                | Tenant-configurable branding; advanced white-label capabilities follow the first commercial release. |
 
 These are approved design decisions, not claims that the functionality is already implemented.
 
