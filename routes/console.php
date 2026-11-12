@@ -5,10 +5,10 @@ use App\Models\AiUsageAttempt;
 use App\Models\User;
 use App\Services\Diagnostics\AiBudgetService;
 use Illuminate\Foundation\Inspiring;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Schedule;
 
 Artisan::command('inspire', function () {
