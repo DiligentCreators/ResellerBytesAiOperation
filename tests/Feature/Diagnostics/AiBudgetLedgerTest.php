@@ -104,6 +104,30 @@ it('releases a reservation only when the provider request was not submitted', fu
         ->and(AiBudgetPeriod::query()->where('period_type', 'daily')->sole()->reserved_micro_usd)->toBe(0);
 });
 
+it('rejects settlement when a budget period no longer holds the full reservation', function () {
+    $run = makeBudgetDiagnosticRun();
+    $service = app(AiBudgetService::class);
+    $attempt = $service->reserve($run, 'gpt-5.6-sol', '2026-11-12.1');
+    $service->markSubmitted($attempt);
+
+    AiBudgetPeriod::query()
+        ->where('period_type', 'daily')
+        ->update(['reserved_micro_usd' => 0]);
+
+    expect(fn () => $service->settle($attempt, [
+        'input_tokens' => 1_000,
+        'cached_input_tokens' => 0,
+        'output_tokens' => 500,
+        'total_tokens' => 1_500,
+    ], 'resp_budget_invariant_test'))
+        ->toThrow(RuntimeException::class, 'budget_reservation_invariant_failed');
+
+    expect($attempt->fresh()->status)->toBe('submitted')
+        ->and(AiBudgetPeriod::query()->where('period_type', 'daily')->sole()->committed_micro_usd)->toBe(0)
+        ->and(AiBudgetPeriod::query()->where('period_type', 'monthly')->sole()->reserved_micro_usd)->toBe($attempt->reserved_micro_usd)
+        ->and(AiBudgetPeriod::query()->where('period_type', 'monthly')->sole()->committed_micro_usd)->toBe(0);
+});
+
 it('keeps an ambiguous submitted reservation and blocks a second billable attempt', function () {
     $run = makeBudgetDiagnosticRun();
     $service = app(AiBudgetService::class);
