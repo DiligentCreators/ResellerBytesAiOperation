@@ -40,18 +40,47 @@ class DiagnosticRunController extends Controller
     {
         abort_unless(filled(config('services.openai.key')), 503, 'AI analysis is not configured.');
 
-        if (! in_array($diagnosticRun->status, ['received', 'analysis_failed'], true)) {
+        $queued = DB::transaction(function () use ($diagnosticRun): bool {
+            $run = DiagnosticRun::query()
+                ->whereKey($diagnosticRun->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if (! in_array($run->status, ['received', 'analysis_failed'], true)) {
+                return false;
+            }
+
+            $run->forceFill(['status' => 'queued'])->save();
+
+            AuditEvent::create([
+                'actor_type' => 'user',
+                'actor_id' => (string) Auth::id(),
+                'event_type' => 'diagnostic_run.analysis_requested',
+                'subject_type' => 'diagnostic_run',
+                'subject_id' => $run->id,
+                'metadata' => [],
+                'occurred_at' => now(),
+            ]);
+
+            return true;
+        });
+
+        if (! $queued) {
             return back()->withErrors([
-                'analysis' => 'This diagnostic run is already being analyzed or has completed analysis.',
+                'analysis' => 'This diagnostic run is already being analyzed, queued, or has completed analysis.',
             ]);
         }
-
-        $diagnosticRun->forceFill(['status' => 'queued'])->save();
 
         try {
             AnalyzeDiagnosticRun::dispatch($diagnosticRun->id)->afterCommit();
         } catch (Throwable $exception) {
-            $diagnosticRun->forceFill(['status' => 'analysis_failed'])->save();
+            DiagnosticRun::query()
+                ->whereKey($diagnosticRun->id)
+                ->where('status', 'queued')
+                ->update([
+                    'status' => 'analysis_failed',
+                    'updated_at' => now(),
+                ]);
 
             Log::warning('Manual diagnostic analysis could not be queued.', [
                 'diagnostic_run_id' => $diagnosticRun->id,
@@ -62,16 +91,6 @@ class DiagnosticRunController extends Controller
                 'analysis' => 'The analysis queue is unavailable. The snapshot has been preserved.',
             ]);
         }
-
-        AuditEvent::create([
-            'actor_type' => 'user',
-            'actor_id' => (string) Auth::id(),
-            'event_type' => 'diagnostic_run.analysis_requested',
-            'subject_type' => 'diagnostic_run',
-            'subject_id' => $diagnosticRun->id,
-            'metadata' => [],
-            'occurred_at' => now(),
-        ]);
 
         return back()->with('success', 'Diagnostic analysis has been queued.');
     }
