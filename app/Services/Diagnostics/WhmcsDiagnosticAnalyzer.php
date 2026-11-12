@@ -228,7 +228,7 @@ PROMPT;
         $validator = Validator::make($decoded, [
             'summary' => ['required', 'string', 'min:1', 'max:5000'],
             'no_findings_reason' => ['present', 'nullable', 'string', 'max:2000'],
-            'findings' => ['required', 'array', 'max:25'],
+            'findings' => ['sometimes', 'array', 'max:25'],
             'findings.*' => ['required', 'array:category,severity,title,summary,evidence_paths,confidence,recommendations'],
             'findings.*.category' => ['required', 'string', 'in:'.implode(',', self::CATEGORIES)],
             'findings.*.severity' => ['required', 'string', 'in:info,warning,critical'],
