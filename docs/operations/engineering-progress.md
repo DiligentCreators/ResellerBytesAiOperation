@@ -157,3 +157,13 @@ This section supersedes earlier CI-status statements above where they conflict w
 6. Complete the production pilot checklist, backup/restore rehearsal, and one-shot read-only WHMCS pilot only after explicit deployment approval.
 
 A green CI run is necessary but does not close these release gates or authorize merge, migration, or deployment.
+
+## Ambiguous AI-attempt reconciliation implementation — 2026-11-12
+
+- Added a narrowly scoped `ai-budget:reconcile-no-charge` Artisan command for the only safe automated resolution currently supported: an operator has verified provider-side evidence that the ambiguous request was not accepted and incurred no charge.
+- The command requires a verified operator account with confirmed TOTP, an evidence reference, a substantive reason, and an interactive second confirmation. It refuses non-ambiguous attempts and bounds evidence-reference and note lengths.
+- The reconciliation service locks the attempt and both original UTC budget periods, verifies the held reservation invariant, releases the reservation, records operator/evidence metadata, and appends an audit event in the same database transaction.
+- Added a feature test for successful reconciliation, budget reservation release, audit creation, and rejection of repeated reconciliation.
+- Documented the evidence standard and operational command in `docs/operations/ai-budget-and-retention-policy.md`.
+- This is source implementation only. The test has not yet been executed in this environment; PostgreSQL concurrency, rollback, and end-to-end CLI tests remain pending. No ambiguous production reservation has been changed.
+- This command deliberately does not resolve a confirmed-charge outcome. Such attempts remain held until a separately reviewed provider-usage settlement workflow exists.
