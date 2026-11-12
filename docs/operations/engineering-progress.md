@@ -168,7 +168,6 @@ A green CI run is necessary but does not close these release gates or authorize 
 - This was source implementation only at the time of the entry. Subsequent CI execution, rollback tests, CLI tests, and PostgreSQL integration results are recorded in the current branch-head verification below. No ambiguous production reservation has been changed.
 - This command deliberately does not resolve a confirmed-charge outcome. Such attempts remain held until a separately reviewed provider-usage settlement workflow exists.
 
-
 ## Current branch-head verification — 2026-11-12 (supersedes earlier status entries)
 
 Verified PR #2 head: `41d939164a2c787d5feced121e4dfc24b823068b`.
