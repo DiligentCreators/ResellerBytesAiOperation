@@ -66,6 +66,9 @@ class WhmcsAddonDownloadController extends Controller
                 throw new RuntimeException('The WHMCS addon source package is empty.');
             }
 
+            $installationInstructions = $this->installationInstructions();
+            $installationChecksum = hash('sha256', $installationInstructions);
+            $manifest[] = $installationChecksum.'  INSTALLATION.txt';
             sort($manifest, SORT_STRING);
 
             $version = (string) config('services.whmcs_addon.version', '1.0.0');
@@ -75,7 +78,7 @@ class WhmcsAddonDownloadController extends Controller
             $publicKey = $signer->publicKeyBase64();
             $fingerprint = $signer->fingerprint();
 
-            if (! $archive->addFromString('INSTALLATION.txt', $this->installationInstructions())
+            if (! $archive->addFromString('INSTALLATION.txt', $installationInstructions)
                 || ! $archive->addFromString('VERSION.txt', $version)
                 || ! $archive->addFromString('SHA256SUMS.txt', $manifestContents)
                 || ! $archive->addFromString('SIGNATURE.ed25519', $signature."\n")
@@ -136,7 +139,7 @@ Compatibility
 - cURL PHP extension enabled
 
 Package authenticity
-- This archive includes an Ed25519 signature over the version and sorted SHA-256 file manifest.
+- This archive includes an Ed25519 signature over the version and sorted SHA-256 file manifest, including this installation guide.
 - Verify SIGNATURE.ed25519 with SIGNING-PUBLIC-KEY.txt and compare the SHA-256 public-key fingerprint with the independently displayed fingerprint in the authenticated operations dashboard before installation.
 - Do not install the addon if signature verification fails or the fingerprint does not match.
 

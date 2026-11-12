@@ -20,18 +20,25 @@ The collector explicitly reports what it cannot observe, including the system-cr
 
 ## Package authenticity
 
-The operations application signs the version and sorted SHA-256 manifest with an Ed25519 key. The ZIP contains:
+The operations application signs the package version and sorted SHA-256 manifest with an Ed25519 key. The signed manifest covers every addon source file and the installation guide. The ZIP contains:
 
-- SHA256SUMS.txt — SHA-256 checksums for every addon source file.
+- SHA256SUMS.txt — SHA-256 checksums for every addon source file and INSTALLATION.txt.
 - SIGNATURE.ed25519 — detached Ed25519 signature over the version and exact manifest bytes.
 - SIGNING-PUBLIC-KEY.txt — base64-encoded public key.
 - SIGNING-KEY-FINGERPRINT.txt — SHA-256 fingerprint of the raw public key.
 
-Before installation, compare the fingerprint in the archive with the fingerprint shown separately on the authenticated operations dashboard. A matching fingerprint establishes which public key to trust; the signature then authenticates the version and file manifest. Do not install if the values differ or signature verification fails.
+Before installation, compare the fingerprint in the archive with the fingerprint shown separately on the authenticated operations dashboard. A matching fingerprint establishes which public key to trust; the signature then authenticates the version and signed file manifest. Do not install if the values differ or signature verification fails. The fingerprint inside the ZIP is not independently trustworthy by itself.
+
+Generate a signing key pair once on a secure deployment host with PHP Sodium. This command writes the keys to a root-readable file with mode 0600; move the values into the deployment secret manager and remove the temporary file:
+
+    umask 077
+    php -r '$kp=sodium_crypto_sign_keypair(); $out="WHMCS_ADDON_SIGNING_SECRET_KEY=".base64_encode(sodium_crypto_sign_secretkey($kp)).PHP_EOL."WHMCS_ADDON_SIGNING_PUBLIC_KEY=".base64_encode(sodium_crypto_sign_publickey($kp)).PHP_EOL; if(file_put_contents("/root/whmcs-addon-signing.env",$out,LOCK_EX)===false){exit(1);} chmod("/root/whmcs-addon-signing.env",0600);'
+
+Keep the private key out of Git, application source, build artifacts, logs, and chat. Keep the key pair stable for the release line; key rotation requires an explicit trust-anchor transition so previously issued packages remain verifiable.
 
 To verify the signature with PHP 8.1+ and Sodium after extracting the archive, run this from the extracted package directory (the command is intentionally explicit and does not execute addon code):
 
-    php -r '$m=file_get_contents("SHA256SUMS.txt"); $v=trim(file_get_contents("VERSION.txt")); $s=base64_decode(trim(file_get_contents("SIGNATURE.ed25519")),true); $p=base64_decode(trim(file_get_contents("SIGNING-PUBLIC-KEY.txt")),true); $f=trim(file_get_contents("SIGNING-KEY-FINGERPRINT.txt")); if(!is_string($m)||!is_string($s)||!is_string($p)||!hash_equals($f,hash("sha256",$p))||!sodium_crypto_sign_verify_detached($s,"resellerbytes-ai-ops-package-v1\nversion=".$v."\n".$m."\n",$p)){fwrite(STDERR,"Package signature verification FAILED\n"); exit(1);} foreach(explode("\n",trim($m)) as $line){if(!preg_match("/^([a-f0-9]{64})  (.+)$/",$line,$x)){exit(1);} $path="resellerbytes_ai_ops/".$x[2]; if(!is_file($path)||!hash_equals($x[1],hash_file("sha256",$path))){fwrite(STDERR,"Checksum mismatch: ".$path."\n"); exit(1);}} echo "Package signature and file checksums verified.\n";'
+    php -r '$m=file_get_contents("SHA256SUMS.txt"); $v=trim(file_get_contents("VERSION.txt")); $s=base64_decode(trim(file_get_contents("SIGNATURE.ed25519")),true); $p=base64_decode(trim(file_get_contents("SIGNING-PUBLIC-KEY.txt")),true); $f=trim(file_get_contents("SIGNING-KEY-FINGERPRINT.txt")); if(!is_string($m)||!is_string($s)||!is_string($p)||!hash_equals($f,hash("sha256",$p))||!sodium_crypto_sign_verify_detached($s,"resellerbytes-ai-ops-package-v1\nversion=".$v."\n".$m,$p)){fwrite(STDERR,"Package signature verification FAILED\n"); exit(1);} foreach(explode("\n",trim($m)) as $line){if(!preg_match("/^([a-f0-9]{64})  (.+)$/",$line,$x)){exit(1);} $path=$x[2]==="INSTALLATION.txt" ? "INSTALLATION.txt" : "resellerbytes_ai_ops/".$x[2]; if(!is_file($path)||!hash_equals($x[1],hash_file("sha256",$path))){fwrite(STDERR,"Checksum mismatch: ".$path."\n"); exit(1);}} echo "Package signature and file checksums verified.\n";'
 
 This verifies integrity and signature consistency. The public-key fingerprint must still be compared with the independently displayed dashboard fingerprint; a fingerprint stored only inside the ZIP is not a trust anchor.
 

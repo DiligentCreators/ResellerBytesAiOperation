@@ -75,6 +75,7 @@ it('downloads an addon archive with a verifiable Ed25519 signature and expected 
     $signedPayload = "resellerbytes-ai-ops-package-v1\nversion={$version}\n{$manifest}\n";
 
     expect(sodium_crypto_sign_verify_detached($signature, $signedPayload, $packagedPublicKey))->toBeTrue();
+    expect(sodium_crypto_sign_verify_detached($signature, $signedPayload.'tampered', $packagedPublicKey))->toBeFalse();
 });
 
 it('does not make the addon download available without a valid signing key pair', function () {
