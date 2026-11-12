@@ -10,8 +10,42 @@ permissions:
   contents: read
 
 jobs:
+  whmcs-addon-php81:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup WHMCS PHP runtime
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
+        with:
+          php-version: '8.1'
+          extensions: curl
+          coverage: none
+
+      - name: Validate WHMCS addon PHP 8.1 compatibility
+        run: |
+          find whmcs-addon/modules/addons/resellerbytes_ai_ops -type f -name '*.php' -print0 | xargs -0 -n1 php -l
+          php whmcs-addon/tests/credentials_file_test.php
+          php whmcs-addon/tests/diagnostic_collector_test.php
+          php whmcs-addon/tests/signed_api_client_test.php
+
   ci:
     runs-on: ubuntu-latest
+
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       - name: Checkout code
@@ -24,15 +58,22 @@ jobs:
         with:
           php-version: '8.5'
           tools: composer:v2
+          extensions: redis, zip
           coverage: none
 
       - name: Setup Node
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '22'
+          cache: npm
 
       - name: Setup Application
-        run: composer setup
+        run: |
+          composer install --no-interaction --prefer-dist
+          cp .env.example .env
+          php artisan key:generate
+          npm ci
+          npm run build
 
       - name: Run CI Checks
         run: composer ci:check

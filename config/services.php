@@ -35,4 +35,15 @@ return [
         ],
     ],
 
+    'openai' => [
+        'key' => env('OPENAI_API_KEY'),
+        'model' => env('OPENAI_MODEL', 'gpt-5.6-sol'),
+        'reasoning_effort' => env('OPENAI_REASONING_EFFORT', 'medium'),
+        'timeout' => (int) env('OPENAI_TIMEOUT', 45),
+    ],
+
+    'whmcs_addon' => [
+        'version' => env('WHMCS_ADDON_VERSION', '1.0.0'),
+    ],
+
 ];

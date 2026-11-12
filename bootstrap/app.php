@@ -1,5 +1,10 @@
 <?php
 
+use App\Console\Commands\CreateOperationsUser;
+use App\Console\Commands\CreateWhmcsIntegration;
+use App\Console\Commands\PruneWhmcsIntegrationNonces;
+use App\Console\Commands\RevokeWhmcsIntegration;
+use App\Console\Commands\RotateWhmcsIntegrationSecret;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use Illuminate\Foundation\Application;
@@ -11,9 +16,17 @@ use Illuminate\Http\Request;
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
+        api: __DIR__.'/../routes/api.php',
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
+    ->withCommands([
+        CreateOperationsUser::class,
+        CreateWhmcsIntegration::class,
+        PruneWhmcsIntegrationNonces::class,
+        RotateWhmcsIntegrationSecret::class,
+        RevokeWhmcsIntegration::class,
+    ])
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
 
