@@ -3,6 +3,7 @@
 namespace App\Services\Diagnostics;
 
 use App\Models\AiBudgetPeriod;
+use App\Models\AuditEvent;
 use App\Models\AiUsageAttempt;
 use App\Models\DiagnosticRun;
 use Illuminate\Support\Carbon;
@@ -230,7 +231,7 @@ class AiBudgetService
                 'reconciliation_note' => $note.' [evidence: '.$evidenceReference.']',
             ])->save();
 
-            \\App\\Models\\AuditEvent::create([
+            AuditEvent::create([
                 'actor_type' => 'user',
                 'actor_id' => $operatorId,
                 'event_type' => 'ai_usage_attempt.reconciled_not_charged',
