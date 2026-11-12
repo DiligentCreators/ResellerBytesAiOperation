@@ -66,7 +66,8 @@ Last reviewed: 2026-11-12
 - Added mandatory confirmed TOTP enforcement to operational dashboard, integration, diagnostic, findings, and addon routes, with a clear redirect to the security setup page and focused access-control tests. The security enrollment page remains accessible before enrollment.
 - Confirmed the manual reanalysis transaction/row lock and added bounded stale-queue recovery. Runtime tests remain pending.
 - Added Ed25519 package signing, a separately displayed public-key fingerprint, deployment key configuration, archive verification instructions, and focused package-signature tests. A local Sodium sign/verify/tamper smoke check and a simulated archive-verifier check passed; Laravel ZIP generation and full CI remain pending.
-- Added a row-locked safeguard that prevents self-deletion of the last remaining operator account, with feature tests for both blocked last-account deletion and permitted deletion when another account remains.
+- Added a row-locked safeguard that prevents self-deletion of the last remaining operator account, with feature tests for both blocked last-account deletion and permitted deletion when another account remains. Successful operator deletion is now recorded in the append-only audit event stream.
+- Added queue-recovery feature tests for stale/fresh queued-run selection and bounded batch processing.
 - Pull request: [#2 — release-readiness review](https://github.com/DiligentCreators/ResellerBytesAiOperation/pull/2).
 
 ## Remaining release gates

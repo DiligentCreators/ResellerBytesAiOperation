@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\AuditEvent;
 use App\Models\User;
 
 test('profile page is displayed', function () {
@@ -107,6 +108,7 @@ test('user can delete their account when another operator account remains', func
 
     $this->assertGuest();
     expect($user->fresh())->toBeNull();
+    expect(AuditEvent::where('event_type', 'operations_user.deleted')->count())->toBe(1);
 });
 
 test('the last remaining operator cannot delete their account', function () {

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Settings;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\ProfileDeleteRequest;
 use App\Http\Requests\Settings\ProfileUpdateRequest;
+use App\Models\AuditEvent;
 use App\Models\User;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
@@ -64,6 +65,16 @@ class ProfileController extends Controller
                     'password' => 'The last operations account cannot be deleted. Create another operator account first.',
                 ]);
             }
+
+            AuditEvent::create([
+                'actor_type' => 'user',
+                'actor_id' => (string) $userId,
+                'event_type' => 'operations_user.deleted',
+                'subject_type' => 'user',
+                'subject_id' => (string) $userId,
+                'metadata' => [],
+                'occurred_at' => now(),
+            ]);
 
             User::query()->whereKey($userId)->delete();
         });

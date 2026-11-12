@@ -229,18 +229,18 @@ export default function Dashboard({ stats, latestRuns, addon }: Props) {
                                     : 'API key not configured — snapshots can still be received, but analysis will remain pending.'}
                             </p>
                             {addon.signing_key_fingerprint && (
-                                <>
-                                    <p className="mt-2 text-xs text-muted-foreground">
-                                        Package signing key SHA-256 fingerprint:
-                                    </p>
-                                    <p className="break-all font-mono text-xs text-muted-foreground">
-                                        {addon.signing_key_fingerprint}
-                                    </p>
+                                <div className="mt-2 space-y-1">
                                     <p className="text-xs text-muted-foreground">
-                                        Compare it with the archive fingerprint
-                                        before installation.
+                                        Package signing key fingerprint (SHA-256)
                                     </p>
-                                </>
+                                    <code className="block break-all text-xs">
+                                        {addon.signing_key_fingerprint}
+                                    </code>
+                                    <p className="text-xs text-muted-foreground">
+                                        Compare with the ZIP fingerprint before
+                                        installation.
+                                    </p>
+                                </div>
                             )}
                         </div>
                         <div className="flex flex-wrap gap-2">
@@ -253,9 +253,8 @@ export default function Dashboard({ stats, latestRuns, addon }: Props) {
                                 </a>
                             ) : (
                                 <span className="text-sm text-muted-foreground">
-                                    ZIP download unavailable until PHP ZIP
-                                    support and the Ed25519 signing key are
-                                    configured.
+                                    ZIP download unavailable until package
+                                    signing is configured.
                                 </span>
                             )}
                             <Link
