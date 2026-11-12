@@ -10,7 +10,12 @@ type Integration = {
     last_seen_at: string | null;
     diagnostic_runs_count: number;
 };
-type Props = { integrations: { data: Integration[]; links: { url: string | null; label: string; active: boolean }[] } };
+type Props = {
+    integrations: {
+        data: Integration[];
+        links: { url: string | null; label: string; active: boolean }[];
+    };
+};
 
 function date(value: string | null) {
     return value
