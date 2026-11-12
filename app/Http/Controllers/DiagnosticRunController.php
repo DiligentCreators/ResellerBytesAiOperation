@@ -7,6 +7,7 @@ use App\Models\AuditEvent;
 use App\Models\DiagnosticRun;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
