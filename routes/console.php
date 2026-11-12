@@ -33,14 +33,14 @@ Artisan::command('ai-budget:reconcile-no-charge {attempt} {--operator=} {--evide
         ->whereNotNull('two_factor_confirmed_at')
         ->first();
 
-    if (! $operator) {
+    if ($operator === null) {
         $this->error('The operator account was not found or has not confirmed TOTP MFA.');
 
         return 1;
     }
 
     $attempt = AiUsageAttempt::query()->find($attemptId);
-    if (! $attempt || $attempt->status !== 'ambiguous') {
+    if ($attempt === null || $attempt->status !== 'ambiguous') {
         $this->error('Only an existing ambiguous AI usage attempt can be reconciled.');
 
         return 1;
@@ -50,7 +50,7 @@ Artisan::command('ai-budget:reconcile-no-charge {attempt} {--operator=} {--evide
     $this->line('Attempt: '.$attempt->id.' | Model: '.$attempt->model.' | Reserved micro-USD: '.$attempt->reserved_micro_usd);
     $this->line('Operator: '.$operator->email.' | Evidence reference: '.$evidenceReference);
 
-    if (! $this->confirm('Have you independently verified the provider evidence and approve this no-charge reconciliation?', false)) {
+    if ($this->confirm('Have you independently verified the provider evidence and approve this no-charge reconciliation?', false) === false) {
         $this->comment('No changes made.');
 
         return 1;
