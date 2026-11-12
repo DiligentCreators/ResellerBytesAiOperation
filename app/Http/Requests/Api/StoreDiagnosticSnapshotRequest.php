@@ -21,7 +21,7 @@ class StoreDiagnosticSnapshotRequest extends FormRequest
             'snapshot_uuid' => ['required', 'uuid'],
             'schema_version' => ['required', 'string', 'in:1.0'],
             'addon_version' => ['required', 'string', 'max:40', 'regex:/\A[0-9A-Za-z.+_-]+\z/'],
-            'collected_at' => ['required', 'date'],
+            'collected_at' => ['required', 'date_format:Y-m-d\\TH:i:s\\Z'],
             'payload' => ['required', 'array:system,php,warnings,collector'],
             'payload.system' => ['required', 'array:whmcs_version,web_php_version,database_version,web_server,application_url_configured,error_display_disabled,configuration_file_writable'],
             'payload.system.whmcs_version' => ['required', 'string', 'max:32', 'regex:/\A(?:[0-9]+\.[0-9]+\.[0-9]+(?:-[A-Za-z0-9.]+)?|unknown)\z/'],
