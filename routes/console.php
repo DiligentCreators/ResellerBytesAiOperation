@@ -1,6 +1,9 @@
 <?php
 
 use App\Jobs\AnalyzeDiagnosticRun;
+use App\Models\AiUsageAttempt;
+use App\Models\User;
+use App\Services\Diagnostics\AiBudgetService;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
