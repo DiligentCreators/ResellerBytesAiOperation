@@ -128,6 +128,8 @@ namespace {
 }
 
 namespace {
+    use ResellerBytesAiOps\SignedApiClient;
+
     function assertSignedClientFailure(string $expectedMessage, string $label): void
     {
         try {
