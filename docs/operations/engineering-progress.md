@@ -14,12 +14,12 @@ Last reviewed: 2026-11-12
 
 ## CI evidence
 
-- GitHub Actions run [43207784623](https://github.com/DiligentCreators/ResellerBytesAiOperation/actions/runs/43207784623) completed successfully for the documentation review pull request.
-- Both jobs passed: `whmcs-addon-php81` and `ci`.
-- The PHP 8.1 job completed addon PHP syntax validation and all three standalone addon tests.
-- The application CI job completed Composer setup, Node setup, frontend build, and `composer ci:check`.
-- The main-branch run [43126184415](https://github.com/DiligentCreators/ResellerBytesAiOperation/actions/runs/43126184415) also completed successfully.
-- These results establish that those specific commits passed the configured workflow; they do not certify production readiness.
+- GitHub Actions run [43207784623](https://github.com/DiligentCreators/ResellerBytesAiOperation/actions/runs/43207784623) completed successfully for an earlier commit; both `whmcs-addon-php81` and `ci` passed.
+- Main-branch run [43126184415](https://github.com/DiligentCreators/ResellerBytesAiOperation/actions/runs/43126184415) also completed successfully for its commit.
+- Latest reviewed run [43228161983](https://github.com/DiligentCreators/ResellerBytesAiOperation/actions/runs/43228161983) is **not green**: `whmcs-addon-php81` passed, while `ci` failed at Pint's `fully_qualified_strict_types` formatting check for `whmcs-addon/tests/signed_api_client_test.php`.
+- The frontend build and earlier formatting/lint steps completed in that failed run; the workflow stopped at the Pint test before the remaining test suite could establish a pass.
+- The strict-types formatting issue has been corrected in the review branch after that run. It has not yet been re-run; no new CI has been triggered.
+- These results apply only to the commits and checks identified above; they do not certify production readiness.
 
 ## Source review observations
 
@@ -28,21 +28,24 @@ Last reviewed: 2026-11-12
 - The addon credential loader requires an absolute path outside the WHMCS/document roots, rejects symlinks, enforces exact mode `0600`, bounds file size, and validates the JSON structure.
 - The collector uses an allowlist of technical signals and does not transmit the configured system URL or customer/billing records.
 - The AI analyzer treats the snapshot as untrusted evidence, requests strict structured output, validates finding fields, and rejects evidence paths that do not resolve to observed snapshot values.
+- The nonce-pruning command deletes expired request nonces in bounded batches. No diagnostic-run, finding, recommendation, or audit-event retention/deletion policy or scheduled pruning mechanism was found.
+- Diagnostic runs are configured to cascade-delete with their parent integration. This destructive lifecycle behavior needs explicit product/operator confirmation and test coverage before exposing integration deletion as a routine operation.
 - No confirmed production-blocking defect was established in this focused source pass. The review is not a substitute for a full independent penetration test.
 
-## Work started on this branch
+## Work completed on this branch
 
 - Expanded the standalone signed API client test to exercise HTTP 500 responses, malformed JSON, empty responses, and cURL transport failures in addition to successful signing, TLS/redirect settings, and oversized response handling.
-- The new test changes are awaiting their own CI run; they are not yet marked as passing.
+- Corrected the Pint strict-types formatting failure in the signed API client test. This correction is pending CI verification.
 - Pull request: [#2 — release-readiness review](https://github.com/DiligentCreators/ResellerBytesAiOperation/pull/2).
 
 ## Remaining release gates
 
-1. Verify the new failure-path tests on the latest branch commit.
-2. Review the addon ZIP contents, download/setup flow, and package checksum generation.
-3. Continue application-level review of authentication/authorization, audit logging, data retention, queue failure recovery, and AI evidence handling.
-4. Confirm production infrastructure settings: PHP extensions, PostgreSQL/Redis connectivity, queue worker, scheduler, SMTP, operator MFA/passkey, and spend limits.
-5. Require an operator-approved restorable backup, maintenance window, rollback owner, exact addon ZIP/checksum review, external credentials file with mode `0600`, and one-shot read-only WHMCS pilot before any deployment.
+1. Complete a batched source review of authentication/authorization, audit event integrity, queue failure recovery, AI evidence handling, and package contents/checksum generation.
+2. Define and approve data-retention periods for diagnostic snapshots/findings/recommendations and audit events. Do not enable destructive automated pruning until an operator-approved policy exists; implement dry-run, bounded batches, opt-in configuration, and tests as part of that approved change.
+3. Review and test the integration deletion lifecycle, including the cascade effect on diagnostic history.
+4. Perform static/local checks on the complete change batch, then run one consolidated CI workflow and resolve any failures before another run.
+5. Confirm production infrastructure settings: PHP extensions, PostgreSQL/Redis connectivity, queue worker, scheduler, SMTP, operator MFA/passkey, and spend limits.
+6. Require an operator-approved restorable backup, maintenance window, rollback owner, exact addon ZIP/checksum review, external credentials file with mode `0600`, and one-shot read-only WHMCS pilot before any deployment.
 
 ## Status vocabulary
 
