@@ -157,8 +157,12 @@ class AiBudgetService
                     ->lockForUpdate()
                     ->firstOrFail();
 
+                if ($budgetPeriod->reserved_micro_usd < $locked->reserved_micro_usd) {
+                    throw new RuntimeException('budget_reservation_invariant_failed');
+                }
+
                 $budgetPeriod->forceFill([
-                    'reserved_micro_usd' => max(0, $budgetPeriod->reserved_micro_usd - $locked->reserved_micro_usd),
+                    'reserved_micro_usd' => $budgetPeriod->reserved_micro_usd - $locked->reserved_micro_usd,
                     'committed_micro_usd' => $budgetPeriod->committed_micro_usd + $cost,
                 ])->save();
             }
@@ -262,9 +266,11 @@ class AiBudgetService
                     ->whereDate('period_start', $period['start'])
                     ->lockForUpdate()
                     ->firstOrFail();
-                $budgetPeriod->forceFill([
-                    'reserved_micro_usd' => max(0, $budgetPeriod->reserved_micro_usd - $locked->reserved_micro_usd),
-                ])->save();
+                if ($budgetPeriod->reserved_micro_usd < $locked->reserved_micro_usd) {
+                    throw new RuntimeException('budget_reservation_invariant_failed');
+                }
+
+                $budgetPeriod->decrement('reserved_micro_usd', $locked->reserved_micro_usd);
             }
 
             $locked->forceFill(['status' => 'released', 'failure_code' => $failureCode])->save();
