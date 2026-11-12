@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\User;
+use Inertia\Testing\AssertableInertia as Assert;
 
 function configureFingerprintTestKeys(): string
 {
@@ -47,4 +48,19 @@ it('does not expose a fingerprint when the signing key is unavailable', function
     $this->actingAs($user)
         ->get('/whmcs-addon/signing-key-fingerprint')
         ->assertServiceUnavailable();
+});
+
+it('enables addon ZIP download on the setup page only when signing is configured', function () {
+    configureFingerprintTestKeys();
+
+    $user = User::factory()->withTwoFactor()->create([
+        'email_verified_at' => now(),
+    ]);
+
+    $this->actingAs($user)
+        ->get('/whmcs-addon/setup')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('whmcs-addon/setup')
+            ->where('downloadAvailable', class_exists(ZipArchive::class)));
 });

@@ -18,6 +18,7 @@ const steps = [
     'Take and verify a restorable WHMCS files and database backup.',
     'Open your 20i hosting control panel and launch File Manager.',
     'Navigate to the WHMCS installation directory, then modules/addons.',
+    'Verify the package signature and compare the ZIP fingerprint with the authenticated signing-key fingerprint endpoint.',
     'If File Manager offers Extract, upload and extract the ZIP into modules/addons. Otherwise, extract it locally and upload the four PHP files through File Manager, preserving the folder structure.',
     'Confirm modules/addons/resellerbytes_ai_ops/resellerbytes_ai_ops.php exists.',
     'In WHMCS Admin, open Configuration → System Settings → Addon Modules and activate ResellerBytes AI Operations.',
@@ -85,10 +86,18 @@ export default function WhmcsAddonSetup({
                                     </a>
                                 ) : (
                                     <span className="text-sm text-destructive">
-                                        ZIP support is not available on this
-                                        server. Enable PHP ext-zip before
-                                        deployment.
+                                        {'ZIP download is unavailable until PHP ext-zip and valid Ed25519 signing keys are configured.'}
                                     </span>
+                                )}
+                                {downloadAvailable && (
+                                    <a
+                                        href="/whmcs-addon/signing-key-fingerprint"
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="inline-flex h-10 items-center rounded-md border px-4 text-sm font-medium hover:bg-muted"
+                                    >
+                                        View signing-key fingerprint
+                                    </a>
                                 )}
                                 <Link
                                     href="/dashboard"
