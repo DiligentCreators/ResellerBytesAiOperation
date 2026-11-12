@@ -213,6 +213,18 @@ PROMPT;
             throw new RuntimeException('provider_output_schema_invalid');
         }
 
+        if (! is_array($decoded['findings'] ?? null)) {
+            throw new RuntimeException('provider_output_schema_invalid');
+        }
+
+        foreach ($decoded['findings'] as $finding) {
+            if (! is_array($finding)
+                || ! array_key_exists('recommendations', $finding)
+                || ! is_array($finding['recommendations'])) {
+                throw new RuntimeException('provider_output_schema_invalid');
+            }
+        }
+
         $validator = Validator::make($decoded, [
             'summary' => ['required', 'string', 'min:1', 'max:5000'],
             'no_findings_reason' => ['present', 'nullable', 'string', 'max:2000'],
@@ -225,7 +237,7 @@ PROMPT;
             'findings.*.evidence_paths' => ['required', 'array', 'min:1', 'max:10'],
             'findings.*.evidence_paths.*' => ['required', 'string', 'max:200'],
             'findings.*.confidence' => ['required', 'numeric', 'between:0,1'],
-            'findings.*.recommendations' => ['present', 'array', 'max:5'],
+            'findings.*.recommendations' => ['sometimes', 'array', 'max:5'],
             'findings.*.recommendations.*' => ['required', 'array:recommendation,rationale,risk_level'],
             'findings.*.recommendations.*.recommendation' => ['required', 'string', 'min:1', 'max:2000'],
             'findings.*.recommendations.*.rationale' => ['required', 'string', 'min:1', 'max:2000'],
