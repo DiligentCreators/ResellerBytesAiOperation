@@ -11,13 +11,13 @@ import {
 type Props = {
     addonVersion: string;
     downloadAvailable: boolean;
+    downloadUnavailableReason: string;
     aiConfigured: boolean;
 };
 
 const steps = [
     'Take and verify a restorable WHMCS files and database backup.',
     'Open your 20i hosting control panel and launch File Manager.',
-    'Verify the ZIP signature and compare its fingerprint at /whmcs-addon/signing-key-fingerprint.',
     'Navigate to the WHMCS installation directory, then modules/addons.',
     'If File Manager offers Extract, upload and extract the ZIP into modules/addons. Otherwise, extract it locally and upload the four PHP files through File Manager, preserving the folder structure.',
     'Confirm modules/addons/resellerbytes_ai_ops/resellerbytes_ai_ops.php exists.',
@@ -30,6 +30,7 @@ const steps = [
 export default function WhmcsAddonSetup({
     addonVersion,
     downloadAvailable,
+    downloadUnavailableReason,
     aiConfigured,
 }: Props) {
     return (
@@ -86,7 +87,7 @@ export default function WhmcsAddonSetup({
                                     </a>
                                 ) : (
                                     <span className="text-sm text-destructive">
-                                        {'ZIP and package signing support are not configured.'}
+                                        {downloadUnavailableReason}
                                     </span>
                                 )}
                                 <Link

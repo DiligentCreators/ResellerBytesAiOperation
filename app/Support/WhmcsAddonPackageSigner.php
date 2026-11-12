@@ -39,7 +39,7 @@ class WhmcsAddonPackageSigner
     }
 
     /**
-     * @return array{string, string}
+     * @return array{non-empty-string, non-empty-string}
      */
     private function keyPair(): array
     {
