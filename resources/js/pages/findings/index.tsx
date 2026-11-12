@@ -12,7 +12,12 @@ type Finding = {
     integration_name: string;
     diagnostic_run_id: string;
 };
-type Props = { findings: { data: Finding[]; links: { url: string | null; label: string; active: boolean }[] } };
+type Props = {
+    findings: {
+        data: Finding[];
+        links: { url: string | null; label: string; active: boolean }[];
+    };
+};
 
 export default function FindingsIndex({ findings }: Props) {
     return (
