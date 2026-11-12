@@ -3,8 +3,8 @@
 namespace App\Services\Diagnostics;
 
 use App\Models\AiBudgetPeriod;
-use App\Models\AuditEvent;
 use App\Models\AiUsageAttempt;
+use App\Models\AuditEvent;
 use App\Models\DiagnosticRun;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
