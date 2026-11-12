@@ -192,3 +192,21 @@ Verified PR #2 head: `41d939164a2c787d5feced121e4dfc24b823068b`.
 - The PostgreSQL CI job now resets its disposable database after the existing Pest suites and runs this process-level harness with a deterministic budget configuration.
 - This test exercises real PostgreSQL row locking across independent connections/processes; it is not a load benchmark and does not yet cover process termination mid-transaction, provider timeout, or queue-worker crash recovery.
 - Execution evidence is pending the new CI run. Do not treat the concurrency gate as passed until the PostgreSQL job completes successfully on the new branch head.
+## Current branch-head verification — 2026-11-13
+
+This section supersedes earlier CI and recovery-status entries where they conflict with the latest verified evidence.
+
+- Verified review-branch head: `608a57a39321b82523d23d405f0cb50250912d92`.
+- GitHub Actions run [43312619197](https://github.com/DiligentCreators/ResellerBytesAiOperation/actions/runs/43312619197) completed successfully. The main CI, PostgreSQL AI-budget, and WHMCS PHP 8.1 jobs all passed.
+- Main CI: formatting, lint, frontend build, TypeScript, Pint, and PHPStan passed; PHPStan reported no errors. Pest reported 122 passed, 2 skipped, and 537 assertions.
+- PostgreSQL 16 job: 27 tests passed with 140 assertions across AI budget ledger, reconciliation, analysis-job, and stale-queue recovery feature suites. The multi-process concurrency harness also passed.
+- Concurrency evidence: in both daily-budget and monthly-budget contention scenarios, eight independent PHP workers ran concurrently; exactly three reservations were accepted and five were rejected. Attempt rows and daily/monthly reserved balances matched the expected totals, with no committed spend introduced by the harness.
+- Added a provider-timeout feature test proving that an exception after the submit callback leaves the attempt ambiguous, retains both reservations, and prevents a second provider submission while the outcome remains unresolved.
+- The bounded `diagnostics:recover-queued` command now inspects the latest budget attempt while holding the diagnostic-run row lock. A stale pre-submit `reserved` attempt is safely released before redispatch; a stale `submitted` attempt is changed to `ambiguous` and held for operator review; an already ambiguous attempt remains held; and a settled attempt belonging to the interrupted analysis is not automatically charged again or redispatched.
+- Added recovery tests for pre-submit worker loss, post-submit worker loss, and worker loss after provider usage settlement. These tests passed in both the main CI suite and PostgreSQL 16 suite.
+- A stale submitted attempt is retained as ambiguous because provider acceptance and billing cannot be inferred from a worker crash. The existing operator command only releases confirmed-not-charged attempts. A separately reviewed confirmed-charge settlement workflow and fresh MFA/two-person approval remain outstanding.
+- PR #2 remains open and Draft. No merge, production migration, live WHMCS change, or deployment has occurred. The AI budget migration and enforcement remain branch-only.
+- Remaining release gates include database-level audit immutability, confirmed-charge settlement and stronger reconciliation approval, integration deletion/history lifecycle, production signing-key setup and ZIP verification, approved retention implementation, backup/restore rehearsal, production infrastructure verification, and an explicitly approved read-only WHMCS pilot.
+- The hybrid SaaS tenant-isolation, dual-billing, entitlement, and white-label roadmap remains a separate implementation phase and is not certified as delivered by this PR.
+
+A green CI run is necessary but does not close these release gates or authorize merge, migration, or deployment.
