@@ -276,6 +276,11 @@ PROMPT;
         }
 
         $segments = explode('.', $path);
+
+        if (! in_array($segments[0], ['system', 'php', 'warnings'], true)) {
+            return false;
+        }
+
         $value = $payload;
 
         foreach ($segments as $segment) {
