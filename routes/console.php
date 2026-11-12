@@ -8,6 +8,7 @@ use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Schedule;
 
 Artisan::command('inspire', function () {
@@ -83,7 +84,7 @@ Artisan::command('ai-budget:reconcile-no-charge {attempt} {--operator=} {--evide
     return 0;
 })->purpose('Release an ambiguous AI reservation only after evidence-based operator verification');
 
-Artisan::command('diagnostics:recover-queued {--stale-minutes=15} {--limit=100}', function () {
+Artisan::command('diagnostics:recover-queued {--stale-minutes=15} {--limit=100}', function (AiBudgetService $budget) {
     $staleMinutes = max(5, min(1440, (int) $this->option('stale-minutes')));
     $limit = max(1, min(500, (int) $this->option('limit')));
 
@@ -116,35 +117,93 @@ Artisan::command('diagnostics:recover-queued {--stale-minutes=15} {--limit=100}'
         ->pluck('id');
 
     $dispatched = 0;
+    $heldForOperatorReview = 0;
 
     foreach ($runIds as $runId) {
-        // Claim queued or abandoned analyzing rows atomically before publishing a replacement job.
-        $claimed = DB::table('diagnostic_runs')
-            ->where('id', $runId)
-            ->where(function ($query) use ($cutoff) {
-                $query
-                    ->where(function ($query) use ($cutoff) {
-                        $query->where('status', 'queued')
-                            ->where('updated_at', '<=', $cutoff);
-                    })
-                    ->orWhere(function ($query) use ($cutoff) {
-                        $query->where('status', 'analyzing')
-                            ->where(function ($query) use ($cutoff) {
-                                $query->where('analysis_started_at', '<=', $cutoff)
-                                    ->orWhere(function ($query) use ($cutoff) {
-                                        $query->whereNull('analysis_started_at')
-                                            ->where('updated_at', '<=', $cutoff);
-                                    });
-                            });
-                    });
-            })
-            ->update([
-                'status' => 'queued',
-                'analysis_started_at' => null,
-                'updated_at' => now(),
-            ]);
+        $recoveryState = DB::transaction(function () use ($runId, $cutoff, $budget): string {
+            $run = DB::table('diagnostic_runs')
+                ->where('id', $runId)
+                ->lockForUpdate()
+                ->first();
 
-        if ($claimed !== 1) {
+            if ($run === null) {
+                return 'skipped';
+            }
+
+            $isStaleQueued = $run->status === 'queued'
+                && Carbon::parse($run->updated_at)->lessThanOrEqualTo($cutoff);
+            $isStaleAnalyzing = $run->status === 'analyzing'
+                && ($run->analysis_started_at !== null
+                    ? Carbon::parse($run->analysis_started_at)->lessThanOrEqualTo($cutoff)
+                    : Carbon::parse($run->updated_at)->lessThanOrEqualTo($cutoff));
+
+            if (! $isStaleQueued && ! $isStaleAnalyzing) {
+                return 'skipped';
+            }
+
+            $attempt = AiUsageAttempt::query()
+                ->where('diagnostic_run_id', $runId)
+                ->orderByDesc('attempt_number')
+                ->orderByDesc('created_at')
+                ->lockForUpdate()
+                ->first();
+
+            if ($attempt !== null && in_array($attempt->status, ['submitted', 'ambiguous'], true)) {
+                if ($attempt->status === 'submitted') {
+                    $budget->markAmbiguous($attempt, 'worker_lost_after_submit');
+                }
+
+                DB::table('diagnostic_runs')
+                    ->where('id', $runId)
+                    ->update([
+                        'status' => 'analysis_failed',
+                        'analysis_started_at' => null,
+                        'analysis_error_code' => 'provider_outcome_ambiguous',
+                        'updated_at' => now(),
+                    ]);
+
+                return 'held';
+            }
+
+            if ($attempt !== null
+                && $attempt->status === 'settled'
+                && $run->status === 'analyzing'
+                && (int) $attempt->attempt_number === (int) $run->analysis_attempts) {
+                DB::table('diagnostic_runs')
+                    ->where('id', $runId)
+                    ->update([
+                        'status' => 'analysis_failed',
+                        'analysis_started_at' => null,
+                        'analysis_error_code' => 'analysis_interrupted_after_settlement',
+                        'updated_at' => now(),
+                    ]);
+
+                return 'held';
+            }
+
+            if ($attempt !== null && $attempt->status === 'reserved') {
+                $budget->releaseBeforeSubmit($attempt, 'worker_lost_before_submit');
+            }
+
+            DB::table('diagnostic_runs')
+                ->where('id', $runId)
+                ->update([
+                    'status' => 'queued',
+                    'analysis_started_at' => null,
+                    'analysis_error_code' => null,
+                    'updated_at' => now(),
+                ]);
+
+            return 'claimed';
+        }, 3);
+
+        if ($recoveryState === 'held') {
+            $heldForOperatorReview++;
+
+            continue;
+        }
+
+        if ($recoveryState !== 'claimed') {
             continue;
         }
 
@@ -159,10 +218,10 @@ Artisan::command('diagnostics:recover-queued {--stale-minutes=15} {--limit=100}'
         }
     }
 
-    $this->info("Dispatched {$dispatched} stale queued or abandoned analyzing diagnostic run(s).");
+    $this->info("Dispatched {$dispatched} recoverable diagnostic run(s); held {$heldForOperatorReview} for operator review.");
 
     return 0;
-})->purpose('Re-dispatch stale queued and abandoned diagnostic analyses with bounded retries');
+})->purpose('Recover stale diagnostics without repeating ambiguous or already-settled provider charges');
 
 Schedule::command('whmcs:nonces:prune')
     ->everyFifteenMinutes()
