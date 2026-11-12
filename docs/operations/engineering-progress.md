@@ -41,16 +41,17 @@ Last reviewed: 2026-11-12
 
 ### Audit-event integrity review
 
-- `AuditEvent` exposes its event identity, actor, subject, metadata, IP address, and timestamp through Eloquent mass assignment. The model has no update/delete guard or append-only behavior.
-- No database-level immutability mechanism was verified in this pass. This is an audit-integrity gap to resolve or explicitly mitigate before production; it is not yet evidence that an exposed route permits arbitrary audit-event edits.
-- Audit records should be protected against routine application updates/deletes and, for stronger assurance, exported or replicated to a separately controlled append-only destination.
+- `AuditEvent` now rejects Eloquent model update and delete operations; creation remains allowed. A focused Pest feature test covers append, update rejection, and delete rejection.
+- This is an application-layer guard only. Query-builder updates/deletes, raw SQL, privileged database access, and database administrators can bypass it; no database trigger/privilege boundary or separately controlled append-only export has been implemented or verified. Do not describe the audit store as tamper-proof.
+- Stronger production assurance still requires a separately approved database-level control and/or export to separately controlled append-only storage.
 
 ### Queue and package review
 
 - `AnalyzeDiagnosticRun` uses a database row lock, a 100-second analysis lease, a 90-second job timeout, three attempts, and bounded backoff. Provider exceptions set a safe error code and are rethrown for queue retry; the failed hook records terminal failure.
 - The Redis queue uses a 120-second `retry_after`, which is longer than the job timeout and lease. This is a coherent baseline, but crash/recovery behavior for jobs left in `queued` state should be covered by an explicit reconciliation test or mechanism.
 - Snapshot ingestion records the accepted snapshot and its audit event transactionally, then queues analysis. Dispatch failures are handled in the inspected controller paths, but a process interruption between persisting `queued` and successful enqueue remains a recovery scenario to validate.
-- Manual reanalysis checks current state and relies on the job lease for execution serialization. Concurrent request behavior and queue-dispatch failure should remain covered by tests.
+- Manual reanalysis checks status on a previously loaded model and then changes it before dispatch; the check-and-transition is not atomic, so concurrent requests can enqueue duplicate jobs. The job's row lock prevents simultaneous analysis execution, but does not eliminate duplicate queue entries or duplicate request audit events.
+- Both ingestion and manual reanalysis retain a crash window between persisting `queued` and successful queue publication. A durable outbox or bounded reconciliation mechanism is still needed; do not assume the current exception handlers cover process termination.
 - The authenticated addon download controller builds the ZIP from the addon source directory, skips symlink files, and embeds per-file SHA-256 checksums plus a version. The checksum manifest is inside the same archive, so it detects accidental corruption only when compared with a separately trusted checksum; it is not an independent authenticity signature.
 - No confirmed production-blocking defect was established in this focused source pass. The review is not a substitute for a full independent penetration test.
 
@@ -59,11 +60,12 @@ Last reviewed: 2026-11-12
 - Expanded the standalone signed API client test to exercise HTTP 500 responses, malformed JSON, empty responses, and cURL transport failures in addition to successful signing, TLS/redirect settings, and oversized response handling.
 - Corrected the Pint strict-types formatting failure in the signed API client test. This correction is pending CI verification.
 - Completed a focused source review of route authorization, operator provisioning, audit-event model behavior, queue execution/retry handling, and addon ZIP/checksum generation. Findings above are documented for remediation or operator disposition.
+- Added an Eloquent-level append-only guard to `AuditEvent` and a focused Pest feature test. Execution of this new test and the full suite is pending; this change does not provide database-level immutability.
 - Pull request: [#2 — release-readiness review](https://github.com/DiligentCreators/ResellerBytesAiOperation/pull/2).
 
 ## Remaining release gates
 
-1. Decide and implement an operator-approved audit integrity model: immutable application behavior, database-level controls, and/or export to separately controlled append-only storage.
+1. Approve and implement the stronger audit-integrity boundary: database-level controls and/or export to separately controlled append-only storage. The current Eloquent guard is defense-in-depth only.
 2. Confirm the trusted-operator account model, verify every account-creation path, and decide whether MFA/passkey enrollment must be mandatory before dashboard access. Protect the last operator account from accidental deletion.
 3. Add or verify reconciliation for diagnostic runs persisted as `queued` but not actually enqueued; test dispatch failures, process interruption, duplicate dispatch, and stale leases.
 4. Provide an independently trusted addon ZIP checksum or signature for deployment verification; the embedded manifest alone is not an authenticity guarantee.
