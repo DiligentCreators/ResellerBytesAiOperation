@@ -230,13 +230,13 @@ export default function Dashboard({ stats, latestRuns, addon }: Props) {
                             </p>
                             {addon.signing_key_fingerprint && (
                                 <p className="mt-2 max-w-2xl break-all text-xs text-muted-foreground">
-                                    Package signing key SHA-256 fingerprint:
-                                    <span className="ml-1 font-mono">
+                                    Package signing key SHA-256 fingerprint:{' '}
+                                    <span className="font-mono">
                                         {addon.signing_key_fingerprint}
                                     </span>
-                                    . Compare this value with the archive's
-                                    SIGNING-KEY-FINGERPRINT.txt before
-                                    installation.
+                                    . Compare this value with
+                                    SIGNING-KEY-FINGERPRINT.txt in the archive
+                                    before installation.
                                 </p>
                             )}
                         </div>
@@ -250,8 +250,8 @@ export default function Dashboard({ stats, latestRuns, addon }: Props) {
                                 </a>
                             ) : (
                                 <span className="text-sm text-muted-foreground">
-                                    ZIP download unavailable until ZIP support
-                                    and the Ed25519 signing key are configured.
+                                    ZIP download unavailable until PHP ZIP
+                                    support is enabled.
                                 </span>
                             )}
                             <Link

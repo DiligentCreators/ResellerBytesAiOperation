@@ -66,6 +66,17 @@ it('downloads an addon archive with a verifiable Ed25519 signature and expected 
     $packagedPublicKey = base64_decode(trim($archive->getFromName('SIGNING-PUBLIC-KEY.txt')), true);
     $packagedFingerprint = trim($archive->getFromName('SIGNING-KEY-FINGERPRINT.txt'));
 
+    foreach (explode("\n", $manifest) as $line) {
+        [$checksum, $relativePath] = explode('  ', $line, 2);
+        $archivePath = $relativePath === 'INSTALLATION.txt'
+            ? $relativePath
+            : 'resellerbytes_ai_ops/'.$relativePath;
+        $contents = $archive->getFromName($archivePath);
+
+        expect($contents)->not->toBeFalse();
+        expect(hash('sha256', $contents))->toBe($checksum);
+    }
+
     $archive->close();
 
     expect($packagedPublicKey)->toBe($publicKey);
