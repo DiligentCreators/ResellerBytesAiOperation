@@ -14,7 +14,7 @@ function makeSignedSnapshot(WhmcsIntegration $integration, array $overrides = []
         'snapshot_uuid' => (string) Str::uuid(),
         'schema_version' => '1.0',
         'addon_version' => '1.0.0',
-        'collected_at' => now()->toIso8601String(),
+        'collected_at' => now()->utc()->format('Y-m-d\\TH:i:s\\Z'),
         'payload' => [
             'system' => [
                 'whmcs_version' => '8.13.7',
@@ -166,7 +166,7 @@ test('treats a repeated snapshot identifier as idempotent when signed with a fre
     $snapshotUuid = (string) Str::uuid();
     $overrides = [
         'snapshot_uuid' => $snapshotUuid,
-        'collected_at' => now()->toIso8601String(),
+        'collected_at' => now()->utc()->format('Y-m-d\\TH:i:s\\Z'),
     ];
     $first = makeSignedSnapshot($integration, $overrides);
     $second = makeSignedSnapshot($integration, $overrides);
