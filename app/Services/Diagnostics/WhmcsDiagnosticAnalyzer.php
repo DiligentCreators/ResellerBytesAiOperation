@@ -286,10 +286,14 @@ PROMPT;
             $value = $value[$segment];
         }
 
-        if ($value === null || $value === '' || $value === 'unknown' || $value === []) {
+        if ($value === null || $value === []) {
             return false;
         }
 
-        return ! is_string($value) || trim($value) !== '';
+        if (is_string($value)) {
+            return ! in_array(strtolower(trim($value)), ['', 'unknown'], true);
+        }
+
+        return true;
     }
 }
