@@ -192,6 +192,7 @@ Verified PR #2 head: `41d939164a2c787d5feced121e4dfc24b823068b`.
 - The PostgreSQL CI job now resets its disposable database after the existing Pest suites and runs this process-level harness with a deterministic budget configuration.
 - This test exercises real PostgreSQL row locking across independent connections/processes; it is not a load benchmark and does not yet cover process termination mid-transaction, provider timeout, or queue-worker crash recovery.
 - Execution evidence is pending the new CI run. Do not treat the concurrency gate as passed until the PostgreSQL job completes successfully on the new branch head.
+
 ## Current branch-head verification — 2026-11-13
 
 This section supersedes earlier CI and recovery-status entries where they conflict with the latest verified evidence.
