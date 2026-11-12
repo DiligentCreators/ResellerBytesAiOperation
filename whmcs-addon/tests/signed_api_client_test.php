@@ -103,7 +103,6 @@ namespace {
     echo "WHMCS addon signed API client tests passed.\n";
 }
 
-
 namespace {
     use ResellerBytesAiOps\SignedApiClient;
 
