@@ -338,3 +338,35 @@ test('rejects module or cron telemetry until a reviewed collector supports it', 
 
     expect(DiagnosticRun::count())->toBe(0);
 });
+
+test('accepts nullable configuration-file writability when the collector cannot observe it', function () {
+    $integration = createSignedTestIntegration();
+    $signed = makeSignedSnapshot($integration);
+    $payload = json_decode($signed['body'], true, 32, JSON_THROW_ON_ERROR);
+    $payload['payload']['system']['configuration_file_writable'] = null;
+    unset($payload['payload']['warnings']);
+
+    $body = json_encode($payload, JSON_THROW_ON_ERROR);
+    $timestamp = $signed['headers']['HTTP_X_RB_TIMESTAMP'];
+    $nonce = $signed['headers']['HTTP_X_RB_NONCE'];
+    $canonical = implode(chr(10), [
+        'POST',
+        '/api/v1/whmcs/diagnostic-snapshots',
+        $timestamp,
+        $nonce,
+        hash('sha256', $body),
+    ]);
+    $signed['headers']['HTTP_X_RB_SIGNATURE'] = hash_hmac('sha256', $canonical, $integration->secret);
+
+    $this->call(
+        'POST',
+        '/api/v1/whmcs/diagnostic-snapshots',
+        [],
+        [],
+        [],
+        $signed['headers'],
+        $body,
+    )->assertAccepted();
+
+    expect(DiagnosticRun::firstOrFail()->payload['system']['configuration_file_writable'])->toBeNull();
+});
