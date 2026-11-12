@@ -45,7 +45,7 @@ namespace {
     function assertSignedClientCondition(bool $condition, string $message): void
     {
         if (! $condition) {
-            throw new \\RuntimeException($message);
+            throw new \RuntimeException($message);
         }
     }
 
@@ -119,7 +119,7 @@ namespace {
             'system' => ['whmcs_version' => '8.13.7'],
         ]);
 
-        throw new \\RuntimeException('Oversized API response was accepted.');
+        throw new \RuntimeException('Oversized API response was accepted.');
     } catch (RuntimeException $exception) {
         if ($exception->getMessage() !== 'diagnostic_submission_failed') {
             throw $exception;
