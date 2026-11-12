@@ -101,3 +101,71 @@ it('marks a failed analysis attempt without modifying the source diagnostic payl
         ->and($run->fresh()->analysis_error_code)->toBe('provider_request_failed')
         ->and($run->fresh()->payload)->toBe(['system' => ['whmcs_version' => '8.13.7']]);
 });
+
+it('reclaims an analysis lease after the queue retry visibility timeout', function () {
+    $integration = WhmcsIntegration::create([
+        'name' => 'Stale analysis lease test',
+        'status' => 'active',
+        'secret' => bin2hex(random_bytes(32)),
+        'secret_version' => 1,
+    ]);
+
+    $run = DiagnosticRun::create([
+        'integration_id' => $integration->id,
+        'snapshot_uuid' => (string) Str::uuid(),
+        'schema_version' => '1.0',
+        'addon_version' => '1.0.0',
+        'status' => 'analyzing',
+        'analysis_started_at' => now()->subSeconds(121),
+        'analysis_attempts' => 1,
+        'collected_at' => now(),
+        'received_at' => now(),
+        'payload' => ['system' => ['whmcs_version' => '8.13.7']],
+        'payload_sha256' => str_repeat('d', 64),
+    ]);
+
+    $analyzer = Mockery::mock(WhmcsDiagnosticAnalyzer::class);
+    $analyzer->shouldReceive('analyze')->once()->andReturn([
+        'summary' => 'The available snapshot contains limited runtime evidence.',
+        'no_findings_reason' => 'No actionable issue is supported by the available evidence.',
+        'findings' => [],
+        'response_id' => 'resp_recovered_123',
+        'usage' => ['input_tokens' => 100, 'output_tokens' => 30, 'total_tokens' => 130],
+    ]);
+
+    (new AnalyzeDiagnosticRun($run->id))->handle($analyzer);
+
+    expect($run->fresh()->status)->toBe('analyzed')
+        ->and($run->fresh()->analysis_attempts)->toBe(2);
+});
+
+it('does not start a duplicate analysis while the current worker lease is active', function () {
+    $integration = WhmcsIntegration::create([
+        'name' => 'Active analysis lease test',
+        'status' => 'active',
+        'secret' => bin2hex(random_bytes(32)),
+        'secret_version' => 1,
+    ]);
+
+    $run = DiagnosticRun::create([
+        'integration_id' => $integration->id,
+        'snapshot_uuid' => (string) Str::uuid(),
+        'schema_version' => '1.0',
+        'addon_version' => '1.0.0',
+        'status' => 'analyzing',
+        'analysis_started_at' => now()->subSeconds(30),
+        'analysis_attempts' => 1,
+        'collected_at' => now(),
+        'received_at' => now(),
+        'payload' => ['system' => ['whmcs_version' => '8.13.7']],
+        'payload_sha256' => str_repeat('e', 64),
+    ]);
+
+    $analyzer = Mockery::mock(WhmcsDiagnosticAnalyzer::class);
+    $analyzer->shouldNotReceive('analyze');
+
+    (new AnalyzeDiagnosticRun($run->id))->handle($analyzer);
+
+    expect($run->fresh()->status)->toBe('analyzing')
+        ->and($run->fresh()->analysis_attempts)->toBe(1);
+});
