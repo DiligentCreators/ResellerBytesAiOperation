@@ -86,6 +86,7 @@ it('recovers abandoned analyzing runs only after the lease and queue visibility 
 
     $staleRun = createQueuedRecoveryTestRun();
     $freshRun = createQueuedRecoveryTestRun();
+    $freshNullLeaseRun = createQueuedRecoveryTestRun();
 
     DB::table('diagnostic_runs')
         ->where('id', $staleRun->id)
@@ -103,6 +104,14 @@ it('recovers abandoned analyzing runs only after the lease and queue visibility 
             'updated_at' => now()->subMinutes(5),
         ]);
 
+    DB::table('diagnostic_runs')
+        ->where('id', $freshNullLeaseRun->id)
+        ->update([
+            'status' => 'analyzing',
+            'analysis_started_at' => null,
+            'updated_at' => now()->subMinutes(5),
+        ]);
+
     expect(Artisan::call('diagnostics:recover-queued'))->toBe(0);
 
     Queue::assertPushed(
@@ -111,10 +120,11 @@ it('recovers abandoned analyzing runs only after the lease and queue visibility 
     );
     Queue::assertNotPushed(
         AnalyzeDiagnosticRun::class,
-        fn (AnalyzeDiagnosticRun $job): bool => $job->diagnosticRunId === $freshRun->id,
+        fn (AnalyzeDiagnosticRun $job): bool => in_array($job->diagnosticRunId, [$freshRun->id, $freshNullLeaseRun->id], true),
     );
 
     expect($staleRun->fresh()->status)->toBe('queued');
     expect($staleRun->fresh()->analysis_started_at)->toBeNull();
     expect($freshRun->fresh()->status)->toBe('analyzing');
+    expect($freshNullLeaseRun->fresh()->status)->toBe('analyzing');
 });

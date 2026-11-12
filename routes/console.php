@@ -32,8 +32,11 @@ Artisan::command('diagnostics:recover-queued {--stale-minutes=15} {--limit=100}'
                 ->orWhere(function ($query) use ($cutoff) {
                     $query->where('status', 'analyzing')
                         ->where(function ($query) use ($cutoff) {
-                            $query->whereNull('analysis_started_at')
-                                ->orWhere('analysis_started_at', '<=', $cutoff);
+                            $query->where('analysis_started_at', '<=', $cutoff)
+                                ->orWhere(function ($query) use ($cutoff) {
+                                    $query->whereNull('analysis_started_at')
+                                        ->where('updated_at', '<=', $cutoff);
+                                });
                         });
                 });
         })
@@ -56,8 +59,11 @@ Artisan::command('diagnostics:recover-queued {--stale-minutes=15} {--limit=100}'
                     ->orWhere(function ($query) use ($cutoff) {
                         $query->where('status', 'analyzing')
                             ->where(function ($query) use ($cutoff) {
-                                $query->whereNull('analysis_started_at')
-                                    ->orWhere('analysis_started_at', '<=', $cutoff);
+                                $query->where('analysis_started_at', '<=', $cutoff)
+                                    ->orWhere(function ($query) use ($cutoff) {
+                                        $query->whereNull('analysis_started_at')
+                                            ->where('updated_at', '<=', $cutoff);
+                                    });
                             });
                     });
             })
