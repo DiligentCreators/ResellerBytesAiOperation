@@ -229,15 +229,18 @@ export default function Dashboard({ stats, latestRuns, addon }: Props) {
                                     : 'API key not configured — snapshots can still be received, but analysis will remain pending.'}
                             </p>
                             {addon.signing_key_fingerprint && (
-                                <p className="mt-2 max-w-2xl break-all text-xs text-muted-foreground">
-                                    Package signing key SHA-256 fingerprint:{' '}
-                                    <span className="font-mono">
+                                <>
+                                    <p className="mt-2 text-xs text-muted-foreground">
+                                        Package signing key SHA-256 fingerprint:
+                                    </p>
+                                    <p className="break-all font-mono text-xs text-muted-foreground">
                                         {addon.signing_key_fingerprint}
-                                    </span>
-                                    . Compare this value with
-                                    SIGNING-KEY-FINGERPRINT.txt in the archive
-                                    before installation.
-                                </p>
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                        Compare it with the archive fingerprint
+                                        before installation.
+                                    </p>
+                                </>
                             )}
                         </div>
                         <div className="flex flex-wrap gap-2">
@@ -251,7 +254,8 @@ export default function Dashboard({ stats, latestRuns, addon }: Props) {
                             ) : (
                                 <span className="text-sm text-muted-foreground">
                                     ZIP download unavailable until PHP ZIP
-                                    support is enabled.
+                                    support and the Ed25519 signing key are
+                                    configured.
                                 </span>
                             )}
                             <Link
