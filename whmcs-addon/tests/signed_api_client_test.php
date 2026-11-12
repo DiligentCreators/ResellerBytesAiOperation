@@ -52,7 +52,7 @@ namespace {
 
     $integrationId = 'a3a5d8b4-51b1-4c27-8f61-8e6f7d4a9c10';
     $secret = str_repeat('b', 64);
-    $result = (new SignedApiClient)->submit([
+    $result = (new \\ResellerBytesAiOps\\SignedApiClient)->submit([
         'integration_id' => $integrationId,
         'secret' => $secret,
     ], [
@@ -129,9 +129,6 @@ namespace {
 }
 
 namespace {
-    use ResellerBytesAiOps\\SignedApiClient;
-    use RuntimeException;
-
     function assertSignedClientFailure(string $expectedMessage, string $label): void
     {
         try {
@@ -141,12 +138,12 @@ namespace {
             ], [
                 'system' => ['whmcs_version' => '8.13.7'],
             ]);
-        } catch (RuntimeException $exception) {
+        } catch (\\RuntimeException $exception) {
             if ($exception->getMessage() === $expectedMessage) {
                 return;
             }
 
-            throw new RuntimeException($label.' returned an unexpected error code.');
+            throw new \\RuntimeException($label.' returned an unexpected error code.');
         }
 
         throw new RuntimeException($label.' was unexpectedly accepted.');
