@@ -108,3 +108,27 @@ This document records review evidence; it does not certify the application as pr
 - A stale row is atomically returned to `queued`, its old lease timestamp is cleared, and a replacement job is dispatched. Fresh `analyzing` rows remain untouched.
 - Focused feature coverage was added for stale versus fresh `analyzing` recovery. Runtime CI verification is pending.
 - This remains bounded reconciliation, not a transactional outbox; duplicate queue entries remain possible, while the job-level row lock and lease protect execution.
+
+
+## Approved hybrid SaaS direction — 2026-11-12
+
+The operator selected the hybrid business model: validate ResellerBytes AI Operations internally first, then commercialize the same platform for external hosting providers.
+
+Approved architecture decisions:
+
+- Hosting: one shared application and shared database with strict tenant isolation. ResellerBytes is a normal tenant, not a privileged bypass.
+- Billing: automated recurring payments and manual invoices/payments through one subscription, billing-event, and entitlement model.
+- Branding: launch under the ResellerBytes brand while designing tenant-configurable branding and a later white-label path.
+- Architecture style: modular monolith with queue-based diagnostic processing; no microservices split for the first commercial release.
+- External customer onboarding is blocked until tenant ownership is backfilled, cross-tenant access tests pass, and server-side entitlements are enforced.
+- Automated billing requires verified, idempotent provider webhooks; manual payments require auditable recording and adjustment history.
+- Custom domains and advanced white-label features are deferred until domain verification, TLS, routing, and tenant-isolation controls are implemented.
+
+The approved target architecture and phased delivery plan are documented in hybrid-saas-architecture-and-roadmap.md. The overall first-commercial-release planning estimate is approximately 5–9 weeks, subject to Phase 1 verification, schema complexity, payment-provider access, and beta feedback.
+
+### Current CI status correction
+
+- Latest branch-head run 43255558196 completed with the main ci job failed and whmcs-addon-php81 passed.
+- The main CI failure is confirmed as Markdown formatting in docs/operations/ai-budget-and-retention-policy.md and docs/operations/engineering-progress.md; the frontend build completed successfully in that run.
+- Do not treat the branch as green or release-ready until formatting is corrected and a new consolidated CI run passes.
+- No merge, deployment, migration, or destructive pruning is authorized by this architecture decision.
