@@ -96,8 +96,8 @@ export default function DiagnosticRunShow({ run }: Props) {
                                       : run.status === 'analyzing'
                                         ? 'Analysis is currently being processed by the queue worker.'
                                         : run.status === 'analysis_failed'
-                                        ? 'The previous analysis attempt failed. The source snapshot remains intact.'
-                                        : 'This snapshot has been received but has not yet been analyzed.'}
+                                          ? 'The previous analysis attempt failed. The source snapshot remains intact.'
+                                          : 'This snapshot has been received but has not yet been analyzed.'}
                             </p>
                         </div>
                         {run.ai_configured &&
