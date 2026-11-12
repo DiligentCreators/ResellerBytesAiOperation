@@ -220,7 +220,22 @@ class AiBudgetService
     private function priceCard(string $model, ?string $version = null): array
     {
         $card = config("ai_budget.price_cards.{$model}");
-        if (! is_array($card) || ($version !== null && $card['version'] !== $version)) {
+        if (! is_array($card)
+            || ! is_string($card['version'] ?? null)
+            || ! is_numeric($card['input_tenths_micro_usd_per_token'] ?? null)
+            || ! is_numeric($card['output_tenths_micro_usd_per_token'] ?? null)
+            || ! is_string($card['valid_until'] ?? null)
+            || ($version !== null && $card['version'] !== $version)) {
+            throw new RuntimeException('budget_price_card_unavailable');
+        }
+
+        $inputRate = (int) $card['input_tenths_micro_usd_per_token'];
+        $outputRate = (int) $card['output_tenths_micro_usd_per_token'];
+        $cachedInputRate = is_numeric($card['cached_input_tenths_micro_usd_per_token'] ?? null)
+            ? (int) $card['cached_input_tenths_micro_usd_per_token']
+            : 4;
+
+        if ($inputRate < 1 || $outputRate < 1 || $cachedInputRate < 0) {
             throw new RuntimeException('budget_price_card_unavailable');
         }
 
@@ -229,8 +244,11 @@ class AiBudgetService
         }
 
         return [
-            ...$card,
-            'cached_input_tenths_micro_usd_per_token' => (int) ($card['cached_input_tenths_micro_usd_per_token'] ?? 4),
+            'version' => $card['version'],
+            'input_tenths_micro_usd_per_token' => $inputRate,
+            'output_tenths_micro_usd_per_token' => $outputRate,
+            'cached_input_tenths_micro_usd_per_token' => $cachedInputRate,
+            'valid_until' => $card['valid_until'],
         ];
     }
 
