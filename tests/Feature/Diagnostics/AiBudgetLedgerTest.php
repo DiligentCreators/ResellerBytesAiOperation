@@ -110,7 +110,7 @@ it('keeps an ambiguous submitted reservation and blocks a second billable attemp
     expect($attempt->fresh()->status)->toBe('ambiguous')
         ->and(AiBudgetPeriod::query()->where('period_type', 'daily')->sole()->reserved_micro_usd)->toBe(322_144)
         ->and(fn () => $service->reserve($run->fresh(), 'gpt-5.6-sol', '2026-11-12.1'))
-            ->toThrow(RuntimeException::class, 'budget_attempt_unresolved');
+        ->toThrow(RuntimeException::class, 'budget_attempt_unresolved');
 });
 
 it('refuses to reserve against an expired model price card', function () {
