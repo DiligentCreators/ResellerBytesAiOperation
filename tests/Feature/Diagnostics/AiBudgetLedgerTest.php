@@ -86,7 +86,7 @@ it('blocks a reservation when either UTC budget has insufficient capacity', func
         ->toThrow(RuntimeException::class, 'budget_exhausted');
 
     expect(AiUsageAttempt::query()->count())->toBe(0)
-        ->and(AiBudgetPeriod::query()->where('period_type', 'daily')->sole()->reserved_micro_usd)->toBe(0);
+        ->and(AiBudgetPeriod::query()->count())->toBe(0);
 });
 
 it('releases a reservation only when the provider request was not submitted', function () {
@@ -155,7 +155,9 @@ it('settles an old attempt using its stored price rates after the price card exp
 });
 
 it('refuses to reserve against an expired model price card', function () {
-    config()->set('ai_budget.price_cards.gpt-5.6-sol.valid_until', '2026-11-11T23:59:59Z');
+    $priceCards = config('ai_budget.price_cards');
+    $priceCards['gpt-5.6-sol']['valid_until'] = '2026-11-11T23:59:59Z';
+    config()->set('ai_budget.price_cards', $priceCards);
     $run = makeBudgetDiagnosticRun();
 
     expect(fn () => app(AiBudgetService::class)->reserve($run, 'gpt-5.6-sol', '2026-11-12.1'))
