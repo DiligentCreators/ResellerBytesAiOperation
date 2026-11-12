@@ -183,3 +183,13 @@ Verified PR #2 head: `41d939164a2c787d5feced121e4dfc24b823068b`.
 - PR #2 remains open and Draft. No merge, production migration, live WHMCS change, or deployment has occurred. The AI budget migration remains branch-only and the spend cap is not active in production.
 - Remaining release gates include PostgreSQL concurrency and worker/provider failure tests, database-level audit immutability, integration deletion/history lifecycle, retention dry-run and restore rehearsal, production signing-key generation/secret management, and deployment/pilot approval.
 - The hybrid SaaS tenant, dual-billing, entitlement, and white-label roadmap remains a separate implementation phase; it is not claimed as delivered by this release-readiness PR.
+
+
+## PostgreSQL multi-process AI budget concurrency harness — 2026-11-13
+
+- Added `tests/Concurrency/ai_budget_reservation.php`, a standalone PostgreSQL-only integration harness that launches eight independent PHP worker processes against eight pre-created diagnostic runs.
+- Workers synchronize on a filesystem barrier and attempt reservations at the same time. The test budget is configured to admit exactly three reservations of 322,144 micro-USD each; the other five must fail with `budget_exhausted`.
+- The harness verifies worker outcomes, attempt-row count, summed attempt reservations, and matching daily/monthly reserved ledger balances. It also asserts that no committed spend is introduced.
+- The PostgreSQL CI job now resets its disposable database after the existing Pest suites and runs this process-level harness with a deterministic budget configuration.
+- This test exercises real PostgreSQL row locking across independent connections/processes; it is not a load benchmark and does not yet cover process termination mid-transaction, provider timeout, or queue-worker crash recovery.
+- Execution evidence is pending the new CI run. Do not treat the concurrency gate as passed until the PostgreSQL job completes successfully on the new branch head.
