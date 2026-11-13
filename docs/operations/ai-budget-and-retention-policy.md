@@ -167,7 +167,7 @@ The following items are deliberately not guessed or activated:
 - **Authority:** the project Owner is the approval authority to place and release a legal hold.
 - **Auditability:** every placement and release must produce an append-only audit event. At minimum record the acting owner identity, UTC timestamp, affected record/scope, action (place/release), reason, evidence or case reference, and resulting hold state. Do not put sensitive case documents or customer payloads in event metadata; store only a controlled reference.
 - **Enforcement:** any future cleanup job must exclude held records at query time and re-check hold state inside the deletion transaction. A hold or audit-write failure must fail closed: no deletion. Hold release must itself be explicitly owner-approved and audited; expiry of the 365-day backup period does not override a legal hold.
-- **Current implementation status:** this is an approved governance decision, not a claim that a legal-hold UI, schema, command, or cleanup enforcement is already implemented. Automated diagnostic/audit-history deletion remains disabled until those controls and tests are delivered.
+- **Current implementation status:** legal-hold schema/model/service and Owner-only CLI placement/release commands are implemented. `OPERATIONS_OWNER_EMAIL` selects the sole Owner; the account must have verified email and enrolled MFA, and each CLI action requires fresh TOTP. Placement/release and immutable audit writes are atomic. The bounded diagnostic cleanup command excludes direct/descendant holds and re-checks inside the deletion transaction. Cleanup remains disabled by default, is not scheduled, and requires explicit `--execute` plus deployment approval.
 
 ### Shahrukh ke liye
 
