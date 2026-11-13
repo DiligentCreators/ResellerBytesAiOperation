@@ -223,12 +223,15 @@ A green CI run is necessary but does not close these release gates or authorize 
 - Trigger enforcement is verified on SQLite and PostgreSQL. MySQL/MariaDB and SQL Server trigger branches are implemented but still require engine-specific integration testing before production selection. PostgreSQL trigger tests demonstrate UPDATE/DELETE/TRUNCATE rejection, including query-builder bypasses.
 - This milestone prevents ordinary SQL mutations but does not provide a cryptographic hash chain or externally anchored tamper evidence; an owner/superuser can still alter schema/triggers and a privileged INSERT can forge new rows. Those controls remain open. The migration has not been applied to production. No merge or deployment has occurred.
 
-## Cryptographic audit-chain milestone — design completed, implementation pending — 2026-11-13
+## Cryptographic audit-chain milestone — implementation in progress — 2026-11-13
 
 - Added `docs/operations/audit-hash-chain-design.md` as the implementation contract for the next audit-integrity milestone.
 - The design specifies a versioned SHA-256 hash chain, canonical event serialization, a singleton chain-head row with transaction-level locking, deterministic historical backfill, and a read-only `audit:verify-integrity` command.
 - Concurrency must serialize on the chain-head row; event insertion and head advancement must commit or roll back together. Unlocked `MAX(id) + 1` sequencing is explicitly prohibited.
 - All application audit writes must be routed through one writer. The implementation must inventory and refactor every audit-write call site before claiming coverage.
 - The design explicitly states that an unkeyed hash chain detects row edits/deletions/reordering but cannot stop a privileged database owner or compromised application from recomputing or appending a chain. Independent external anchoring remains a separate required release gate.
-- No hash-chain schema migration, writer, verifier command, backfill, or integrity test has been implemented yet. The new document is design only. No production migration, merge, or deployment has occurred.
-- Next implementation work: inventory all audit-event insertion paths; implement canonical hashing and serialized append transactions; backfill existing rows deterministically; add verifier and tampering/concurrency/rollback tests; run CI on the exact resulting branch head.
+- Implemented the version-1 canonical SHA-256 serializer, transactional `AuditEventWriter`, chain-head compare-and-update guard, and a forward migration that backfills historical events in ascending primary-key order.
+- The migration temporarily suspends the existing append-only trigger only during migration, performs deterministic backfill, advances the singleton head, and restores the trigger in a `finally` block. The migration is branch-only and must not be run against production without a rehearsed backup and maintenance plan.
+- Replaced the known application audit-write calls in snapshot intake, manual reanalysis, account deletion, and both AI-budget reconciliation audit records with the central writer.
+- The hash payload binds sequence and immutable event fields rather than the database auto-increment primary key, avoiding an unsafe post-insert update that would conflict with append-only enforcement.
+- Still pending: complete repository-wide audit-write search, read-only verifier command, canonicalization/backfill/rollback/concurrency/tampering tests, CI on exact head, and engine-specific migration validation. No production migration, merge, or deployment has occurred.

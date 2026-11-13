@@ -1,6 +1,6 @@
 # Audit hash-chain design
 
-Status: implementation design for the release-readiness branch; not yet implemented
+Status: implementation in progress on the release-readiness branch
 Reviewed: 2026-11-13
 Scope: existing append-only `audit_events` stream only
 
@@ -17,7 +17,7 @@ Use an unkeyed SHA-256 hash chain in version 1.
 - Each event receives a monotonically increasing `chain_sequence`, a `previous_hash`, a `event_hash`, and a `hash_version`.
 - The first event points to a fixed, documented genesis value: 64 zeroes.
 - The event digest is SHA-256 over a domain-separated, canonical UTF-8 representation of the immutable event fields and the previous digest.
-- The canonical payload includes, in fixed key order: `chain_version`, `chain_sequence`, `previous_hash`, `id`, `actor_type`, `actor_id`, `event_type`, `subject_type`, `subject_id`, `metadata`, `ip_address`, and `occurred_at`.
+- The canonical payload includes, in fixed key order: `chain_version`, `chain_sequence`, `previous_hash`, `actor_type`, `actor_id`, `event_type`, `subject_type`, `subject_id`, `metadata`, `ip_address`, and `occurred_at`.
 - Metadata objects are recursively key-sorted; list order is preserved. JSON uses stable escaping, no insignificant whitespace, and rejects invalid UTF-8 / non-JSON values. Timestamps are normalized to UTC with fixed microsecond precision. Nullable fields remain explicit JSON nulls.
 - The domain prefix is a fixed versioned string (for example, `resellerbytes.audit-event.v1\n`) prepended to the canonical payload before hashing. Changing canonicalization requires a new hash version; do not silently reinterpret old rows.
 
