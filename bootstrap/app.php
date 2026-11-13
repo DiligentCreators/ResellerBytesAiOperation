@@ -2,6 +2,7 @@
 
 use App\Console\Commands\CreateOperationsUser;
 use App\Console\Commands\CreateWhmcsIntegration;
+use App\Console\Commands\VerifyAuditIntegrity;
 use App\Console\Commands\PruneWhmcsIntegrationNonces;
 use App\Console\Commands\RevokeWhmcsIntegration;
 use App\Console\Commands\RotateWhmcsIntegrationSecret;
@@ -23,6 +24,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withCommands([
         CreateOperationsUser::class,
         CreateWhmcsIntegration::class,
+        VerifyAuditIntegrity::class,
         PruneWhmcsIntegrationNonces::class,
         RotateWhmcsIntegrationSecret::class,
         RevokeWhmcsIntegration::class,
