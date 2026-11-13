@@ -26,6 +26,8 @@ Required application settings:
 - DB_PORT=5432
 - DB_DATABASE=resellerbytes_ai_operation
 - DB_USERNAME and DB_PASSWORD for the dedicated PostgreSQL user
+- DB_SSLMODE=verify-full, with the PostgreSQL server CA trusted by the PHP runtime and the certificate hostname matching DB_HOST
+- Never set PostgreSQL SSL mode to `disable` in production or bypass certificate verification to work around a TLS error
 - CACHE_STORE=redis
 - SESSION_DRIVER=redis
 - SESSION_ENCRYPT=true
