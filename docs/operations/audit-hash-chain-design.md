@@ -88,3 +88,39 @@ The chain detects accidental or unauthorized row edits, deletions, and reorderin
 A later release gate must periodically export the verified sequence and head digest to an independently controlled system (for example, object storage with retention lock or a separate audit account) and verify that anchor during integrity checks. The anchor must be outside the application database's administrative boundary. Define retention, key custody, alerting, and restore procedures before enabling production anchoring.
 
 No production migration, external anchor, merge, or deployment is authorized by this design document.
+
+## External anchor architecture and release gate
+
+The production anchor is a separate trust boundary, not another table or disk on the Laravel VPS.
+
+### Selected deployment pattern
+
+- Store immutable checkpoint objects in a dedicated S3-compatible bucket with Object Lock enabled at bucket creation. Prefer AWS S3 Object Lock in Compliance mode for the production anchor; do not treat ordinary versioning, a lifecycle policy, or an application-level "read-only" flag as WORM retention.
+- Place the bucket in a separate cloud account / security administration boundary from the Laravel Forge VPS and its PostgreSQL host. The application role may create new objects but must not overwrite, delete, shorten retention, change bucket policy, or administer Object Lock. A separate audit-reader role may list and read objects. Bucket administration and retention changes remain with a separately controlled security owner.
+- Enable bucket versioning and default retention. Set the retention period through the approved compliance policy (initial recommendation: 365 days, subject to legal and contractual retention requirements). Compliance mode prevents even the bucket owner from deleting a protected object before expiry; validate provider semantics before selecting an S3-compatible alternative.
+- Export a checkpoint at least every five minutes and immediately after a high-risk administrative event. A checkpoint contains schema/version, environment identifier, UTC creation time, highest verified sequence, chain head SHA-256, and previous external checkpoint object digest. Do not include event metadata or customer data.
+- Sign the exact canonical checkpoint bytes with a dedicated Ed25519 audit-anchor key. This key must be distinct from the WHMCS addon package signing key, application APP_KEY, API HMAC secrets, and any database-stored value. Keep the private key in a secret manager with narrowly scoped access; the public key/fingerprint is provisioned independently to the verifier. Rotate only through a versioned key transition that itself is externally anchored.
+- Use immutable, content-addressed object names, for example `audit-anchors/{environment}/{YYYY}/{MM}/{DD}/{sequence}-{checkpoint-sha256}.json`. Upload with conditional create semantics; an existing key with different bytes is a hard failure. Preserve the exact signed bytes.
+- The verifier must compare the live database chain head to the latest externally retained checkpoint and verify the detached signature against the independently provisioned public key. A database-only rewrite that changes any event at or before the latest checkpoint must fail verification. Events appended after the latest checkpoint are an explicitly unanchored tail and must be reported as such, not silently treated as anchored.
+- Alert if a scheduled checkpoint is late by more than two intervals, upload fails, signature verification fails, the external sequence regresses, a checkpoint is missing, or the database head does not match the latest anchor. Alert delivery must not depend solely on the application database or its local logs.
+
+### Operational controls
+
+1. Provision the bucket, Object Lock, versioning, retention, cross-account IAM roles, independent signing key, and public-key distribution outside the application deployment.
+2. Run a dry-run against a non-production bucket and verify create-only behavior, retention lock, read-back, signature verification, duplicate upload rejection, and restore from an independent environment.
+3. Configure the application with only the write role and signing capability required to create checkpoints. Do not grant bucket administration or object deletion.
+4. Configure an independent verifier with read-only bucket access and the trusted public key. Run it from a separate security boundary at least daily.
+5. Document incident response for a missed anchor, key compromise, provider outage, restore to an older database backup, and key rotation. After restoring a database, compare its head against the newest external anchor before accepting writes.
+6. Retain the external objects for the approved retention period and test retrieval before expiry. Do not automatically prune the source audit stream merely because an anchor exists.
+
+### Current implementation boundary
+
+The repository currently implements the local SHA-256 chain and read-only chain verifier only. It does **not** yet upload external checkpoints, sign them with an independent key, verify remote anchors, or alert on missed checkpoints. These are explicit implementation and production-provisioning gates. No bucket, cloud credentials, signing key, retention period approval, or independent verifier credentials have been supplied, so no external storage integration is being falsely marked active.
+
+### Acceptance criteria
+
+- A database administrator cannot delete or replace a retained external checkpoint before its retention expiry.
+- A separately hosted verifier can validate the signature and chain head without database write access or access to the signing private key.
+- Rewriting the local database chain through the latest anchored sequence causes verification failure.
+- The verifier clearly reports the unanchored tail and maximum anchor age.
+- Upload outage, key mismatch, sequence regression, missing object, and restore-to-old-backup scenarios have automated tests and actionable alerts.
