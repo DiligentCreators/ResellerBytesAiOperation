@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Services\Audit\AuditEventWriter;
 use App\Services\LegalHoldService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
@@ -66,7 +67,20 @@ class PruneExpiredDiagnosticRecords extends Command
                     return 'held';
                 }
 
-                $audit->append([\n                    'actor_type' => 'system',\n                    'event_type' => 'diagnostics.retention.deleted',\n                    'subject_type' => 'diagnostic_run',\n                    'subject_id' => (string) $id,\n                    'metadata' => [\n                        'retention_days' => 365,\n                        'received_at' => $run->received_at,\n                        'policy' => 'diagnostic_received_at_365_days',\n                    ],\n                    'occurred_at' => now('UTC'),\n                ]);\n\n                DB::table('diagnostic_runs')->where('id', $id)->delete();
+                $audit->append([
+                    'actor_type' => 'system',
+                    'event_type' => 'diagnostics.retention.deleted',
+                    'subject_type' => 'diagnostic_run',
+                    'subject_id' => (string) $id,
+                    'metadata' => [
+                        'retention_days' => 365,
+                        'received_at' => $run->received_at,
+                        'policy' => 'diagnostic_received_at_365_days',
+                    ],
+                    'occurred_at' => now('UTC'),
+                ]);
+
+                DB::table('diagnostic_runs')->where('id', $id)->delete();
 
                 return 'deleted';
             }, 3);
