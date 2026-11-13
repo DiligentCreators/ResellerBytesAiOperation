@@ -113,7 +113,6 @@ This command supports only the verified **not charged** outcome. It does not gue
 
 The command is a privileged operational control, not a substitute for provider evidence, least-privilege database roles, externally retained tamper-evident backups, or a separately controlled operator identity process. The two-person approval requirement is enforced in the command and service layer; it does not by itself prove that the two people are physically separate or that their endpoints are uncompromised. Production use remains blocked until PostgreSQL transaction/concurrency tests, fresh-MFA/dual-approval tests, and the full CI workflow pass.
 
-
 ## Audit database-role hardening
 
 The trigger migration is only one layer. Production credentials must be split:
