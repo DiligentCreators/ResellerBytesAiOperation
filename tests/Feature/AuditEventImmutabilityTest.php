@@ -53,4 +53,3 @@ it('rejects query-builder deletes that bypass Eloquent model events', function (
         ->where('id', $event->id)
         ->delete())->toThrow(QueryException::class);
 });
-
