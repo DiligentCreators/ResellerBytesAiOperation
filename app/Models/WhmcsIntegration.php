@@ -1,12 +1,13 @@
 <?php
 
-namespace App\Models;
+namespace App\\Models;
 
-use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Carbon;
+use Illuminate\\Database\\Eloquent\\Collection;
+use Illuminate\\Database\\Eloquent\\Concerns\\HasUuids;
+use Illuminate\\Database\\Eloquent\\Model;
+use Illuminate\\Database\\Eloquent\\Relations\\HasMany;
+use Illuminate\\Support\\Carbon;
+use LogicException;
 
 /**
  * @property string $id
@@ -35,6 +36,15 @@ class WhmcsIntegration extends Model
     protected $hidden = [
         'secret',
     ];
+
+    protected static function booted(): void
+    {
+        static::deleting(function (WhmcsIntegration $integration): void {
+            throw new LogicException(
+                'WHMCS integrations are retained for audit history; revoke the integration instead of deleting it.'
+            );
+        });
+    }
 
     protected function casts(): array
     {
