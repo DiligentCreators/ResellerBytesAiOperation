@@ -49,7 +49,7 @@ final class AuditEventCanonicalizer
     }
 
     /**
-     * @param array<string, mixed> $event
+     * @param  array<string, mixed>  $event
      *
      * @throws JsonException
      */
