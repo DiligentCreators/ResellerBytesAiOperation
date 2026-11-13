@@ -87,6 +87,6 @@ final class AuditEventCanonicalizer
             throw new InvalidArgumentException('Audit event timestamp must be a date-time value.');
         }
 
-        return $date->utc()->format('Y-m-d\\TH:i:s\\Z');
+        return $date->utc()->format('Y-m-d\TH:i:s\Z');
     }
 }
