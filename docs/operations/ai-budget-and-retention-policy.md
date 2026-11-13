@@ -180,7 +180,7 @@ The following items are deliberately not guessed or activated:
 - Keep the nonce-prune command bounded and idempotent; test expiry boundary, batch cap, and rerun behavior.
 - Keep integration records and diagnostic history out of automatic pruning.
 - Report-only retention candidate reporting is implemented and tested without enabling deletion.
-- Implement the approved owner-authorized legal-hold record, append-only placement/release audit events, cleanup exclusion/re-check, and fail-closed tests before enabling any cleanup.
+- Implemented the owner-authorized legal-hold record and CLI placement/release commands. The configured `OPERATIONS_OWNER_EMAIL` is the sole Owner identity; the account must have verified email and enrolled MFA, and each CLI action requires fresh TOTP. Placement/release and their immutable audit events commit atomically. Cleanup checks direct and descendant holds under the diagnostic-run transaction lock; cleanup remains disabled by default and additionally requires explicit `--execute`.
 - MySQL 8.4, MariaDB 11.4, and SQL Server 2022 integration checks are now defined in dedicated CI jobs; require all three jobs to pass on the exact PR head before claiming their retention-trigger paths are verified.
 - Add a release evidence checklist requiring runtime-role negative privilege tests, external anchor read-back/signature verification, backup restore drill, and alert routing proof.
 
