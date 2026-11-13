@@ -57,7 +57,7 @@ Set a sensible OpenAI project spend limit and monitor usage. AI analysis must ne
 7. Confirm /up returns healthy and the dashboard login page loads over HTTPS.
 8. Confirm public registration is unavailable.
 9. Create the first operator with php artisan ops:user:create "Operations Admin" operator@example.com. Enter a strong password at the hidden prompts. Do not pass passwords as command-line arguments.
-10. Sign in and enable two-factor authentication or a passkey.
+10. Sign in and enroll and confirm TOTP-based two-factor authentication before accessing operational routes. A passkey may be enabled as an additional factor but does not replace confirmed TOTP.
 
 ## 4. Queue and scheduler
 
