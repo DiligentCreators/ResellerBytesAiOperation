@@ -70,7 +70,7 @@ Migration `2026_11_12_000008_create_ai_budget_ledger_tables.php` adds the daily/
 
 - Retain audit events for at least 2,555 days from `occurred_at`.
 - Do not apply the diagnostic snapshot's 90-day policy to audit events.
-- Audit events remain append-only during their retention period. The existing Eloquent guard is only an application-layer control; database-level immutability and separately controlled backup/export remain separate release gates.
+- Audit events remain append-only during their retention period. A forward-only migration installs database triggers that reject UPDATE and DELETE for SQLite, PostgreSQL, MySQL/MariaDB, and SQL Server; PostgreSQL also rejects TRUNCATE. Eloquent guards remain defense in depth. MySQL/MariaDB and SQL Server do not provide equivalent row-trigger protection for TRUNCATE, so the runtime database principal must not have TRUNCATE, DROP, ALTER, or trigger-management privileges. Production must use a least-privilege runtime principal separate from the migration/owner principal. A database owner/superuser can still disable triggers or alter the schema; separately controlled backups/exports and external tamper-evident retention remain release gates.
 - Any eventual expiry job must be bounded, dry-run capable, auditable, and must not run until a production backup and restore procedure has been verified.
 - The 2,555-day target does not authorize deletion of records before their expiry or bypass any applicable legal hold.
 
@@ -78,7 +78,7 @@ Migration `2026_11_12_000008_create_ai_budget_ledger_tables.php` adds the daily/
 
 1. Approve and implement the versioned provider price card and enforceable input/output token ceilings.
 2. Implement atomic daily/monthly reservations, idempotent settlement, and ambiguous-outcome reconciliation.
-3. CI tests cover reservation limits, idempotent settlement, pre-submit release, ambiguous timeout hold, unresolved-attempt retry blocking, and expired price cards. PostgreSQL concurrency tests, provider failure/timeout integration tests, worker-crash simulation, and operator reconciliation workflow remain release gates.
+3. CI tests cover reservation limits, idempotent settlement, pre-submit release, ambiguous timeout hold, unresolved-attempt retry blocking, expired price cards, and database-level audit UPDATE/DELETE/TRUNCATE rejection. PostgreSQL concurrency tests, provider failure/timeout integration tests, worker-crash simulation, and operator reconciliation workflow remain release gates.
 4. Add the budget ledger and retention metadata in the final consolidated migration batch; do not run migrations as part of this work.
 5. Implement retention dry-run reporting and bounded cleanup with dependency and legal-hold tests. Do not execute pruning during development or deployment preparation.
 6. Verify database restore and audit retention/export controls before enabling either scheduled cleanup path.
@@ -87,7 +87,7 @@ Migration `2026_11_12_000008_create_ai_budget_ledger_tables.php` adds the daily/
 
 - No production OpenAI spend cap is claimed until the migration is applied and PostgreSQL concurrency and deployment verification pass.
 - Automated queue retries are disabled for billable analysis attempts; unresolved submitted attempts remain reserved and block another billable attempt. Explicit manual reanalysis is possible only after the prior attempt is settled or reconciled.
-- A fresh-MFA, two-person no-charge reconciliation command is implemented on the review branch. It is not production-enabled; the migration remains unapplied and CI/release gates still apply.
+- A fresh-MFA, two-person no-charge reconciliation command and database-level append-only audit triggers are implemented on the review branch. They are not production-enabled; migrations remain unapplied and CI/release gates still apply.
 - No destructive migration or data-pruning command is run as part of this design.
 - No provider price is hard-coded in this document; price-card values must be verified against the provider's current official pricing when implementation is prepared.
 
@@ -111,4 +111,4 @@ The command requires two distinct, email-verified operator accounts with confirm
 
 This command supports only the verified **not charged** outcome. It does not guess token usage, fabricate a provider response ID, or release an attempt when the provider outcome remains unknown. If provider evidence confirms a charge, do not use this command; preserve the hold and follow a separately reviewed settlement procedure. Keep provider evidence in the approved restricted evidence store and reference it without copying secrets into the audit record.
 
-The command is a privileged operational control, not a substitute for provider evidence, database-level audit immutability, or a separately controlled operator identity process. The two-person approval requirement is enforced in the command and service layer; it does not by itself prove that the two people are physically separate or that their endpoints are uncompromised. Production use remains blocked until PostgreSQL transaction/concurrency tests, fresh-MFA/dual-approval tests, and the full CI workflow pass.
+The command is a privileged operational control, not a substitute for provider evidence, least-privilege database roles, externally retained tamper-evident backups, or a separately controlled operator identity process. The two-person approval requirement is enforced in the command and service layer; it does not by itself prove that the two people are physically separate or that their endpoints are uncompromised. Production use remains blocked until PostgreSQL transaction/concurrency tests, fresh-MFA/dual-approval tests, and the full CI workflow pass.
