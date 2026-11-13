@@ -55,6 +55,11 @@ it('appends events with a contiguous sequence and a valid previous-hash link', f
         ->and($second->previous_hash)->toBe($first->event_hash);
 });
 
+it('verifies an empty audit chain against the genesis head', function () {
+    expect(Artisan::call('audit:verify-integrity'))->toBe(0)
+        ->and(Artisan::output())->toContain('Audit integrity verified: 0 event(s)');
+});
+
 it('verifies a valid chain using the read-only artisan command', function () {
     app(AuditEventWriter::class)->append([
         'event_type' => 'test.verified',
