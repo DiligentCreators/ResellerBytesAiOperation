@@ -78,9 +78,10 @@ The first pilot validates collection and transport only. It does not authorize r
 - [ ] The WHMCS integration retention trigger has passed PostgreSQL and MySQL 8.4 tests; MariaDB 11.4 and SQL Server 2022 dedicated CI jobs must also pass on the exact release SHA. The SQL Server job directly exercises the migration against an isolated SQL Server table.
 - [ ] The report-only diagnostic retention command `php artisan diagnostics:retention:report --days=90` has been run against a restored non-production copy and its candidate/dependent counts reviewed. It does not delete records and does not evaluate legal holds.
 - [ ] Legal-hold authority, release approval, evidence reference, and retention exceptions are approved before any automated diagnostic cleanup is implemented.
-- [ ] The external audit anchor is provisioned in a separate security account with immutable retention, independent Ed25519 signing key, read-only verifier, alert routing, and a successful restore/read-back drill.
+- [ ] The external audit anchor is provisioned in a separate security account with **365-day immutable retention**, independent Ed25519 signing key, read-only verifier, alert routing, and a successful restore/read-back drill.
 - [ ] The latest database head matches the newest external signed checkpoint; any unanchored tail and checkpoint age are documented.
 - [ ] A database backup has been restored in isolation and compared against the newest external checkpoint before any production migration or pilot.
-- [ ] The approved audit retention period and diagnostic retention exception policy are documented by the responsible compliance owner.
+- [x] External immutable audit-backup retention period: **365 days**, approved by the project owner on 2026-11-14.
+- [ ] Diagnostic retention exception policy and legal-hold workflow are documented and approved by the responsible compliance owner.
 
-**Shahrukh ke liye before pilot:** approve the legal-hold workflow and retention exceptions; approve the external Object Lock retention period; supply the actual Forge database/schema and secret-manager role naming for the PostgreSQL role setup; and arrange the separate cloud account/key custody for external audit anchoring. Do not share private keys or production database passwords in this repository or chat.
+**Shahrukh ke liye before pilot:** approve the legal-hold workflow and diagnostic retention exceptions; provision the separate cloud account/bucket with the approved 365-day Object Lock retention and Ed25519 key custody; supply the actual Forge database/schema and secret-manager role naming for the PostgreSQL role setup; and arrange the isolated backup/restore rehearsal. Do not share private keys or production database passwords in this repository or chat.
