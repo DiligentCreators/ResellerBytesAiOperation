@@ -2,7 +2,7 @@
 
 namespace App\Services\Audit;
 
-use Carbon\CarbonInterface;
+use Carbon\CarbonImmutable;
 use DateTimeInterface;
 use InvalidArgumentException;
 use JsonException;
@@ -80,9 +80,9 @@ final class AuditEventCanonicalizer
     private function normalizeTimestamp(mixed $value): string
     {
         if ($value instanceof DateTimeInterface) {
-            $date = Carbon\CarbonImmutable::instance($value);
+            $date = CarbonImmutable::instance($value);
         } elseif (is_string($value) && $value !== '') {
-            $date = Carbon\CarbonImmutable::parse($value);
+            $date = CarbonImmutable::parse($value);
         } else {
             throw new InvalidArgumentException('Audit event timestamp must be a date-time value.');
         }

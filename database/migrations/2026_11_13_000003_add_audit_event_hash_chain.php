@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('audit_events', function (Blueprint $table): void {
-            $table->unsignedBigInteger('chain_sequence')->nullable()->unique();
+            $table->unsignedBigInteger('chain_sequence')->nullable();
             $table->string('previous_hash', 64)->nullable();
             $table->string('event_hash', 64)->nullable();
             $table->unsignedSmallInteger('hash_version')->nullable();
@@ -66,6 +66,10 @@ return new class extends Migration
 
                     $previousHash = $eventHash;
                 }
+            });
+
+            Schema::table('audit_events', function (Blueprint $table): void {
+                $table->unique('chain_sequence');
             });
 
             DB::table('audit_chain_heads')->where('id', 1)->update([

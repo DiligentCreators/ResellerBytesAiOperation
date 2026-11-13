@@ -16,6 +16,10 @@ final class AuditEventWriter
     public function append(array $attributes): AuditEvent
     {
         return DB::transaction(function () use ($attributes): AuditEvent {
+            if (DB::connection()->getDriverName() === 'sqlite') {
+                DB::table('audit_chain_heads')->where('id', 1)->update(['updated_at' => now()]);
+            }
+
             $head = DB::table('audit_chain_heads')->where('id', 1)->lockForUpdate()->first();
 
             if (! $head) {
@@ -32,9 +36,9 @@ final class AuditEventWriter
                 'event_type' => $attributes['event_type'],
                 'subject_type' => $attributes['subject_type'] ?? null,
                 'subject_id' => isset($attributes['subject_id']) ? (string) $attributes['subject_id'] : null,
-                'metadata' => json_encode($attributes['metadata'] ?? [], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
+                'metadata' => json_encode($attributes['metadata'] ?? [], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRESERVE_ZERO_FRACTION),
                 'ip_address' => $attributes['ip_address'] ?? null,
-                'occurred_at' => $attributes['occurred_at'],
+                'occurred_at' => \Carbon\CarbonImmutable::parse($attributes['occurred_at'])->utc()->format('Y-m-d H:i:s.u'),
             ];
             $event['hash_version'] = AuditEventCanonicalizer::VERSION;
             $event['event_hash'] = $this->canonicalizer->hash($event);
