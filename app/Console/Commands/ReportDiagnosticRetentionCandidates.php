@@ -20,7 +20,7 @@ class ReportDiagnosticRetentionCandidates extends Command
             return self::FAILURE;
         }
 
-        $cutoff = now()->subDays($days);
+        $cutoff = now('UTC')->subDays($days);
         $candidateRuns = DB::table('diagnostic_runs')->where('received_at', '<=', $cutoff);
         $runCount = (clone $candidateRuns)->count();
         $oldest = (clone $candidateRuns)->min('received_at');
