@@ -5,7 +5,6 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use RuntimeException;
 
 return new class extends Migration
 {
@@ -102,7 +101,7 @@ return new class extends Migration
         } elseif ($driver === 'sqlsrv') {
             DB::unprepared('DISABLE TRIGGER audit_events_reject_update_delete ON audit_events');
         } else {
-            throw new RuntimeException('Unsupported database driver for audit-chain backfill: '.$driver);
+            throw new \RuntimeException('Unsupported database driver for audit-chain backfill: '.$driver);
         }
     }
 
