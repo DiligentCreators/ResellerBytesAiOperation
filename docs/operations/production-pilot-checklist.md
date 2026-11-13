@@ -83,6 +83,7 @@ The first pilot validates collection and transport only. It does not authorize r
 - [ ] The latest database head matches the newest external signed checkpoint; any unanchored tail and checkpoint age are documented.
 - [ ] A database backup has been restored in isolation and compared against the newest external checkpoint before any production migration or pilot.
 - [x] External immutable audit-backup retention period: **365 days**, approved by the project owner on 2026-11-14.
-- [ ] 365-day diagnostic retention exception policy and legal-hold enforcement implementation are completed and tested; no cleanup is enabled before this gate passes.
+- [x] Diagnostic retention exception policy approved: no discretionary extensions beyond 365 days; the separately approved, owner-authorized and audited legal hold remains the sole exception.
+- [ ] Legal-hold enforcement implementation and 365-day cleanup safeguards are completed and tested; no cleanup is enabled before this gate passes.
 
-**Shahrukh ke liye before pilot:** approve diagnostic retention exceptions; provision the separate cloud account/bucket with the approved 365-day Object Lock retention and Ed25519 key custody; supply the actual Forge database/schema and secret-manager role naming for the PostgreSQL role setup; and arrange the isolated backup/restore rehearsal. Do not share private keys or production database passwords in this repository or chat.
+**Shahrukh ke liye before pilot:** provision the separate cloud account/bucket with the approved 365-day Object Lock retention and Ed25519 key custody; supply the actual Forge database/schema and secret-manager role naming for the PostgreSQL role setup; and arrange the isolated backup/restore rehearsal. The separate 2,555-day audit-event retention target still needs a minimum-versus-fixed-expiry policy decision. Do not share private keys or production database passwords in this repository or chat.
