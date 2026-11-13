@@ -67,6 +67,24 @@ return new class extends Migration
                 }
             });
 
+            // Fail closed if the backfill did not cover the complete historical stream.
+            // Do not make the chain columns mandatory or publish a head for a partial backfill.
+            $backfilledCount = DB::table('audit_events')->count();
+            $backfilledRange = DB::table('audit_events')
+                ->selectRaw('MIN(chain_sequence) as min_sequence, MAX(chain_sequence) as max_sequence')
+                ->first();
+            $storedHead = DB::table('audit_chain_heads')->where('id', 1)->first();
+
+            if ($backfilledCount !== $sequence
+                || ($sequence > 0 && ((int) $backfilledRange->min_sequence !== 1
+                    || (int) $backfilledRange->max_sequence !== $sequence))
+                || ($sequence === 0 && $backfilledRange->min_sequence !== null)
+                || $storedHead === null
+                || (int) $storedHead->chain_sequence !== 0
+                || ! hash_equals(AuditEventCanonicalizer::GENESIS_HASH, (string) $storedHead->head_hash)) {
+                throw new RuntimeException('Audit hash-chain backfill did not produce a complete contiguous event range.');
+            }
+
             Schema::table('audit_events', function (Blueprint $table): void {
                 $table->unsignedBigInteger('chain_sequence')->nullable(false)->change();
                 $table->string('previous_hash', 64)->nullable(false)->change();
