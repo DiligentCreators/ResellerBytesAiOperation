@@ -32,9 +32,10 @@ return new class extends Migration
             'updated_at' => now(),
         ]);
 
-        $this->suspendAppendOnlyTrigger();
-
         try {
+            // Protect trigger restoration even if suspension partially fails.
+            $this->suspendAppendOnlyTrigger();
+
             $canonicalizer = app(AuditEventCanonicalizer::class);
             $sequence = 0;
             $previousHash = AuditEventCanonicalizer::GENESIS_HASH;
@@ -128,6 +129,8 @@ return new class extends Migration
         $driver = DB::connection()->getDriverName();
 
         if ($driver === 'pgsql') {
+            DB::unprepared('DROP TRIGGER IF EXISTS audit_events_reject_update_delete ON audit_events');
+            DB::unprepared('DROP TRIGGER IF EXISTS audit_events_reject_truncate ON audit_events');
             DB::unprepared(<<<'SQL'
                 CREATE TRIGGER audit_events_reject_update_delete
                 BEFORE UPDATE OR DELETE ON audit_events
@@ -139,6 +142,8 @@ return new class extends Migration
                 FOR EACH STATEMENT EXECUTE FUNCTION prevent_audit_event_mutation();
             SQL);
         } elseif ($driver === 'sqlite') {
+            DB::unprepared('DROP TRIGGER IF EXISTS audit_events_reject_update');
+            DB::unprepared('DROP TRIGGER IF EXISTS audit_events_reject_delete');
             DB::unprepared(<<<'SQL'
                 CREATE TRIGGER audit_events_reject_update
                 BEFORE UPDATE ON audit_events
@@ -154,6 +159,8 @@ return new class extends Migration
                 END;
             SQL);
         } elseif (in_array($driver, ['mysql', 'mariadb'], true)) {
+            DB::unprepared('DROP TRIGGER IF EXISTS audit_events_reject_update');
+            DB::unprepared('DROP TRIGGER IF EXISTS audit_events_reject_delete');
             DB::unprepared(<<<'SQL'
                 CREATE TRIGGER audit_events_reject_update
                 BEFORE UPDATE ON audit_events
