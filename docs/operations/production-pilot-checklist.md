@@ -72,10 +72,10 @@ The first pilot validates collection and transport only. It does not authorize r
 
 ## Audit, database, and retention release gates
 
-- [ ] The exact PR head SHA has all required CI jobs green, including PostgreSQL concurrency, MySQL retention-trigger, general CI, and WHMCS PHP 8.1 compatibility checks.
+- [ ] The exact PR head SHA has all six required CI jobs green: general CI, PostgreSQL AI-budget/audit concurrency, MySQL 8.4 retention, MariaDB 11.4 retention, SQL Server 2022 retention, and WHMCS PHP 8.1 compatibility.
 - [ ] PostgreSQL migration and runtime principals are provisioned separately; runtime is not a table owner, schema creator, migration-ledger reader, or audit-event mutator.
 - [ ] Runtime-role negative privilege tests prove audit UPDATE/DELETE/TRUNCATE and integration hard DELETE are rejected; normal audit append and chain verification still work.
-- [ ] The WHMCS integration retention trigger has passed PostgreSQL and MySQL 8.4 integration tests. MariaDB and SQL Server branches remain unverified until their dedicated CI coverage passes.
+- [ ] The WHMCS integration retention trigger has passed PostgreSQL and MySQL 8.4 tests; MariaDB 11.4 and SQL Server 2022 dedicated CI jobs must also pass on the exact release SHA. The SQL Server job directly exercises the migration against an isolated SQL Server table.
 - [ ] The report-only diagnostic retention command `php artisan diagnostics:retention:report --days=90` has been run against a restored non-production copy and its candidate/dependent counts reviewed. It does not delete records and does not evaluate legal holds.
 - [ ] Legal-hold authority, release approval, evidence reference, and retention exceptions are approved before any automated diagnostic cleanup is implemented.
 - [ ] The external audit anchor is provisioned in a separate security account with immutable retention, independent Ed25519 signing key, read-only verifier, alert routing, and a successful restore/read-back drill.
