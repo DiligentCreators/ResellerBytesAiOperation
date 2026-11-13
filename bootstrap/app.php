@@ -30,7 +30,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ExportAuditAnchorCheckpoint::class,
         VerifyAuditIntegrity::class,
         VerifyAuditAnchorCheckpoint::class,
-        PruneWhmcsIntegrationNonces::class,\n        PlaceLegalHold::class,\n        ReleaseLegalHold::class,
+        PruneWhmcsIntegrationNonces::class,\n        PlaceLegalHold::class,\n        PruneExpiredDiagnosticRecords::class,\n        ReleaseLegalHold::class,
         ReportDiagnosticRetentionCandidates::class,
         RotateWhmcsIntegrationSecret::class,
         RevokeWhmcsIntegration::class,
