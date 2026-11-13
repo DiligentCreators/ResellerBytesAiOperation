@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use App\Services\Audit\AuditEventCanonicalizer;
 use App\Services\Audit\AuditEventWriter;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Support\Facades\Artisan;
