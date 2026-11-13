@@ -93,3 +93,11 @@ it('refuses to reuse the WHMCS addon signing secret for audit anchors', function
     expect(fn () => app(AuditAnchorService::class)->createCheckpoint())
         ->toThrow(RuntimeException::class, 'audit_anchor_key_must_be_independent_from_whmcs_addon_key');
 });
+
+it('rejects an audit anchor public key that does not match its private key', function () {
+    $otherKeyPair = sodium_crypto_sign_keypair();
+    config(['audit.anchor.public_key' => base64_encode(sodium_crypto_sign_publickey($otherKeyPair))]);
+
+    expect(fn () => app(AuditAnchorService::class)->createCheckpoint())
+        ->toThrow(RuntimeException::class, 'audit_anchor_keypair_mismatch');
+});
