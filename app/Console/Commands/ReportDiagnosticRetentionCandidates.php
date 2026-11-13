@@ -21,7 +21,11 @@ class ReportDiagnosticRetentionCandidates extends Command
         }
 
         $cutoff = now('UTC')->subDays($days);
-        $candidateRuns = DB::table('diagnostic_runs')->where('received_at', '<=', $cutoff);
+        // Bind a canonical UTC timestamp string so every supported database
+        // compares the same receipt-time boundary without driver-specific
+        // DateTime serialization differences.
+        $cutoffTimestamp = $cutoff->copy()->utc()->format('Y-m-d H:i:s');
+        $candidateRuns = DB::table('diagnostic_runs')->where('received_at', '<=', $cutoffTimestamp);
         $runCount = (clone $candidateRuns)->count();
         $oldest = (clone $candidateRuns)->min('received_at');
         $newest = (clone $candidateRuns)->max('received_at');
