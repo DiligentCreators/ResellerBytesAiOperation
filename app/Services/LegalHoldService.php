@@ -10,7 +10,7 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
 
-final class LegalHoldService
+class LegalHoldService
 {
     private const SUBJECT_TABLES = [
         'diagnostic_run' => 'diagnostic_runs',
