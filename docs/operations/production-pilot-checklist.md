@@ -81,6 +81,7 @@ The first pilot validates collection and transport only. It does not authorize r
 - [x] Legal-hold schema and Owner-only CLI placement/release commands implemented; `OPERATIONS_OWNER_EMAIL` selects the sole Owner, with verified email, enrolled MFA, and fresh TOTP per action.
 - [x] Placement/release audit events are transactionally coupled to hold-state changes; audit-write failure rolls back the hold change.
 - [x] Diagnostic cleanup is bounded, dry-run by default, disabled by default, requires explicit `--execute`, and re-checks direct/descendant legal holds inside the deletion transaction.
+- [x] Each diagnostic deletion appends an immutable audit event in the same transaction; audit-write failure rolls back deletion.
 - [ ] Exact PR-head CI, production backup/restore rehearsal, and operational approval must pass before setting `DIAGNOSTICS_RETENTION_CLEANUP_ENABLED=true`.
 - [ ] The external audit anchor is provisioned in a separate security account with **365-day immutable retention**, independent Ed25519 signing key, read-only verifier, alert routing, and a successful restore/read-back drill.
 - [ ] The latest database head matches the newest external signed checkpoint; any unanchored tail and checkpoint age are documented.
