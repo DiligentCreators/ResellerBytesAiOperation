@@ -2,10 +2,12 @@
 
 use App\Console\Commands\CreateOperationsUser;
 use App\Console\Commands\CreateWhmcsIntegration;
+use App\Console\Commands\ExportAuditAnchorCheckpoint;
 use App\Console\Commands\PruneWhmcsIntegrationNonces;
 use App\Console\Commands\ReportDiagnosticRetentionCandidates;
 use App\Console\Commands\RevokeWhmcsIntegration;
 use App\Console\Commands\RotateWhmcsIntegrationSecret;
+use App\Console\Commands\VerifyAuditAnchorCheckpoint;
 use App\Console\Commands\VerifyAuditIntegrity;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
@@ -25,7 +27,9 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withCommands([
         CreateOperationsUser::class,
         CreateWhmcsIntegration::class,
+        ExportAuditAnchorCheckpoint::class,
         VerifyAuditIntegrity::class,
+        VerifyAuditAnchorCheckpoint::class,
         PruneWhmcsIntegrationNonces::class,
         ReportDiagnosticRetentionCandidates::class,
         RotateWhmcsIntegrationSecret::class,
