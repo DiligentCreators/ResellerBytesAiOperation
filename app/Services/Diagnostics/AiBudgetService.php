@@ -203,10 +203,15 @@ class AiBudgetService
     public function reconcileConfirmedNoCharge(
         AiUsageAttempt $attempt,
         string $operatorId,
+        string $approverId,
         string $evidenceReference,
         string $note,
     ): void {
-        DB::transaction(function () use ($attempt, $operatorId, $evidenceReference, $note): void {
+        if ($operatorId === '' || $approverId === '' || $operatorId === $approverId) {
+            throw new RuntimeException('budget_reconciliation_requires_two_distinct_operators');
+        }
+
+        DB::transaction(function () use ($attempt, $operatorId, $approverId, $evidenceReference, $note): void {
             $locked = AiUsageAttempt::query()->whereKey($attempt->id)->lockForUpdate()->firstOrFail();
 
             if ($locked->status !== 'ambiguous') {
@@ -232,8 +237,23 @@ class AiBudgetService
                 'failure_code' => 'reconciled_not_charged',
                 'reconciled_at' => now(),
                 'reconciled_by' => $operatorId,
+                'reconciliation_approved_by' => $approverId,
+                'reconciliation_approved_at' => now(),
                 'reconciliation_note' => $note.' [evidence: '.$evidenceReference.']',
             ])->save();
+
+            AuditEvent::create([
+                'actor_type' => 'user',
+                'actor_id' => $approverId,
+                'event_type' => 'ai_usage_attempt.reconciliation_approved',
+                'subject_type' => 'ai_usage_attempt',
+                'subject_id' => $locked->id,
+                'metadata' => [
+                    'initiated_by' => $operatorId,
+                    'evidence_reference' => $evidenceReference,
+                ],
+                'occurred_at' => now(),
+            ]);
 
             AuditEvent::create([
                 'actor_type' => 'user',
@@ -242,6 +262,7 @@ class AiBudgetService
                 'subject_type' => 'ai_usage_attempt',
                 'subject_id' => $locked->id,
                 'metadata' => [
+                    'approved_by' => $approverId,
                     'evidence_reference' => $evidenceReference,
                     'note' => $note,
                     'reserved_micro_usd_released' => $locked->reserved_micro_usd,
