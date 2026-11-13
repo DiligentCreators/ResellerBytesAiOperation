@@ -157,3 +157,26 @@ These are deployment controls, not changes applied by this repository migration.
 - The runtime database principal must not receive TRUNCATE, DROP, ALTER, or trigger-management privileges. Integration records are not part of the 90-day diagnostic snapshot cleanup policy.
 - Expired request nonces are the only WHMCS integration child records currently pruned automatically; the command deletes in batches of at most 1,000 and 10,000 rows per run. Revoked integrations and their diagnostic history are not pruned.
 - No integration hard-delete or historical diagnostic cleanup is enabled. Any future deletion policy requires an approved retention schedule, legal-hold mechanism, dependency-aware dry run, external audit anchor, and a tested restore procedure.
+
+## Decisions and implementation gates still open
+
+The following items are deliberately not guessed or activated:
+
+### Shahrukh ke liye
+
+1. **Legal-hold authority and workflow:** identify which role may place/release a hold, whether approval must be dual-control, and what evidence/reference is mandatory. Until decided, no automated diagnostic or audit-history deletion is enabled.
+2. **Retention exception policy:** confirm whether the seven-year audit target is a minimum or a fixed expiry, and whether contractual, tax, privacy, or jurisdictional requirements require longer or shorter retention. The 2,555-day value remains the current project policy target, not legal advice.
+3. **External anchor retention:** approve the proposed 365-day Object Lock default or specify another period with the compliance owner. No bucket or key is provisioned by this repository change.
+4. **Production role names and ownership:** confirm the real PostgreSQL database/schema names and Forge secret-management process before applying the example `rb_migrator` / `rb_runtime` identities. The guide is a template, not an executed production change.
+5. **Provider price-card approval:** verify the exact provider/model pricing and approve the active version and expiry before production spend enforcement is enabled. The CI fixture is not a substitute for commercial approval.
+
+### Work that can proceed without credentials
+
+- Keep the nonce-prune command bounded and idempotent; test expiry boundary, batch cap, and rerun behavior.
+- Keep integration records and diagnostic history out of automatic pruning.
+- Add dry-run/report-only retention candidate queries without enabling deletion.
+- Add legal-hold schema and cleanup exclusion tests only after the hold semantics above are approved; do not invent a hold-release workflow.
+- Add MySQL/MariaDB and SQL Server migration integration coverage in isolated CI services before claiming those dialects are verified. The current CI matrix verifies SQLite and PostgreSQL only.
+- Add a release evidence checklist requiring runtime-role negative privilege tests, external anchor read-back/signature verification, backup restore drill, and alert routing proof.
+
+No automated diagnostic snapshot cleanup, audit-event expiry, integration deletion, external anchor upload, or production privilege change is enabled by this policy document.
