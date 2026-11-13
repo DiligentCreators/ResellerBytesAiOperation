@@ -183,6 +183,9 @@ final class AuditAnchorService
     /**
      * @throws JsonException
      */
+    /**
+     * @param  array<string, mixed>  $payload
+     */
     private function assertPayload(array $payload): void
     {
         if (($payload['anchor_version'] ?? null) !== self::VERSION
@@ -210,6 +213,9 @@ final class AuditAnchorService
         }
     }
 
+    /**
+     * @return non-empty-string
+     */
     private function decodeKey(mixed $encoded, int $expectedLength, string $name): string
     {
         if (! is_string($encoded) || $encoded === '') {
