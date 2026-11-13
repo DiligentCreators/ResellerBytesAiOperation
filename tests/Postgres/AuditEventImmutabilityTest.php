@@ -1,6 +1,5 @@
 <?php
 
-use App\Models\AuditEvent;
 use App\Services\Audit\AuditEventWriter;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
