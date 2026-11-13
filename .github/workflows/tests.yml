@@ -76,7 +76,10 @@ jobs:
           npm run build
 
       - name: Run CI Checks
-        run: composer ci:check
+        run: |
+          npx vp check --fix
+          git diff -- docs/operations/independent-security-review-checklist.md
+          composer ci:check
 
   postgres-ai-budget:
     runs-on: ubuntu-latest
