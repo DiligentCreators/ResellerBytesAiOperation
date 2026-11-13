@@ -78,6 +78,52 @@ it('reports old diagnostic runs and dependent records without deleting them', fu
     }
 });
 
+
+it('uses an inclusive UTC receipt-time cutoff and leaves newer records out of the report', function () {
+    Carbon::setTestNow(Carbon::parse('2026-11-14 12:00:00', 'UTC'));
+
+    try {
+        $integration = WhmcsIntegration::create([
+            'name' => 'Retention boundary fixture',
+            'status' => 'active',
+            'secret' => str_repeat('d', 64),
+            'secret_version' => 1,
+        ]);
+
+        $cutoffRun = DiagnosticRun::create([
+            'integration_id' => $integration->id,
+            'snapshot_uuid' => (string) Str::uuid(),
+            'schema_version' => '1.0',
+            'addon_version' => '1.0.0',
+            'status' => 'completed',
+            'collected_at' => now('UTC')->subDays(90),
+            'received_at' => now('UTC')->subDays(90),
+            'payload' => [],
+            'payload_sha256' => str_repeat('e', 64),
+        ]);
+
+        $newerRun = DiagnosticRun::create([
+            'integration_id' => $integration->id,
+            'snapshot_uuid' => (string) Str::uuid(),
+            'schema_version' => '1.0',
+            'addon_version' => '1.0.0',
+            'status' => 'completed',
+            'collected_at' => now('UTC')->subDays(90)->addSecond(),
+            'received_at' => now('UTC')->subDays(90)->addSecond(),
+            'payload' => [],
+            'payload_sha256' => str_repeat('f', 64),
+        ]);
+
+        $this->artisan('diagnostics:retention:report', ['--days' => '90'])
+            ->expectsOutputToContain('Candidate diagnostic runs: 1')
+            ->assertSuccessful();
+
+        expect(DB::table('diagnostic_runs')->whereIn('id', [$cutoffRun->id, $newerRun->id])->count())->toBe(2);
+    } finally {
+        Carbon::setTestNow();
+    }
+});
+
 it('rejects an invalid retention report threshold', function () {
     $this->artisan('diagnostics:retention:report', ['--days' => '0'])
         ->expectsOutputToContain('between 1 and 36500')
