@@ -4,6 +4,9 @@ use App\Console\Commands\CreateOperationsUser;
 use App\Console\Commands\CreateWhmcsIntegration;
 use App\Console\Commands\ExportAuditAnchorCheckpoint;
 use App\Console\Commands\PruneWhmcsIntegrationNonces;
+use App\Console\Commands\PlaceLegalHold;
+use App\Console\Commands\PruneExpiredDiagnosticRecords;
+use App\Console\Commands\ReleaseLegalHold;
 use App\Console\Commands\ReportDiagnosticRetentionCandidates;
 use App\Console\Commands\RevokeWhmcsIntegration;
 use App\Console\Commands\RotateWhmcsIntegrationSecret;
@@ -30,7 +33,13 @@ return Application::configure(basePath: dirname(__DIR__))
         ExportAuditAnchorCheckpoint::class,
         VerifyAuditIntegrity::class,
         VerifyAuditAnchorCheckpoint::class,
-        PruneWhmcsIntegrationNonces::class,\n        PlaceLegalHold::class,\n        PruneExpiredDiagnosticRecords::class,\n        ReleaseLegalHold::class,
+        PruneWhmcsIntegrationNonces::class,
+        PlaceLegalHold::class,
+        PruneExpiredDiagnosticRecords::class,
+        ReleaseLegalHold::class,
+        PlaceLegalHold::class,
+        PruneExpiredDiagnosticRecords::class,
+        ReleaseLegalHold::class,
         ReportDiagnosticRetentionCandidates::class,
         RotateWhmcsIntegrationSecret::class,
         RevokeWhmcsIntegration::class,
