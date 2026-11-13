@@ -1,12 +1,12 @@
 <?php
 
-namespace App\\Console\\Commands;
+namespace App\Console\Commands;
 
-use App\\Models\\User;
-use App\\Services\\LegalHoldService;
-use Illuminate\\Console\\Command;
-use Laravel\\Fortify\\Contracts\\TwoFactorAuthenticationProvider;
-use Laravel\\Fortify\\Fortify;
+use App\Models\User;
+use App\Services\LegalHoldService;
+use Illuminate\Console\Command;
+use Laravel\Fortify\Contracts\TwoFactorAuthenticationProvider;
+use Laravel\Fortify\Fortify;
 use Throwable;
 
 class ReleaseLegalHold extends Command
@@ -34,7 +34,7 @@ class ReleaseLegalHold extends Command
         }
 
         $code = $this->secret('Enter the current 6-digit Owner TOTP code');
-        if (! is_string($code) || preg_match('/^\\d{6}$/D', trim($code)) !== 1 || ! $this->verifyTotp($owner, trim($code), $totp)) {
+        if (! is_string($code) || preg_match('/^\d{6}$/D', trim($code)) !== 1 || ! $this->verifyTotp($owner, trim($code), $totp)) {
             $this->error('Fresh Owner TOTP verification failed. No changes made.');
 
             return self::FAILURE;
