@@ -223,7 +223,7 @@ final class AuditAnchorService
         }
 
         $decoded = base64_decode($encoded, true);
-        if (! is_string($decoded) || strlen($decoded) !== $expectedLength) {
+        if (! is_string($decoded) || $decoded === '' || strlen($decoded) !== $expectedLength) {
             throw new RuntimeException($name.'_invalid_length_or_encoding');
         }
 
