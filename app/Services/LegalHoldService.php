@@ -119,24 +119,35 @@ final class LegalHoldService
         }
 
         if ($subjectType === 'diagnostic_run') {
-            $findingIds = DB::table('diagnostic_findings')->where('diagnostic_run_id', $subjectId)->pluck('id');
-            if ($findingIds->isEmpty()) {
-                return false;
-            }
-
-            if (DB::table('legal_holds')->where('status', 'active')->where('subject_type', 'diagnostic_finding')->whereIn('subject_id', $findingIds)->exists()) {
+            $heldFinding = DB::table('legal_holds')
+                ->where('status', 'active')
+                ->where('subject_type', 'diagnostic_finding')
+                ->whereIn('subject_id', DB::table('diagnostic_findings')->select('id')->where('diagnostic_run_id', $subjectId))
+                ->exists();
+            if ($heldFinding) {
                 return true;
             }
 
-            $recommendationIds = DB::table('diagnostic_recommendations')->whereIn('diagnostic_finding_id', $findingIds)->pluck('id');
-            return $recommendationIds->isNotEmpty()
-                && DB::table('legal_holds')->where('status', 'active')->where('subject_type', 'diagnostic_recommendation')->whereIn('subject_id', $recommendationIds)->exists();
+            $recommendationIds = DB::table('diagnostic_recommendations')
+                ->join('diagnostic_findings', 'diagnostic_findings.id', '=', 'diagnostic_recommendations.diagnostic_finding_id')
+                ->where('diagnostic_findings.diagnostic_run_id', $subjectId)
+                ->select('diagnostic_recommendations.id');
+
+            return DB::table('legal_holds')
+                ->where('status', 'active')
+                ->where('subject_type', 'diagnostic_recommendation')
+                ->whereIn('subject_id', $recommendationIds)
+                ->exists();
         }
 
         if ($subjectType === 'diagnostic_finding') {
-            $recommendationIds = DB::table('diagnostic_recommendations')->where('diagnostic_finding_id', $subjectId)->pluck('id');
-            return $recommendationIds->isNotEmpty()
-                && DB::table('legal_holds')->where('status', 'active')->where('subject_type', 'diagnostic_recommendation')->whereIn('subject_id', $recommendationIds)->exists();
+            $recommendationIds = DB::table('diagnostic_recommendations')->select('id')->where('diagnostic_finding_id', $subjectId);
+
+            return DB::table('legal_holds')
+                ->where('status', 'active')
+                ->where('subject_type', 'diagnostic_recommendation')
+                ->whereIn('subject_id', $recommendationIds)
+                ->exists();
         }
 
         return false;
@@ -169,7 +180,8 @@ final class LegalHoldService
             'diagnostic_recommendation' => (string) DB::table('diagnostic_findings')->where('id', $subject->diagnostic_finding_id)->value('diagnostic_run_id'),
         };
 
-        if ($runId === '' || ! DB::table('diagnostic_runs')->where('id', $runId)->lockForUpdate()->exists()) {
+        $root = $runId !== '' ? DB::table('diagnostic_runs')->where('id', $runId)->lockForUpdate()->first() : null;
+        if ($root === null) {
             throw ValidationException::withMessages(['subject' => 'The target record or its diagnostic run no longer exists.']);
         }
     }
