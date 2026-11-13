@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\DB;
 
 class ReportDiagnosticRetentionCandidates extends Command
 {
-    protected $signature = 'diagnostics:retention:report {--days=90}';
+    protected $signature = 'diagnostics:retention:report {--days=365}';
 
     protected $description = 'Report diagnostic records older than the retention threshold without deleting data';
 
