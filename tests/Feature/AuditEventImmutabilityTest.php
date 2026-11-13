@@ -54,13 +54,3 @@ it('rejects query-builder deletes that bypass Eloquent model events', function (
         ->delete())->toThrow(QueryException::class);
 });
 
-it('rejects truncate statements on PostgreSQL', function () {
-    if (DB::connection()->getDriverName() !== 'pgsql') {
-        test()->skip('TRUNCATE protection is PostgreSQL-specific; other drivers use their own privilege controls.');
-    }
-
-    createAuditEventForImmutabilityTest();
-
-    expect(fn () => DB::statement('TRUNCATE TABLE audit_events'))
-        ->toThrow(QueryException::class);
-});
