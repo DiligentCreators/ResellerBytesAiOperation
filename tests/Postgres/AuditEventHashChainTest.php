@@ -1,7 +1,9 @@
 <?php
 
+use App\Services\Audit\AuditEventCanonicalizer;
 use App\Services\Audit\AuditEventWriter;
 use Illuminate\Database\QueryException;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -46,7 +48,7 @@ it('backfills pre-chain audit events deterministically in primary-key order', fu
     DB::unprepared('DROP TRIGGER IF EXISTS audit_events_reject_update_delete ON audit_events');
     DB::unprepared('DROP TRIGGER IF EXISTS audit_events_reject_truncate ON audit_events');
     Schema::dropIfExists('audit_chain_heads');
-    Schema::table('audit_events', function (\Illuminate\Database\Schema\Blueprint $table): void {
+    Schema::table('audit_events', function (Blueprint $table): void {
         $table->dropUnique(['chain_sequence']);
         $table->dropColumn(['chain_sequence', 'previous_hash', 'event_hash', 'hash_version']);
     });
@@ -82,7 +84,7 @@ it('backfills pre-chain audit events deterministically in primary-key order', fu
     expect($events)->toHaveCount(2)
         ->and((int) $events[0]->chain_sequence)->toBe(1)
         ->and((int) $events[1]->chain_sequence)->toBe(2)
-        ->and($events[0]->previous_hash)->toBe(App\Services\Audit\AuditEventCanonicalizer::GENESIS_HASH)
+        ->and($events[0]->previous_hash)->toBe(AuditEventCanonicalizer::GENESIS_HASH)
         ->and($events[1]->previous_hash)->toBe($events[0]->event_hash)
         ->and(Artisan::call('audit:verify-integrity'))->toBe(0);
 });
