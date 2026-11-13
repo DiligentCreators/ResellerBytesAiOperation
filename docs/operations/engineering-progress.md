@@ -212,7 +212,6 @@ This section supersedes earlier CI and recovery-status entries where they confli
 
 A green CI run is necessary but does not close these release gates or authorize merge, migration, or deployment.
 
-
 ## Fresh MFA and dual approval reconciliation - 2026-11-13
 
 - Fresh hidden TOTP prompts now verify two distinct, verified operators.
