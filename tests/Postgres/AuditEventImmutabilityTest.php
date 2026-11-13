@@ -17,7 +17,7 @@ it('rejects PostgreSQL truncate statements against the audit event table', funct
         'occurred_at' => now(),
     ]);
 
-    expect(fn () => DB::statement('TRUNCATE TABLE audit_events'))
+    expect(fn () => DB::transaction(fn () => DB::statement('TRUNCATE TABLE audit_events')))
         ->toThrow(QueryException::class);
 
     expect(DB::table('audit_events')->count())->toBe(1);
