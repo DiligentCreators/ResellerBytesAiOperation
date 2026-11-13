@@ -30,11 +30,13 @@ class LegalHold extends Model
         ];
     }
 
+    /** @return BelongsTo<User, $this> */
     public function placedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'placed_by_user_id');
     }
 
+    /** @return BelongsTo<User, $this> */
     public function releasedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'released_by_user_id');
