@@ -5,7 +5,7 @@
 - Repository: `DiligentCreators/ResellerBytesAiOperation`
 - Pull request: [#2 — Release readiness](https://github.com/DiligentCreators/ResellerBytesAiOperation/pull/2)
 - Branch: `work/release-readiness-audit`
-- Latest reviewed head at the time of this note: `3a028f0afa31a39b38ee201786537b24806193f4`
+- Latest reviewed head at the time of this note: `b1ec1d39fa54ea15e4e29a77984014b9d25a1384`
 - PR remains open and Draft. No merge, production migration, deployment, or live WHMCS change has been performed.
 
 ## Previously verified CI baseline
