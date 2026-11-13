@@ -1,10 +1,10 @@
 <?php
 
-namespace App\\Console\\Commands;
+namespace App\Console\Commands;
 
-use App\\Services\\LegalHoldService;
-use Illuminate\\Console\\Command;
-use Illuminate\\Support\\Facades\\DB;
+use App\Services\LegalHoldService;
+use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 
 class PruneExpiredDiagnosticRecords extends Command
 {
