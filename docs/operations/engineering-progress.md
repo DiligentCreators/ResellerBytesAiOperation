@@ -240,7 +240,7 @@ A green CI run is necessary but does not close these release gates or authorize 
 
 ## Release-readiness follow-up — 2026-11-14
 
-- Verified exact branch head `69ccaecb40f59ac3d18b61e435d1f5eb0d38d7f9`: all four required CI jobs passed — general CI, PostgreSQL AI-budget/audit concurrency suite, MySQL 8.4 integration-retention suite, and WHMCS PHP 8.1 compatibility. Run: https://github.com/DiligentCreators/ResellerBytesAiOperation/actions/runs/43506078800
+- Verified exact branch head `7da6eaa3533a940f03f7d1d79d147e3677fa2bf8`: all four required CI jobs passed — general CI, PostgreSQL AI-budget/audit concurrency suite, MySQL 8.4 integration-retention suite, and WHMCS PHP 8.1 compatibility. Run: https://github.com/DiligentCreators/ResellerBytesAiOperation/actions/runs/43506323777
 - Added database-level DELETE protection for retained WHMCS integration history. Regression coverage now exercises SQLite, PostgreSQL, and MySQL 8.4 query-builder deletion attempts. MariaDB and SQL Server code paths remain unverified; PostgreSQL is the documented operations-app database.
 - Added `diagnostics:retention:report --days=90`, a report-only command that counts old diagnostic runs and dependent findings/recommendations. It never deletes data and explicitly warns that legal holds are not evaluated. A receipt-time index supports the report.
 - Added Ed25519 audit checkpoint export and verification commands. The exporter verifies the complete local chain while holding the chain-head row lock, signs a minimal checkpoint, and emits the exact JSON artifact. The verifier checks signature, environment, checkpoint predecessor (when supplied), local chain integrity, and the anchored prefix; it reports the unanchored tail.
