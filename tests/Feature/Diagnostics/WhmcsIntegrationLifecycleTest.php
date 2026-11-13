@@ -3,7 +3,6 @@
 use App\\Models\\AuditEvent;
 use App\\Models\\WhmcsIntegration;
 use Illuminate\\Support\\Facades\\DB;
-use LogicException;
 
 test('creates an integration with a one-time encrypted secret and an audit event', function () {
     $this->artisan('whmcs:integration:create', ['name' => 'ResellerBytes Production'])
@@ -100,7 +99,7 @@ test('prevents deleting integrations so their audit and diagnostic history remai
     ]);
 
     expect(fn () => $integration->delete())
-        ->toThrow(LogicException::class, 'revoke the integration instead of deleting it');
+        ->toThrow(\\LogicException::class, 'revoke the integration instead of deleting it');
 
     expect(WhmcsIntegration::query()->whereKey($integration->id)->exists())->toBeTrue();
 });
