@@ -5,7 +5,7 @@
 - Repository: `DiligentCreators/ResellerBytesAiOperation`
 - Pull request: [#2 — Release readiness](https://github.com/DiligentCreators/ResellerBytesAiOperation/pull/2)
 - Branch: `work/release-readiness-audit`
-- Latest reviewed head at the time of this note: `f5c5e47c6365993cf6bff82dfdc44a6fdc631b64`
+- Latest reviewed head at the time of this note: `bdbeed4cfbb37480bc45b8f82c0757ace64b7f23`
 - PR remains open and Draft. No merge, production migration, deployment, or live WHMCS change has been performed.
 
 ## Previously verified CI baseline
@@ -29,9 +29,14 @@ This run does not verify the later SQL Server/MariaDB additions in this branch.
 - Retention reporting now calculates its threshold from an explicit UTC clock and has an inclusive-cutoff boundary test. It remains report-only. No diagnostic, finding, recommendation, integration, or audit data is deleted by these changes.
 - The standalone audit integrity verifier now locks the chain-head row inside its read transaction so concurrent appends cannot produce a false mismatch between the event cursor and the stored head. Added empty-chain verification coverage.
 
+## Independent review preparation
+
+- Added `docs/operations/independent-security-review-checklist.md` with explicit test coverage for authentication/TOTP, authorization/IDOR, WHMCS ingestion and addon boundaries, AI spend controls, audit integrity, database privilege separation, retention/backups, infrastructure, and mandatory no-go findings. It is a preparation checklist, not an independent security sign-off.
+- Deployment and pilot documentation now require confirmed TOTP; passkeys are supplementary, consistent with the application access gate.
+
 ## Verification status of this change batch
 
-- Latest branch head: `229ac92c8121bf867016bb2037d841537592b80e`.
+- Latest branch head: `bdbeed4cfbb37480bc45b8f82c0757ace64b7f23`.
 - Run [43514242797](https://github.com/DiligentCreators/ResellerBytesAiOperation/actions/runs/43514242797) (#495) exercised the new matrix on the earlier PR merge SHA: PostgreSQL, MySQL 8.4, MariaDB 11.4, and WHMCS PHP 8.1 passed; SQL Server setup failed because that job used PHP 8.4 while the lock file requires the project PHP 8.5 runtime; general CI failed Pint on one extra blank line and one missing global-class import. Those three causes have been corrected in subsequent commits (SQL Server now uses PHP 8.5; both Pint findings fixed). This is not yet a passing rerun.
 - Run [43514522003](https://github.com/DiligentCreators/ResellerBytesAiOperation/actions/runs/43514522003) (#502) passed all six jobs on code head `238ba1f7f8fb4b09d0ffd8913e4e7bba308ebb42`. General CI: 145 passed, 3 skipped, 619 assertions; PostgreSQL AI-budget/audit concurrency, MySQL 8.4, MariaDB 11.4, SQL Server 2022, and WHMCS PHP 8.1 jobs all passed.
 - A documentation-only clarification was then committed at latest head `f5c5e47c6365993cf6bff82dfdc44a6fdc631b64`; run [43514673907](https://github.com/DiligentCreators/ResellerBytesAiOperation/actions/runs/43514673907) (#503) is checking that exact head. Five jobs have completed successfully so far; general CI is still running at the time of this update.
@@ -42,6 +47,6 @@ This run does not verify the later SQL Server/MariaDB additions in this branch.
 ## Remaining work
 
 1. Verify all six CI jobs on the exact latest branch SHA; fix any failures and rerun until green.
-2. Continue release checklist and security review preparation without enabling destructive retention.
+2. Continue release checklist, security review preparation, and negative privilege/test coverage without enabling destructive retention.
 3. Keep these items in the operator decision queue: Object Lock/cloud account, 365-day retention approval, signing keys and production DB roles, legal-hold policy, and backup/restore rehearsal access.
 4. Keep PR #2 Draft. Do not merge, deploy, or run production migrations.
