@@ -35,7 +35,13 @@ REVOKE CREATE ON SCHEMA public FROM rb_runtime;
 
 -- Existing application tables. The migration ledger is excluded below.
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO rb_runtime;
-REVOKE ALL PRIVILEGES ON TABLE migrations FROM rb_runtime;
+DO $
+BEGIN
+    IF to_regclass('public.migrations') IS NOT NULL THEN
+        REVOKE ALL PRIVILEGES ON TABLE public.migrations FROM rb_runtime;
+    END IF;
+END;
+$;
 
 -- Audit events are append-only for the runtime identity.
 GRANT SELECT, INSERT ON TABLE audit_events TO rb_runtime;
