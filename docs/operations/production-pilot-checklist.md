@@ -72,6 +72,8 @@ The first pilot validates collection and transport only. It does not authorize r
 
 ## Audit, database, and retention release gates
 
+See [`legal-hold-and-diagnostic-retention-runbook.md`](legal-hold-and-diagnostic-retention-runbook.md) for Owner CLI procedures, TOTP requirements, dry-run/execute gates, and fail-closed behavior.
+
 - [ ] The exact PR head SHA has all six required CI jobs green: general CI, PostgreSQL AI-budget/audit concurrency, MySQL 8.4 retention, MariaDB 11.4 retention, SQL Server 2022 retention, and WHMCS PHP 8.1 compatibility.
 - [ ] PostgreSQL migration and runtime principals are provisioned separately; runtime is not a table owner, schema creator, migration-ledger reader, or audit-event mutator.
 - [ ] Runtime-role negative privilege tests prove audit UPDATE/DELETE/TRUNCATE and integration hard DELETE are rejected; normal audit append and chain verification still work.
