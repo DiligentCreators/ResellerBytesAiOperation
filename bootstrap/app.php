@@ -2,10 +2,10 @@
 
 use App\Console\Commands\CreateOperationsUser;
 use App\Console\Commands\CreateWhmcsIntegration;
-use App\Console\Commands\VerifyAuditIntegrity;
 use App\Console\Commands\PruneWhmcsIntegrationNonces;
 use App\Console\Commands\RevokeWhmcsIntegration;
 use App\Console\Commands\RotateWhmcsIntegrationSecret;
+use App\Console\Commands\VerifyAuditIntegrity;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use Illuminate\Foundation\Application;
