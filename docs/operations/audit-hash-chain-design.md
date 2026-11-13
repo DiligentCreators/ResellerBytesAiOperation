@@ -126,6 +126,14 @@ The repository currently implements the local SHA-256 chain and read-only chain 
 - The verifier clearly reports the unanchored tail and maximum anchor age.
 - Upload outage, key mismatch, sequence regression, missing object, and restore-to-old-backup scenarios have automated tests and actionable alerts.
 
+## Legal-hold governance decision — 2026-11-14
+
+- The project Owner is the approval authority for both placing and releasing a legal hold.
+- Each placement/release must append an immutable audit event recording the owner identity, UTC timestamp, affected record/scope, action, reason, controlled evidence/case reference, and resulting state. Sensitive case documents and customer payloads must not be copied into audit metadata.
+- Future retention cleanup must exclude held records and re-check hold state inside the deletion transaction. If hold state cannot be read or the audit event cannot be committed, cleanup must fail closed and delete nothing.
+- A legal hold overrides ordinary retention expiry, including the 365-day external-backup retention setting, until the Owner explicitly approves and audits release.
+- Governance is approved; the legal-hold schema/API/command and cleanup enforcement are **not yet implemented**. No automated diagnostic or audit-history deletion is permitted until implementation and negative-path tests pass.
+
 ## Signed external checkpoint tooling
 
 The branch now includes an Ed25519 checkpoint envelope generator and verifier. These commands are usable without cloud credentials, but they do not upload or lock objects in external storage.
