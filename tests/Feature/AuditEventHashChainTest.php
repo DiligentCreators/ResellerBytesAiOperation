@@ -24,6 +24,10 @@ it('canonicalizes associative metadata independent of insertion order while pres
 
     expect($canonicalizer->hash($base))->toBe($canonicalizer->hash($reordered));
 
+    $sameStoredSecond = $base;
+    $sameStoredSecond['occurred_at'] = '2026-11-13 10:11:12.999999';
+    expect($canonicalizer->hash($base))->toBe($canonicalizer->hash($sameStoredSecond));
+
     $reordered['metadata']['list'] = ['second', 'first'];
     expect($canonicalizer->hash($base))->not->toBe($canonicalizer->hash($reordered));
 });

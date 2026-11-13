@@ -39,7 +39,7 @@ class AuditEventWriter
                 'subject_id' => isset($attributes['subject_id']) ? (string) $attributes['subject_id'] : null,
                 'metadata' => json_encode($attributes['metadata'] ?? [], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRESERVE_ZERO_FRACTION),
                 'ip_address' => $attributes['ip_address'] ?? null,
-                'occurred_at' => CarbonImmutable::parse($attributes['occurred_at'])->utc()->format('Y-m-d H:i:s.u'),
+                'occurred_at' => CarbonImmutable::parse($attributes['occurred_at'])->utc()->format('Y-m-d H:i:s'),
             ];
             $event['hash_version'] = AuditEventCanonicalizer::VERSION;
             $event['event_hash'] = $this->canonicalizer->hash($event);
