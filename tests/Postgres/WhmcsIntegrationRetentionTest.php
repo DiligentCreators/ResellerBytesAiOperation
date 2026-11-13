@@ -1,8 +1,8 @@
 <?php
 
-use App\\Models\\WhmcsIntegration;
-use Illuminate\\Database\\QueryException;
-use Illuminate\\Support\\Facades\\DB;
+use App\Models\WhmcsIntegration;
+use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\DB;
 
 it('rejects query-builder deletion of a revoked integration on PostgreSQL', function () {
     expect(DB::connection()->getDriverName())->toBe('pgsql');
