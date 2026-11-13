@@ -221,9 +221,6 @@ final class AuditAnchorService
         }
     }
 
-    /**
-     * @return non-empty-string
-     */
     private function assertIndependentPrivateKey(string $privateKey): void
     {
         $addonKey = config('services.whmcs_addon.signing_secret_key');
@@ -250,6 +247,9 @@ final class AuditAnchorService
         }
     }
 
+    /**
+     * @return non-empty-string
+     */
     private function decodeKey(mixed $encoded, int $expectedLength, string $name): string
     {
         if (! is_string($encoded) || $encoded === '') {
