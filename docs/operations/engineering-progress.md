@@ -212,7 +212,6 @@ This section supersedes earlier CI and recovery-status entries where they confli
 
 A green CI run is necessary but does not close these release gates or authorize merge, migration, or deployment.
 
-
 ## Database-enforced audit append-only controls - 2026-11-13
 
 - Added a forward-only migration installing database triggers that reject UPDATE and DELETE on audit_events for SQLite, PostgreSQL, MySQL/MariaDB, and SQL Server.
