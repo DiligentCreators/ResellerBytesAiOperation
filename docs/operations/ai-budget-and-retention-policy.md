@@ -192,7 +192,7 @@ No automated diagnostic snapshot cleanup, audit-event expiry, integration deleti
 - **Decision:** no discretionary or routine exception extends diagnostic retention beyond 365 days. Non-held diagnostic runs and their dependent findings/recommendations expire at 365 days from `received_at` (UTC).
 - The previously approved legal-hold process remains the only exception: a hold must be placed by the Project Owner with an immutable audit event and remains effective until a separately owner-approved and audited release. This is not a discretionary retention extension.
 - Customer support, convenience, product analytics, or ordinary investigation status do not independently extend retention. If a qualifying legal hold applies, the hold takes precedence; otherwise the 365-day expiry applies.
-- This decision does not enable deletion. Automated cleanup remains blocked until legal-hold storage/workflow, hold-aware candidate exclusion, in-transaction re-check, fail-closed audit writes, dependency-safe bounded deletion, negative-path tests, and restore gates are implemented and verified.
+- This decision does not enable scheduled or automatic deletion. A bounded manual cleanup command now exists with dry-run default, a disabled-by-default deployment feature flag, explicit `--execute`, in-transaction hold re-check, and dependency-safe cascade deletion. It must remain disabled until the exact release SHA passes CI and backup/restore and operational gates are approved.
 
 
 ## Audit-event retention policy approved — 2026-11-14
