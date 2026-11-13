@@ -7,7 +7,7 @@ This runbook is for the ResellerBytes AI Operations application on the existing 
 - Confirm the feature branch has passed CI, security review, and the pull request has been merged to main.
 - Confirm Forge has PHP 8.5 CLI and FPM available for the Laravel application.
 - Confirm PHP 8.5 extensions in both CLI and FPM: pdo_pgsql, redis, zip, curl, mbstring, openssl, fileinfo, tokenizer, xml, ctype, bcmath, and intl. Redis is required by FPM sessions/cache and the CLI queue worker; ZIP is required by the authenticated web download route. Restart the relevant Forge PHP-FPM service after changing extensions.
-- Confirm PostgreSQL is local/private and a dedicated least-privilege database user exists.
+- Confirm PostgreSQL is local/private and the separate `rb_migrator` and `rb_runtime` identities are provisioned and verified using [PostgreSQL role separation](postgresql-role-separation.md). The runtime identity must not own schema objects or access the migrations ledger.
 - Confirm Redis is local/private, authenticated where appropriate, persisted, monitored, and configured with noeviction.
 - Confirm the application domain and HTTPS certificate are ready.
 - Do not make changes to the WHMCS/20i server during Laravel deployment.
@@ -52,7 +52,7 @@ Set a sensible OpenAI project spend limit and monitor usage. AI analysis must ne
 2. Run composer install --no-dev --prefer-dist --optimize-autoloader.
 3. Run npm ci and npm run build.
 4. Confirm the production .env and APP_KEY are present. Do not regenerate an existing production key.
-5. Run php artisan migrate --force.
+5. Run php artisan migrate --force using the deployment-only `rb_migrator` credential, never the runtime credential. Reconcile the runtime grants using the role-separation runbook before restarting FPM and queue workers.
 6. Run php artisan optimize.
 7. Confirm /up returns healthy and the dashboard login page loads over HTTPS.
 8. Confirm public registration is unavailable.
