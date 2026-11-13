@@ -200,3 +200,43 @@ it('deletes only explicitly authorized expired diagnostic runs and preserves run
         ->and(DB::table('diagnostic_findings')->where('id', $finding->id)->exists())->toBeTrue()
         ->and(DB::table('diagnostic_runs')->where('id', $eligibleRun->id)->exists())->toBeFalse();
 });
+
+
+it('fails closed and leaves expired records untouched when hold-state evaluation fails', function () {
+    $run = legalHoldDiagnosticRun();
+    config(['diagnostics.retention_cleanup_enabled' => true]);
+
+    $holds = Mockery::mock(LegalHoldService::class);
+    $holds->shouldReceive('isHeld')->once()->andThrow(new RuntimeException('hold_state_unavailable'));
+    app()->instance(LegalHoldService::class, $holds);
+
+    expect(fn () => $this->artisan('diagnostics:retention:prune', ['--execute' => true]))
+        ->toThrow(RuntimeException::class, 'hold_state_unavailable');
+
+    expect(DB::table('diagnostic_runs')->where('id', $run->id)->exists())->toBeTrue();
+});
+
+it('rolls back legal hold release when its immutable audit event cannot be appended', function () {
+    $owner = legalHoldOwner();
+    $run = legalHoldDiagnosticRun();
+    $hold = app(LegalHoldService::class)->place(
+        $owner,
+        'diagnostic_run',
+        $run->id,
+        'Preserve records for a formal legal matter',
+        'CASE-2026-0044',
+    );
+
+    $writer = Mockery::mock(AuditEventWriter::class);
+    $writer->shouldReceive('append')->once()->andThrow(new RuntimeException('audit_write_failed'));
+    app()->instance(AuditEventWriter::class, $writer);
+
+    expect(fn () => app(LegalHoldService::class)->release(
+        $owner,
+        $hold->id,
+        'Formal matter closed and release approved',
+        'CASE-2026-0044-CLOSE',
+    ))->toThrow(RuntimeException::class, 'audit_write_failed');
+
+    expect(DB::table('legal_holds')->where('id', $hold->id)->value('status'))->toBe('active');
+});
