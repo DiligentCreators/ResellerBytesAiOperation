@@ -1,10 +1,10 @@
 <?php
 
-namespace App\\Console\\Commands;
+namespace App\Console\Commands;
 
-use App\\Services\\Audit\\AuditEventCanonicalizer;
-use Illuminate\\Console\\Command;
-use Illuminate\\Support\\Facades\\DB;
+use App\Services\Audit\AuditEventCanonicalizer;
+use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 
 class VerifyAuditIntegrity extends Command
 {
