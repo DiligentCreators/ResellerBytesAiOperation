@@ -64,7 +64,7 @@ Migration `2026_11_12_000008_create_ai_budget_ledger_tables.php` adds the daily/
 - Before any deletion, provide a dry-run report with candidate counts, oldest/newest timestamps, and affected dependent records.
 - A report-only command is now available: `php artisan diagnostics:retention:report --days=365`. It reports candidate run counts, dependent finding/recommendation counts, cutoff, and oldest/newest receipt timestamps; it never deletes data and explicitly warns that legal holds are not evaluated. The eventual cleanup must use bounded batches, deterministic ordering, row-level rechecks, and an explicit enable/disable switch.
 - Deletion must preserve the independent audit-event record. Do not cascade diagnostic retention into audit events or integration records.
-- The approved legal-hold model must exclude held records from cleanup; the hold state must be re-checked inside the deletion transaction, and any hold-state or audit-write failure must fail closed.
+- The approved legal-hold model is the sole exception to the 365-day diagnostic expiry. Held records remain retained until the Project Owner explicitly approves and audits release. Cleanup must exclude held records, re-check hold state inside the deletion transaction, and fail closed if hold state or audit writing fails.
 
 ### Audit events — 2,555 days
 
@@ -171,8 +171,8 @@ The following items are deliberately not guessed or activated:
 
 ### Shahrukh ke liye
 
-1. **Retention exception policy:** confirm whether the seven-year audit target is a minimum or a fixed expiry, and whether contractual, tax, privacy, or jurisdictional requirements require longer or shorter retention. The 2,555-day value remains the current project policy target, not legal advice.
-3. **External anchor provisioning:** provision the separate cloud account/bucket with the approved 365-day Object Lock retention and independent Ed25519 key custody. No bucket or key is provisioned by this repository change.
+1. **Audit-event retention clarification:** confirm whether the separate 2,555-day audit-event target is a minimum or a fixed expiry, and whether applicable contractual, tax, privacy, or jurisdictional requirements require longer or shorter retention. This remains a project policy target, not legal advice.
+2. **External anchor provisioning:** provision the separate cloud account/bucket with the approved 365-day Object Lock retention and independent Ed25519 key custody. No bucket or key is provisioned by this repository change.
 4. **Production role names and ownership:** confirm the real PostgreSQL database/schema names and Forge secret-management process before applying the example `rb_migrator` / `rb_runtime` identities. The guide is a template, not an executed production change.
 5. **Provider price-card approval:** verify the exact provider/model pricing and approve the active version and expiry before production spend enforcement is enabled. The CI fixture is not a substitute for commercial approval.
 
@@ -186,3 +186,11 @@ The following items are deliberately not guessed or activated:
 - Add a release evidence checklist requiring runtime-role negative privilege tests, external anchor read-back/signature verification, backup restore drill, and alert routing proof.
 
 No automated diagnostic snapshot cleanup, audit-event expiry, integration deletion, external anchor upload, or production privilege change is enabled by this policy document.
+
+
+### Approved diagnostic retention exceptions — 2026-11-14
+
+- **Decision:** no discretionary or routine exception extends diagnostic retention beyond 365 days. Non-held diagnostic runs and their dependent findings/recommendations expire at 365 days from `received_at` (UTC).
+- The previously approved legal-hold process remains the only exception: a hold must be placed by the Project Owner with an immutable audit event and remains effective until a separately owner-approved and audited release. This is not a discretionary retention extension.
+- Customer support, convenience, product analytics, or ordinary investigation status do not independently extend retention. If a qualifying legal hold applies, the hold takes precedence; otherwise the 365-day expiry applies.
+- This decision does not enable deletion. Automated cleanup remains blocked until legal-hold storage/workflow, hold-aware candidate exclusion, in-transaction re-check, fail-closed audit writes, dependency-safe bounded deletion, negative-path tests, and restore gates are implemented and verified.
