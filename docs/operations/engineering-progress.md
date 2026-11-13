@@ -266,3 +266,12 @@ A green CI run is necessary but does not close these release gates or authorize 
 - Updated the retention policy, production-pilot checklist, and roadmap references from 90 to 365 days. Audit-event retention remains separate at 2,555 days; immutable external audit-backup retention remains 365 days.
 - This is the approved policy and report configuration, not authorization to delete records. The command remains report-only and does not evaluate legal holds. Automated cleanup remains disabled until owner-authorized legal-hold storage/workflow, query exclusion, in-transaction hold re-check, fail-closed audit writes, dependency-safe bounded deletion, negative-path tests, and backup/restore gates are complete.
 - Next owner decision: define which non-legal-hold exceptions may extend diagnostic retention beyond 365 days.
+
+
+## Diagnostic retention exception policy approved — 2026-11-14
+
+- Project Owner decision: **no discretionary exceptions** to the 365-day diagnostic retention period. Non-held diagnostic runs and their dependent findings/recommendations expire after 365 days from UTC `received_at`.
+- The previously approved legal-hold workflow remains the sole exception. Legal holds require Project Owner approval and immutable audit events for placement and release; a held record remains retained until an explicitly approved and audited release.
+- Routine support cases, analytics needs, convenience, or an investigation without a formal legal hold do not extend diagnostic retention.
+- Updated the retention policy and production-pilot checklist. This is a policy decision only: the report command remains read-only, does not evaluate holds, and no automated deletion has been enabled.
+- Remaining user-side governance clarification: whether the separate 2,555-day audit-event retention target is a minimum or a fixed expiry. External Object Lock provisioning, independent Ed25519 key custody, production DB-role naming, and restore rehearsal remain credential/infrastructure gates.
