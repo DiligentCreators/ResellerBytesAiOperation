@@ -24,6 +24,12 @@ final class AuditAnchorService
         $this->assertPreviousDigest($previousCheckpointSha256);
         $secretKey = $this->decodeKey(config('audit.anchor.private_key'), SODIUM_CRYPTO_SIGN_SECRETKEYBYTES, 'AUDIT_ANCHOR_PRIVATE_KEY');
         $this->assertIndependentPrivateKey($secretKey);
+        $publicKey = $this->decodeKey(config('audit.anchor.public_key'), SODIUM_CRYPTO_SIGN_PUBLICKEYBYTES, 'AUDIT_ANCHOR_PUBLIC_KEY');
+        $this->assertIndependentPublicKey($publicKey);
+        if (! hash_equals(sodium_crypto_sign_publickey_from_secretkey($secretKey), $publicKey)) {
+            throw new RuntimeException('audit_anchor_keypair_mismatch');
+        }
+
         $chain = $this->verifiedChainSnapshot();
 
         $payload = [
