@@ -278,7 +278,7 @@ A green CI run is necessary but does not close these release gates or authorize 
 - The previously approved legal-hold workflow remains the sole exception. Legal holds require Project Owner approval and immutable audit events for placement and release; a held record remains retained until an explicitly approved and audited release.
 - Routine support cases, analytics needs, convenience, or an investigation without a formal legal hold do not extend diagnostic retention.
 - Updated the retention policy and production-pilot checklist. This is a policy decision only: the report command remains read-only, does not evaluate holds, and no automated deletion has been enabled.
-- Remaining user-side governance clarification: whether the separate 2,555-day audit-event retention target is a minimum or a fixed expiry. External Object Lock provisioning, independent Ed25519 key custody, production DB-role naming, and restore rehearsal remain credential/infrastructure gates.
+- External Object Lock provisioning, independent Ed25519 key custody, production DB-role naming, and restore rehearsal remain credential/infrastructure gates.
 
 
 ## Audit-event retention policy approved — 2026-11-14
