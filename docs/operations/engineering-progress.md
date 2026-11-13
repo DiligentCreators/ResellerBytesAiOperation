@@ -205,16 +205,9 @@ This section supersedes earlier CI and recovery-status entries where they confli
 - Added a provider-timeout feature test proving that an exception after the submit callback leaves the attempt ambiguous, retains both reservations, and prevents a second provider submission while the outcome remains unresolved.
 - The bounded `diagnostics:recover-queued` command now inspects the latest budget attempt while holding the diagnostic-run row lock. A stale pre-submit `reserved` attempt is safely released before redispatch; a stale `submitted` attempt is changed to `ambiguous` and held for operator review; an already ambiguous attempt remains held; and a settled attempt belonging to the interrupted analysis is not automatically charged again or redispatched.
 - Added recovery tests for pre-submit worker loss, post-submit worker loss, and worker loss after provider usage settlement. These tests passed in both the main CI suite and PostgreSQL 16 suite.
-- A stale submitted attempt is retained as ambiguous because provider acceptance and billing cannot be inferred from a worker crash. The existing operator command only releases confirmed-not-charged attempts. Fresh-MFA and two-person approval are now implemented on this branch; confirmed-charge settlement remains outstanding.
+- A stale submitted attempt is retained as ambiguous because provider acceptance and billing cannot be inferred from a worker crash. The existing operator command only releases confirmed-not-charged attempts. A separately reviewed confirmed-charge settlement workflow remains outstanding.
 - PR #2 remains open and Draft. No merge, production migration, live WHMCS change, or deployment has occurred. The AI budget migration and enforcement remain branch-only.
 - Remaining release gates include database-level audit immutability, confirmed-charge settlement, integration deletion/history lifecycle, production signing-key setup and ZIP verification, approved retention implementation, backup/restore rehearsal, production infrastructure verification, and an explicitly approved read-only WHMCS pilot.
 - The hybrid SaaS tenant-isolation, dual-billing, entitlement, and white-label roadmap remains a separate implementation phase and is not certified as delivered by this PR.
 
 A green CI run is necessary but does not close these release gates or authorize merge, migration, or deployment.
-
-## Fresh MFA and dual approval reconciliation - 2026-11-13
-
-- Fresh hidden TOTP prompts now verify two distinct, verified operators.
-- Laravel Fortify's cache-backed replay protection is reused.
-- Both identities and separate audit events are persisted atomically.
-- Tests and CI verification are in progress; migration remains branch-only.
