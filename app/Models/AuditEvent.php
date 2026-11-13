@@ -26,6 +26,10 @@ class AuditEvent extends Model
 
     protected static function booted(): void
     {
+        static::creating(function (): never {
+            throw new LogicException('Audit events must be appended through AuditEventWriter.');
+        });
+
         static::updating(function (): never {
             throw new LogicException('Audit events are append-only and cannot be updated.');
         });

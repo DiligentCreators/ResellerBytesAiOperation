@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\AuditEvent;
+use App\Services\Audit\AuditEventWriter;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -9,7 +10,7 @@ uses(RefreshDatabase::class);
 
 function createAuditEventForImmutabilityTest(): AuditEvent
 {
-    return AuditEvent::create([
+    return app(AuditEventWriter::class)->append([
         'actor_type' => 'user',
         'actor_id' => 'test-operator',
         'event_type' => 'test.created',
