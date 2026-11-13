@@ -8,7 +8,6 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
-
 it('reports old diagnostic runs and dependent records without deleting them', function () {
     Carbon::setTestNow('2026-11-14 12:00:00');
 
