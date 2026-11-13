@@ -195,7 +195,12 @@ final class AuditAnchorService
             throw new RuntimeException('audit_anchor_invalid_payload');
         }
 
-        $this->assertPreviousDigest($payload['previous_checkpoint_sha256'] ?? null);
+        $previousDigest = $payload['previous_checkpoint_sha256'] ?? null;
+        if ($previousDigest !== null && ! is_string($previousDigest)) {
+            throw new RuntimeException('audit_anchor_invalid_previous_digest');
+        }
+
+        $this->assertPreviousDigest($previousDigest);
     }
 
     private function assertPreviousDigest(?string $digest): void
