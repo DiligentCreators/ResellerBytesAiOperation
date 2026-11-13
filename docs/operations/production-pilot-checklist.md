@@ -78,7 +78,10 @@ The first pilot validates collection and transport only. It does not authorize r
 - [ ] The WHMCS integration retention trigger has passed PostgreSQL and MySQL 8.4 tests; MariaDB 11.4 and SQL Server 2022 dedicated CI jobs must also pass on the exact release SHA. The SQL Server job directly exercises the migration against an isolated SQL Server table.
 - [ ] The report-only diagnostic retention command `php artisan diagnostics:retention:report --days=365` has been run against a restored non-production copy and its candidate/dependent counts reviewed. It does not delete records and does not evaluate legal holds.
 - [x] Legal-hold authority is approved: project Owner authorizes placement and release; every action requires an append-only audit event with owner identity, UTC timestamp, affected scope, reason, and controlled evidence/case reference.
-- [ ] Legal-hold schema/commands, fail-closed audit writes, cleanup exclusion plus in-transaction hold re-check, and automated tests are implemented before any diagnostic cleanup is enabled.
+- [x] Legal-hold schema and Owner-only CLI placement/release commands implemented; `OPERATIONS_OWNER_EMAIL` selects the sole Owner, with verified email, enrolled MFA, and fresh TOTP per action.
+- [x] Placement/release audit events are transactionally coupled to hold-state changes; audit-write failure rolls back the hold change.
+- [x] Diagnostic cleanup is bounded, dry-run by default, disabled by default, requires explicit `--execute`, and re-checks direct/descendant legal holds inside the deletion transaction.
+- [ ] Exact PR-head CI, production backup/restore rehearsal, and operational approval must pass before setting `DIAGNOSTICS_RETENTION_CLEANUP_ENABLED=true`.
 - [ ] The external audit anchor is provisioned in a separate security account with **365-day immutable retention**, independent Ed25519 signing key, read-only verifier, alert routing, and a successful restore/read-back drill.
 - [ ] The latest database head matches the newest external signed checkpoint; any unanchored tail and checkpoint age are documented.
 - [ ] A database backup has been restored in isolation and compared against the newest external checkpoint before any production migration or pilot.
