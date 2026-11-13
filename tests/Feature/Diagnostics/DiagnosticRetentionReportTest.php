@@ -26,7 +26,7 @@ it('reports old diagnostic runs and dependent records without deleting them', fu
             'addon_version' => '1.0.0',
             'status' => 'completed',
             'collected_at' => now()->subDays(400),
-            'received_at' => now()->subDays(100),
+            'received_at' => now()->subDays(400),
             'payload' => [],
             'payload_sha256' => str_repeat('a', 64),
         ]);
@@ -96,7 +96,7 @@ it('uses an inclusive UTC receipt-time cutoff and leaves newer records out of th
             'addon_version' => '1.0.0',
             'status' => 'completed',
             'collected_at' => now('UTC')->subDays(365),
-            'received_at' => now('UTC')->subDays(90),
+            'received_at' => now('UTC')->subDays(365),
             'payload' => [],
             'payload_sha256' => str_repeat('e', 64),
         ]);
@@ -108,7 +108,7 @@ it('uses an inclusive UTC receipt-time cutoff and leaves newer records out of th
             'addon_version' => '1.0.0',
             'status' => 'completed',
             'collected_at' => now('UTC')->subDays(90)->addSecond(),
-            'received_at' => now('UTC')->subDays(90)->addSecond(),
+            'received_at' => now('UTC')->subDays(365)->addSecond(),
             'payload' => [],
             'payload_sha256' => str_repeat('f', 64),
         ]);
