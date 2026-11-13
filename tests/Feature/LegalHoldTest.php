@@ -1,16 +1,16 @@
 <?php
 
-use App\\Models\\DiagnosticFinding;
-use App\\Models\\DiagnosticRun;
-use App\\Models\\User;
-use App\\Models\\WhmcsIntegration;
-use App\\Services\\Audit\\AuditEventWriter;
-use App\\Services\\LegalHoldService;
-use Illuminate\\Foundation\\Testing\\RefreshDatabase;
-use Illuminate\\Support\\Facades\\Crypt;
-use Illuminate\\Support\\Facades\\DB;
-use Illuminate\\Support\\Facades\\Hash;
-use Illuminate\\Support\\Str;
+use App\Models\DiagnosticFinding;
+use App\Models\DiagnosticRun;
+use App\Models\User;
+use App\Models\WhmcsIntegration;
+use App\Services\Audit\AuditEventWriter;
+use App\Services\LegalHoldService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 uses(RefreshDatabase::class);
 
