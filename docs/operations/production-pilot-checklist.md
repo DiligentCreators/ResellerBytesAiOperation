@@ -16,7 +16,7 @@ This checklist is mandatory before installing or running the WHMCS addon against
 
 - [ ] Public self-registration is disabled; no public account-creation route is available.
 - [ ] The first verified dashboard operator was created through php artisan ops:user:create "Operations Admin" operator@example.com; the password was entered through hidden terminal prompts.
-- [ ] Two-factor authentication or a passkey is enabled for every production operator.
+- [ ] Confirmed TOTP-based two-factor authentication is enabled for every production operator before operational access; passkeys are additional factors, not substitutes.
 - [ ] OPENAI_API_KEY is configured only in the Forge environment, never in source control or WHMCS.
 - [ ] The configured OpenAI model is available to the API project and the project has an appropriate spend limit.
 - [ ] The Redis queue worker is running and supervised; the scheduler is active.
