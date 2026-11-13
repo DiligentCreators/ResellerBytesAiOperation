@@ -124,3 +124,58 @@ The repository currently implements the local SHA-256 chain and read-only chain 
 - Rewriting the local database chain through the latest anchored sequence causes verification failure.
 - The verifier clearly reports the unanchored tail and maximum anchor age.
 - Upload outage, key mismatch, sequence regression, missing object, and restore-to-old-backup scenarios have automated tests and actionable alerts.
+
+## Signed external checkpoint tooling
+
+The branch now includes an Ed25519 checkpoint envelope generator and verifier. These commands are usable without cloud credentials, but they do not upload or lock objects in external storage.
+
+### Key configuration
+
+- `AUDIT_ANCHOR_PRIVATE_KEY`: base64-encoded 64-byte Ed25519 secret key.
+- `AUDIT_ANCHOR_PUBLIC_KEY`: base64-encoded 32-byte Ed25519 public key.
+- Generate the pair with libsodium outside the application environment. Store the private key in a dedicated secret manager; provision the public key independently to the verifier.
+- These keys must be distinct from `WHMCS_ADDON_SIGNING_SECRET_KEY`, `APP_KEY`, and all WHMCS HMAC secrets. The application must not generate or silently fall back to another key.
+- The example environment leaves both values empty. Export and verification fail closed until the appropriate key is provisioned.
+
+### Export and upload
+
+First checkpoint:
+
+```sh
+php artisan audit:anchor:export > audit-checkpoint.json
+sha256sum audit-checkpoint.json
+```
+
+Subsequent checkpoint (supply the exact SHA-256 digest of the previously retained checkpoint):
+
+```sh
+php artisan audit:anchor:export --previous=PREVIOUS_CHECKPOINT_SHA256 > audit-checkpoint.json
+sha256sum audit-checkpoint.json
+```
+
+The export command locks the chain-head row while it verifies the full local chain and signs the checkpoint, preventing normal writer appends from racing the exported head. This can briefly serialize audit appends; run it with an appropriate operational cadence and measure lock duration on production-sized history before scheduling it. The output is a signed JSON envelope; it contains only environment, timestamp, sequence, head digest, and prior checkpoint digest—not event metadata.
+
+Upload the exact output bytes to the independently administered Object Lock bucket using the security-controlled uploader role. Do not rewrite, reformat, or re-serialize the JSON after signing. Record the returned object version and the SHA-256 digest in the external evidence register.
+
+### Verification
+
+Download the retained object without changing its bytes, then run:
+
+```sh
+php artisan audit:anchor:verify /secure/path/audit-checkpoint.json
+```
+
+For a checkpoint after the first, also supply the previously verified digest:
+
+```sh
+php artisan audit:anchor:verify /secure/path/audit-checkpoint.json --expected-previous=PREVIOUS_CHECKPOINT_SHA256
+```
+
+The verifier validates the detached signature, environment, checkpoint structure, complete local chain, and database prefix through the anchored sequence. It reports the local unanchored tail explicitly. A database restored behind the checkpoint or a rewritten prefix fails verification.
+
+### Current boundary
+
+- The signing and verification code is implemented and covered by feature tests, including tampered payload rejection, predecessor-digest mismatch, and unanchored-tail reporting.
+- The export command emits a signed artifact only. It does not automatically upload to S3, set Object Lock retention, create cloud IAM roles, or send alerts.
+- **Shahrukh ke liye:** provision the separate cloud account/bucket, choose and approve Object Lock retention, generate/store the independent Ed25519 keypair, and provide the non-secret bucket/role configuration. Never commit the private key.
+- Before production scheduling, add an upload adapter with conditional-create semantics, remote read-back verification, immutable version capture, missed-checkpoint alerts, and a separate read-only verifier job. These remain release gates.
