@@ -2,10 +2,7 @@
 
 use App\Models\AuditEvent;
 use Illuminate\Database\QueryException;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
-
-uses(RefreshDatabase::class);
 
 it('rejects PostgreSQL truncate statements against the audit event table', function () {
     expect(DB::connection()->getDriverName())->toBe('pgsql');
