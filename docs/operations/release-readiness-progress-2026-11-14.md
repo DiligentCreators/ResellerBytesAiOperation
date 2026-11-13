@@ -5,7 +5,7 @@
 - Repository: `DiligentCreators/ResellerBytesAiOperation`
 - Pull request: [#2 — Release readiness](https://github.com/DiligentCreators/ResellerBytesAiOperation/pull/2)
 - Branch: `work/release-readiness-audit`
-- Latest reviewed head at the time of this note: `229ac92c8121bf867016bb2037d841537592b80e`
+- Latest reviewed head at the time of this note: `3a028f0afa31a39b38ee201786537b24806193f4`
 - PR remains open and Draft. No merge, production migration, deployment, or live WHMCS change has been performed.
 
 ## Previously verified CI baseline
@@ -26,13 +26,13 @@ This run does not verify the later SQL Server/MariaDB additions in this branch.
 - Added a MariaDB 11.4 GitHub Actions service job and expanded the existing MySQL retention test so it also accepts the MariaDB PDO driver.
 - Exposed explicit SQL Server TLS encryption and trust-server-certificate configuration through environment settings; CI enables encryption and trusts only the ephemeral self-signed service certificate.
 - Updated the retention policy and production-pilot checklist to identify MySQL 8.4, MariaDB 11.4, and SQL Server 2022 engine-specific CI gates.
-- Retention reporting remains report-only. No diagnostic, finding, recommendation, integration, or audit data is deleted by these changes.
+- Retention reporting now calculates its threshold from an explicit UTC clock and has an inclusive-cutoff boundary test. It remains report-only. No diagnostic, finding, recommendation, integration, or audit data is deleted by these changes.
 
 ## Verification status of this change batch
 
 - Latest branch head: `229ac92c8121bf867016bb2037d841537592b80e`.
 - The earlier four-job green run is not evidence for this later head.
-- The new SQL Server and MariaDB jobs have been added but their results must be checked on the exact latest PR SHA before claiming engine verification.
+- The new SQL Server and MariaDB jobs have been added but their results must be checked on the exact latest PR SHA before claiming engine verification. The latest PR SHA currently has no associated workflow run returned by GitHub; CI execution is still pending.
 - SQL Server coverage is a focused trigger integration check, not a full Laravel migration-suite compatibility claim for SQL Server.
 - No production credentials or external cloud account are required for these repository changes.
 
