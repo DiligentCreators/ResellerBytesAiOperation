@@ -5,7 +5,7 @@
 - Repository: `DiligentCreators/ResellerBytesAiOperation`
 - Pull request: [#2 — Release readiness](https://github.com/DiligentCreators/ResellerBytesAiOperation/pull/2)
 - Branch: `work/release-readiness-audit`
-- Latest reviewed head at the time of this note: `c478396a6786502e3ff8be3dbb079a5272342168`
+- Latest reviewed head at the time of this note: `19c34b4565ba4d2d83da890d78c9a72b58cf46d1`
 - PR remains open and Draft. No merge, production migration, deployment, or live WHMCS change has been performed.
 
 ## Previously verified CI baseline
@@ -36,7 +36,7 @@ This run does not verify the later SQL Server/MariaDB additions in this branch.
 
 ## Verification status of this change batch
 
-- Latest branch head: `c478396a6786502e3ff8be3dbb079a5272342168`.
+- Latest branch head: `19c34b4565ba4d2d83da890d78c9a72b58cf46d1`.
 - Run [43514242797](https://github.com/DiligentCreators/ResellerBytesAiOperation/actions/runs/43514242797) (#495) exercised the new matrix on the earlier PR merge SHA: PostgreSQL, MySQL 8.4, MariaDB 11.4, and WHMCS PHP 8.1 passed; SQL Server setup failed because that job used PHP 8.4 while the lock file requires the project PHP 8.5 runtime; general CI failed Pint on one extra blank line and one missing global-class import. Those three causes have been corrected in subsequent commits (SQL Server now uses PHP 8.5; both Pint findings fixed). This is not yet a passing rerun.
 - Run [43514522003](https://github.com/DiligentCreators/ResellerBytesAiOperation/actions/runs/43514522003) (#502) passed all six jobs on code head `238ba1f7f8fb4b09d0ffd8913e4e7bba308ebb42`. General CI: 145 passed, 3 skipped, 619 assertions; PostgreSQL AI-budget/audit concurrency, MySQL 8.4, MariaDB 11.4, SQL Server 2022, and WHMCS PHP 8.1 jobs all passed.
 - A documentation-only clarification was then committed at latest head `f5c5e47c6365993cf6bff82dfdc44a6fdc631b64`; run [43514673907](https://github.com/DiligentCreators/ResellerBytesAiOperation/actions/runs/43514673907) (#503) is checking that exact head. Five jobs have completed successfully so far; general CI is still running at the time of this update.
