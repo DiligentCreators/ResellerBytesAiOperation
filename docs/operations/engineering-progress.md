@@ -211,3 +211,14 @@ This section supersedes earlier CI and recovery-status entries where they confli
 - The hybrid SaaS tenant-isolation, dual-billing, entitlement, and white-label roadmap remains a separate implementation phase and is not certified as delivered by this PR.
 
 A green CI run is necessary but does not close these release gates or authorize merge, migration, or deployment.
+
+
+## Fresh-MFA and two-person AI budget reconciliation — 2026-11-13
+
+- Replaced the prior enrollment-only gate with two fresh six-digit TOTP challenges: one for the initiating operator and one for a distinct independent approver. OTPs are collected through hidden interactive prompts and are never command-line arguments.
+- Verified the pinned Laravel Fortify v1.42.0 implementation. Its TOTP provider uses `verifyKeyNewer` and a cache-backed one-time-code replay guard; the command uses that provider rather than implementing a separate OTP algorithm.
+- Both accounts must have verified email, confirmed TOTP enrollment, and an encrypted TOTP secret. Same-account approval is rejected in both the command and ledger service.
+- Added a forward-only migration for independent approver identity and approval timestamp. The service records both actors and writes separate approval and reconciliation audit events in the same transaction as the reservation release.
+- Added command coverage for missing MFA, unverified approver, same-account rejection, failed fresh TOTP, cancellation, successful two-person approval, and direct-service same-actor rejection.
+- Source changes are committed to PR #2. CI execution and static-analysis verification are pending; this change is not yet certified green. The migration remains branch-only and has not been applied to production.
+- The two-person gate does not establish physical separation or endpoint integrity; the operator account provisioning and database-level audit-integrity release gates remain open.
