@@ -196,6 +196,8 @@ it('deletes only explicitly authorized expired diagnostic runs and preserves run
         ->expectsOutputToContain('Deleted 1 expired diagnostic run(s); protected 1 by active legal hold(s).')
         ->assertSuccessful();
 
+    expect(DB::table('audit_events')->where('event_type', 'diagnostics.retention.deleted')->count())->toBe(1);
+
     expect(DB::table('diagnostic_runs')->where('id', $heldRun->id)->exists())->toBeTrue()
         ->and(DB::table('diagnostic_findings')->where('id', $finding->id)->exists())->toBeTrue()
         ->and(DB::table('diagnostic_runs')->where('id', $eligibleRun->id)->exists())->toBeFalse();
@@ -239,4 +241,19 @@ it('rolls back legal hold release when its immutable audit event cannot be appen
     ))->toThrow(RuntimeException::class, 'audit_write_failed');
 
     expect(DB::table('legal_holds')->where('id', $hold->id)->value('status'))->toBe('active');
+});
+
+
+it('rolls back diagnostic deletion when its immutable audit event cannot be appended', function () {
+    $run = legalHoldDiagnosticRun();
+    config(['diagnostics.retention_cleanup_enabled' => true]);
+
+    $writer = Mockery::mock(AuditEventWriter::class);
+    $writer->shouldReceive('append')->once()->andThrow(new RuntimeException('audit_write_failed'));
+    app()->instance(AuditEventWriter::class, $writer);
+
+    expect(fn () => $this->artisan('diagnostics:retention:prune', ['--execute' => true]))
+        ->toThrow(RuntimeException::class, 'audit_write_failed');
+
+    expect(DB::table('diagnostic_runs')->where('id', $run->id)->exists())->toBeTrue();
 });
