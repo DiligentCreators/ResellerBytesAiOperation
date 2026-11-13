@@ -69,6 +69,10 @@ return new class extends Migration
             });
 
             Schema::table('audit_events', function (Blueprint $table): void {
+                $table->unsignedBigInteger('chain_sequence')->nullable(false)->change();
+                $table->string('previous_hash', 64)->nullable(false)->change();
+                $table->string('event_hash', 64)->nullable(false)->change();
+                $table->unsignedSmallInteger('hash_version')->nullable(false)->change();
                 $table->unique('chain_sequence');
             });
 

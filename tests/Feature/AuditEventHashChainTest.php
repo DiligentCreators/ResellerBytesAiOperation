@@ -75,3 +75,33 @@ it('fails verification when the stored chain head has been changed', function ()
     expect(Artisan::call('audit:verify-integrity'))->toBe(1)
         ->and(Artisan::output())->toContain('stored chain head does not match');
 });
+
+it('detects a modified event payload even when the chain head remains unchanged', function () {
+    if (DB::connection()->getDriverName() !== 'sqlite') {
+        test()->markTestSkipped('This focused trigger suspension test runs on SQLite.');
+    }
+
+    $event = app(AuditEventWriter::class)->append([
+        'event_type' => 'test.payload-tamper',
+        'metadata' => ['source' => 'test'],
+        'occurred_at' => now(),
+    ]);
+
+    DB::unprepared('DROP TRIGGER audit_events_reject_update');
+    try {
+        DB::table('audit_events')->where('id', $event->id)->update([
+            'event_type' => 'test.payload-modified',
+        ]);
+    } finally {
+        DB::unprepared(<<<'SQL'
+            CREATE TRIGGER audit_events_reject_update
+            BEFORE UPDATE ON audit_events
+            BEGIN
+                SELECT RAISE(ABORT, 'audit_events is append-only; UPDATE is prohibited');
+            END;
+        SQL);
+    }
+
+    expect(Artisan::call('audit:verify-integrity'))->toBe(1)
+        ->and(Artisan::output())->toContain('event digest mismatch');
+});
