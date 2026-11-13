@@ -25,7 +25,7 @@ it('reports old diagnostic runs and dependent records without deleting them', fu
             'schema_version' => '1.0',
             'addon_version' => '1.0.0',
             'status' => 'completed',
-            'collected_at' => now()->subDays(100),
+            'collected_at' => now()->subDays(400),
             'received_at' => now()->subDays(100),
             'payload' => [],
             'payload_sha256' => str_repeat('a', 64),
@@ -95,7 +95,7 @@ it('uses an inclusive UTC receipt-time cutoff and leaves newer records out of th
             'schema_version' => '1.0',
             'addon_version' => '1.0.0',
             'status' => 'completed',
-            'collected_at' => now('UTC')->subDays(90),
+            'collected_at' => now('UTC')->subDays(365),
             'received_at' => now('UTC')->subDays(90),
             'payload' => [],
             'payload_sha256' => str_repeat('e', 64),
@@ -113,7 +113,7 @@ it('uses an inclusive UTC receipt-time cutoff and leaves newer records out of th
             'payload_sha256' => str_repeat('f', 64),
         ]);
 
-        $this->artisan('diagnostics:retention:report', ['--days' => '90'])
+        $this->artisan('diagnostics:retention:report', ['--days' => '365'])
             ->expectsOutputToContain('Candidate diagnostic runs: 1')
             ->assertSuccessful();
 
