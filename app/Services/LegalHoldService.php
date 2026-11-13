@@ -1,13 +1,13 @@
 <?php
 
-namespace App\\Services;
+namespace App\Services;
 
-use App\\Models\\LegalHold;
-use App\\Models\\User;
-use App\\Services\\Audit\\AuditEventWriter;
-use Illuminate\\Support\\Facades\\DB;
-use Illuminate\\Support\\Str;
-use Illuminate\\Validation\\ValidationException;
+use App\Models\LegalHold;
+use App\Models\User;
+use App\Services\Audit\AuditEventWriter;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use RuntimeException;
 
 final class LegalHoldService
