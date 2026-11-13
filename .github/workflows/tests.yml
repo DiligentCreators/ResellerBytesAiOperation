@@ -75,11 +75,6 @@ jobs:
           npm ci
           npm run build
 
-      - name: Preview PHP formatter changes
-        run: |
-          vendor/bin/pint --parallel
-          git diff -- app bootstrap database tests
-
       - name: Run CI Checks
         run: composer ci:check
 
