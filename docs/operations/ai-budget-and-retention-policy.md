@@ -149,3 +149,11 @@ Grant SELECT and INSERT on the audit table to the runtime principal and explicit
 SQLite does not provide database users/roles. Protect the database file and its containing directory with operating-system ownership and permissions; the application process must not be able to replace the database file or alter its schema outside the migration process.
 
 These are deployment controls, not changes applied by this repository migration. Do not reuse the migration/owner credentials in web or queue worker environment variables.
+
+### WHMCS integration lifecycle — retained history
+
+- WHMCS integration records are retained after revocation so diagnostic history and audit references remain addressable. Normal lifecycle operations are create, secret rotation, and revocation; revocation invalidates the previous secret and increments the secret version.
+- Hard deletion is rejected by the Eloquent model and by database DELETE triggers for SQLite, PostgreSQL, MySQL/MariaDB, and SQL Server. This is defense in depth, not protection against a database owner/superuser or a principal with schema/trigger administration rights.
+- The runtime database principal must not receive TRUNCATE, DROP, ALTER, or trigger-management privileges. Integration records are not part of the 90-day diagnostic snapshot cleanup policy.
+- Expired request nonces are the only WHMCS integration child records currently pruned automatically; the command deletes in batches of at most 1,000 and 10,000 rows per run. Revoked integrations and their diagnostic history are not pruned.
+- No integration hard-delete or historical diagnostic cleanup is enabled. Any future deletion policy requires an approved retention schedule, legal-hold mechanism, dependency-aware dry run, external audit anchor, and a tested restore procedure.
