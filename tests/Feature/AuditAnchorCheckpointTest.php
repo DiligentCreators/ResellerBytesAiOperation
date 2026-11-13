@@ -86,3 +86,10 @@ it('exposes the checkpoint export artisan command', function () {
     expect($envelope['payload']['chain_sequence'])->toBe(1)
         ->and($envelope['signature'])->toBeString();
 });
+
+it('refuses to reuse the WHMCS addon signing secret for audit anchors', function () {
+    config(['services.whmcs_addon.signing_secret_key' => config('audit.anchor.private_key')]);
+
+    expect(fn () => app(AuditAnchorService::class)->createCheckpoint())
+        ->toThrow(RuntimeException::class, 'audit_anchor_key_must_be_independent_from_whmcs_addon_key');
+});
