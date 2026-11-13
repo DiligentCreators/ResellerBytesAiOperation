@@ -87,7 +87,7 @@ The first pilot validates collection and transport only. It does not authorize r
 - [ ] A database backup has been restored in isolation and compared against the newest external checkpoint before any production migration or pilot.
 - [x] External immutable audit-backup retention period: **365 days**, approved by the project owner on 2026-11-14.
 - [x] Diagnostic retention exception policy approved: no discretionary extensions beyond 365 days; the separately approved, owner-authorized and audited legal hold remains the sole exception.
-- [ ] Legal-hold enforcement implementation and 365-day diagnostic cleanup safeguards are completed and tested; no diagnostic cleanup is enabled before this gate passes.
+- [x] Legal-hold enforcement and guarded 365-day diagnostic cleanup safeguards are implemented with automated tests. Cleanup remains disabled by default; no schedule is registered and explicit deployment approval is still required.
 - [x] Audit events are explicitly excluded from all automated cleanup under the approved indefinite-retention policy.
 
 **Shahrukh ke liye before pilot:** provision the separate cloud account/bucket with the approved 365-day Object Lock retention and Ed25519 key custody; supply the actual Forge database/schema and secret-manager role naming for the PostgreSQL role setup; and arrange the isolated backup/restore rehearsal. Live audit events are retained indefinitely and are never automatically deleted; the separate external backup objects retain the approved 365-day Object Lock period. Do not share private keys or production database passwords in this repository or chat.
