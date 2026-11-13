@@ -200,4 +200,4 @@ No automated diagnostic snapshot cleanup, audit-event expiry, integration deleti
 - Project Owner decision: **indefinite retention**. Audit events must never be automatically deleted, expired, or pruned; there is no 2,555-day expiry.
 - This applies to live audit-event records and is distinct from the separately approved 365-day immutable external backup-object retention. Backup-object lifecycle rules must not be interpreted as authorization to delete the live audit stream.
 - The diagnostic snapshot/finding/recommendation policy remains 365 days, subject only to the approved owner-authorized legal hold. Audit events remain append-only and are excluded from all automated cleanup.
-- This is a repository policy decision; no production migration, retention job, or deployment is authorized by it.
+- Owner authority is configured only through `OPERATIONS_OWNER_EMAIL`; no fallback Owner, role escalation, or public endpoint is provided. CLI placement/release requires fresh TOTP. The migration and commands are repository code only; no production migration, scheduled retention job, or deployment is authorized.
