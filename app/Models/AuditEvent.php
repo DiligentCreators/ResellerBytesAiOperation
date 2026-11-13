@@ -18,6 +18,10 @@ class AuditEvent extends Model
         'metadata',
         'ip_address',
         'occurred_at',
+        'chain_sequence',
+        'previous_hash',
+        'event_hash',
+        'hash_version',
     ];
 
     protected static function booted(): void
@@ -36,6 +40,8 @@ class AuditEvent extends Model
         return [
             'metadata' => 'array',
             'occurred_at' => 'immutable_datetime',
+            'chain_sequence' => 'integer',
+            'hash_version' => 'integer',
         ];
     }
 }

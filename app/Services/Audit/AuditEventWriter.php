@@ -32,7 +32,7 @@ final class AuditEventWriter
                 'event_type' => $attributes['event_type'],
                 'subject_type' => $attributes['subject_type'] ?? null,
                 'subject_id' => isset($attributes['subject_id']) ? (string) $attributes['subject_id'] : null,
-                'metadata' => $attributes['metadata'] ?? [],
+                'metadata' => json_encode($attributes['metadata'] ?? [], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
                 'ip_address' => $attributes['ip_address'] ?? null,
                 'occurred_at' => $attributes['occurred_at'],
             ];
