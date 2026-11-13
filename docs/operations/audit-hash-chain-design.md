@@ -59,6 +59,7 @@ Provide `php artisan audit:verify-integrity` as a read-only command.
 
 The verifier must:
 
+- Run inside a database transaction and lock the singleton chain-head row before streaming. This serializes verification with `AuditEventWriter`, preventing a concurrent append from making the cursor's event set disagree with a newer stored head. Keep the command non-mutating; the lock is coordination only.
 - Stream events in ascending `chain_sequence` order without loading the full history into memory.
 - Require the first previous digest to equal the genesis value.
 - Require sequences to be contiguous and unique.
