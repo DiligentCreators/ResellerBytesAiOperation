@@ -188,3 +188,54 @@ jobs:
       - name: Verify MySQL integration retention trigger
         run: |
           DB_CONNECTION=mysql DB_HOST=127.0.0.1 DB_PORT=3306 DB_DATABASE=testing DB_USERNAME=root DB_PASSWORD=password vendor/bin/pest tests/Feature/Diagnostics/WhmcsIntegrationRetentionMysqlTest.php
+
+  sqlserver-integration-retention:
+    runs-on: ubuntu-latest
+
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: Y
+          MSSQL_PID: Developer
+          MSSQL_SA_PASSWORD: "YourStrong!Passw0rd"
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P 'YourStrong!Passw0rd' -Q 'SELECT 1' || exit 1"
+          --health-interval 10s
+          --health-timeout 10s
+          --health-retries 20
+          --health-start-period 30s
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
+        with:
+          php-version: '8.4'
+          tools: composer:v2
+          extensions: pdo_sqlsrv, sqlsrv, zip
+          coverage: none
+
+      - name: Setup Application
+        run: |
+          composer install --no-interaction --prefer-dist
+          cp .env.example .env
+          php artisan key:generate
+
+      - name: Verify SQL Server integration retention trigger
+        env:
+          DB_CONNECTION: sqlsrv
+          DB_HOST: 127.0.0.1
+          DB_PORT: 1433
+          DB_DATABASE: master
+          DB_USERNAME: sa
+          DB_PASSWORD: "YourStrong!Passw0rd"
+          DB_ENCRYPT: "yes"
+          DB_TRUST_SERVER_CERTIFICATE: "true"
+        run: php tests/Integration/sqlsrv_whmcs_retention.php
