@@ -159,6 +159,7 @@ deployment assumptions, and unresolved findings.
 ## 8. Mandatory no-go findings
 
 Do not approve merge or deployment if any of the following remains true:
+
 - Required CI is red, pending, or was run against a different code SHA.
 - A user can reach operational data or addon actions without confirmed TOTP and
     authorization.
