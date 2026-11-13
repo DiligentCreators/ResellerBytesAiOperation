@@ -1,8 +1,9 @@
 <?php
 
-use App\Models\AuditEvent;
-use App\Models\WhmcsIntegration;
-use Illuminate\Support\Facades\DB;
+use App\\Models\\AuditEvent;
+use App\\Models\\WhmcsIntegration;
+use Illuminate\\Support\\Facades\\DB;
+use LogicException;
 
 test('creates an integration with a one-time encrypted secret and an audit event', function () {
     $this->artisan('whmcs:integration:create', ['name' => 'ResellerBytes Production'])
@@ -17,7 +18,7 @@ test('creates an integration with a one-time encrypted secret and an audit event
 
     expect($integration->name)->toBe('ResellerBytes Production')
         ->and($integration->status)->toBe('active')
-        ->and($integration->secret)->toMatch('/\A[a-f0-9]{64}\z/')
+        ->and($integration->secret)->toMatch('/\\A[a-f0-9]{64}\\z/')
         ->and($storedSecret)->not->toBe($integration->secret)
         ->and($integration->secret_version)->toBe(1)
         ->and(AuditEvent::where('event_type', 'whmcs_integration.created')->count())->toBe(1)
@@ -42,7 +43,7 @@ test('rotates an active integration secret and increments its version', function
     $integration->refresh();
 
     expect($integration->secret)->not->toBe($oldSecret)
-        ->and($integration->secret)->toMatch('/\A[a-f0-9]{64}\z/')
+        ->and($integration->secret)->toMatch('/\\A[a-f0-9]{64}\\z/')
         ->and($integration->secret_version)->toBe(2)
         ->and(AuditEvent::where('event_type', 'whmcs_integration.secret_rotated')->count())->toBe(1)
         ->and(AuditEvent::query()->where('event_type', 'whmcs_integration.secret_rotated')->first()->metadata)
@@ -88,6 +89,20 @@ test('revokes an integration and records the action', function () {
         ->and(AuditEvent::where('event_type', 'whmcs_integration.revoked')->count())->toBe(1)
         ->and(AuditEvent::query()->where('event_type', 'whmcs_integration.revoked')->first()->metadata)
         ->toBe(['secret_version' => 2]);
+});
+
+test('prevents deleting integrations so their audit and diagnostic history remains addressable', function () {
+    $integration = WhmcsIntegration::create([
+        'name' => 'Retained installation',
+        'status' => 'revoked',
+        'secret' => str_repeat('d', 64),
+        'secret_version' => 2,
+    ]);
+
+    expect(fn () => $integration->delete())
+        ->toThrow(LogicException::class, 'revoke the integration instead of deleting it');
+
+    expect(WhmcsIntegration::query()->whereKey($integration->id)->exists())->toBeTrue();
 });
 
 test('rejects an invalid integration name without creating a record', function () {
