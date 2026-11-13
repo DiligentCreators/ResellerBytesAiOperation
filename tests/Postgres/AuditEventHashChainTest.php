@@ -2,7 +2,9 @@
 
 use App\Services\Audit\AuditEventWriter;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 it('rolls back the inserted audit event when the chain head cannot advance', function () {
     expect(DB::connection()->getDriverName())->toBe('pgsql');
@@ -36,4 +38,51 @@ it('rolls back the inserted audit event when the chain head cannot advance', fun
 
     expect(DB::table('audit_events')->count())->toBe(0)
         ->and(DB::table('audit_chain_heads')->where('id', 1)->value('chain_sequence'))->toBe(0);
+});
+
+it('backfills pre-chain audit events deterministically in primary-key order', function () {
+    expect(DB::connection()->getDriverName())->toBe('pgsql');
+
+    DB::unprepared('DROP TRIGGER IF EXISTS audit_events_reject_update_delete ON audit_events');
+    DB::unprepared('DROP TRIGGER IF EXISTS audit_events_reject_truncate ON audit_events');
+    Schema::dropIfExists('audit_chain_heads');
+    Schema::table('audit_events', function (\Illuminate\Database\Schema\Blueprint $table): void {
+        $table->dropUnique(['chain_sequence']);
+        $table->dropColumn(['chain_sequence', 'previous_hash', 'event_hash', 'hash_version']);
+    });
+
+    DB::table('audit_events')->insert([
+        [
+            'actor_type' => 'system_operator',
+            'actor_id' => null,
+            'event_type' => 'legacy.first',
+            'subject_type' => 'legacy',
+            'subject_id' => 'one',
+            'metadata' => json_encode(['legacy' => 1], JSON_THROW_ON_ERROR),
+            'ip_address' => null,
+            'occurred_at' => '2026-11-12 10:00:00',
+        ],
+        [
+            'actor_type' => 'system_operator',
+            'actor_id' => null,
+            'event_type' => 'legacy.second',
+            'subject_type' => 'legacy',
+            'subject_id' => 'two',
+            'metadata' => json_encode(['legacy' => 2], JSON_THROW_ON_ERROR),
+            'ip_address' => null,
+            'occurred_at' => '2026-11-12 10:01:00',
+        ],
+    ]);
+
+    $migration = require database_path('migrations/2026_11_13_000003_add_audit_event_hash_chain.php');
+    $migration->up();
+
+    $events = DB::table('audit_events')->orderBy('chain_sequence')->get();
+
+    expect($events)->toHaveCount(2)
+        ->and((int) $events[0]->chain_sequence)->toBe(1)
+        ->and((int) $events[1]->chain_sequence)->toBe(2)
+        ->and($events[0]->previous_hash)->toBe(App\Services\Audit\AuditEventCanonicalizer::GENESIS_HASH)
+        ->and($events[1]->previous_hash)->toBe($events[0]->event_hash)
+        ->and(Artisan::call('audit:verify-integrity'))->toBe(0);
 });
