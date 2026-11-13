@@ -1,6 +1,6 @@
 # AI spend and data-retention policy design
 
-Status: spend ledger implementation in progress; retention remains design only
+Status: spend ledger implementation in progress; retention reporting is implemented (report-only); destructive retention remains disabled
 Reviewed: 2026-11-12
 Applies to: ResellerBytes AI Operations
 
@@ -153,7 +153,7 @@ These are deployment controls, not changes applied by this repository migration.
 ### WHMCS integration lifecycle — retained history
 
 - WHMCS integration records are retained after revocation so diagnostic history and audit references remain addressable. Normal lifecycle operations are create, secret rotation, and revocation; revocation invalidates the previous secret and increments the secret version.
-- Hard deletion is rejected by the Eloquent model and by database DELETE triggers for SQLite, PostgreSQL, and MySQL. MySQL 8.4 is covered by a dedicated CI service; MariaDB and SQL Server migration branches are implemented but not yet integration-tested. This is defense in depth, not protection against a database owner/superuser or a principal with schema/trigger administration rights.
+- Hard deletion is rejected by the Eloquent model and by database DELETE triggers for SQLite, PostgreSQL, MySQL, MariaDB, and SQL Server. Dedicated pull-request CI jobs exercise MySQL 8.4, MariaDB 11.4, and SQL Server 2022; the SQL Server check creates an isolated minimal table and invokes the production migration directly. These tests validate the trigger's DELETE rejection path, not a full application migration on every engine. This is defense in depth, not protection against a database owner/superuser or a principal with schema/trigger administration rights.
 - The runtime database principal must not receive TRUNCATE, DROP, ALTER, or trigger-management privileges. Integration records are not part of the 90-day diagnostic snapshot cleanup policy.
 - Expired request nonces are the only WHMCS integration child records currently pruned automatically; the command deletes in batches of at most 1,000 and 10,000 rows per run. Revoked integrations and their diagnostic history are not pruned.
 - No integration hard-delete or historical diagnostic cleanup is enabled. Any future deletion policy requires an approved retention schedule, legal-hold mechanism, dependency-aware dry run, external audit anchor, and a tested restore procedure.
@@ -176,7 +176,7 @@ The following items are deliberately not guessed or activated:
 - Keep integration records and diagnostic history out of automatic pruning.
 - Report-only retention candidate reporting is implemented and tested without enabling deletion.
 - Add legal-hold schema and cleanup exclusion tests only after the hold semantics above are approved; do not invent a hold-release workflow.
-- Add MySQL/MariaDB and SQL Server migration integration coverage in isolated CI services before claiming those dialects are verified. The current CI matrix verifies SQLite and PostgreSQL only.
+- MySQL 8.4, MariaDB 11.4, and SQL Server 2022 integration checks are now defined in dedicated CI jobs; require all three jobs to pass on the exact PR head before claiming their retention-trigger paths are verified.
 - Add a release evidence checklist requiring runtime-role negative privilege tests, external anchor read-back/signature verification, backup restore drill, and alert routing proof.
 
 No automated diagnostic snapshot cleanup, audit-event expiry, integration deletion, external anchor upload, or production privilege change is enabled by this policy document.
