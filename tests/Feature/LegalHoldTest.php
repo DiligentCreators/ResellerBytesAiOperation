@@ -146,3 +146,56 @@ it('rolls back a hold if its immutable audit event cannot be appended', function
 
     expect(DB::table('legal_holds')->count())->toBe(0);
 });
+
+
+it('keeps the diagnostic cleanup command dry-run by default and refuses execution while disabled', function () {
+    $run = legalHoldDiagnosticRun();
+
+    $this->artisan('diagnostics:retention:prune')
+        ->expectsOutputToContain('DRY RUN ONLY')
+        ->expectsOutputToContain('Eligible diagnostic runs: 1')
+        ->assertSuccessful();
+
+    expect(DB::table('diagnostic_runs')->where('id', $run->id)->exists())->toBeTrue();
+
+    $this->artisan('diagnostics:retention:prune', ['--execute' => true])
+        ->expectsOutputToContain('Diagnostic cleanup is disabled')
+        ->assertFailed();
+
+    expect(DB::table('diagnostic_runs')->where('id', $run->id)->exists())->toBeTrue();
+});
+
+it('deletes only explicitly authorized expired diagnostic runs and preserves runs protected by descendant holds', function () {
+    $owner = legalHoldOwner();
+    $heldRun = legalHoldDiagnosticRun();
+    $eligibleRun = legalHoldDiagnosticRun();
+    $finding = DiagnosticFinding::create([
+        'diagnostic_run_id' => $heldRun->id,
+        'fingerprint' => str_repeat('d', 64),
+        'category' => 'configuration',
+        'severity' => 'low',
+        'title' => 'Held child finding',
+        'summary' => 'Cleanup guard fixture',
+        'evidence' => [],
+        'confidence' => 0.9,
+        'status' => 'open',
+    ]);
+
+    app(LegalHoldService::class)->place(
+        $owner,
+        'diagnostic_finding',
+        $finding->id,
+        'Preserve this finding for a formal legal matter',
+        'CASE-2026-0043',
+    );
+
+    config(['diagnostics.retention_cleanup_enabled' => true]);
+
+    $this->artisan('diagnostics:retention:prune', ['--execute' => true])
+        ->expectsOutputToContain('Deleted 1 expired diagnostic run(s); protected 1 by active legal hold(s).')
+        ->assertSuccessful();
+
+    expect(DB::table('diagnostic_runs')->where('id', $heldRun->id)->exists())->toBeTrue()
+        ->and(DB::table('diagnostic_findings')->where('id', $finding->id)->exists())->toBeTrue()
+        ->and(DB::table('diagnostic_runs')->where('id', $eligibleRun->id)->exists())->toBeFalse();
+});
