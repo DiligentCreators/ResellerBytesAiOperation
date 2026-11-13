@@ -247,7 +247,7 @@ A green CI run is necessary but does not close these release gates or authorize 
 - Added key-pair consistency and WHMCS-addon-key reuse rejection. Feature tests cover signature tampering, predecessor mismatch, unanchored-tail reporting, key reuse, and key-pair mismatch. PostgreSQL CI now exercises checkpoint export/verification with the PostgreSQL row-lock path.
 - Added independent PostgreSQL migration/runtime role provisioning guidance and expanded the production-pilot checklist with runtime privilege, retention, signed-anchor, restore, and evidence gates.
 - External Object Lock storage upload, remote read-back, alert delivery, independent verifier scheduling, production database role provisioning, and backup/restore rehearsal are not active. They require separate infrastructure, credentials, and operator approval.
-- **Shahrukh ke liye pending:** provision the separate cloud account and Object Lock bucket; arrange independent Ed25519 production signing/anchor key custody; confirm and provision the production PostgreSQL migration/runtime roles and secret-manager access; and provide an isolated backup/restore rehearsal environment and access. The 365-day diagnostic retention period, no-exception rule, indefinite live audit-event retention, and Owner-authorized legal-hold placement/release policy have been approved and recorded; their guarded repository implementation is present on this branch. Do not send private keys or production database passwords through chat or commit them.
+- **Shahrukh ke liye pending:** provision the separate cloud account and Object Lock bucket; arrange independent Ed25519 production signing/anchor key custody; confirm and provision the production PostgreSQL migration/runtime roles and secret-manager access; approve the production provider/model price card after verifying official rates and expiry; and provide an isolated backup/restore rehearsal environment and access. The 365-day diagnostic retention period, no-exception rule, indefinite live audit-event retention, and Owner-authorized legal-hold placement/release policy have been approved and recorded; their guarded repository implementation is present on this branch. Do not send private keys or production database passwords through chat or commit them.
 - PR #2 remains open and Draft. No merge to `main`, production migration, live WHMCS change, or deployment has occurred.
 
 ## Owner-approved retention governance — 2026-11-14
@@ -262,7 +262,6 @@ A green CI run is necessary but does not close these release gates or authorize 
 - Automated tests cover owner authorization, missing owner configuration, hold placement/release audit events, rollback on audit failure, descendant hold protection, dry-run behavior, disabled execution, and bounded cleanup path. CI must verify these tests on the exact PR head before any green claim.
 - Infrastructure provisioning for 365-day Object Lock and independent Ed25519 key custody, plus production backup/restore rehearsal, remain outstanding.
 
-
 ## Diagnostic retention period approved — 2026-11-14
 
 - Project owner approved **365 days** for diagnostic snapshots, including dependent findings and recommendations, measured from `received_at` in UTC.
@@ -271,7 +270,6 @@ A green CI run is necessary but does not close these release gates or authorize 
 - This is the approved policy and report configuration, not authorization to delete records. The command remains report-only and does not evaluate legal holds. Automated cleanup remains disabled until owner-authorized legal-hold storage/workflow, query exclusion, in-transaction hold re-check, fail-closed audit writes, dependency-safe bounded deletion, negative-path tests, and backup/restore gates are complete.
 - Next owner decision: define which non-legal-hold exceptions may extend diagnostic retention beyond 365 days.
 
-
 ## Diagnostic retention exception policy approved — 2026-11-14
 
 - Project Owner decision: **no discretionary exceptions** to the 365-day diagnostic retention period. Non-held diagnostic runs and their dependent findings/recommendations expire after 365 days from UTC `received_at`.
@@ -279,7 +277,6 @@ A green CI run is necessary but does not close these release gates or authorize 
 - Routine support cases, analytics needs, convenience, or an investigation without a formal legal hold do not extend diagnostic retention.
 - Updated the retention policy and production-pilot checklist. This is a policy decision only: the report command remains read-only, does not evaluate holds, and no automated deletion has been enabled.
 - External Object Lock provisioning, independent Ed25519 key custody, production DB-role naming, and restore rehearsal remain credential/infrastructure gates.
-
 
 ## Audit-event retention policy approved — 2026-11-14
 
