@@ -223,7 +223,7 @@ A green CI run is necessary but does not close these release gates or authorize 
 - Trigger enforcement is verified on SQLite and PostgreSQL. MySQL/MariaDB and SQL Server trigger branches are implemented but still require engine-specific integration testing before production selection. PostgreSQL trigger tests demonstrate UPDATE/DELETE/TRUNCATE rejection, including query-builder bypasses.
 - This milestone prevents ordinary SQL mutations but does not provide a cryptographic hash chain or externally anchored tamper evidence; an owner/superuser can still alter schema/triggers and a privileged INSERT can forge new rows. Those controls remain open. The migration has not been applied to production. No merge or deployment has occurred.
 
-## Cryptographic audit-chain milestone — implementation in progress — 2026-11-13
+## Cryptographic audit-chain milestone — implementation complete on branch; rollout pending — 2026-11-13
 
 - Added `docs/operations/audit-hash-chain-design.md` as the implementation contract for the next audit-integrity milestone.
 - The design specifies a versioned SHA-256 hash chain, canonical event serialization, a singleton chain-head row with transaction-level locking, deterministic historical backfill, and a read-only `audit:verify-integrity` command.

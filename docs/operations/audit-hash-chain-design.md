@@ -1,6 +1,6 @@
 # Audit hash-chain design
 
-Status: implementation in progress on the release-readiness branch
+Status: implemented and CI-verified on the release-readiness branch; production rollout remains pending
 Reviewed: 2026-11-13
 Scope: existing append-only `audit_events` stream only
 
