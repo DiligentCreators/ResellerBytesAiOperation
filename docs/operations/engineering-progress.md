@@ -93,7 +93,7 @@ This document records review evidence; it does not certify the application as pr
 ## Operator-approved budget and retention policy — 2026-11-12
 
 - Global AI budget targets approved: USD 5.00 per UTC day and USD 50.00 per UTC calendar month.
-- Diagnostic snapshot retention target approved: 90 days, including dependent findings and recommendations.
+- Diagnostic snapshot retention target approved: 365 days, including dependent findings and recommendations.
 - Audit-event retention target approved: 2,555 days (approximately seven years), separate from diagnostic retention.
 - These are policy targets only. No budget enforcement is active solely because these values were approved.
 - The design calls for atomic daily/monthly reservations, integer micro-USD accounting, versioned model pricing, idempotent usage settlement, and conservative handling of ambiguous provider outcomes.
@@ -242,7 +242,7 @@ A green CI run is necessary but does not close these release gates or authorize 
 
 - Verified exact branch head `7da6eaa3533a940f03f7d1d79d147e3677fa2bf8`: all four required CI jobs passed — general CI, PostgreSQL AI-budget/audit concurrency suite, MySQL 8.4 integration-retention suite, and WHMCS PHP 8.1 compatibility. Run: https://github.com/DiligentCreators/ResellerBytesAiOperation/actions/runs/43506323777
 - Added database-level DELETE protection for retained WHMCS integration history. Regression coverage now exercises SQLite, PostgreSQL, and MySQL 8.4 query-builder deletion attempts. MariaDB and SQL Server code paths remain unverified; PostgreSQL is the documented operations-app database.
-- Added `diagnostics:retention:report --days=90`, a report-only command that counts old diagnostic runs and dependent findings/recommendations. It never deletes data and explicitly warns that legal holds are not evaluated. A receipt-time index supports the report.
+- Updated the report-only command default and documented invocation to `diagnostics:retention:report --days=365`, a report-only command that counts old diagnostic runs and dependent findings/recommendations. It never deletes data and explicitly warns that legal holds are not evaluated. A receipt-time index supports the report.
 - Added Ed25519 audit checkpoint export and verification commands. The exporter verifies the complete local chain while holding the chain-head row lock, signs a minimal checkpoint, and emits the exact JSON artifact. The verifier checks signature, environment, checkpoint predecessor (when supplied), local chain integrity, and the anchored prefix; it reports the unanchored tail.
 - Added key-pair consistency and WHMCS-addon-key reuse rejection. Feature tests cover signature tampering, predecessor mismatch, unanchored-tail reporting, key reuse, and key-pair mismatch. PostgreSQL CI now exercises checkpoint export/verification with the PostgreSQL row-lock path.
 - Added independent PostgreSQL migration/runtime role provisioning guidance and expanded the production-pilot checklist with runtime privilege, retention, signed-anchor, restore, and evidence gates.
@@ -257,3 +257,12 @@ A green CI run is necessary but does not close these release gates or authorize 
 - Legal holds override ordinary retention expiry. Future cleanup must exclude held records, re-check hold state inside the deletion transaction, and fail closed if hold state or audit recording fails.
 - This is a governance/roadmap decision only. Legal-hold schema/API/commands and cleanup enforcement are not yet implemented. Automated diagnostic/audit-history deletion remains disabled pending implementation and tests.
 - The remaining user-side decision is diagnostic retention exceptions; infrastructure provisioning for 365-day Object Lock and independent Ed25519 key custody is also still required.
+
+
+## Diagnostic retention period approved — 2026-11-14
+
+- Project owner approved **365 days** for diagnostic snapshots, including dependent findings and recommendations, measured from `received_at` in UTC.
+- Updated the report-only Artisan command default to 365 days; its explicit `--days` override remains available for controlled reporting. Updated boundary and default-behavior tests to cover the 365-day threshold.
+- Updated the retention policy, production-pilot checklist, and roadmap references from 90 to 365 days. Audit-event retention remains separate at 2,555 days; immutable external audit-backup retention remains 365 days.
+- This is the approved policy and report configuration, not authorization to delete records. The command remains report-only and does not evaluate legal holds. Automated cleanup remains disabled until owner-authorized legal-hold storage/workflow, query exclusion, in-transaction hold re-check, fail-closed audit writes, dependency-safe bounded deletion, negative-path tests, and backup/restore gates are complete.
+- Next owner decision: define which non-legal-hold exceptions may extend diagnostic retention beyond 365 days.
