@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Settings;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\ProfileDeleteRequest;
 use App\Http\Requests\Settings\ProfileUpdateRequest;
-use App\Models\AuditEvent;
+use App\Services\Audit\AuditEventWriter;
 use App\Models\User;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
@@ -66,7 +66,7 @@ class ProfileController extends Controller
                 ]);
             }
 
-            AuditEvent::create([
+            app(AuditEventWriter::class)->append([
                 'actor_type' => 'user',
                 'actor_id' => (string) $userId,
                 'event_type' => 'operations_user.deleted',

@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\StoreDiagnosticSnapshotRequest;
 use App\Jobs\AnalyzeDiagnosticRun;
-use App\Models\AuditEvent;
+use App\Services\Audit\AuditEventWriter;
 use App\Models\DiagnosticRun;
 use App\Models\WhmcsIntegration;
 use Illuminate\Database\QueryException;
@@ -49,7 +49,7 @@ class StoreDiagnosticSnapshotController extends Controller
                     'last_seen_at' => now(),
                 ])->save();
 
-                AuditEvent::create([
+                app(AuditEventWriter::class)->append([
                     'actor_type' => 'integration',
                     'actor_id' => $integration->id,
                     'event_type' => 'diagnostic_snapshot.accepted',

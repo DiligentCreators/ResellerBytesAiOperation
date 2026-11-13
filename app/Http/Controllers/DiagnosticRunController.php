@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Jobs\AnalyzeDiagnosticRun;
-use App\Models\AuditEvent;
+use App\Services\Audit\AuditEventWriter;
 use App\Models\DiagnosticRun;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
@@ -53,7 +53,7 @@ class DiagnosticRunController extends Controller
 
             $run->forceFill(['status' => 'queued'])->save();
 
-            AuditEvent::create([
+            app(AuditEventWriter::class)->append([
                 'actor_type' => 'user',
                 'actor_id' => (string) Auth::id(),
                 'event_type' => 'diagnostic_run.analysis_requested',
