@@ -14,8 +14,18 @@ it('rejects query-builder deletion of a revoked integration on PostgreSQL', func
         'secret_version' => 4,
     ]);
 
-    expect(fn () => DB::table('whmcs_integrations')->where('id', $integration->id)->delete())
-        ->toThrow(QueryException::class, 'whmcs_integrations are retained for audit history');
+    DB::statement('SAVEPOINT whmcs_integration_delete_attempt');
+    $exception = null;
 
-    expect(DB::table('whmcs_integrations')->where('id', $integration->id)->exists())->toBeTrue();
+    try {
+        DB::table('whmcs_integrations')->where('id', $integration->id)->delete();
+    } catch (QueryException $queryException) {
+        $exception = $queryException;
+    }
+
+    DB::statement('ROLLBACK TO SAVEPOINT whmcs_integration_delete_attempt');
+
+    expect($exception)->toBeInstanceOf(QueryException::class)
+        ->and($exception->getMessage())->toContain('whmcs_integrations are retained for audit history')
+        ->and(DB::table('whmcs_integrations')->where('id', $integration->id)->exists())->toBeTrue();
 });
