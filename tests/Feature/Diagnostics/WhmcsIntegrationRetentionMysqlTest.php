@@ -4,8 +4,8 @@ use App\Models\WhmcsIntegration;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 
-it('rejects query-builder deletion of a revoked integration on MySQL', function () {
-    if (DB::connection()->getDriverName() !== 'mysql') {
+it('rejects query-builder deletion of a revoked integration on MySQL or MariaDB', function () {
+    if (! in_array(DB::connection()->getDriverName(), ['mysql', 'mariadb'], true)) {
         $this->markTestSkipped('This integration test requires MySQL or MariaDB.');
     }
 
