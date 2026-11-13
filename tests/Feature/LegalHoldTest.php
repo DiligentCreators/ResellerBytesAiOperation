@@ -148,7 +148,6 @@ it('rolls back a hold if its immutable audit event cannot be appended', function
     expect(DB::table('legal_holds')->count())->toBe(0);
 });
 
-
 it('keeps the diagnostic cleanup command dry-run by default and refuses execution while disabled', function () {
     $run = legalHoldDiagnosticRun();
 
@@ -203,7 +202,6 @@ it('deletes only explicitly authorized expired diagnostic runs and preserves run
         ->and(DB::table('diagnostic_runs')->where('id', $eligibleRun->id)->exists())->toBeFalse();
 });
 
-
 it('fails closed and leaves expired records untouched when hold-state evaluation fails', function () {
     $run = legalHoldDiagnosticRun();
     config(['diagnostics.retention_cleanup_enabled' => true]);
@@ -242,7 +240,6 @@ it('rolls back legal hold release when its immutable audit event cannot be appen
 
     expect(DB::table('legal_holds')->where('id', $hold->id)->value('status'))->toBe('active');
 });
-
 
 it('rolls back diagnostic deletion when its immutable audit event cannot be appended', function () {
     $run = legalHoldDiagnosticRun();
