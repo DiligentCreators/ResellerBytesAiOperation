@@ -141,6 +141,11 @@ class LegalHoldService
         }
 
         if ($subjectType === 'diagnostic_finding') {
+            $runId = DB::table('diagnostic_findings')->where('id', $subjectId)->value('diagnostic_run_id');
+            if ($runId !== null && $this->activeHoldExists('diagnostic_run', (string) $runId)) {
+                return true;
+            }
+
             $recommendationIds = DB::table('diagnostic_recommendations')->select('id')->where('diagnostic_finding_id', $subjectId);
 
             return DB::table('legal_holds')
@@ -148,6 +153,18 @@ class LegalHoldService
                 ->where('subject_type', 'diagnostic_recommendation')
                 ->whereIn('subject_id', $recommendationIds)
                 ->exists();
+        }
+
+        if ($subjectType === 'diagnostic_recommendation') {
+            $parent = DB::table('diagnostic_recommendations')
+                ->join('diagnostic_findings', 'diagnostic_findings.id', '=', 'diagnostic_recommendations.diagnostic_finding_id')
+                ->where('diagnostic_recommendations.id', $subjectId)
+                ->select(['diagnostic_findings.id as finding_id', 'diagnostic_findings.diagnostic_run_id as run_id'])
+                ->first();
+
+            return $parent !== null
+                && ($this->activeHoldExists('diagnostic_finding', (string) $parent->finding_id)
+                    || $this->activeHoldExists('diagnostic_run', (string) $parent->run_id));
         }
 
         return false;
