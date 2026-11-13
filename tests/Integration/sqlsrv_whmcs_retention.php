@@ -15,6 +15,11 @@ if (DB::connection()->getDriverName() !== 'sqlsrv') {
     exit(2);
 }
 
+DB::statement("IF DB_ID(N'testing') IS NULL CREATE DATABASE [testing]");
+DB::purge('sqlsrv');
+config(['database.connections.sqlsrv.database' => 'testing']);
+DB::reconnect('sqlsrv');
+
 Schema::dropIfExists('whmcs_integrations');
 Schema::create('whmcs_integrations', function (Blueprint $table): void {
     $table->bigIncrements('id');
