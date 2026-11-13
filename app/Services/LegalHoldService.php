@@ -23,10 +23,11 @@ final class LegalHoldService
     public function place(User $owner, string $subjectType, string $subjectId, string $reason, string $evidenceReference): LegalHold
     {
         $this->assertOwner($owner);
-        $this->assertSubject($subjectType, $subjectId);
         $this->validateDetails($reason, $evidenceReference);
 
         return DB::transaction(function () use ($owner, $subjectType, $subjectId, $reason, $evidenceReference): LegalHold {
+            $this->lockSubjectRoot($subjectType, $subjectId);
+            $this->assertSubject($subjectType, $subjectId);
             $existing = LegalHold::query()
                 ->where('subject_type', $subjectType)
                 ->where('subject_id', $subjectId)
@@ -150,6 +151,26 @@ final class LegalHoldService
 
         if ($user->email_verified_at === null || $user->two_factor_confirmed_at === null || blank($user->two_factor_secret)) {
             throw new RuntimeException('legal_hold_owner_must_have_verified_email_and_enrolled_mfa');
+        }
+    }
+
+    /** Lock the diagnostic run row so cleanup and hold placement serialize on the same root record. */
+    private function lockSubjectRoot(string $subjectType, string $subjectId): void
+    {
+        $table = $this->assertSubjectType($subjectType);
+        $subject = DB::table($table)->where('id', $subjectId)->first();
+        if ($subject === null) {
+            throw ValidationException::withMessages(['subject' => 'The target record does not exist.']);
+        }
+
+        $runId = match ($subjectType) {
+            'diagnostic_run' => $subjectId,
+            'diagnostic_finding' => (string) $subject->diagnostic_run_id,
+            'diagnostic_recommendation' => (string) DB::table('diagnostic_findings')->where('id', $subject->diagnostic_finding_id)->value('diagnostic_run_id'),
+        };
+
+        if ($runId === '' || ! DB::table('diagnostic_runs')->where('id', $runId)->lockForUpdate()->exists()) {
+            throw ValidationException::withMessages(['subject' => 'The target record or its diagnostic run no longer exists.']);
         }
     }
 
