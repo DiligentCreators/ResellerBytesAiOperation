@@ -205,20 +205,17 @@ This section supersedes earlier CI and recovery-status entries where they confli
 - Added a provider-timeout feature test proving that an exception after the submit callback leaves the attempt ambiguous, retains both reservations, and prevents a second provider submission while the outcome remains unresolved.
 - The bounded `diagnostics:recover-queued` command now inspects the latest budget attempt while holding the diagnostic-run row lock. A stale pre-submit `reserved` attempt is safely released before redispatch; a stale `submitted` attempt is changed to `ambiguous` and held for operator review; an already ambiguous attempt remains held; and a settled attempt belonging to the interrupted analysis is not automatically charged again or redispatched.
 - Added recovery tests for pre-submit worker loss, post-submit worker loss, and worker loss after provider usage settlement. These tests passed in both the main CI suite and PostgreSQL 16 suite.
-- A stale submitted attempt is retained as ambiguous because provider acceptance and billing cannot be inferred from a worker crash. The existing operator command only releases confirmed-not-charged attempts. A separately reviewed confirmed-charge settlement workflow and fresh MFA/two-person approval remain outstanding.
+- A stale submitted attempt is retained as ambiguous because provider acceptance and billing cannot be inferred from a worker crash. The existing operator command only releases confirmed-not-charged attempts. Fresh-MFA and two-person approval are now implemented on this branch; confirmed-charge settlement remains outstanding.
 - PR #2 remains open and Draft. No merge, production migration, live WHMCS change, or deployment has occurred. The AI budget migration and enforcement remain branch-only.
-- Remaining release gates include database-level audit immutability, confirmed-charge settlement and stronger reconciliation approval, integration deletion/history lifecycle, production signing-key setup and ZIP verification, approved retention implementation, backup/restore rehearsal, production infrastructure verification, and an explicitly approved read-only WHMCS pilot.
+- Remaining release gates include database-level audit immutability, confirmed-charge settlement, integration deletion/history lifecycle, production signing-key setup and ZIP verification, approved retention implementation, backup/restore rehearsal, production infrastructure verification, and an explicitly approved read-only WHMCS pilot.
 - The hybrid SaaS tenant-isolation, dual-billing, entitlement, and white-label roadmap remains a separate implementation phase and is not certified as delivered by this PR.
 
 A green CI run is necessary but does not close these release gates or authorize merge, migration, or deployment.
 
 
-## Fresh-MFA and two-person AI budget reconciliation — 2026-11-13
+## Fresh MFA and dual approval reconciliation - 2026-11-13
 
-- Replaced the prior enrollment-only gate with two fresh six-digit TOTP challenges: one for the initiating operator and one for a distinct independent approver. OTPs are collected through hidden interactive prompts and are never command-line arguments.
-- Verified the pinned Laravel Fortify v1.42.0 implementation. Its TOTP provider uses `verifyKeyNewer` and a cache-backed one-time-code replay guard; the command uses that provider rather than implementing a separate OTP algorithm.
-- Both accounts must have verified email, confirmed TOTP enrollment, and an encrypted TOTP secret. Same-account approval is rejected in both the command and ledger service.
-- Added a forward-only migration for independent approver identity and approval timestamp. The service records both actors and writes separate approval and reconciliation audit events in the same transaction as the reservation release.
-- Added command coverage for missing MFA, unverified approver, same-account rejection, failed fresh TOTP, cancellation, successful two-person approval, and direct-service same-actor rejection.
-- Source changes are committed to PR #2. CI execution and static-analysis verification are pending; this change is not yet certified green. The migration remains branch-only and has not been applied to production.
-- The two-person gate does not establish physical separation or endpoint integrity; the operator account provisioning and database-level audit-integrity release gates remain open.
+- Fresh hidden TOTP prompts now verify two distinct, verified operators.
+- Laravel Fortify's cache-backed replay protection is reused.
+- Both identities and separate audit events are persisted atomically.
+- Tests and CI verification are in progress; migration remains branch-only.
