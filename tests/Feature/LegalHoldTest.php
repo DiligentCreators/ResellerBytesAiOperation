@@ -49,6 +49,7 @@ function legalHoldDiagnosticRun(): DiagnosticRun
 }
 
 beforeEach(function () {
+    config(['app.key' => 'base64:'.base64_encode(str_repeat('k', 32))]);
     config(['operations.owner_email' => 'owner@example.test']);
 });
 
