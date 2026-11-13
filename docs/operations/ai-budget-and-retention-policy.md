@@ -8,7 +8,7 @@ Applies to: ResellerBytes AI Operations
 
 - **Global AI spend limit per UTC day:** USD 5.00
 - **Global AI spend limit per UTC calendar month:** USD 50.00
-- **Diagnostic snapshot retention:** 90 days
+- **Diagnostic snapshot retention:** 365 days
 - **Audit event retention:** 2,555 days (approximately seven years)
 
 The daily and monthly limits apply to the application as a whole, across all WHMCS integrations and operators. The monthly limit is independent of the daily limit; both must have available capacity before a provider request is submitted. Period boundaries use UTC to keep accounting deterministic across operators and hosting locations.
@@ -57,19 +57,19 @@ Migration `2026_11_12_000008_create_ai_budget_ledger_tables.php` adds the daily/
 
 ## Data-retention design
 
-### Diagnostic snapshots — 90 days
+### Diagnostic snapshots — 365 days
 
 - Retention age is measured from snapshot receipt time in UTC.
-- The 90-day policy applies to the diagnostic run and its dependent findings and recommendations, because those records contain derived evidence from the same snapshot.
+- The 365-day policy applies to the diagnostic run and its dependent findings and recommendations, because those records contain derived evidence from the same snapshot.
 - Before any deletion, provide a dry-run report with candidate counts, oldest/newest timestamps, and affected dependent records.
-- A report-only command is now available: `php artisan diagnostics:retention:report --days=90`. It reports candidate run counts, dependent finding/recommendation counts, cutoff, and oldest/newest receipt timestamps; it never deletes data and explicitly warns that legal holds are not evaluated. The eventual cleanup must use bounded batches, deterministic ordering, row-level rechecks, and an explicit enable/disable switch.
+- A report-only command is now available: `php artisan diagnostics:retention:report --days=365`. It reports candidate run counts, dependent finding/recommendation counts, cutoff, and oldest/newest receipt timestamps; it never deletes data and explicitly warns that legal holds are not evaluated. The eventual cleanup must use bounded batches, deterministic ordering, row-level rechecks, and an explicit enable/disable switch.
 - Deletion must preserve the independent audit-event record. Do not cascade diagnostic retention into audit events or integration records.
-- Any legal/security hold mechanism must exclude held records from cleanup; the hold model must be decided before enabling automated deletion.
+- The approved legal-hold model must exclude held records from cleanup; the hold state must be re-checked inside the deletion transaction, and any hold-state or audit-write failure must fail closed.
 
 ### Audit events — 2,555 days
 
 - Retain audit events for at least 2,555 days from `occurred_at`.
-- Do not apply the diagnostic snapshot's 90-day policy to audit events.
+- Do not apply the diagnostic snapshot's 365-day policy to audit events.
 - Audit events remain append-only during their retention period. A forward-only migration installs database triggers that reject UPDATE and DELETE for SQLite, PostgreSQL, MySQL/MariaDB, and SQL Server; PostgreSQL also rejects TRUNCATE. Eloquent guards remain defense in depth. MySQL/MariaDB and SQL Server do not provide equivalent row-trigger protection for TRUNCATE, so the runtime database principal must not have TRUNCATE, DROP, ALTER, or trigger-management privileges. Production must use a least-privilege runtime principal separate from the migration/owner principal. A database owner/superuser can still disable triggers or alter the schema; separately controlled backups/exports and external tamper-evident retention remain release gates.
 - Any eventual expiry job must be bounded, dry-run capable, auditable, and must not run until a production backup and restore procedure has been verified.
 - The 2,555-day target does not authorize deletion of records before their expiry or bypass any applicable legal hold.
@@ -154,7 +154,7 @@ These are deployment controls, not changes applied by this repository migration.
 
 - WHMCS integration records are retained after revocation so diagnostic history and audit references remain addressable. Normal lifecycle operations are create, secret rotation, and revocation; revocation invalidates the previous secret and increments the secret version.
 - Hard deletion is rejected by the Eloquent model and by database DELETE triggers for SQLite, PostgreSQL, MySQL, MariaDB, and SQL Server. Dedicated pull-request CI jobs exercise MySQL 8.4, MariaDB 11.4, and SQL Server 2022; the SQL Server check creates an isolated minimal table and invokes the production migration directly. These tests validate the trigger's DELETE rejection path, not a full application migration on every engine. This is defense in depth, not protection against a database owner/superuser or a principal with schema/trigger administration rights.
-- The runtime database principal must not receive TRUNCATE, DROP, ALTER, or trigger-management privileges. Integration records are not part of the 90-day diagnostic snapshot cleanup policy.
+- The runtime database principal must not receive TRUNCATE, DROP, ALTER, or trigger-management privileges. Integration records are not part of the 365-day diagnostic snapshot cleanup policy.
 - Expired request nonces are the only WHMCS integration child records currently pruned automatically; the command deletes in batches of at most 1,000 and 10,000 rows per run. Revoked integrations and their diagnostic history are not pruned.
 - No integration hard-delete or historical diagnostic cleanup is enabled. Any future deletion policy requires an approved retention schedule, legal-hold mechanism, dependency-aware dry run, external audit anchor, and a tested restore procedure.
 
