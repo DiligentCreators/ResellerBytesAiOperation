@@ -112,3 +112,41 @@ The command requires two distinct, email-verified operator accounts with confirm
 This command supports only the verified **not charged** outcome. It does not guess token usage, fabricate a provider response ID, or release an attempt when the provider outcome remains unknown. If provider evidence confirms a charge, do not use this command; preserve the hold and follow a separately reviewed settlement procedure. Keep provider evidence in the approved restricted evidence store and reference it without copying secrets into the audit record.
 
 The command is a privileged operational control, not a substitute for provider evidence, least-privilege database roles, externally retained tamper-evident backups, or a separately controlled operator identity process. The two-person approval requirement is enforced in the command and service layer; it does not by itself prove that the two people are physically separate or that their endpoints are uncompromised. Production use remains blocked until PostgreSQL transaction/concurrency tests, fresh-MFA/dual-approval tests, and the full CI workflow pass.
+
+
+## Audit database-role hardening
+
+The trigger migration is only one layer. Production credentials must be split:
+
+- **Migration/owner principal:** used only by controlled deployment migrations; owns the audit table and its triggers.
+- **Application runtime principal:** used by web/queue workers; receives only the table privileges required at runtime. It must not own the table, manage triggers, or perform schema changes.
+- **Backup/restore principal:** separately controlled and not available to application workers.
+
+Before production activation, apply and verify the engine-specific equivalent of the following controls using the actual deployment role names:
+
+### PostgreSQL
+
+```sql
+REVOKE ALL ON TABLE public.audit_events FROM PUBLIC;
+REVOKE UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER
+    ON TABLE public.audit_events FROM app_runtime;
+GRANT SELECT, INSERT ON TABLE public.audit_events TO app_runtime;
+REVOKE ALL ON SEQUENCE public.audit_events_id_seq FROM PUBLIC;
+GRANT USAGE, SELECT ON SEQUENCE public.audit_events_id_seq TO app_runtime;
+```
+
+The table owner must be a separate migration principal. A superuser or owner can still alter/drop triggers or the table; use controlled credentials and externally retained backups.
+
+### MySQL / MariaDB
+
+Grant the runtime principal only SELECT and INSERT on the audit table. Do not grant UPDATE, DELETE, DROP, ALTER, TRIGGER, or global/schema-level privileges that imply those operations. In MySQL-family engines, TRUNCATE is a DROP-class operation and is not blocked by row triggers. The migration principal alone should own schema-change privileges.
+
+### SQL Server
+
+Grant SELECT and INSERT on the audit table to the runtime principal and explicitly DENY UPDATE, DELETE, ALTER, and CONTROL on the table; deny schema/database DDL and trigger-management privileges to the runtime principal. TRUNCATE is controlled by ALTER permission and must remain unavailable to the runtime principal.
+
+### SQLite
+
+SQLite does not provide database users/roles. Protect the database file and its containing directory with operating-system ownership and permissions; the application process must not be able to replace the database file or alter its schema outside the migration process.
+
+These are deployment controls, not changes applied by this repository migration. Do not reuse the migration/owner credentials in web or queue worker environment variables.
