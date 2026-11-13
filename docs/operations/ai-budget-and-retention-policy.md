@@ -62,7 +62,7 @@ Migration `2026_11_12_000008_create_ai_budget_ledger_tables.php` adds the daily/
 - Retention age is measured from snapshot receipt time in UTC.
 - The 90-day policy applies to the diagnostic run and its dependent findings and recommendations, because those records contain derived evidence from the same snapshot.
 - Before any deletion, provide a dry-run report with candidate counts, oldest/newest timestamps, and affected dependent records.
-- The eventual cleanup must use bounded batches, deterministic ordering, row-level rechecks, and an explicit enable/disable switch.
+- A report-only command is now available: `php artisan diagnostics:retention:report --days=90`. It reports candidate run counts, dependent finding/recommendation counts, cutoff, and oldest/newest receipt timestamps; it never deletes data and explicitly warns that legal holds are not evaluated. The eventual cleanup must use bounded batches, deterministic ordering, row-level rechecks, and an explicit enable/disable switch.
 - Deletion must preserve the independent audit-event record. Do not cascade diagnostic retention into audit events or integration records.
 - Any legal/security hold mechanism must exclude held records from cleanup; the hold model must be decided before enabling automated deletion.
 
@@ -174,7 +174,7 @@ The following items are deliberately not guessed or activated:
 
 - Keep the nonce-prune command bounded and idempotent; test expiry boundary, batch cap, and rerun behavior.
 - Keep integration records and diagnostic history out of automatic pruning.
-- Add dry-run/report-only retention candidate queries without enabling deletion.
+- Report-only retention candidate reporting is implemented and tested without enabling deletion.
 - Add legal-hold schema and cleanup exclusion tests only after the hold semantics above are approved; do not invent a hold-release workflow.
 - Add MySQL/MariaDB and SQL Server migration integration coverage in isolated CI services before claiming those dialects are verified. The current CI matrix verifies SQLite and PostgreSQL only.
 - Add a release evidence checklist requiring runtime-role negative privilege tests, external anchor read-back/signature verification, backup restore drill, and alert routing proof.
