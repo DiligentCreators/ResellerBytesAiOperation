@@ -10,29 +10,28 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schedule;
+use Laravel\Fortify\Contracts\TwoFactorAuthenticationProvider;
+use Laravel\Fortify\Fortify;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-Artisan::command('ai-budget:reconcile-no-charge {attempt} {--operator=} {--evidence=} {--note=}', function (AiBudgetService $budget) {
+Artisan::command('ai-budget:reconcile-no-charge {attempt} {--operator=} {--approver=} {--evidence=} {--note=}', function (AiBudgetService $budget, TwoFactorAuthenticationProvider $twoFactorProvider) {
     $attemptArgument = $this->argument('attempt');
     $attemptId = is_string($attemptArgument) ? trim($attemptArgument) : '';
-
-    if ($attemptId === '') {
-        $this->error('Provide a valid AI usage attempt UUID.');
-
-        return 1;
-    }
     $operatorOption = $this->option('operator');
+    $approverOption = $this->option('approver');
     $evidenceOption = $this->option('evidence');
     $noteOption = $this->option('note');
     $operatorEmail = is_string($operatorOption) ? trim($operatorOption) : '';
+    $approverEmail = is_string($approverOption) ? trim($approverOption) : '';
     $evidenceReference = is_string($evidenceOption) ? trim($evidenceOption) : '';
     $note = is_string($noteOption) ? trim($noteOption) : '';
 
-    if ($operatorEmail === '' || $evidenceReference === '' || mb_strlen($evidenceReference) > 255 || mb_strlen($note) < 20 || mb_strlen($note) > 1000) {
-        $this->error('Provide --operator, --evidence, and a --note between 20 and 1000 characters.');
+    if ($attemptId === '' || $operatorEmail === '' || $approverEmail === '' || $operatorEmail === $approverEmail
+        || $evidenceReference === '' || mb_strlen($evidenceReference) > 255 || mb_strlen($note) < 20 || mb_strlen($note) > 1000) {
+        $this->error('Provide an attempt UUID, distinct --operator and --approver emails, --evidence, and a --note between 20 and 1000 characters.');
 
         return 1;
     }
@@ -41,10 +40,17 @@ Artisan::command('ai-budget:reconcile-no-charge {attempt} {--operator=} {--evide
         ->where('email', $operatorEmail)
         ->whereNotNull('email_verified_at')
         ->whereNotNull('two_factor_confirmed_at')
+        ->whereNotNull('two_factor_secret')
+        ->first();
+    $approver = User::query()
+        ->where('email', $approverEmail)
+        ->whereNotNull('email_verified_at')
+        ->whereNotNull('two_factor_confirmed_at')
+        ->whereNotNull('two_factor_secret')
         ->first();
 
-    if ($operator === null) {
-        $this->error('The operator account was not found or has not confirmed TOTP MFA.');
+    if ($operator === null || $approver === null || (string) $operator->getKey() === (string) $approver->getKey()) {
+        $this->error('Both operators must be distinct, verified accounts with confirmed TOTP MFA and an enrolled secret.');
 
         return 1;
     }
@@ -58,9 +64,36 @@ Artisan::command('ai-budget:reconcile-no-charge {attempt} {--operator=} {--evide
 
     $this->warn('This releases a held reservation. Verify provider-side evidence that the request was NOT accepted and no charge was incurred.');
     $this->line('Attempt: '.$attempt->id.' | Model: '.$attempt->model.' | Reserved micro-USD: '.$attempt->reserved_micro_usd);
-    $this->line('Operator: '.$operator->email.' | Evidence reference: '.$evidenceReference);
+    $this->line('Initiating operator: '.$operator->email.' | Independent approver: '.$approver->email);
+    $this->line('Evidence reference: '.$evidenceReference);
 
-    if ($this->confirm('Have you independently verified the provider evidence and approve this no-charge reconciliation?', false) === false) {
+    foreach ([
+        ['user' => $operator, 'label' => 'initiating operator'],
+        ['user' => $approver, 'label' => 'independent approver'],
+    ] as $challenge) {
+        $code = $this->secret('Enter the current 6-digit TOTP code for '.$challenge['label'].' ('.$challenge['user']->email.')');
+        if (! is_string($code) || preg_match('/^\d{6}$/D', trim($code)) !== 1) {
+            $this->error('A valid six-digit TOTP code is required for both operators.');
+
+            return 1;
+        }
+
+        try {
+            $secret = Fortify::currentEncrypter()->decrypt($challenge['user']->two_factor_secret);
+        } catch (Throwable) {
+            $this->error('Unable to verify TOTP enrollment for one of the operators.');
+
+            return 1;
+        }
+
+        if (! $twoFactorProvider->verify($secret, trim($code))) {
+            $this->error('Fresh TOTP verification failed for '.$challenge['label'].'. No changes made.');
+
+            return 1;
+        }
+    }
+
+    if ($this->confirm('Both operators approve releasing this reservation based on the cited no-charge evidence?', false) === false) {
         $this->comment('No changes made.');
 
         return 1;
@@ -70,6 +103,7 @@ Artisan::command('ai-budget:reconcile-no-charge {attempt} {--operator=} {--evide
         $budget->reconcileConfirmedNoCharge(
             $attempt,
             (string) $operator->getKey(),
+            (string) $approver->getKey(),
             $evidenceReference,
             $note,
         );
@@ -79,10 +113,10 @@ Artisan::command('ai-budget:reconcile-no-charge {attempt} {--operator=} {--evide
         return 1;
     }
 
-    $this->info('Ambiguous reservation reconciled as confirmed not charged. Audit event recorded.');
+    $this->info('Ambiguous reservation reconciled as confirmed not charged. Both operators and the approval were recorded in the audit stream.');
 
     return 0;
-})->purpose('Release an ambiguous AI reservation only after evidence-based operator verification');
+})->purpose('Release an ambiguous AI reservation only after fresh TOTP from two distinct operators and evidence-based approval');
 
 Artisan::command('diagnostics:recover-queued {--stale-minutes=15} {--limit=100}', function (AiBudgetService $budget) {
     $staleMinutes = max(5, min(1440, (int) $this->option('stale-minutes')));
