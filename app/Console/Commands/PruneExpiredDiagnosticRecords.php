@@ -12,7 +12,7 @@ class PruneExpiredDiagnosticRecords extends Command
 
     protected $description = 'Delete expired diagnostic records in bounded batches, excluding active legal holds';
 
-    public function handle(LegalHoldService $holds): int
+    public function handle(LegalHoldService $holds, AuditEventWriter $audit): int
     {
         $limit = filter_var($this->option('limit'), FILTER_VALIDATE_INT);
         if ($limit === false || $limit < 1 || $limit > 500) {
@@ -51,7 +51,7 @@ class PruneExpiredDiagnosticRecords extends Command
                 continue;
             }
 
-            $result = DB::transaction(function () use ($id, $cutoff, $holds): string {
+            $result = DB::transaction(function () use ($id, $cutoff, $holds, $audit): string {
                 $run = DB::table('diagnostic_runs')->where('id', $id)->lockForUpdate()->first();
                 if ($run === null
                     || in_array($run->status, ['received', 'queued', 'analyzing'], true)
@@ -66,7 +66,7 @@ class PruneExpiredDiagnosticRecords extends Command
                     return 'held';
                 }
 
-                DB::table('diagnostic_runs')->where('id', $id)->delete();
+                $audit->append([\n                    'actor_type' => 'system',\n                    'event_type' => 'diagnostics.retention.deleted',\n                    'subject_type' => 'diagnostic_run',\n                    'subject_id' => (string) $id,\n                    'metadata' => [\n                        'retention_days' => 365,\n                        'received_at' => $run->received_at,\n                        'policy' => 'diagnostic_received_at_365_days',\n                    ],\n                    'occurred_at' => now('UTC'),\n                ]);\n\n                DB::table('diagnostic_runs')->where('id', $id)->delete();
 
                 return 'deleted';
             }, 3);
