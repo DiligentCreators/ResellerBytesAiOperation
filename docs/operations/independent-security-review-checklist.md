@@ -122,14 +122,12 @@ deployment assumptions, and unresolved findings.
 
 ## 6. Retention, backups, and recovery
 
-- [ ] Verify the 90-day diagnostic report uses UTC receipt time, includes the
+- [ ] Verify the 365-day diagnostic report uses UTC receipt time, includes the
       exact cutoff boundary, counts dependent findings/recommendations, and never
       deletes records.
 - [ ] Confirm the report warns that legal holds are not evaluated.
-- [ ] Confirm no diagnostic cleanup, audit expiry, integration deletion, or
-      destructive pruning is scheduled or enabled.
-- [ ] Confirm legal-hold authority, release workflow, retention exceptions, and
-      evidence reference remain explicit operator/compliance decisions.
+- [ ] Confirm diagnostic cleanup is not scheduled and remains disabled by default; dry-run is the default and execution requires the feature flag plus explicit `--execute`. Confirm audit expiry and integration deletion are not scheduled or enabled.
+- [ ] Confirm the Owner-authorized legal-hold placement/release workflow records immutable audit evidence, uses fresh TOTP, and fails closed on audit-write failure. Confirm legal holds are the sole exception to the 365-day diagnostic retention period.
 - [ ] Review nonce cleanup for bounded batches, idempotency, expiry boundary,
       and rerun behavior.
 - [ ] Require isolated backup restore rehearsal and compare the restored chain
@@ -162,21 +160,21 @@ Do not approve merge or deployment if any of the following remains true:
 
 - Required CI is red, pending, or was run against a different code SHA.
 - A user can reach operational data or addon actions without confirmed TOTP and
-      authorization.
+  authorization.
 - WHMCS payloads contain customer, billing, credential, or raw configuration
-      data.
+  data.
 - Package signature/fingerprint verification is missing or can be bypassed.
 - AI budget reservations can be raced, duplicated, or released after an
-      ambiguous provider outcome.
+  ambiguous provider outcome.
 - Audit writes bypass the central writer, verification can race with append, or
-      runtime credentials can mutate/delete audit history.
+  runtime credentials can mutate/delete audit history.
 - Production runtime and migration-owner credentials are shared.
 - Destructive retention can run without approved legal-hold policy and a
-      verified restore.
+  verified restore.
 - External anchoring or backup controls are claimed active without independent
-      provisioning and read-back evidence.
+  provisioning and read-back evidence.
 - Any production migration, deployment, live WHMCS change, or pilot is attempted
-      without explicit operator approval and rollback readiness.
+  without explicit operator approval and rollback readiness.
 
 ## 9. Review record
 
@@ -189,7 +187,7 @@ Do not approve merge or deployment if any of the following remains true:
 - Required remediation commits:
 - Retest SHA and CI run:
 - Final disposition: Not started / In progress / Changes required / Approved
-      with conditions / Approved
+  with conditions / Approved
 
 A reviewer must not mark this checklist approved based solely on repository CI.
 Production identity, database grants, cloud Object Lock, backup restoration,
