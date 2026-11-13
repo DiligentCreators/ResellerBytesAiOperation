@@ -255,8 +255,12 @@ A green CI run is necessary but does not close these release gates or authorize 
 - Project owner approved **365-day** immutable external audit-backup retention; recorded in the production-pilot checklist.
 - Project owner approved **Owner approval with audit trail** for legal-hold placement and release. Both actions must append an immutable audit event with owner identity, UTC timestamp, affected scope, reason, controlled evidence/case reference, and resulting state.
 - Legal holds override ordinary retention expiry. Future cleanup must exclude held records, re-check hold state inside the deletion transaction, and fail closed if hold state or audit recording fails.
-- This is a governance/roadmap decision only. Legal-hold schema/API/commands and cleanup enforcement are not yet implemented. Automated diagnostic/audit-history deletion remains disabled pending implementation and tests.
-- The remaining user-side decision is diagnostic retention exceptions; infrastructure provisioning for 365-day Object Lock and independent Ed25519 key custody is also still required.
+- The Owner identity decision is implemented as a single `OPERATIONS_OWNER_EMAIL` configuration value. The configured account must be email-verified and have MFA enrolled; CLI placement/release additionally verifies a fresh TOTP code.
+- Implemented the legal-hold migration/model/service and `legal-hold:place` / `legal-hold:release` commands. Hold placement/release and immutable audit-event writes share a database transaction; audit failure rolls back the hold state change.
+- Implemented hold inheritance for diagnostic runs, findings, and recommendations. Hold placement and cleanup serialize on the diagnostic-run row; cleanup re-checks active holds inside the deletion transaction.
+- Added bounded `diagnostics:retention:prune` with dry-run default, a disabled-by-default feature flag, explicit `--execute`, active-run exclusion, and cascade-safe deletion. No schedule is registered and the feature flag remains false.
+- Automated tests cover owner authorization, missing owner configuration, hold placement/release audit events, rollback on audit failure, descendant hold protection, dry-run behavior, disabled execution, and bounded cleanup path. CI must verify these tests on the exact PR head before any green claim.
+- Infrastructure provisioning for 365-day Object Lock and independent Ed25519 key custody, plus production backup/restore rehearsal, remain outstanding.
 
 
 ## Diagnostic retention period approved — 2026-11-14
