@@ -211,3 +211,13 @@ This section supersedes earlier CI and recovery-status entries where they confli
 - The hybrid SaaS tenant-isolation, dual-billing, entitlement, and white-label roadmap remains a separate implementation phase and is not certified as delivered by this PR.
 
 A green CI run is necessary but does not close these release gates or authorize merge, migration, or deployment.
+
+
+## Database-enforced audit append-only controls - 2026-11-13
+
+- Added a forward-only migration installing database triggers that reject UPDATE and DELETE on audit_events for SQLite, PostgreSQL, MySQL/MariaDB, and SQL Server.
+- PostgreSQL also rejects TRUNCATE with a statement-level trigger. MySQL/MariaDB and SQL Server do not have equivalent row-trigger coverage for TRUNCATE; production runtime credentials must therefore be denied TRUNCATE, DROP, ALTER, and trigger-management privileges.
+- Added regression tests that bypass Eloquent through the query builder and verify direct UPDATE/DELETE rejection; PostgreSQL CI additionally verifies TRUNCATE rejection.
+- Added the audit immutability feature test to the PostgreSQL 16 CI job. Full branch-head CI is pending.
+- Triggers are defense in depth, not protection against a database owner/superuser who can disable triggers or alter the schema. Production still requires a distinct least-privilege runtime DB principal, a separately controlled migration principal, and externally retained backup/export evidence.
+- The migration has not been applied to production. No merge or deployment has occurred.
