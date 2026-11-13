@@ -22,12 +22,6 @@ class VerifyAuditAnchorCheckpoint extends Command
         }
 
         $bytes = file_get_contents($path);
-        if (! is_string($bytes)) {
-            $this->error('Unable to read the checkpoint file.');
-
-            return self::FAILURE;
-        }
-
         $previous = $this->option('expected-previous');
         $expectedPrevious = is_string($previous) && $previous !== '' ? $previous : null;
 
