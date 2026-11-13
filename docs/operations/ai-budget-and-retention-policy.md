@@ -87,7 +87,7 @@ Migration `2026_11_12_000008_create_ai_budget_ledger_tables.php` adds the daily/
 
 - No production OpenAI spend cap is claimed until the migration is applied and PostgreSQL concurrency and deployment verification pass.
 - Automated queue retries are disabled for billable analysis attempts; unresolved submitted attempts remain reserved and block another billable attempt. Explicit manual reanalysis is possible only after the prior attempt is settled or reconciled.
-- An authenticated operator reconciliation workflow is not yet implemented; ambiguous attempts must remain held until a reviewed reconciliation process is added.
+- A fresh-MFA, two-person no-charge reconciliation command is implemented on the review branch. It is not production-enabled; the migration remains unapplied and CI/release gates still apply.
 - No destructive migration or data-pruning command is run as part of this design.
 - No provider price is hard-coded in this document; price-card values must be verified against the provider's current official pricing when implementation is prepared.
 
@@ -101,7 +101,8 @@ The guarded server-side command is:
 
 ```sh
 php artisan ai-budget:reconcile-no-charge ATTEMPT_UUID \
-  --operator=operator@example.com \
+  --operator=initiator@example.com \
+  --approver=independent-approver@example.com \
   --evidence=PROVIDER_DASHBOARD_CASE_OR_REQUEST_REFERENCE \
   --note="Verified provider request history shows no accepted request and no charge."
 ```
