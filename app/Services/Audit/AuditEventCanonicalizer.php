@@ -16,7 +16,7 @@ final class AuditEventCanonicalizer
     private const DOMAIN = "resellerbytes.audit-event.v1\n";
 
     /**
-     * @param array<string, mixed> $event
+     * @param  array<string, mixed>  $event
      *
      * @throws JsonException
      */

@@ -101,7 +101,7 @@ return new class extends Migration
         } elseif ($driver === 'sqlsrv') {
             DB::unprepared('DISABLE TRIGGER audit_events_reject_update_delete ON audit_events');
         } else {
-            throw new \RuntimeException('Unsupported database driver for audit-chain backfill: '.$driver);
+            throw new RuntimeException('Unsupported database driver for audit-chain backfill: '.$driver);
         }
     }
 

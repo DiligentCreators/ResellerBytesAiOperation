@@ -7,12 +7,12 @@ use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
-final class AuditEventWriter
+class AuditEventWriter
 {
     public function __construct(private readonly AuditEventCanonicalizer $canonicalizer) {}
 
     /**
-     * @param array{actor_type?: ?string, actor_id?: ?string, event_type: string, subject_type?: ?string, subject_id?: ?string, metadata?: array|null, ip_address?: ?string, occurred_at: mixed} $attributes
+     * @param  array{actor_type?: ?string, actor_id?: ?string, event_type: string, subject_type?: ?string, subject_id?: ?string, metadata?: array<string, mixed>|null, ip_address?: ?string, occurred_at: mixed}  $attributes
      */
     public function append(array $attributes): AuditEvent
     {
