@@ -275,3 +275,11 @@ A green CI run is necessary but does not close these release gates or authorize 
 - Routine support cases, analytics needs, convenience, or an investigation without a formal legal hold do not extend diagnostic retention.
 - Updated the retention policy and production-pilot checklist. This is a policy decision only: the report command remains read-only, does not evaluate holds, and no automated deletion has been enabled.
 - Remaining user-side governance clarification: whether the separate 2,555-day audit-event retention target is a minimum or a fixed expiry. External Object Lock provisioning, independent Ed25519 key custody, production DB-role naming, and restore rehearsal remain credential/infrastructure gates.
+
+
+## Audit-event retention policy approved — 2026-11-14
+
+- Project Owner selected **indefinite retention**: audit events must never be automatically deleted, expired, or pruned. The prior 2,555-day (approximately seven-year) target is superseded.
+- Updated the retention policy and production-pilot checklist. Live audit-event retention is distinct from the separately approved 365-day immutable external backup-object retention; backup expiry does not authorize deletion of live audit records.
+- Audit events remain append-only and are excluded from all automated cleanup. The 365-day diagnostic retention policy and its owner-authorized legal-hold exception remain unchanged.
+- This decision changes governance documentation only. No production migration, cleanup job, merge, or deployment was performed or authorized.
