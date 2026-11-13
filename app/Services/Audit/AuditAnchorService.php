@@ -23,6 +23,7 @@ final class AuditAnchorService
     {
         $this->assertPreviousDigest($previousCheckpointSha256);
         $secretKey = $this->decodeKey(config('audit.anchor.private_key'), SODIUM_CRYPTO_SIGN_SECRETKEYBYTES, 'AUDIT_ANCHOR_PRIVATE_KEY');
+        $this->assertIndependentPrivateKey($secretKey);
         $chain = $this->verifiedChainSnapshot();
 
         $payload = [
@@ -65,6 +66,7 @@ final class AuditAnchorService
         $payload = $envelope['payload'];
         $this->assertPayload($payload);
         $publicKey = $this->decodeKey(config('audit.anchor.public_key'), SODIUM_CRYPTO_SIGN_PUBLICKEYBYTES, 'AUDIT_ANCHOR_PUBLIC_KEY');
+        $this->assertIndependentPublicKey($publicKey);
         $signature = base64_decode($envelope['signature'], true);
 
         if (! is_string($signature) || strlen($signature) !== SODIUM_CRYPTO_SIGN_BYTES) {
@@ -216,6 +218,32 @@ final class AuditAnchorService
     /**
      * @return non-empty-string
      */
+    private function assertIndependentPrivateKey(string $privateKey): void
+    {
+        $addonKey = config('services.whmcs_addon.signing_secret_key');
+        if (! is_string($addonKey) || $addonKey === '') {
+            return;
+        }
+
+        $decodedAddonKey = base64_decode($addonKey, true);
+        if (is_string($decodedAddonKey) && hash_equals($privateKey, $decodedAddonKey)) {
+            throw new RuntimeException('audit_anchor_key_must_be_independent_from_whmcs_addon_key');
+        }
+    }
+
+    private function assertIndependentPublicKey(string $publicKey): void
+    {
+        $addonKey = config('services.whmcs_addon.signing_public_key');
+        if (! is_string($addonKey) || $addonKey === '') {
+            return;
+        }
+
+        $decodedAddonKey = base64_decode($addonKey, true);
+        if (is_string($decodedAddonKey) && hash_equals($publicKey, $decodedAddonKey)) {
+            throw new RuntimeException('audit_anchor_key_must_be_independent_from_whmcs_addon_key');
+        }
+    }
+
     private function decodeKey(mixed $encoded, int $expectedLength, string $name): string
     {
         if (! is_string($encoded) || $encoded === '') {
