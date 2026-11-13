@@ -63,7 +63,7 @@ Migration `2026_11_12_000008_create_ai_budget_ledger_tables.php` adds the daily/
 - The 365-day policy applies to the diagnostic run and its dependent findings and recommendations, because those records contain derived evidence from the same snapshot.
 - Before any deletion, provide a dry-run report with candidate counts, oldest/newest timestamps, and affected dependent records.
 - A report-only command is available: `php artisan diagnostics:retention:report --days=365`. It reports candidate run counts, dependent finding/recommendation counts, cutoff, and oldest/newest receipt timestamps; it never deletes data and does not evaluate legal holds. A separate `diagnostics:retention:prune` command is hold-aware, bounded, dry-run by default, and re-checks holds inside the deletion transaction. It requires both `DIAGNOSTICS_RETENTION_CLEANUP_ENABLED=true` and explicit `--execute`; it is not scheduled and remains disabled by default.
-- Deletion must preserve the independent audit-event record. Do not cascade diagnostic retention into audit events or integration records.
+- Every diagnostic deletion must first append an immutable `diagnostics.retention.deleted` audit event in the same transaction; if audit append fails, deletion rolls back. Diagnostic retention never cascades into audit events or integration records.
 - The approved legal-hold model is the sole exception to the 365-day diagnostic expiry. Held records remain retained until the Project Owner explicitly approves and audits release. Cleanup must exclude held records, re-check hold state inside the deletion transaction, and fail closed if hold state or audit writing fails.
 
 ### Audit events — indefinite retention
@@ -81,7 +81,7 @@ Migration `2026_11_12_000008_create_ai_budget_ledger_tables.php` adds the daily/
 3. CI tests cover reservation limits, idempotent settlement, pre-submit release, ambiguous timeout hold, unresolved-attempt retry blocking, expired price cards, and database-level audit UPDATE/DELETE/TRUNCATE rejection. PostgreSQL concurrency tests, provider failure/timeout integration tests, worker-crash simulation, and operator reconciliation workflow remain release gates.
 4. Add the budget ledger and retention metadata in the final consolidated migration batch; do not run migrations as part of this work.
 5. Implemented retention dry-run reporting and bounded cleanup with dependency and legal-hold tests. Do not execute pruning during development or deployment preparation; production enablement remains a separate release gate.
-6. Verify database restore and audit retention/export controls before enabling either scheduled cleanup path.
+6. Verify database restore and audit retention/export controls before any operator enables the manual cleanup feature flag. No scheduled diagnostic cleanup is registered.
 
 ## Current non-goals
 
