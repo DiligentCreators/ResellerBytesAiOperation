@@ -28,21 +28,22 @@ Schema::create('whmcs_integrations', function (Blueprint $table): void {
 $migration = require dirname(__DIR__, 2).'/database/migrations/2026_11_14_000001_enforce_whmcs_integration_retention.php';
 $migration->up();
 
-$id = DB::table('whmcs_integrations')->insertGetId([]);
+$firstId = DB::table('whmcs_integrations')->insertGetId([]);
+$secondId = DB::table('whmcs_integrations')->insertGetId([]);
 $rejected = false;
 
 try {
-    DB::table('whmcs_integrations')->where('id', $id)->delete();
+    DB::table('whmcs_integrations')->whereIn('id', [$firstId, $secondId])->delete();
 } catch (QueryException $exception) {
     $rejected = str_contains($exception->getMessage(), 'whmcs_integrations are retained for audit history');
 }
 
-$preserved = DB::table('whmcs_integrations')->where('id', $id)->exists();
+$preserved = DB::table('whmcs_integrations')->whereIn('id', [$firstId, $secondId])->count() === 2;
 $migration->down();
 Schema::dropIfExists('whmcs_integrations');
 
 if (! $rejected || ! $preserved) {
-    fwrite(STDERR, "SQL Server retention trigger failed to reject DELETE and preserve the row.\n");
+    fwrite(STDERR, "SQL Server retention trigger failed to reject a multi-row DELETE and preserve every row.\n");
     exit(1);
 }
 
