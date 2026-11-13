@@ -3,8 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Jobs\AnalyzeDiagnosticRun;
-use App\Services\Audit\AuditEventWriter;
 use App\Models\DiagnosticRun;
+use App\Services\Audit\AuditEventWriter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
