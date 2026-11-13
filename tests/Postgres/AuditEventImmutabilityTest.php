@@ -1,13 +1,14 @@
 <?php
 
 use App\Models\AuditEvent;
+use App\Services\Audit\AuditEventWriter;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 
 it('rejects PostgreSQL truncate statements against the audit event table', function () {
     expect(DB::connection()->getDriverName())->toBe('pgsql');
 
-    AuditEvent::create([
+    app(AuditEventWriter::class)->append([
         'actor_type' => 'user',
         'actor_id' => 'postgres-test-operator',
         'event_type' => 'test.created',

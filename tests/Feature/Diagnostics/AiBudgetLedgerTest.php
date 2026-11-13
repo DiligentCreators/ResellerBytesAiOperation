@@ -6,9 +6,9 @@ use App\Models\AuditEvent;
 use App\Models\DiagnosticRun;
 use App\Models\User;
 use App\Models\WhmcsIntegration;
+use App\Services\Audit\AuditEventWriter;
 use App\Services\Diagnostics\AiBudgetService;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Str;
 use RuntimeException;
 
@@ -190,22 +190,19 @@ it('rolls back an ambiguous reservation release when the audit insert fails', fu
     $operator = User::factory()->create();
     $approver = User::factory()->create();
 
-    $auditCreatingEvent = 'eloquent.creating: '.AuditEvent::class;
-    Event::listen($auditCreatingEvent, static function (): never {
-        throw new RuntimeException('audit_insert_rejected');
-    });
+    $writer = Mockery::mock(AuditEventWriter::class);
+    $writer->shouldReceive('append')
+        ->once()
+        ->andThrow(new RuntimeException('audit_insert_rejected'));
+    app()->instance(AuditEventWriter::class, $writer);
 
-    try {
-        expect(fn () => $service->reconcileConfirmedNoCharge(
-            $attempt,
-            (string) $operator->getKey(),
-            (string) $approver->getKey(),
-            'provider-console-case-rollback',
-            'Provider request history confirms no accepted request or charge.',
-        ))->toThrow(RuntimeException::class, 'audit_insert_rejected');
-    } finally {
-        Event::forget($auditCreatingEvent);
-    }
+    expect(fn () => $service->reconcileConfirmedNoCharge(
+        $attempt,
+        (string) $operator->getKey(),
+        (string) $approver->getKey(),
+        'provider-console-case-rollback',
+        'Provider request history confirms no accepted request or charge.',
+    ))->toThrow(RuntimeException::class, 'audit_insert_rejected');
 
     expect($attempt->fresh()->status)->toBe('ambiguous')
         ->and(AiBudgetPeriod::query()->where('period_type', 'daily')->sole()->reserved_micro_usd)->toBe($attempt->reserved_micro_usd)
