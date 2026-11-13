@@ -35,3 +35,31 @@ it('rejects deletion of existing audit events', function () {
     expect(fn () => $event->delete())
         ->toThrow(LogicException::class, 'Audit events are append-only');
 });
+
+
+it('rejects query-builder updates that bypass Eloquent model events', function () {
+    $event = createAuditEventForImmutabilityTest();
+
+    expect(fn () => DB::table('audit_events')
+        ->where('id', $event->id)
+        ->update(['event_type' => 'tampered']))->toThrow(QueryException::class);
+});
+
+it('rejects query-builder deletes that bypass Eloquent model events', function () {
+    $event = createAuditEventForImmutabilityTest();
+
+    expect(fn () => DB::table('audit_events')
+        ->where('id', $event->id)
+        ->delete())->toThrow(QueryException::class);
+});
+
+it('rejects truncate statements on PostgreSQL', function () {
+    if (DB::connection()->getDriverName() !== 'pgsql') {
+        test()->skip('TRUNCATE protection is PostgreSQL-specific; other drivers use their own privilege controls.');
+    }
+
+    createAuditEventForImmutabilityTest();
+
+    expect(fn () => DB::statement('TRUNCATE TABLE audit_events'))
+        ->toThrow(QueryException::class);
+});
