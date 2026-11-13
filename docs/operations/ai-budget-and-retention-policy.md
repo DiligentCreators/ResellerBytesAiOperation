@@ -162,11 +162,17 @@ These are deployment controls, not changes applied by this repository migration.
 
 The following items are deliberately not guessed or activated:
 
+### Approved legal-hold governance
+
+- **Authority:** the project Owner is the approval authority to place and release a legal hold.
+- **Auditability:** every placement and release must produce an append-only audit event. At minimum record the acting owner identity, UTC timestamp, affected record/scope, action (place/release), reason, evidence or case reference, and resulting hold state. Do not put sensitive case documents or customer payloads in event metadata; store only a controlled reference.
+- **Enforcement:** any future cleanup job must exclude held records at query time and re-check hold state inside the deletion transaction. A hold or audit-write failure must fail closed: no deletion. Hold release must itself be explicitly owner-approved and audited; expiry of the 365-day backup period does not override a legal hold.
+- **Current implementation status:** this is an approved governance decision, not a claim that a legal-hold UI, schema, command, or cleanup enforcement is already implemented. Automated diagnostic/audit-history deletion remains disabled until those controls and tests are delivered.
+
 ### Shahrukh ke liye
 
-1. **Legal-hold authority and workflow:** identify which role may place/release a hold, whether approval must be dual-control, and what evidence/reference is mandatory. Until decided, no automated diagnostic or audit-history deletion is enabled.
-2. **Retention exception policy:** confirm whether the seven-year audit target is a minimum or a fixed expiry, and whether contractual, tax, privacy, or jurisdictional requirements require longer or shorter retention. The 2,555-day value remains the current project policy target, not legal advice.
-3. **External anchor retention:** approve the proposed 365-day Object Lock default or specify another period with the compliance owner. No bucket or key is provisioned by this repository change.
+1. **Retention exception policy:** confirm whether the seven-year audit target is a minimum or a fixed expiry, and whether contractual, tax, privacy, or jurisdictional requirements require longer or shorter retention. The 2,555-day value remains the current project policy target, not legal advice.
+3. **External anchor provisioning:** provision the separate cloud account/bucket with the approved 365-day Object Lock retention and independent Ed25519 key custody. No bucket or key is provisioned by this repository change.
 4. **Production role names and ownership:** confirm the real PostgreSQL database/schema names and Forge secret-management process before applying the example `rb_migrator` / `rb_runtime` identities. The guide is a template, not an executed production change.
 5. **Provider price-card approval:** verify the exact provider/model pricing and approve the active version and expiry before production spend enforcement is enabled. The CI fixture is not a substitute for commercial approval.
 
@@ -175,7 +181,7 @@ The following items are deliberately not guessed or activated:
 - Keep the nonce-prune command bounded and idempotent; test expiry boundary, batch cap, and rerun behavior.
 - Keep integration records and diagnostic history out of automatic pruning.
 - Report-only retention candidate reporting is implemented and tested without enabling deletion.
-- Add legal-hold schema and cleanup exclusion tests only after the hold semantics above are approved; do not invent a hold-release workflow.
+- Implement the approved owner-authorized legal-hold record, append-only placement/release audit events, cleanup exclusion/re-check, and fail-closed tests before enabling any cleanup.
 - MySQL 8.4, MariaDB 11.4, and SQL Server 2022 integration checks are now defined in dedicated CI jobs; require all three jobs to pass on the exact PR head before claiming their retention-trigger paths are verified.
 - Add a release evidence checklist requiring runtime-role negative privilege tests, external anchor read-back/signature verification, backup restore drill, and alert routing proof.
 
