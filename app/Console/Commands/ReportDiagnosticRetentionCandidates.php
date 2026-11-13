@@ -16,6 +16,7 @@ class ReportDiagnosticRetentionCandidates extends Command
         $days = filter_var($this->option('days'), FILTER_VALIDATE_INT);
         if ($days === false || $days < 1 || $days > 36500) {
             $this->error('The --days option must be an integer between 1 and 36500');
+
             return self::FAILURE;
         }
 
@@ -41,6 +42,7 @@ class ReportDiagnosticRetentionCandidates extends Command
         $this->line('Oldest candidate received_at: '.($oldest ?? 'none'));
         $this->line('Newest candidate received_at: '.($newest ?? 'none'));
         $this->warn('This report does not evaluate legal holds; automated deletion remains disabled.');
+
         return self::SUCCESS;
     }
 }
