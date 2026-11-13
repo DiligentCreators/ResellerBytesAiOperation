@@ -1,7 +1,9 @@
 <?php
 
 use App\Models\AuditEvent;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 
 uses(RefreshDatabase::class);
 
@@ -35,7 +37,6 @@ it('rejects deletion of existing audit events', function () {
     expect(fn () => $event->delete())
         ->toThrow(LogicException::class, 'Audit events are append-only');
 });
-
 
 it('rejects query-builder updates that bypass Eloquent model events', function () {
     $event = createAuditEventForImmutabilityTest();
