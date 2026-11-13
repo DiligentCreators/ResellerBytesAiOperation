@@ -150,9 +150,11 @@ it('releases an ambiguous reservation only through audited no-charge reconciliat
     $service->markAmbiguous($attempt, 'provider_timeout_after_submit');
 
     $operator = User::factory()->create();
+    $approver = User::factory()->create();
     $service->reconcileConfirmedNoCharge(
         $attempt,
         (string) $operator->getKey(),
+        (string) $approver->getKey(),
         'provider-console-case-123',
         'Verified provider request history shows no accepted request and no charge.',
     );
@@ -160,14 +162,18 @@ it('releases an ambiguous reservation only through audited no-charge reconciliat
     expect($attempt->fresh()->status)->toBe('released')
         ->and($attempt->fresh()->failure_code)->toBe('reconciled_not_charged')
         ->and($attempt->fresh()->reconciled_by)->toBe((string) $operator->getKey())
+        ->and($attempt->fresh()->reconciliation_approved_by)->toBe((string) $approver->getKey())
+        ->and($attempt->fresh()->reconciliation_approved_at)->not->toBeNull()
         ->and($attempt->fresh()->reconciled_at)->not->toBeNull()
         ->and(AiBudgetPeriod::query()->where('period_type', 'daily')->sole()->reserved_micro_usd)->toBe(0)
         ->and(AiBudgetPeriod::query()->where('period_type', 'monthly')->sole()->reserved_micro_usd)->toBe(0)
-        ->and(AuditEvent::query()->where('event_type', 'ai_usage_attempt.reconciled_not_charged')->count())->toBe(1);
+        ->and(AuditEvent::query()->where('event_type', 'ai_usage_attempt.reconciled_not_charged')->count())->toBe(1)
+        ->and(AuditEvent::query()->where('event_type', 'ai_usage_attempt.reconciliation_approved')->sole()->actor_id)->toBe((string) $approver->getKey());
 
     expect(fn () => $service->reconcileConfirmedNoCharge(
         $attempt->fresh(),
         (string) $operator->getKey(),
+        (string) $approver->getKey(),
         'provider-console-case-123',
         'Repeated reconciliation must be rejected as the attempt is no longer ambiguous.',
     ))->toThrow(RuntimeException::class, 'budget_attempt_not_reconcilable');
@@ -182,6 +188,7 @@ it('rolls back an ambiguous reservation release when the audit insert fails', fu
     $service->markSubmitted($attempt);
     $service->markAmbiguous($attempt, 'provider_timeout_after_submit');
     $operator = User::factory()->create();
+    $approver = User::factory()->create();
 
     $auditCreatingEvent = 'eloquent.creating: '.AuditEvent::class;
     Event::listen($auditCreatingEvent, static function (): never {
@@ -192,6 +199,7 @@ it('rolls back an ambiguous reservation release when the audit insert fails', fu
         expect(fn () => $service->reconcileConfirmedNoCharge(
             $attempt,
             (string) $operator->getKey(),
+            (string) $approver->getKey(),
             'provider-console-case-rollback',
             'Provider request history confirms no accepted request or charge.',
         ))->toThrow(RuntimeException::class, 'audit_insert_rejected');
@@ -202,7 +210,8 @@ it('rolls back an ambiguous reservation release when the audit insert fails', fu
     expect($attempt->fresh()->status)->toBe('ambiguous')
         ->and(AiBudgetPeriod::query()->where('period_type', 'daily')->sole()->reserved_micro_usd)->toBe($attempt->reserved_micro_usd)
         ->and(AiBudgetPeriod::query()->where('period_type', 'monthly')->sole()->reserved_micro_usd)->toBe($attempt->reserved_micro_usd)
-        ->and(AuditEvent::query()->where('event_type', 'ai_usage_attempt.reconciled_not_charged')->count())->toBe(0);
+        ->and(AuditEvent::query()->where('event_type', 'ai_usage_attempt.reconciled_not_charged')->count())->toBe(0)
+        ->and(AuditEvent::query()->where('event_type', 'ai_usage_attempt.reconciliation_approved')->count())->toBe(0);
 });
 
 it('records actual provider cost when usage exceeds the reserved ceiling', function () {
