@@ -80,7 +80,7 @@ Migration `2026_11_12_000008_create_ai_budget_ledger_tables.php` adds the daily/
 2. Implement atomic daily/monthly reservations, idempotent settlement, and ambiguous-outcome reconciliation.
 3. CI tests cover reservation limits, idempotent settlement, pre-submit release, ambiguous timeout hold, unresolved-attempt retry blocking, expired price cards, and database-level audit UPDATE/DELETE/TRUNCATE rejection. PostgreSQL concurrency tests, provider failure/timeout integration tests, worker-crash simulation, and operator reconciliation workflow remain release gates.
 4. Add the budget ledger and retention metadata in the final consolidated migration batch; do not run migrations as part of this work.
-5. Implement retention dry-run reporting and bounded cleanup with dependency and legal-hold tests. Do not execute pruning during development or deployment preparation.
+5. Implemented retention dry-run reporting and bounded cleanup with dependency and legal-hold tests. Do not execute pruning during development or deployment preparation; production enablement remains a separate release gate.
 6. Verify database restore and audit retention/export controls before enabling either scheduled cleanup path.
 
 ## Current non-goals
