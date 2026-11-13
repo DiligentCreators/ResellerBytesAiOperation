@@ -9,7 +9,7 @@ Applies to: ResellerBytes AI Operations
 - **Global AI spend limit per UTC day:** USD 5.00
 - **Global AI spend limit per UTC calendar month:** USD 50.00
 - **Diagnostic snapshot retention:** 365 days
-- **Audit event retention:** 2,555 days (approximately seven years)
+- **Audit event retention:** indefinite; audit events are never automatically deleted
 
 The daily and monthly limits apply to the application as a whole, across all WHMCS integrations and operators. The monthly limit is independent of the daily limit; both must have available capacity before a provider request is submitted. Period boundaries use UTC to keep accounting deterministic across operators and hosting locations.
 
@@ -66,13 +66,13 @@ Migration `2026_11_12_000008_create_ai_budget_ledger_tables.php` adds the daily/
 - Deletion must preserve the independent audit-event record. Do not cascade diagnostic retention into audit events or integration records.
 - The approved legal-hold model is the sole exception to the 365-day diagnostic expiry. Held records remain retained until the Project Owner explicitly approves and audits release. Cleanup must exclude held records, re-check hold state inside the deletion transaction, and fail closed if hold state or audit writing fails.
 
-### Audit events — 2,555 days
+### Audit events — indefinite retention
 
-- Retain audit events for at least 2,555 days from `occurred_at`.
-- Do not apply the diagnostic snapshot's 365-day policy to audit events.
-- Audit events remain append-only during their retention period. A forward-only migration installs database triggers that reject UPDATE and DELETE for SQLite, PostgreSQL, MySQL/MariaDB, and SQL Server; PostgreSQL also rejects TRUNCATE. Eloquent guards remain defense in depth. MySQL/MariaDB and SQL Server do not provide equivalent row-trigger protection for TRUNCATE, so the runtime database principal must not have TRUNCATE, DROP, ALTER, or trigger-management privileges. Production must use a least-privilege runtime principal separate from the migration/owner principal. A database owner/superuser can still disable triggers or alter the schema; separately controlled backups/exports and external tamper-evident retention remain release gates.
-- Any eventual expiry job must be bounded, dry-run capable, auditable, and must not run until a production backup and restore procedure has been verified.
-- The 2,555-day target does not authorize deletion of records before their expiry or bypass any applicable legal hold.
+- Retain audit events indefinitely. They must never be automatically deleted, expired, or pruned; there is no scheduled expiry based on `occurred_at`.
+- Do not apply the diagnostic snapshot's 365-day policy or the external backup's 365-day Object Lock period to the live audit-event records. Backup-object retention and live audit-event retention are separate controls.
+- No automated audit-event cleanup/expiry job is permitted. Any future exceptional disposition would require a separately reviewed governance and legal decision; it must not be implemented as routine retention automation.
+- Audit events remain append-only. A forward-only migration installs database triggers that reject UPDATE and DELETE for SQLite, PostgreSQL, MySQL/MariaDB, and SQL Server; PostgreSQL also rejects TRUNCATE. Eloquent guards remain defense in depth. MySQL/MariaDB and SQL Server do not provide equivalent row-trigger protection for TRUNCATE, so the runtime database principal must not have TRUNCATE, DROP, ALTER, or trigger-management privileges. Production must use a least-privilege runtime principal separate from the migration/owner principal. A database owner/superuser can still disable triggers or alter the schema; separately controlled backups/exports and external tamper-evident retention remain release gates.
+- No audit-event expiry job is permitted under the approved indefinite-retention policy. Backup/restore verification remains mandatory for release, but it does not create an audit-event deletion window.
 
 ## Release gates before enforcement
 
@@ -171,8 +171,7 @@ The following items are deliberately not guessed or activated:
 
 ### Shahrukh ke liye
 
-1. **Audit-event retention clarification:** confirm whether the separate 2,555-day audit-event target is a minimum or a fixed expiry, and whether applicable contractual, tax, privacy, or jurisdictional requirements require longer or shorter retention. This remains a project policy target, not legal advice.
-2. **External anchor provisioning:** provision the separate cloud account/bucket with the approved 365-day Object Lock retention and independent Ed25519 key custody. No bucket or key is provisioned by this repository change.
+1. **External anchor provisioning:** provision the separate cloud account/bucket with the approved 365-day Object Lock retention and independent Ed25519 key custody. No bucket or key is provisioned by this repository change.
 4. **Production role names and ownership:** confirm the real PostgreSQL database/schema names and Forge secret-management process before applying the example `rb_migrator` / `rb_runtime` identities. The guide is a template, not an executed production change.
 5. **Provider price-card approval:** verify the exact provider/model pricing and approve the active version and expiry before production spend enforcement is enabled. The CI fixture is not a substitute for commercial approval.
 
@@ -194,3 +193,11 @@ No automated diagnostic snapshot cleanup, audit-event expiry, integration deleti
 - The previously approved legal-hold process remains the only exception: a hold must be placed by the Project Owner with an immutable audit event and remains effective until a separately owner-approved and audited release. This is not a discretionary retention extension.
 - Customer support, convenience, product analytics, or ordinary investigation status do not independently extend retention. If a qualifying legal hold applies, the hold takes precedence; otherwise the 365-day expiry applies.
 - This decision does not enable deletion. Automated cleanup remains blocked until legal-hold storage/workflow, hold-aware candidate exclusion, in-transaction re-check, fail-closed audit writes, dependency-safe bounded deletion, negative-path tests, and restore gates are implemented and verified.
+
+
+## Audit-event retention policy approved — 2026-11-14
+
+- Project Owner decision: **indefinite retention**. Audit events must never be automatically deleted, expired, or pruned; there is no 2,555-day expiry.
+- This applies to live audit-event records and is distinct from the separately approved 365-day immutable external backup-object retention. Backup-object lifecycle rules must not be interpreted as authorization to delete the live audit stream.
+- The diagnostic snapshot/finding/recommendation policy remains 365 days, subject only to the approved owner-authorized legal hold. Audit events remain append-only and are excluded from all automated cleanup.
+- This is a repository policy decision; no production migration, retention job, or deployment is authorized by it.
