@@ -69,3 +69,18 @@ After stopping, preserve relevant sanitized logs, revoke the integration secret,
 Do not change PHP versions, cron commands, file permissions, OPcache, WHMCS directory paths, module-debugging settings, 20i settings, ResellerClub settings, billing, customer accounts, domains, or hosting services based on an AI recommendation.
 
 The first pilot validates collection and transport only. It does not authorize repairs.
+
+## Audit, database, and retention release gates
+
+- [ ] The exact PR head SHA has all required CI jobs green, including PostgreSQL concurrency, MySQL retention-trigger, general CI, and WHMCS PHP 8.1 compatibility checks.
+- [ ] PostgreSQL migration and runtime principals are provisioned separately; runtime is not a table owner, schema creator, migration-ledger reader, or audit-event mutator.
+- [ ] Runtime-role negative privilege tests prove audit UPDATE/DELETE/TRUNCATE and integration hard DELETE are rejected; normal audit append and chain verification still work.
+- [ ] The WHMCS integration retention trigger has passed PostgreSQL and MySQL/MariaDB integration tests. SQL Server support remains unverified until its dedicated CI coverage passes.
+- [ ] The report-only diagnostic retention command `php artisan diagnostics:retention:report --days=90` has been run against a restored non-production copy and its candidate/dependent counts reviewed. It does not delete records and does not evaluate legal holds.
+- [ ] Legal-hold authority, release approval, evidence reference, and retention exceptions are approved before any automated diagnostic cleanup is implemented.
+- [ ] The external audit anchor is provisioned in a separate security account with immutable retention, independent Ed25519 signing key, read-only verifier, alert routing, and a successful restore/read-back drill.
+- [ ] The latest database head matches the newest external signed checkpoint; any unanchored tail and checkpoint age are documented.
+- [ ] A database backup has been restored in isolation and compared against the newest external checkpoint before any production migration or pilot.
+- [ ] The approved audit retention period and diagnostic retention exception policy are documented by the responsible compliance owner.
+
+**Shahrukh ke liye before pilot:** approve the legal-hold workflow and retention exceptions; approve the external Object Lock retention period; supply the actual Forge database/schema and secret-manager role naming for the PostgreSQL role setup; and arrange the separate cloud account/key custody for external audit anchoring. Do not share private keys or production database passwords in this repository or chat.
