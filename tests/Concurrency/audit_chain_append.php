@@ -8,7 +8,6 @@ use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Throwable;
 
 require dirname(__DIR__, 2).'/vendor/autoload.php';
 
