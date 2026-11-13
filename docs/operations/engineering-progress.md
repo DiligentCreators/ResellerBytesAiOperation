@@ -249,3 +249,11 @@ A green CI run is necessary but does not close these release gates or authorize 
 - External Object Lock storage upload, remote read-back, alert delivery, independent verifier scheduling, production database role provisioning, and backup/restore rehearsal are not active. They require separate infrastructure, credentials, and operator approval.
 - **Shahrukh ke liye:** approve legal-hold authority/release workflow and retention exceptions; approve Object Lock retention; provision the separate cloud account/bucket and Ed25519 key custody; confirm the actual PostgreSQL database/schema and Forge secret-manager role setup; and schedule an isolated backup/restore rehearsal. Do not send private keys or production database passwords through chat or commit them.
 - PR #2 remains open and Draft. No merge to `main`, production migration, live WHMCS change, or deployment has occurred.
+
+## Owner-approved retention governance — 2026-11-14
+
+- Project owner approved **365-day** immutable external audit-backup retention; recorded in the production-pilot checklist.
+- Project owner approved **Owner approval with audit trail** for legal-hold placement and release. Both actions must append an immutable audit event with owner identity, UTC timestamp, affected scope, reason, controlled evidence/case reference, and resulting state.
+- Legal holds override ordinary retention expiry. Future cleanup must exclude held records, re-check hold state inside the deletion transaction, and fail closed if hold state or audit recording fails.
+- This is a governance/roadmap decision only. Legal-hold schema/API/commands and cleanup enforcement are not yet implemented. Automated diagnostic/audit-history deletion remains disabled pending implementation and tests.
+- The remaining user-side decision is diagnostic retention exceptions; infrastructure provisioning for 365-day Object Lock and independent Ed25519 key custody is also still required.
