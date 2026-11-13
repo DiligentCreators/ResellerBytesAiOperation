@@ -34,6 +34,8 @@ class AiUsageAttempt extends Model
         'settled_at',
         'reconciled_at',
         'reconciled_by',
+        'reconciliation_approved_by',
+        'reconciliation_approved_at',
         'reconciliation_note',
     ];
 
@@ -43,6 +45,7 @@ class AiUsageAttempt extends Model
             'submitted_at' => 'immutable_datetime',
             'settled_at' => 'immutable_datetime',
             'reconciled_at' => 'immutable_datetime',
+            'reconciliation_approved_at' => 'immutable_datetime',
         ];
     }
 
