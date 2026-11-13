@@ -118,7 +118,7 @@ jobs:
 
       - name: Run AI budget ledger tests against PostgreSQL
         run: |
-          DB_CONNECTION=pgsql DB_HOST=127.0.0.1 DB_PORT=5432 DB_DATABASE=testing DB_USERNAME=postgres DB_PASSWORD=postgres vendor/bin/pest tests/Feature/Diagnostics/AiBudgetLedgerTest.php tests/Feature/Diagnostics/AiBudgetReconciliationCommandTest.php tests/Feature/Diagnostics/AnalyzeDiagnosticRunTest.php tests/Feature/Diagnostics/RecoverQueuedDiagnosticsTest.php tests/Feature/AuditEventImmutabilityTest.php tests/Feature/PostgresAuditEventImmutabilityTest.php
+          DB_CONNECTION=pgsql DB_HOST=127.0.0.1 DB_PORT=5432 DB_DATABASE=testing DB_USERNAME=postgres DB_PASSWORD=postgres vendor/bin/pest tests/Feature/Diagnostics/AiBudgetLedgerTest.php tests/Feature/Diagnostics/AiBudgetReconciliationCommandTest.php tests/Feature/Diagnostics/AnalyzeDiagnosticRunTest.php tests/Feature/Diagnostics/RecoverQueuedDiagnosticsTest.php tests/Feature/AuditEventImmutabilityTest.php tests/Postgres/AuditEventImmutabilityTest.php
 
       - name: Run multi-process AI budget concurrency test
         env:
