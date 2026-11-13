@@ -178,6 +178,7 @@ class LegalHoldService
             'diagnostic_run' => $subjectId,
             'diagnostic_finding' => (string) $subject->diagnostic_run_id,
             'diagnostic_recommendation' => (string) DB::table('diagnostic_findings')->where('id', $subject->diagnostic_finding_id)->value('diagnostic_run_id'),
+            default => throw ValidationException::withMessages(['subject_type' => 'Unsupported legal-hold target type.']),
         };
 
         $root = $runId !== '' ? DB::table('diagnostic_runs')->where('id', $runId)->lockForUpdate()->first() : null;
