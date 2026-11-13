@@ -286,4 +286,4 @@ A green CI run is necessary but does not close these release gates or authorize 
 - Project Owner selected **indefinite retention**: audit events must never be automatically deleted, expired, or pruned. The prior 2,555-day (approximately seven-year) target is superseded.
 - Updated the retention policy and production-pilot checklist. Live audit-event retention is distinct from the separately approved 365-day immutable external backup-object retention; backup expiry does not authorize deletion of live audit records.
 - Audit events remain append-only and are excluded from all automated cleanup. The 365-day diagnostic retention policy and its owner-authorized legal-hold exception remain unchanged.
-- This decision changes governance documentation only. No production migration, cleanup job, merge, or deployment was performed or authorized.
+- The decision was recorded in policy documentation. It does not authorize production migration, merge, or deployment.
