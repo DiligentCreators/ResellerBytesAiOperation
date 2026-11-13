@@ -78,7 +78,6 @@ it('reports old diagnostic runs and dependent records without deleting them', fu
     }
 });
 
-
 it('uses an inclusive UTC receipt-time cutoff and leaves newer records out of the report', function () {
     Carbon::setTestNow(Carbon::parse('2026-11-14 12:00:00', 'UTC'));
 
