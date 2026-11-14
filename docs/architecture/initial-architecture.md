@@ -110,7 +110,7 @@ Use UUIDs for integration, run, finding, and recommendation identifiers. Use Pos
 - Addon version and last-seen timestamp
 - Created/updated timestamps
 
-The integration secret is generated server-side by the `whmcs:integration:create` Artisan command and shown only once to an authorized server operator. The `whmcs:integration:rotate` command immediately invalidates the previous secret and displays the replacement once; the addon must be updated immediately. The `whmcs:integration:revoke` command disables the integration. These lifecycle actions are recorded in the audit log. There is no public integration-registration endpoint and no dashboard secret-reveal endpoint.
+The integration secret is generated server-side by the `whmcs:integration:create` Artisan command, which requires an explicit owner email for an existing email-verified account with confirmed TOTP MFA, and shown only once to an authorized server operator. Existing legacy integrations remain unassigned until an operator explicitly maps them with `whmcs:integration:assign-owner`; the command refuses reassignment and writes immutable audit evidence. Dashboard and diagnostic access is restricted to the assigned owner account. The `whmcs:integration:rotate` command immediately invalidates the previous secret and displays the replacement once; the addon must be updated immediately. The `whmcs:integration:revoke` command disables the integration. These lifecycle actions are recorded in the audit log. There is no public integration-registration endpoint and no dashboard secret-reveal endpoint.
 
 ### `diagnostic_runs`
 
@@ -171,7 +171,8 @@ Never store credentials, raw request signatures, full request bodies, or unredac
 Run these commands only from an authenticated server shell by an authorized operator:
 
 ```bash
-php artisan whmcs:integration:create "ResellerBytes Production"
+php artisan whmcs:integration:create "ResellerBytes Production" --owner="verified-owner@example.com"
+php artisan whmcs:integration:assign-owner <integration-uuid> "verified-owner@example.com"
 php artisan whmcs:integration:rotate <integration-uuid>
 php artisan whmcs:integration:revoke <integration-uuid>
 ```
