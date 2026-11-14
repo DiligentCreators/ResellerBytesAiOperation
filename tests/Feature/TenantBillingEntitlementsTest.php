@@ -126,6 +126,7 @@ it('records manual and automated confirmed payments idempotently and updates inv
         'amount_minor' => 2900,
         'currency' => 'USD',
         'provider' => 'approved_gateway',
+        'provider_account_id' => 'acct_approved_gateway_test',
         'provider_payment_id' => 'PAY-002',
         'received_at' => now(),
     ]);
