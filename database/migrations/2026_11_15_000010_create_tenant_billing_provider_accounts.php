@@ -39,7 +39,24 @@ BEGIN
     RETURN NEW;
 END;
 $rb$;
+CREATE FUNCTION rb_check_billing_provider_account_audit_tenant() RETURNS trigger LANGUAGE plpgsql AS $rb$
+DECLARE expected_tenant uuid;
+BEGIN
+    IF NEW.subject_type = 'tenant_billing_provider_account' THEN
+        SELECT tenant_id INTO expected_tenant FROM tenant_billing_provider_accounts WHERE id::text = NEW.subject_id;
+        IF NEW.tenant_id IS DISTINCT FROM expected_tenant THEN
+            RAISE EXCEPTION 'audit_event_tenant_mismatch' USING ERRCODE = '23514';
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$rb$;
 CREATE TRIGGER rb_tenant_billing_provider_account_identity BEFORE UPDATE ON tenant_billing_provider_accounts FOR EACH ROW EXECUTE FUNCTION rb_guard_tenant_billing_provider_account_identity();
+CREATE TRIGGER rb_billing_provider_account_audit_tenant_guard BEFORE INSERT ON audit_events FOR EACH ROW EXECUTE FUNCTION rb_check_billing_provider_account_audit_tenant();
+CREATE TRIGGER rb_billing_provider_account_audit_tenant_guard BEFORE INSERT ON audit_events
+WHEN NEW.subject_type = 'tenant_billing_provider_account'
+ AND NEW.tenant_id IS NOT (SELECT tenant_id FROM tenant_billing_provider_accounts WHERE id = CAST(NEW.subject_id AS INTEGER))
+BEGIN SELECT RAISE(ABORT, 'audit_event_tenant_mismatch'); END;
 SQL);
         } elseif ($driver === 'sqlite') {
             DB::unprepared(<<<'SQL'
@@ -57,9 +74,12 @@ SQL);
         $driver = DB::connection()->getDriverName();
         if ($driver === 'pgsql') {
             DB::unprepared('DROP TRIGGER IF EXISTS rb_tenant_billing_provider_account_identity ON tenant_billing_provider_accounts');
+            DB::unprepared('DROP TRIGGER IF EXISTS rb_billing_provider_account_audit_tenant_guard ON audit_events');
+            DB::unprepared('DROP FUNCTION IF EXISTS rb_check_billing_provider_account_audit_tenant()');
             DB::unprepared('DROP FUNCTION IF EXISTS rb_guard_tenant_billing_provider_account_identity()');
         } elseif ($driver === 'sqlite') {
             DB::unprepared('DROP TRIGGER IF EXISTS rb_tenant_billing_provider_account_identity');
+            DB::unprepared('DROP TRIGGER IF EXISTS rb_billing_provider_account_audit_tenant_guard');
         }
 
         Schema::dropIfExists('tenant_billing_provider_accounts');
