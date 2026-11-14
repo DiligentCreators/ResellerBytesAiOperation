@@ -51,13 +51,16 @@ it('captures API response status and duration without storing request content', 
         ->not->toContain('payload');
 });
 
-it('reads the backup success marker modification time and prunes samples older than one day', function () {
+it('uses the verified backup marker timestamp rather than its filesystem modification time', function () {
     $markerPath = tempnam(sys_get_temp_dir(), 'rb-backup-marker-');
 
     expect($markerPath)->toBeString();
 
-    file_put_contents($markerPath, 'backup-success');
-    touch($markerPath, CarbonImmutable::parse('2026-11-14T10:00:00Z')->getTimestamp());
+    file_put_contents($markerPath, json_encode([
+        'backup_id' => '550e8400-e29b-41d4-a716-446655440000',
+        'created_at' => '2026-11-14T10:00:00+00:00',
+    ], JSON_THROW_ON_ERROR));
+    touch($markerPath, CarbonImmutable::parse('2026-11-14T11:30:00Z')->getTimestamp());
     config(['operations.metrics.backup_success_marker_path' => $markerPath]);
 
     $observedAt = CarbonImmutable::parse('2026-11-14T12:00:00Z');
@@ -72,6 +75,32 @@ it('reads the backup success marker modification time and prunes samples older t
         ->toBe('2026-11-14T10:00:00+00:00')
         ->and($source->pruneSamples($observedAt))->toBe(1)
         ->and(DB::table('operations_metric_samples')->count())->toBe(1);
+
+    @unlink($markerPath);
+});
+
+it('treats malformed and future backup success markers as unavailable', function () {
+    $markerPath = tempnam(sys_get_temp_dir(), 'rb-backup-marker-');
+    expect($markerPath)->toBeString();
+    config(['operations.metrics.backup_success_marker_path' => $markerPath]);
+
+    $observedAt = CarbonImmutable::parse('2026-11-14T12:00:00Z');
+    $source = app(OperationalMetricsSource::class);
+
+    file_put_contents($markerPath, '{"backup_id":"not-a-uuid","created_at":"2026-11-14T10:00:00+00:00"}');
+    expect($source->snapshot($observedAt)['last_successful_backup_at'])->toBeNull();
+
+    file_put_contents($markerPath, json_encode([
+        'backup_id' => '550e8400-e29b-41d4-a716-446655440000',
+        'created_at' => '2026-11-14T12:06:00+00:00',
+    ], JSON_THROW_ON_ERROR));
+    expect($source->snapshot($observedAt)['last_successful_backup_at'])->toBeNull();
+
+    file_put_contents($markerPath, json_encode([
+        'backup_id' => '550e8400-e29b-41d4-a716-446655440000',
+        'created_at' => '2026-02-30T10:00:00+00:00',
+    ], JSON_THROW_ON_ERROR));
+    expect($source->snapshot($observedAt)['last_successful_backup_at'])->toBeNull();
 
     @unlink($markerPath);
 });
