@@ -34,6 +34,7 @@ class StoreDiagnosticSnapshotController extends Controller
             $run = DB::transaction(function () use ($integration, $validated, $payloadHash, $request): DiagnosticRun {
                 $run = DiagnosticRun::create([
                     'integration_id' => $integration->id,
+                    'tenant_id' => $integration->tenant_id,
                     'snapshot_uuid' => $validated['snapshot_uuid'],
                     'schema_version' => $validated['schema_version'],
                     'addon_version' => $validated['addon_version'],
@@ -52,6 +53,7 @@ class StoreDiagnosticSnapshotController extends Controller
                 app(AuditEventWriter::class)->append([
                     'actor_type' => 'integration',
                     'actor_id' => $integration->id,
+                    'tenant_id' => $integration->tenant_id,
                     'event_type' => 'diagnostic_snapshot.accepted',
                     'subject_type' => 'diagnostic_run',
                     'subject_id' => $run->id,
