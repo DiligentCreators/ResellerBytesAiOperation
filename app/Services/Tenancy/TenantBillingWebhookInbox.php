@@ -97,7 +97,8 @@ class TenantBillingWebhookInbox
                 if ($existing !== null) {
                     if (! hash_equals($existing->payload_sha256, $hash)
                         || $existing->event_type !== $eventType
-                        || $existing->provider_account_id !== $providerAccountId) {
+                        || $existing->provider_account_id !== $providerAccountId
+                        || $existing->provider_occurred_at?->toIso8601String() !== $providerOccurredAt?->toIso8601String()) {
                         throw new RuntimeException('billing_webhook_idempotency_conflict');
                     }
 
@@ -151,7 +152,8 @@ class TenantBillingWebhookInbox
             if ($existing !== null
                 && hash_equals($existing->payload_sha256, $hash)
                 && $existing->event_type === $eventType
-                && $existing->provider_account_id === $providerAccountId) {
+                && $existing->provider_account_id === $providerAccountId
+                && $existing->provider_occurred_at?->toIso8601String() === $providerOccurredAt?->toIso8601String()) {
                 return $existing;
             }
 
