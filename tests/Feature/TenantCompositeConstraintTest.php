@@ -74,3 +74,61 @@ it('rejects notification recipients without a membership in the same tenant', fu
         'created_at' => now(),
     ]))->toThrow(QueryException::class);
 });
+
+
+it('rejects invoices and payments linked across tenant billing boundaries', function () {
+    $tenantA = Tenant::create(['name' => 'Billing Tenant A', 'slug' => 'billing-tenant-a', 'status' => Tenant::STATUS_ACTIVE]);
+    $tenantB = Tenant::create(['name' => 'Billing Tenant B', 'slug' => 'billing-tenant-b', 'status' => Tenant::STATUS_ACTIVE]);
+
+    $subscriptionId = DB::table('tenant_subscriptions')->insertGetId([
+        'tenant_id' => $tenantB->id,
+        'plan_code' => 'unpriced-test-plan',
+        'billing_mode' => 'manual',
+        'status' => 'active',
+        'currency' => 'USD',
+        'unit_amount_minor' => 0,
+        'entitlements' => json_encode([]),
+        'current_period_starts_at' => now(),
+        'current_period_ends_at' => now()->addMonth(),
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    expect(fn () => DB::table('tenant_billing_invoices')->insert([
+        'tenant_id' => $tenantA->id,
+        'tenant_subscription_id' => $subscriptionId,
+        'invoice_number' => 'CROSS-TENANT-SUBSCRIPTION-001',
+        'status' => 'open',
+        'currency' => 'USD',
+        'amount_due_minor' => 100,
+        'amount_paid_minor' => 0,
+        'issued_at' => now(),
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]))->toThrow(QueryException::class);
+
+    $invoiceId = DB::table('tenant_billing_invoices')->insertGetId([
+        'tenant_id' => $tenantA->id,
+        'tenant_subscription_id' => null,
+        'invoice_number' => 'TENANT-A-INVOICE-001',
+        'status' => 'open',
+        'currency' => 'USD',
+        'amount_due_minor' => 100,
+        'amount_paid_minor' => 0,
+        'issued_at' => now(),
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    expect(fn () => DB::table('tenant_billing_payments')->insert([
+        'tenant_id' => $tenantB->id,
+        'tenant_billing_invoice_id' => $invoiceId,
+        'collection_mode' => 'manual',
+        'idempotency_key' => 'cross-tenant-payment-001',
+        'status' => 'confirmed',
+        'currency' => 'USD',
+        'amount_minor' => 100,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]))->toThrow(QueryException::class);
+});
