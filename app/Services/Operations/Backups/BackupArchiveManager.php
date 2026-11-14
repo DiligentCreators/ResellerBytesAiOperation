@@ -322,7 +322,12 @@ final class BackupArchiveManager
         $path = $workingDirectory.'/restore-approval.json';
 
         try {
-            file_put_contents($path, json_encode($record, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));
+            $contents = json_encode($record, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR);
+            $written = file_put_contents($path, $contents, LOCK_EX);
+            if ($written !== strlen($contents) || ! chmod($path, 0600)) {
+                throw new RuntimeException('Unable to persist the complete private restore approval record.');
+            }
+
             $hash = hash_file('sha256', $path);
             if (! is_string($hash)) {
                 throw new RuntimeException('Unable to calculate restore approval checksum.');
