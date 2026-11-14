@@ -6,6 +6,7 @@ use App\Models\DiagnosticFinding;
 use App\Models\DiagnosticRun;
 use App\Services\Diagnostics\AiBudgetService;
 use App\Services\Diagnostics\WhmcsDiagnosticAnalyzer;
+use App\Services\Tenancy\TenantEntitlementService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -81,6 +82,10 @@ class AnalyzeDiagnosticRun implements ShouldQueue
         $attempt = null;
 
         try {
+            if ($this->tenantId !== null) {
+                app(TenantEntitlementService::class)->requireFeature($this->tenantId, 'diagnostics.analysis');
+            }
+
             $model = (string) config('services.openai.model', 'gpt-5.6-sol');
             $attempt = $budget->reserve($run, $model, WhmcsDiagnosticAnalyzer::PROMPT_VERSION);
 
@@ -267,6 +272,7 @@ class AnalyzeDiagnosticRun implements ShouldQueue
             'analysis_context_changed',
             'budget_configuration_invalid',
             'budget_tenant_inactive',
+            'tenant_entitlement_denied',
             'budget_tenant_configuration_invalid',
             'budget_tenant_limit_configuration_changed',
             'budget_tenant_exhausted',
@@ -280,6 +286,10 @@ class AnalyzeDiagnosticRun implements ShouldQueue
             'budget_usage_invalid',
             'provider_usage_missing',
         ];
+
+        if ($exception instanceof \\Illuminate\\Auth\\Access\\AuthorizationException) {
+            return 'tenant_entitlement_denied';
+        }
 
         $message = $exception?->getMessage() ?? '';
 
