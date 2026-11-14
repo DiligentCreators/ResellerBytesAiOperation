@@ -30,8 +30,11 @@ class PruneExpiredDiagnosticRecords extends Command
         }
 
         $cutoff = now('UTC')->subDays(365);
+        // Bind the same canonical UTC timestamp in candidate selection and the
+        // locked re-check so database drivers cannot serialize Carbon differently.
+        $cutoffTimestamp = $cutoff->copy()->utc()->format('Y-m-d H:i:s');
         $ids = DB::table('diagnostic_runs')
-            ->where('received_at', '<=', $cutoff)
+            ->where('received_at', '<=', $cutoffTimestamp)
             ->whereNotIn('status', ['received', 'queued', 'analyzing'])
             ->orderBy('received_at')
             ->limit($limit)
@@ -52,12 +55,12 @@ class PruneExpiredDiagnosticRecords extends Command
                 continue;
             }
 
-            $result = DB::transaction(function () use ($id, $cutoff, $holds, $audit): string {
+            $result = DB::transaction(function () use ($id, $cutoffTimestamp, $holds, $audit): string {
                 $run = DB::table('diagnostic_runs')->where('id', $id)->lockForUpdate()->first();
                 if ($run === null
                     || in_array($run->status, ['received', 'queued', 'analyzing'], true)
                     || $run->received_at === null
-                    || $run->received_at > $cutoff->format('Y-m-d H:i:s')) {
+                    || $run->received_at > $cutoffTimestamp) {
                     return 'skipped';
                 }
 
