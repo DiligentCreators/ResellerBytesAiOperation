@@ -54,13 +54,20 @@ class TenantBillingWebhookGateway
             $provider,
             $verified->providerAccountId,
         );
+        $normalizedPayload = app(TenantBillingWebhookReferenceResolver::class)->resolve(
+            $tenantId,
+            $provider,
+            $verified->providerAccountId,
+            $verified->eventType,
+            $verified->normalizedPayload,
+        );
 
         return app(TenantBillingWebhookInbox::class)->acceptVerifiedEvent(
             $tenantId,
             $provider,
             $verified->providerEventId,
             $verified->eventType,
-            $verified->normalizedPayload,
+            $normalizedPayload,
             $now,
             $verified->providerAccountId,
             $verified->occurredAt,
