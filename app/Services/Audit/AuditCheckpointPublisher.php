@@ -7,6 +7,7 @@ use DateTimeImmutable;
 use DateTimeZone;
 use JsonException;
 use RuntimeException;
+use SodiumException;
 
 final class AuditCheckpointPublisher
 {
@@ -21,6 +22,7 @@ final class AuditCheckpointPublisher
      * @return array{object_key: string, object_version_id: string, checkpoint_sha256: string, chain_sequence: int, retain_until: string}
      *
      * @throws JsonException
+     * @throws SodiumException
      */
     public function publish(string $checkpointBytes): array
     {
@@ -40,10 +42,6 @@ final class AuditCheckpointPublisher
         $sequence = $verified['anchor_sequence'];
         $objectKey = sprintf('audit-anchors/%s/sequence-%020d/%s.json', $environment, $sequence, $digest);
         $retainUntil = (new DateTimeImmutable('now', new DateTimeZone('UTC')))->modify('+'.self::RETENTION_DAYS.' days');
-        if ($retainUntil === false) {
-            throw new RuntimeException('audit_anchor_publish_retention_date_invalid');
-        }
-
         // A duplicate or ambiguous create is an error. Never retry with overwrite semantics.
         $created = $this->store->createImmutableIfAbsent($objectKey, $checkpointBytes, $retainUntil);
         if (! is_string($created->versionId) || $created->versionId === '') {
