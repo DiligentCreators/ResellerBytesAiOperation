@@ -165,7 +165,7 @@ class TenantBillingAdjustmentService
                 $paid = $invoice->amount_paid_minor - $amountMinor;
                 $invoice->forceFill([
                     'amount_paid_minor' => $paid,
-                    'status' => $paid === 0 ? 'open' : 'partially_paid',
+                    'status' => $invoice->status === 'void' ? 'void' : ($paid === 0 ? 'open' : 'partially_paid'),
                     'paid_at' => null,
                 ])->save();
 
