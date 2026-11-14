@@ -833,5 +833,6 @@ it('rejects a renewal notification when its provider account did not settle the 
 
     expect(Artisan::call('billing:webhooks:reconcile', ['--limit' => 10]))->toBe(0)
         ->and($event->fresh()->status)->toBe('dead_lettered')
-        ->and($subscription->fresh()->current_period_ends_at->startOfSecond()->equalTo($periodStart))->toBeFalse();
+        ->and($subscription->fresh()->status)->toBe('active')
+        ->and($subscription->fresh()->current_period_ends_at->startOfSecond()->equalTo($periodStart))->toBeTrue();
 });
