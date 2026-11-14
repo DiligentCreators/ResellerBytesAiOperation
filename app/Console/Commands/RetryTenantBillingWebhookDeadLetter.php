@@ -4,6 +4,7 @@ namespace App\\Console\\Commands;
 
 use App\\Services\\Tenancy\\TenantBillingWebhookRecoveryService;
 use Illuminate\\Console\\Command;
+use Illuminate\\Support\\Facades\\Log;
 use Throwable;
 
 class RetryTenantBillingWebhookDeadLetter extends Command
@@ -37,7 +38,12 @@ class RetryTenantBillingWebhookDeadLetter extends Command
             );
         } catch (Throwable $exception) {
             $this->error('The webhook event could not be requeued. Check its tenant, provider account, authorization, status, and replay limit.');
-            report($exception);
+            Log::warning('Billing webhook dead-letter requeue rejected.', [
+                'event_id' => (int) $eventId,
+                'tenant_id' => $tenantId,
+                'reason_code' => 'billing_webhook_manual_replay_failed',
+                'exception_class' => $exception::class,
+            ]);
 
             return self::FAILURE;
         }
