@@ -201,13 +201,27 @@ final class AuditAnchorService
      */
     private function assertPayload(array $payload): void
     {
+        $createdAt = $payload['created_at'] ?? null;
         if (($payload['anchor_version'] ?? null) !== self::VERSION
             || ($payload['environment'] ?? null) !== app()->environment()
-            || ! is_string($payload['created_at'] ?? null)
+            || ! is_string($createdAt)
+            || preg_match('/\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z\z/', $createdAt) !== 1
             || ! is_int($payload['chain_sequence'] ?? null)
             || $payload['chain_sequence'] < 0
             || ! is_string($payload['chain_head_hash'] ?? null)
             || preg_match('/\A[a-f0-9]{64}\z/', $payload['chain_head_hash']) !== 1) {
+            throw new RuntimeException('audit_anchor_invalid_payload');
+        }
+
+        $createdAtValue = DateTimeImmutable::createFromFormat(
+            '!Y-m-d\\TH:i:s.u\\Z',
+            $createdAt,
+            new DateTimeZone('UTC'),
+        );
+        $dateErrors = DateTimeImmutable::getLastErrors();
+        if ($createdAtValue === false
+            || ($dateErrors !== false && ($dateErrors['warning_count'] > 0 || $dateErrors['error_count'] > 0))
+            || $createdAtValue->format('Y-m-d\\TH:i:s.u\\Z') !== $createdAt) {
             throw new RuntimeException('audit_anchor_invalid_payload');
         }
 
