@@ -372,3 +372,6 @@ The tenant migration is authored on the branch but has not been executed; no ten
 
 
 - Final account-boundary hardening: subscriptions are bound to a provider account at creation and the provider identity fields cannot be changed after binding. Automated payments, payment failures, subscription lifecycle webhooks, renewals, refunds and disputes all verify that same provider/account relationship. Confirmed payment rows are append-only; financial reversals are represented only by append-only adjustments. Providers cannot supply grace-period duration.
+
+
+- Provider event normalization now resolves provider-side invoice and subscription references to local IDs only after signature verification and trusted provider-account tenant mapping. The resolver scopes every lookup by tenant + provider + provider account, preventing adapters from supplying local tenant/invoice/subscription IDs.
