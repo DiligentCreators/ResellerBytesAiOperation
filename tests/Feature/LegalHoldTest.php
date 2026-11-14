@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 uses(RefreshDatabase::class);
 
@@ -346,7 +347,7 @@ it('rejects duplicate active holds for the same target without creating a second
         $run->id,
         'Preserve records for a second formal legal matter',
         'CASE-2026-0047',
-    ))->toThrow(\\Illuminate\\Validation\\ValidationException::class);
+    ))->toThrow(ValidationException::class);
 
     expect(DB::table('legal_holds')->where('subject_type', 'diagnostic_run')->where('subject_id', $run->id)->where('status', 'active')->count())->toBe(1)
         ->and(DB::table('audit_events')->where('event_type', 'legal_hold.placed')->count())->toBe(1);
