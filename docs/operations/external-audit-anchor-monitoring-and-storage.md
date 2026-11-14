@@ -73,5 +73,4 @@ The provider-neutral publisher has automated fake-store tests for duplicate-key 
 - Generate and retain custody of the production Ed25519 signing/anchor keys. Shahrukh is the sole initial signing/verifier operator; keep future second-operator enrollment possible. Provide only non-secret public-key references/fingerprints through the approved secure channel.
 - Provide approved secret-manager access and access policy so alert destinations and production key references can be configured securely.
 
-
 No cloud resource, production signing key, credential, or production alert route was created or accessed by this implementation.
