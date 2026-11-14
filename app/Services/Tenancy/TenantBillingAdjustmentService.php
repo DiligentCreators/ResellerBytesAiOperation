@@ -93,6 +93,7 @@ class TenantBillingAdjustmentService
                 $resolved = TenantBillingAdjustment::query()
                     ->where('tenant_id', $tenantId)
                     ->where('provider', $provider)
+                    ->where('provider_account_id', $providerAccountId)
                     ->where('provider_adjustment_id', $providerAdjustmentId)
                     ->whereIn('kind', ['dispute_won', 'dispute_lost'])
                     ->exists();
@@ -106,6 +107,7 @@ class TenantBillingAdjustmentService
                 $opened = TenantBillingAdjustment::query()
                     ->where('tenant_id', $tenantId)
                     ->where('provider', $provider)
+                    ->where('provider_account_id', $providerAccountId)
                     ->where('provider_adjustment_id', $providerAdjustmentId)
                     ->whereIn('kind', ['dispute_opened', 'dispute_won', 'dispute_lost'])
                     ->exists();
@@ -189,6 +191,7 @@ class TenantBillingAdjustmentService
                 'subject_id' => (string) $adjustment->id,
                 'metadata' => [
                     'provider' => $provider,
+                    'provider_account_id' => $providerAccountId,
                     'provider_event_id' => $providerEventId,
                     'provider_payment_id' => $providerPaymentId,
                     'kind' => $kind,
