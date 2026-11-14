@@ -330,3 +330,12 @@ The tenant migration is authored on the branch but has not been executed; no ten
 - Added a rate-limited test-email endpoint and validation for driver-specific required fields, sender identity, SMTP port/encryption, Postmark token/message stream, and recipient.
 - Added feature tests for platform-owner authorization, encrypted-at-rest SMTP username/password and Postmark token handling, UI secret non-disclosure, SMTP fake mailer, Postmark HTTP fake, environment fallback, Laravel Mailable routing through the central transport, safe log-mode test-send, and log-driver no-network behavior. Tests are authored, not executed pending the required PHP/runtime dependencies.
 - Migration `2026_11_15_000008_create_platform_mail_settings_table.php` is authored only and has not been executed. No credentials or live sender identities have been provisioned.
+
+
+## Billing outbox and webhook reconciliation implementation — 2026-11-15
+
+- The tenant billing ledger milestone now includes a transactional outbox and a normalized webhook inbox, with provider-account event deduplication, tenant isolation, payload digest binding, bounded retries, dead-letter state, and scheduled reconciliation.
+- Confirmed payments and subscription status changes enqueue durable internal events in the same transaction as their billing and audit mutations. Internal consumers receive an at-least-once event with a stable outbox ID and must deduplicate.
+- Provider integration remains deliberately unselected and inactive. No public webhook endpoint, charge initiation, payment checkout, or outbound HTTP tenant webhook has been enabled. A future provider adapter must verify signatures and map provider accounts to tenants before inbox ingestion.
+- PostgreSQL global reconciliation uses a separate platform operations connection; the runtime role remains RLS-restricted. Operations-role provisioning and non-production RLS rehearsal remain infrastructure/owner gates.
+- Pricing, provider, merchant-account ownership, and payment collection decisions remain pending. No migration, production resource, provider credential, merge, or deployment has been performed.
