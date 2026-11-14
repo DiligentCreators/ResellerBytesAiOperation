@@ -10,6 +10,7 @@ class TenantRoleAuthorization
 {
     /** @var array<string, array<int, string>> */
     private const CAPABILITIES = [
+        'audit.export' => [TenantMembership::ROLE_OWNER, TenantMembership::ROLE_ADMIN],
         'tenant.read' => [TenantMembership::ROLE_OWNER, TenantMembership::ROLE_ADMIN, TenantMembership::ROLE_OPERATOR, TenantMembership::ROLE_VIEWER, TenantMembership::ROLE_BILLING],
         'diagnostics.read' => [TenantMembership::ROLE_OWNER, TenantMembership::ROLE_ADMIN, TenantMembership::ROLE_OPERATOR, TenantMembership::ROLE_VIEWER],
         'diagnostics.reanalyze' => [TenantMembership::ROLE_OWNER, TenantMembership::ROLE_ADMIN, TenantMembership::ROLE_OPERATOR],
