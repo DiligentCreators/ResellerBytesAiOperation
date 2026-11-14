@@ -1,6 +1,7 @@
 <?php
 
 use App\\Events\\TenantBillingOutboxPublished;
+use App\\Services\\Audit\\AuditEventWriter;
 use App\\Models\\Tenant;
 use App\\Models\\TenantBillingInvoice;
 use App\\Models\\TenantBillingOutboxMessage;
@@ -269,4 +270,79 @@ it('dead-letters webhook events after the maximum retry attempt', function () {
     expect($event->fresh()->status)->toBe('dead_lettered')
         ->and($event->fresh()->attempts)->toBe(12)
         ->and($event->fresh()->dead_lettered_at)->not->toBeNull();
+});
+
+it('keeps tenant billing event identity and payload immutable at the database boundary', function () {
+    $tenantA = createBillingOutboxTenant('billing-event-immutable-a');
+    $tenantB = createBillingOutboxTenant('billing-event-immutable-b');
+    $outbox = DB::transaction(fn () => app(TenantBillingOutbox::class)->enqueue(
+        $tenantA->id,
+        'immutable-event-1',
+        'billing.invoice.issued',
+        'billing_invoice',
+        101,
+        ['invoice_id' => 101],
+    ));
+    $webhook = app(TenantBillingWebhookInbox::class)->acceptVerifiedEvent(
+        $tenantA->id,
+        'approved_gateway',
+        'evt_immutable_1',
+        'invoice.payment_succeeded',
+        ['invoice_id' => 101, 'payment_id' => 'pay_immutable_1', 'amount_minor' => 100, 'currency' => 'USD'],
+        now('UTC'),
+        'acct_immutable_1',
+    );
+
+    expect(fn () => DB::table('tenant_billing_outbox')->where('id', $outbox->id)->update(['tenant_id' => $tenantB->id]))
+        ->toThrow(\\Illuminate\\Database\\QueryException::class);
+    expect(fn () => DB::table('tenant_billing_outbox')->where('id', $outbox->id)->update(['payload' => json_encode(['invoice_id' => 999])]))
+        ->toThrow(\\Illuminate\\Database\\QueryException::class);
+    expect(fn () => DB::table('tenant_billing_webhook_events')->where('id', $webhook->id)->update(['tenant_id' => $tenantB->id]))
+        ->toThrow(\\Illuminate\\Database\\QueryException::class);
+    expect(fn () => DB::table('tenant_billing_webhook_events')->where('id', $webhook->id)->update(['payload_sha256' => str_repeat('0', 64)]))
+        ->toThrow(\\Illuminate\\Database\\QueryException::class);
+
+    DB::table('tenant_billing_outbox')->where('id', $outbox->id)->update(['attempts' => 1, 'status' => 'processing']);
+    DB::table('tenant_billing_webhook_events')->where('id', $webhook->id)->update(['attempts' => 1, 'status' => 'processing']);
+
+    expect($outbox->fresh()->attempts)->toBe(1)
+        ->and($webhook->fresh()->attempts)->toBe(1);
+});
+
+it('binds webhook receipt audit evidence to the webhook tenant without retaining payload data', function () {
+    $tenantA = createBillingOutboxTenant('billing-webhook-audit-a');
+    $tenantB = createBillingOutboxTenant('billing-webhook-audit-b');
+    $event = app(TenantBillingWebhookInbox::class)->acceptVerifiedEvent(
+        $tenantA->id,
+        'approved_gateway',
+        'evt_audit_001',
+        'invoice.payment_succeeded',
+        ['invoice_id' => 202, 'payment_id' => 'pay_audit_001', 'amount_minor' => 200, 'currency' => 'USD'],
+        now('UTC'),
+        'acct_audit_001',
+    );
+
+    $audit = DB::table('audit_events')
+        ->where('subject_type', 'tenant_billing_webhook_event')
+        ->where('subject_id', (string) $event->id)
+        ->first();
+
+    expect($audit)->not->toBeNull()
+        ->and($audit->tenant_id)->toBe($tenantA->id)
+        ->and(json_decode($audit->metadata, true))->toMatchArray([
+            'provider' => 'approved_gateway',
+            'event_type' => 'invoice.payment_succeeded',
+            'payload_sha256' => $event->payload_sha256,
+        ]);
+
+    expect(fn () => app(AuditEventWriter::class)->append([
+        'actor_type' => 'system',
+        'actor_id' => null,
+        'tenant_id' => $tenantB->id,
+        'event_type' => 'tenant_billing.webhook_received',
+        'subject_type' => 'tenant_billing_webhook_event',
+        'subject_id' => (string) $event->id,
+        'metadata' => ['provider' => 'approved_gateway'],
+        'occurred_at' => now('UTC'),
+    ]))->toThrow(\\Illuminate\\Database\\QueryException::class);
 });
