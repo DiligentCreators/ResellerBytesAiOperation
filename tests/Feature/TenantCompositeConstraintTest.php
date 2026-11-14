@@ -78,7 +78,7 @@ it('rejects cross-tenant diagnostic findings at the database boundary', function
         'severity' => 'high',
         'title' => 'Cross-tenant row',
         'summary' => 'Must be rejected by the composite foreign key.',
-        'evidence' => json_encode([]),
+        'evidence' => [],
         'status' => 'open',
         'created_at' => now(),
         'updated_at' => now(),
