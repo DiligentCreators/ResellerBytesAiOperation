@@ -13,7 +13,9 @@ final class AuditEventCanonicalizer
 
     public const GENESIS_HASH = '0000000000000000000000000000000000000000000000000000000000000000';
 
-    private const DOMAIN = "resellerbytes.audit-event.v1\n";
+    private const DOMAIN_V1 = "resellerbytes.audit-event.v1\n";
+
+    private const DOMAIN_V2 = "resellerbytes.audit-event.v2\n";
 
     /**
      * @param  array<string, mixed>  $event
@@ -54,7 +56,7 @@ final class AuditEventCanonicalizer
             'occurred_at' => $this->normalizeTimestamp($event['occurred_at']),
         ];
 
-        return self::DOMAIN.json_encode(
+        return ($version === 1 ? self::DOMAIN_V1 : self::DOMAIN_V2).json_encode(
             $payload,
             JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRESERVE_ZERO_FRACTION
         );
