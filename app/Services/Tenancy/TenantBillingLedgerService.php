@@ -7,6 +7,7 @@ use App\Models\TenantBillingPayment;
 use App\Models\TenantMembership;
 use App\Models\User;
 use App\Services\Audit\AuditEventWriter;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 use RuntimeException;
@@ -57,7 +58,7 @@ class TenantBillingLedgerService
                     ->firstOrFail();
 
                 if (! app(TenantRoleAuthorization::class)->allows($membership, 'billing.manage')) {
-                    throw new \\Illuminate\\Auth\\Access\\AuthorizationException('The active tenant role does not grant billing management.');
+                    throw new AuthorizationException('The active tenant role does not grant billing management.');
                 }
             }
 
