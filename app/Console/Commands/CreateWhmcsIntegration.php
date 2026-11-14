@@ -1,16 +1,18 @@
 <?php
 
-namespace App\\Console\\Commands;
+namespace App\Console\Commands;
 
-use App\\Models\\Tenant;
-use App\\Models\\User;
-use App\\Models\\WhmcsIntegration;
-use App\\Services\\Audit\\AuditEventWriter;\nuse Illuminate\\Auth\\Access\\AuthorizationException;\nuse Illuminate\\Database\\Eloquent\\ModelNotFoundException;
-use App\\Services\\Tenancy\\TenantResourceLimitService;
-use App\\Services\\Tenancy\\TenantRoleAuthorization;
-use Illuminate\\Console\\Command;
-use Illuminate\\Support\\Facades\\DB;
-use Illuminate\\Support\\Str;
+use App\Models\Tenant;
+use App\Models\User;
+use App\Models\WhmcsIntegration;
+use App\Services\Audit\AuditEventWriter;
+use App\Services\Tenancy\TenantResourceLimitService;
+use App\Services\Tenancy\TenantRoleAuthorization;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Console\Command;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class CreateWhmcsIntegration extends Command
 {
@@ -57,43 +59,53 @@ class CreateWhmcsIntegration extends Command
 
         $secret = bin2hex(random_bytes(32));
 
-        try {\n            $integration = DB::transaction(function () use ($name, $secret, $owner, $tenantId): WhmcsIntegration {
-            if ($tenantId !== '') {
-                $tenant = Tenant::query()
-                    ->whereKey($tenantId)
-                    ->where('status', Tenant::STATUS_ACTIVE)
-                    ->lockForUpdate()
-                    ->firstOrFail();
+        try {
+            $integration = DB::transaction(function () use ($name, $secret, $owner, $tenantId): WhmcsIntegration {
+                if ($tenantId !== '') {
+                    $tenant = Tenant::query()
+                        ->whereKey($tenantId)
+                        ->where('status', Tenant::STATUS_ACTIVE)
+                        ->lockForUpdate()
+                        ->firstOrFail();
 
-                app(TenantRoleAuthorization::class)->require($owner, $tenant->id, 'integrations.manage');
-                app(TenantResourceLimitService::class)->requireIntegrationCapacity($tenant->id);
-            }
+                    app(TenantRoleAuthorization::class)->require($owner, $tenant->id, 'integrations.manage');
+                    app(TenantResourceLimitService::class)->requireIntegrationCapacity($tenant->id);
+                }
 
-            $integration = WhmcsIntegration::create([
-                'owner_user_id' => $owner->getKey(),
-                'tenant_id' => $tenantId !== '' ? $tenantId : null,
-                'name' => $name,
-                'status' => 'active',
-                'secret' => $secret,
-                'secret_version' => 1,
-            ]);
-
-            app(AuditEventWriter::class)->append([
-                'actor_type' => 'system_operator',
-                'event_type' => 'whmcs_integration.created',
-                'subject_type' => 'whmcs_integration',
-                'subject_id' => $integration->id,
-                'tenant_id' => $tenantId !== '' ? $tenantId : null,
-                'metadata' => [
-                    'owner_user_id' => (string) $owner->getKey(),
-                    'secret_version' => 1,
+                $integration = WhmcsIntegration::create([
+                    'owner_user_id' => $owner->getKey(),
                     'tenant_id' => $tenantId !== '' ? $tenantId : null,
-                ],
-                'occurred_at' => now(),
-            ]);
+                    'name' => $name,
+                    'status' => 'active',
+                    'secret' => $secret,
+                    'secret_version' => 1,
+                ]);
 
-            return $integration;
-        });
+                app(AuditEventWriter::class)->append([
+                    'actor_type' => 'system_operator',
+                    'event_type' => 'whmcs_integration.created',
+                    'subject_type' => 'whmcs_integration',
+                    'subject_id' => $integration->id,
+                    'tenant_id' => $tenantId !== '' ? $tenantId : null,
+                    'metadata' => [
+                        'owner_user_id' => (string) $owner->getKey(),
+                        'secret_version' => 1,
+                        'tenant_id' => $tenantId !== '' ? $tenantId : null,
+                    ],
+                    'occurred_at' => now(),
+                ]);
+
+                return $integration;
+            });
+        } catch (AuthorizationException $exception) {
+            $this->error($exception->getMessage());
+
+            return self::FAILURE;
+        } catch (ModelNotFoundException) {
+            $this->error('The requested tenant does not exist or is not active.');
+
+            return self::FAILURE;
+        }
 
         $this->info('WHMCS integration created.');
         $this->line('Integration ID: '.$integration->id);
