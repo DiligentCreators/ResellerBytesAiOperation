@@ -59,6 +59,15 @@ class CentralOutboundMailer
             }
 
             $encryption = $config['encryption'] ?? 'tls';
+            $username = (string) ($config['username'] ?? '');
+            $password = (string) ($config['password'] ?? '');
+
+            if (! in_array($encryption, ['none', 'tls', 'ssl'], true)) {
+                throw new RuntimeException('platform_mail_smtp_configuration_invalid');
+            }
+            if (($username === '') !== ($password === '')) {
+                throw new RuntimeException('platform_mail_smtp_auth_configuration_invalid');
+            }
 
             try {
                 $mailer = Mail::build([
@@ -66,8 +75,8 @@ class CentralOutboundMailer
                     'scheme' => $encryption === 'ssl' ? 'smtps' : null,
                     'host' => $config['host'],
                     'port' => (int) $config['port'],
-                    'username' => ($config['username'] ?? '') !== '' ? $config['username'] : null,
-                    'password' => ($config['password'] ?? '') !== '' ? $config['password'] : null,
+                    'username' => $username !== '' ? $username : null,
+                    'password' => $password !== '' ? $password : null,
                     'timeout' => 10,
                     'local_domain' => parse_url((string) config('app.url'), PHP_URL_HOST) ?: 'localhost',
                 ]);
