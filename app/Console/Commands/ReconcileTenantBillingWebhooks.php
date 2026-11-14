@@ -5,6 +5,7 @@ namespace App\\Console\\Commands;
 use App\\Models\\TenantBillingWebhookEvent;
 use App\\Services\\Tenancy\\TenantBillingLedgerService;
 use App\\Services\\Tenancy\\TenantDatabaseContext;
+use App\\Services\\Tenancy\\TenantBillingOperationsConnection;
 use App\\Services\\Tenancy\\TenantSubscriptionLifecycle;
 use Carbon\\CarbonImmutable;
 use Illuminate\\Console\\Command;
@@ -31,6 +32,23 @@ class ReconcileTenantBillingWebhooks extends Command
             return self::FAILURE;
         }
 
+        try {
+            return app(TenantBillingOperationsConnection::class)->run(
+                fn (): int => $this->reconcile((int) $limit),
+            );
+        } catch (Throwable $exception) {
+            Log::error('Billing webhook reconciliation could not start.', [
+                'reason_code' => 'billing_operations_database_role_not_configured',
+                'exception_class' => $exception::class,
+            ]);
+            $this->error('Billing reconciliation requires the separately provisioned PostgreSQL operations connection.');
+
+            return self::FAILURE;
+        }
+    }
+
+    private function reconcile(int $limit): int
+    {
         $now = CarbonImmutable::now('UTC');
         $ids = TenantBillingWebhookEvent::query()
             ->where(function ($query) use ($now): void {
