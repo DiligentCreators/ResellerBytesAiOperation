@@ -52,7 +52,6 @@ This run does not verify the later SQL Server/MariaDB additions in this branch.
 3. Keep these items in the operator decision queue: Object Lock/cloud account, 365-day retention approval, signing keys and production DB roles, legal-hold policy, and backup/restore rehearsal access.
 4. Keep PR #2 Draft. Do not merge, deploy, or run production migrations.
 
-
 ## Shahrukh-approved operational decisions — 2026-11-14
 
 The following decisions are approved and are now implementation requirements, not owner-pending decisions:
@@ -74,7 +73,6 @@ The config and runbooks record these approved values. Alert delivery, provider a
 - Expanded PostgreSQL role guidance to three distinct application identities. Reporting access is explicitly allowlisted rather than broad schema-wide SELECT.
 - Added a PostgreSQL CI regression script for the read-only reporting identity; exact-head CI for this new batch is pending.
 - PR #2 remains open and Draft. No merge, deploy, production migration, or live WHMCS change has occurred.
-
 
 ## Pending for Shahrukh — owner-only inputs/actions
 
