@@ -21,7 +21,7 @@ class RetryTenantBillingWebhookDeadLetter extends Command
         $reason = $this->option('reason');
 
         if ($eventId === false || $eventId < 1 || $actorId === false || $actorId < 1
-            || ! is_string($tenantId) || ! preg_match('/^[0-9a-fA-F-]{36}$/', $tenantId)
+            || ! is_string($tenantId) || ! preg_match('/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/', $tenantId)
             || ! is_string($reason) || ! preg_match('/^[a-z][a-z0-9_.-]{2,79}$/', $reason)
             || ! $this->option('confirm')) {
             $this->error('Provide a valid tenant UUID, actor ID, reason code, and explicit --confirm.');
