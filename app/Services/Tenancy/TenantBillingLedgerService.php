@@ -18,7 +18,7 @@ class TenantBillingLedgerService
      * Record a payment already confirmed by the collection channel. This method
      * never initiates a charge or trusts an unverified provider callback.
      *
-     * @param array{collection_mode: string, idempotency_key: string, amount_minor: int, currency: string, provider?: ?string, provider_payment_id?: ?string, reference?: ?string, recorded_by_user_id?: ?int, received_at: mixed} $payment
+     * @param array{collection_mode: string, idempotency_key: string, amount_minor: int, currency: string, provider?: ?string, provider_account_id?: ?string, provider_payment_id?: ?string, reference?: ?string, recorded_by_user_id?: ?int, received_at: mixed} $payment
      */
     public function recordConfirmedPayment(string $tenantId, int $invoiceId, array $payment): TenantBillingPayment
     {
@@ -37,7 +37,7 @@ class TenantBillingLedgerService
             throw new InvalidArgumentException('billing_manual_payment_evidence_required');
         }
         if ($payment['collection_mode'] === 'automated'
-            && (empty($payment['provider']) || empty($payment['provider_payment_id']))) {
+            && (empty($payment['provider']) || empty($payment['provider_account_id']) || empty($payment['provider_payment_id']))) {
             throw new InvalidArgumentException('billing_provider_payment_reference_required');
         }
 
@@ -94,6 +94,7 @@ class TenantBillingLedgerService
                 'collection_mode' => $payment['collection_mode'],
                 'idempotency_key' => $payment['idempotency_key'],
                 'provider' => $payment['provider'] ?? null,
+                'provider_account_id' => $payment['provider_account_id'] ?? null,
                 'provider_payment_id' => $payment['provider_payment_id'] ?? null,
                 'status' => 'succeeded',
                 'currency' => $payment['currency'],
