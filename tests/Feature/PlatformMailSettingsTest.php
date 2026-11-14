@@ -65,10 +65,10 @@ class PlatformMailSettingsTest extends TestCase
             'username' => 'mailer-user', 'password' => 'smtp-secret',
             'from_address' => 'mail@example.test', 'from_name' => 'ResellerBytes',
         ]]);
-        $fakeMailer = \\Mockery::mock();
+        $fakeMailer = \Mockery::mock();
         $fakeMailer->shouldReceive('html')->once();
         Mail::shouldReceive('build')->once()
-            ->with(\\Mockery::on(fn (array $config): bool => $config['host'] === 'smtp.example.test'
+            ->with(\Mockery::on(fn (array $config): bool => $config['host'] === 'smtp.example.test'
                 && $config['port'] === 587 && $config['username'] === 'mailer-user'
                 && $config['password'] === 'smtp-secret'))
             ->andReturn($fakeMailer);
