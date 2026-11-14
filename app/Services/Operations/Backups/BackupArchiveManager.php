@@ -63,7 +63,7 @@ final class BackupArchiveManager
                 'rto_hours' => (int) config('operations.recovery.rto_hours', 4),
             ];
 
-            $this->putLockedObject(
+            $objectVersionId = $this->putLockedObject(
                 $settings,
                 $objectKey,
                 $encryptedPath,
@@ -71,15 +71,17 @@ final class BackupArchiveManager
                 $checksums['encrypted_sha256'],
                 'application/octet-stream',
             );
+            $manifest['object_version_id'] = $objectVersionId;
             $this->verifyLockedObject(
                 $settings,
                 $objectKey,
                 $checksums['encrypted_sha256'],
                 $checksums['encrypted_bytes'],
                 $retentionUntil,
+                $objectVersionId,
             );
 
-            $this->downloadObject($settings, $objectKey, $verificationPath);
+            $this->downloadObject($settings, $objectKey, $verificationPath, $objectVersionId);
             if (! hash_equals($checksums['encrypted_sha256'], (string) hash_file('sha256', $verificationPath))) {
                 throw new RuntimeException('Uploaded backup did not pass read-back checksum verification.');
             }
@@ -90,7 +92,7 @@ final class BackupArchiveManager
                 throw new RuntimeException('Unable to calculate backup manifest checksum.');
             }
 
-            $this->putLockedObject(
+            $manifestVersionId = $this->putLockedObject(
                 $settings,
                 $manifestKey,
                 $manifestPath,
@@ -104,6 +106,7 @@ final class BackupArchiveManager
                 $manifestHash,
                 (int) filesize($manifestPath),
                 $retentionUntil,
+                $manifestVersionId,
             );
 
             $this->updateSuccessMarker($backupId, $createdAt);
@@ -150,6 +153,8 @@ final class BackupArchiveManager
                 || ! str_starts_with($manifest['object_key'], 'backups/')
                 || ! is_string($manifest['encrypted_sha256'] ?? null)
                 || ! is_string($manifest['plaintext_sha256'] ?? null)
+                || ! is_string($manifest['object_version_id'] ?? null)
+                || trim($manifest['object_version_id']) === ''
                 || ! is_numeric($manifest['encrypted_bytes'] ?? null)
                 || ! is_string($manifest['retention_until'] ?? null)) {
                 throw new RuntimeException('Backup manifest is invalid or unsupported.');
@@ -161,8 +166,14 @@ final class BackupArchiveManager
                 $manifest['encrypted_sha256'],
                 (int) $manifest['encrypted_bytes'],
                 $manifest['retention_until'],
+                $manifest['object_version_id'],
             );
-            $this->downloadObject($settings, $manifest['object_key'], $encryptedPath);
+            $this->downloadObject(
+                $settings,
+                $manifest['object_key'],
+                $encryptedPath,
+                $manifest['object_version_id'],
+            );
             $encryptedHash = hash_file('sha256', $encryptedPath);
             if (! is_string($encryptedHash) || ! hash_equals($manifest['encrypted_sha256'], $encryptedHash)) {
                 throw new RuntimeException('Downloaded backup failed its encrypted checksum verification.');
@@ -277,8 +288,8 @@ final class BackupArchiveManager
                 ->format('Y-m-d\TH:i:s\Z');
             $key = 'restore-events/'.$createdAt->format('Y/m/d').'/'.Str::uuid().'.json';
 
-            $this->putLockedObject($settings, $key, $path, $retentionUntil, $hash, 'application/json');
-            $this->verifyLockedObject($settings, $key, $hash, (int) filesize($path), $retentionUntil);
+            $versionId = $this->putLockedObject($settings, $key, $path, $retentionUntil, $hash, 'application/json');
+            $this->verifyLockedObject($settings, $key, $hash, (int) filesize($path), $retentionUntil, $versionId);
         } finally {
             $this->removeWorkingDirectory($workingDirectory);
         }
@@ -359,8 +370,8 @@ final class BackupArchiveManager
         string $retentionUntil,
         string $sha256,
         string $contentType,
-    ): void {
-        $this->runAws($settings, [
+    ): string {
+        $response = json_decode($this->runAws($settings, [
             's3api', 'put-object',
             '--bucket', $settings['bucket'],
             '--key', $key,
@@ -370,7 +381,15 @@ final class BackupArchiveManager
             '--object-lock-mode', 'COMPLIANCE',
             '--object-lock-retain-until-date', $retentionUntil,
             '--metadata', 'sha256='.$sha256,
-        ]);
+            '--if-none-match', '*',
+        ]), true, 512, JSON_THROW_ON_ERROR);
+
+        $versionId = is_array($response) ? ($response['VersionId'] ?? null) : null;
+        if (! is_string($versionId) || trim($versionId) === '') {
+            throw new RuntimeException('Wasabi did not return a version ID for the immutable backup object.');
+        }
+
+        return $versionId;
     }
 
     /**
@@ -382,11 +401,13 @@ final class BackupArchiveManager
         string $sha256,
         int $bytes,
         string $retentionUntil,
+        string $versionId,
     ): void {
         $head = json_decode($this->runAws($settings, [
             's3api', 'head-object',
             '--bucket', $settings['bucket'],
             '--key', $key,
+            '--version-id', $versionId,
         ]), true, 512, JSON_THROW_ON_ERROR);
 
         $actualRetention = isset($head['ObjectLockRetainUntilDate'])
@@ -394,7 +415,8 @@ final class BackupArchiveManager
             : null;
         $expectedRetention = CarbonImmutable::parse($retentionUntil)->utc();
 
-        if (($head['ObjectLockMode'] ?? null) !== 'COMPLIANCE'
+        if (($head['VersionId'] ?? null) !== $versionId
+            || ($head['ObjectLockMode'] ?? null) !== 'COMPLIANCE'
             || $actualRetention === null
             || $actualRetention->lessThan($expectedRetention->subMinute())
             || (int) ($head['ContentLength'] ?? -1) !== $bytes
@@ -406,14 +428,25 @@ final class BackupArchiveManager
     /**
      * @param  array{bucket: string, endpoint: string, region: string, retention_days: int, aws_binary: string}  $settings
      */
-    private function downloadObject(array $settings, string $key, string $path): void
-    {
-        $this->runAws($settings, [
+    private function downloadObject(
+        array $settings,
+        string $key,
+        string $path,
+        ?string $versionId = null,
+    ): void {
+        $arguments = [
             's3api', 'get-object',
             '--bucket', $settings['bucket'],
             '--key', $key,
-            $path,
-        ]);
+        ];
+
+        if ($versionId !== null) {
+            $arguments[] = '--version-id';
+            $arguments[] = $versionId;
+        }
+
+        $arguments[] = $path;
+        $this->runAws($settings, $arguments);
     }
 
     /**

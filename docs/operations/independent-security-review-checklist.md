@@ -128,6 +128,8 @@ deployment assumptions, and unresolved findings.
 - [ ] Confirm the Owner-authorized legal-hold placement/release workflow records immutable audit evidence, uses fresh TOTP, and fails closed on audit-write failure. Confirm active holds are marked expired with immutable audit evidence when diagnostic content reaches 365 days; legal holds do not extend diagnostic retention.
 - [ ] Review nonce cleanup for bounded batches, idempotency, expiry boundary,
       and rerun behavior.
+- [ ] Review backup scheduler gating, the 5 GB single-PutObject fail-closed limit, conditional object creation, exact VersionId pinning, manifest/Object Lock verification, encrypted read-back, restore-target identity checks, production owner approval, fresh TOTP, pre-restore backup, and immutable approval evidence.
+- [ ] Verify backup retention days remain unset until Shahrukh explicitly approves the retention period; no default retention period is inferred.
 - [ ] Require isolated backup restore rehearsal and compare the restored chain
       head with the newest independent external checkpoint before production
       migration.
