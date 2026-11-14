@@ -42,6 +42,7 @@ return new class extends Migration
             $table->string('status', 20)->default('pending');
             $table->unsignedInteger('attempts')->default(0);
             $table->timestampTz('received_at');
+            $table->timestampTz('provider_occurred_at')->nullable();
             $table->timestampTz('available_at');
             $table->timestampTz('locked_at')->nullable();
             $table->timestampTz('processed_at')->nullable();
@@ -87,7 +88,8 @@ BEGIN
         OR NEW.event_type IS DISTINCT FROM OLD.event_type
         OR NEW.payload_sha256 IS DISTINCT FROM OLD.payload_sha256
         OR NEW.payload IS DISTINCT FROM OLD.payload
-        OR NEW.received_at IS DISTINCT FROM OLD.received_at THEN
+        OR NEW.received_at IS DISTINCT FROM OLD.received_at
+        OR NEW.provider_occurred_at IS DISTINCT FROM OLD.provider_occurred_at THEN
         RAISE EXCEPTION 'tenant_billing_webhook_immutable_fields' USING ERRCODE = '23514';
     END IF;
     RETURN NEW;
@@ -128,6 +130,7 @@ WHEN NEW.tenant_id IS NOT OLD.tenant_id
  OR NEW.payload_sha256 IS NOT OLD.payload_sha256
  OR NEW.payload IS NOT OLD.payload
  OR NEW.received_at IS NOT OLD.received_at
+ OR NEW.provider_occurred_at IS NOT OLD.provider_occurred_at
 BEGIN SELECT RAISE(ABORT, 'tenant_billing_webhook_immutable_fields'); END;
 CREATE TRIGGER rb_billing_webhook_audit_tenant_guard BEFORE INSERT ON audit_events
 WHEN NEW.subject_type = 'tenant_billing_webhook_event'
