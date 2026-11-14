@@ -4,6 +4,7 @@ namespace App\\Services\\Tenancy;
 
 use App\\Models\\Tenant;
 use App\\Models\\TenantBillingWebhookEvent;
+use App\\Services\\Audit\\AuditEventWriter;
 use Illuminate\\Support\\Facades\\DB;
 use InvalidArgumentException;
 use RuntimeException;
@@ -77,7 +78,7 @@ class TenantBillingWebhookInbox
                 return $existing;
             }
 
-            return TenantBillingWebhookEvent::query()->create([
+            $event = TenantBillingWebhookEvent::query()->create([
                 'tenant_id' => $tenantId,
                 'provider' => $provider,
                 'provider_account_id' => $providerAccountId,
@@ -90,6 +91,23 @@ class TenantBillingWebhookInbox
                 'received_at' => $receivedAt,
                 'available_at' => now('UTC'),
             ]);
+
+            app(AuditEventWriter::class)->append([
+                'actor_type' => 'system',
+                'actor_id' => null,
+                'tenant_id' => $tenantId,
+                'event_type' => 'tenant_billing.webhook_received',
+                'subject_type' => 'tenant_billing_webhook_event',
+                'subject_id' => (string) $event->id,
+                'metadata' => [
+                    'provider' => $provider,
+                    'event_type' => $eventType,
+                    'payload_sha256' => $hash,
+                ],
+                'occurred_at' => $event->received_at,
+            ]);
+
+            return $event;
         }, 3));
     }
 
