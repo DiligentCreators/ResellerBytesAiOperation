@@ -83,6 +83,17 @@ class TenantSubscriptionLifecycle
                 }
 
                 if ($subscription->status === $targetStatus) {
+                    if ($targetStatus === 'past_due') {
+                        // Repeated provider delinquency notifications never extend the platform grace deadline.
+                        return $subscription;
+                    }
+
+                    if ($targetStatus === 'active' && $settledInvoiceId !== null) {
+                        $this->requireSettledInvoice($tenantId, $subscription, $settledInvoiceId, $settlementProvider, $settlementProviderAccountId);
+
+                        return $subscription;
+                    }
+
                     if ($graceEndsAt !== null || $settledInvoiceId !== null) {
                         throw new InvalidArgumentException('tenant_subscription_transition_already_applied');
                     }
@@ -173,6 +184,7 @@ class TenantSubscriptionLifecycle
 
         if (! $periodEnd->greaterThan($periodStart)
             || $periodStart->greaterThan($now->addMinutes(5))
+            || ! $periodEnd->greaterThan($now)
             || $periodEnd->diffInDays($periodStart) > 366
             || ! preg_match('/^[a-z][a-z0-9_-]{1,39}$/', $provider)
             || trim($providerAccountId) === '' || strlen($providerAccountId) > 160) {
