@@ -29,6 +29,7 @@ class WhmcsIntegration extends Model
 
     protected $fillable = [
         'owner_user_id',
+        'tenant_id',
         'name',
         'status',
         'secret',
@@ -58,6 +59,15 @@ class WhmcsIntegration extends Model
             'secret_version' => 'integer',
             'last_seen_at' => 'immutable_datetime',
         ];
+    }
+
+
+    /**
+     * @return BelongsTo<Tenant, $this>
+     */
+    public function tenant(): BelongsTo
+    {
+        return $this->belongsTo(Tenant::class);
     }
 
     /**
