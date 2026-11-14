@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\DiagnosticFinding;
+use App\Models\DiagnosticRecommendation;
 use App\Models\DiagnosticRun;
 use App\Models\User;
 use App\Models\WhmcsIntegration;
