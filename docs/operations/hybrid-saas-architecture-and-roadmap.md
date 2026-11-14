@@ -387,3 +387,6 @@ The tenant migration is authored on the branch but has not been executed; no ten
 
 
 - Operational recovery now covers both webhook inbox and transactional outbox dead letters. Tenant billing managers can manually requeue only dead-lettered records, with an active verified provider account required for inbox replay, audit evidence, explicit confirmation, and a three-replay ceiling.
+
+
+- Added a PostgreSQL billing RLS rehearsal harness for the runtime/operations role boundary and tenant isolation across outbox, inbox, provider-account and adjustment tables. Global scans now require a distinct non-owner, non-superuser operations role with BYPASSRLS and narrowly granted table privileges; application startup checks this before global reconciliation.
