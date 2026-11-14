@@ -19,6 +19,7 @@ class TenantBillingAdjustmentService
     public function recordProviderAdjustment(
         string $tenantId,
         string $provider,
+        string $providerAccountId,
         string $providerEventId,
         string $providerPaymentId,
         string $providerAdjustmentId,
@@ -29,6 +30,7 @@ class TenantBillingAdjustmentService
     ): TenantBillingAdjustment {
         if (! preg_match('/^[a-z][a-z0-9_-]{1,39}$/', $provider)
             || ! in_array($kind, ['refund', 'dispute_opened', 'dispute_won', 'dispute_lost'], true)
+            || trim($providerAccountId) === '' || strlen($providerAccountId) > 160
             || trim($providerEventId) === '' || strlen($providerEventId) > 180
             || trim($providerPaymentId) === '' || strlen($providerPaymentId) > 160
             || trim($providerAdjustmentId) === '' || strlen($providerAdjustmentId) > 180
@@ -37,9 +39,9 @@ class TenantBillingAdjustmentService
         }
 
         $occurredAt = CarbonImmutable::instance($occurredAt)->utc();
-        $idempotencyKey = 'billing.adjustment:'.hash('sha256', $provider.':'.$kind.':'.$providerAdjustmentId);
+        $idempotencyKey = 'billing.adjustment:'.hash('sha256', $provider.':'.$providerAccountId.':'.$kind.':'.$providerAdjustmentId);
 
-        return app(TenantDatabaseContext::class)->run($tenantId, null, fn (): TenantBillingAdjustment => DB::transaction(function () use ($tenantId, $provider, $providerEventId, $providerPaymentId, $providerAdjustmentId, $kind, $amountMinor, $currency, $occurredAt, $idempotencyKey): TenantBillingAdjustment {
+        return app(TenantDatabaseContext::class)->run($tenantId, null, fn (): TenantBillingAdjustment => DB::transaction(function () use ($tenantId, $provider, $providerAccountId, $providerEventId, $providerPaymentId, $providerAdjustmentId, $kind, $amountMinor, $currency, $occurredAt, $idempotencyKey): TenantBillingAdjustment {
             Tenant::query()->whereKey($tenantId)->lockForUpdate()->firstOrFail();
 
             $payment = TenantBillingPayment::query()
@@ -78,6 +80,7 @@ class TenantBillingAdjustmentService
                 $opened = TenantBillingAdjustment::query()
                     ->where('tenant_id', $tenantId)
                     ->where('provider', $provider)
+                    ->where('provider_account_id', $providerAccountId)
                     ->where('provider_adjustment_id', $providerAdjustmentId)
                     ->where('kind', 'dispute_opened')
                     ->where('tenant_billing_payment_id', $payment->id)
@@ -139,6 +142,7 @@ class TenantBillingAdjustmentService
                     'tenant_id' => $tenantId,
                     'tenant_billing_payment_id' => $payment->id,
                     'provider' => $provider,
+                    'provider_account_id' => $providerAccountId,
                     'provider_adjustment_id' => $providerAdjustmentId,
                     'kind' => $kind,
                     'idempotency_key' => $idempotencyKey,
