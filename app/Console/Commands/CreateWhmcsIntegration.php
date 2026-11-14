@@ -5,7 +5,7 @@ namespace App\\Console\\Commands;
 use App\\Models\\Tenant;
 use App\\Models\\User;
 use App\\Models\\WhmcsIntegration;
-use App\\Services\\Audit\\AuditEventWriter;
+use App\\Services\\Audit\\AuditEventWriter;\nuse Illuminate\\Auth\\Access\\AuthorizationException;\nuse Illuminate\\Database\\Eloquent\\ModelNotFoundException;
 use App\\Services\\Tenancy\\TenantResourceLimitService;
 use App\\Services\\Tenancy\\TenantRoleAuthorization;
 use Illuminate\\Console\\Command;
@@ -57,7 +57,7 @@ class CreateWhmcsIntegration extends Command
 
         $secret = bin2hex(random_bytes(32));
 
-        $integration = DB::transaction(function () use ($name, $secret, $owner, $tenantId): WhmcsIntegration {
+        try {\n            $integration = DB::transaction(function () use ($name, $secret, $owner, $tenantId): WhmcsIntegration {
             if ($tenantId !== '') {
                 $tenant = Tenant::query()
                     ->whereKey($tenantId)
