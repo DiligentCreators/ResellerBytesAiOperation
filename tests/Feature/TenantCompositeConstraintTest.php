@@ -63,7 +63,7 @@ it('rejects cross-tenant diagnostic findings at the database boundary', function
         'severity' => 'high',
         'title' => 'Null tenant child',
         'summary' => 'A tenant child cannot omit tenant attribution.',
-        'evidence' => json_encode([]),
+        'evidence' => [],
         'status' => 'open',
         'created_at' => now(),
         'updated_at' => now(),
@@ -183,7 +183,7 @@ it('atomically assigns a legacy integration and its diagnostic descendants to a 
         'status' => 'analyzed',
         'collected_at' => now(),
         'received_at' => now(),
-        'payload' => json_encode(['source' => 'legacy']),
+        'payload' => ['source' => 'legacy'],
         'payload_sha256' => hash('sha256', 'legacy'),
     ]);
     $finding = \App\Models\DiagnosticFinding::create([
