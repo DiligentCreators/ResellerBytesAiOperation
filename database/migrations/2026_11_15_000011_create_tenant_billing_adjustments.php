@@ -12,7 +12,11 @@ return new class extends Migration
         Schema::create('tenant_billing_adjustments', function (Blueprint $table): void {
             $table->id();
             $table->foreignUuid('tenant_id')->constrained('tenants')->restrictOnDelete();
-            $table->foreignId('tenant_billing_payment_id')->constrained('tenant_billing_payments')->restrictOnDelete();
+            $table->foreignId('tenant_billing_payment_id');
+            $table->foreign(['tenant_billing_payment_id', 'tenant_id'], 'tenant_billing_adjustment_payment_tenant_fk')
+                ->references(['id', 'tenant_id'])
+                ->on('tenant_billing_payments')
+                ->restrictOnDelete();
             $table->string('provider', 40);
             $table->string('provider_account_id', 160);
             $table->string('provider_adjustment_id', 180);
