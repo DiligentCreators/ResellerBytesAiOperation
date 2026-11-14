@@ -9,7 +9,7 @@ use JsonException;
 
 final class AuditEventCanonicalizer
 {
-    public const VERSION = 1;
+    public const VERSION = 2;
 
     public const GENESIS_HASH = '0000000000000000000000000000000000000000000000000000000000000000';
 
@@ -28,10 +28,22 @@ final class AuditEventCanonicalizer
             $metadata = json_decode($metadata, true, 512, JSON_THROW_ON_ERROR);
         }
 
+        $version = (int) ($event['hash_version'] ?? self::VERSION);
+        if (! in_array($version, [1, 2], true)) {
+            throw new InvalidArgumentException('Unsupported audit event hash version.');
+        }
+
         $payload = [
-            'chain_version' => self::VERSION,
+            'chain_version' => $version,
             'chain_sequence' => (int) $event['chain_sequence'],
             'previous_hash' => (string) $event['previous_hash'],
+        ];
+
+        if ($version >= 2) {
+            $payload['tenant_id'] = isset($event['tenant_id']) ? (string) $event['tenant_id'] : null;
+        }
+
+        $payload += [
             'actor_type' => $event['actor_type'] ?? null,
             'actor_id' => $event['actor_id'] ?? null,
             'event_type' => (string) $event['event_type'],
