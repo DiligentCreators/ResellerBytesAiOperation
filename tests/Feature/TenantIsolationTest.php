@@ -5,6 +5,9 @@ use App\Models\DiagnosticRun;
 use App\Models\User;
 use App\Models\Tenant;
 use App\Models\TenantMembership;
+use App\Models\TenantSubscription;
+use App\Jobs\AnalyzeDiagnosticRun;
+use Illuminate\Support\Facades\Queue;
 use App\Models\WhmcsIntegration;
 use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -147,4 +150,37 @@ it('serves tenant-assigned integrations and nested diagnostics only to active te
         ->component('integrations/index')->has('integrations.data', 0));
     $this->get('/diagnostic-runs/'.$run->id)->assertNotFound();
     $this->get('/findings/'.$finding->id)->assertNotFound();
+});
+
+
+it('allows only tenant operators and above with an active entitlement to request reanalysis', function () {
+    config(['services.openai.key' => 'test-api-key']);
+    Queue::fake();
+    $historicalOwner = User::factory()->withTwoFactor()->create(['email_verified_at' => now()]);
+    [$integration, $run] = createForeignTenantDiagnosticRecords($historicalOwner);
+    $tenant = Tenant::create(['name' => 'Reanalysis Role Workspace', 'slug' => 'reanalyze-role-workspace', 'status' => Tenant::STATUS_ACTIVE]);
+    $integration->forceFill(['tenant_id' => $tenant->id])->save();
+
+    $viewer = User::factory()->withTwoFactor()->create(['email_verified_at' => now()]);
+    $tenant->memberships()->create(['user_id' => $viewer->id, 'role' => TenantMembership::ROLE_VIEWER, 'status' => TenantMembership::STATUS_ACTIVE, 'accepted_at' => now()]);
+    $this->actingAs($viewer)->post('/diagnostic-runs/'.$run->id.'/reanalyze')->assertForbidden();
+    expect($run->fresh()->status)->toBe('received');
+
+    $operator = User::factory()->withTwoFactor()->create(['email_verified_at' => now()]);
+    $tenant->memberships()->create(['user_id' => $operator->id, 'role' => TenantMembership::ROLE_OPERATOR, 'status' => TenantMembership::STATUS_ACTIVE, 'accepted_at' => now()]);
+    TenantSubscription::create([
+        'tenant_id' => $tenant->id,
+        'plan_code' => 'approved-test-plan',
+        'billing_mode' => 'manual',
+        'status' => 'active',
+        'currency' => 'USD',
+        'unit_amount_minor' => 0,
+        'entitlements' => ['diagnostics.reanalyze' => true],
+        'current_period_starts_at' => now()->subDay(),
+        'current_period_ends_at' => now()->addMonth(),
+    ]);
+
+    $this->actingAs($operator)->post('/diagnostic-runs/'.$run->id.'/reanalyze')->assertRedirect();
+    Queue::assertPushed(AnalyzeDiagnosticRun::class, fn (AnalyzeDiagnosticRun $job): bool => $job->tenantId === $tenant->id && $job->ownerUserId === $operator->id);
+    expect($run->fresh()->status)->toBe('queued');
 });
