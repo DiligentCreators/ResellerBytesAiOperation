@@ -3,6 +3,8 @@
 namespace App\Services\Diagnostics;
 
 use App\Models\AiBudgetPeriod;
+use App\Models\AiTenantBudgetPeriod;
+use App\Models\Tenant;
 use App\Models\AiUsageAttempt;
 use App\Models\DiagnosticRun;
 use App\Services\Audit\AuditEventWriter;
@@ -37,7 +39,11 @@ class AiBudgetService
         $reservation = intdiv($reservationNumerator + 9, 10);
 
         return DB::transaction(function () use ($run, $model, $promptVersion, $card, $reservation): AiUsageAttempt {
-            $lockedRun = DiagnosticRun::query()->whereKey($run->id)->lockForUpdate()->firstOrFail();
+            $lockedRun = DiagnosticRun::query()->whereKey($run->id)->with('integration')->lockForUpdate()->firstOrFail();
+            $tenantId = $lockedRun->integration?->tenant_id;
+            if ($tenantId !== null && ! Tenant::query()->whereKey($tenantId)->where('status', Tenant::STATUS_ACTIVE)->exists()) {
+                throw new RuntimeException('budget_tenant_inactive');
+            }
 
             $unresolved = AiUsageAttempt::query()
                 ->where('diagnostic_run_id', $lockedRun->id)
@@ -85,6 +91,8 @@ class AiBudgetService
                 $lockedPeriods[] = $budgetPeriod;
             }
 
+            $this->reserveTenantPeriods($tenantId, $periods, $reservation);
+
             foreach ($lockedPeriods as $budgetPeriod) {
                 $budgetPeriod->increment('reserved_micro_usd', $reservation);
             }
@@ -92,6 +100,7 @@ class AiBudgetService
             return AiUsageAttempt::create([
                 'id' => (string) Str::uuid(),
                 'diagnostic_run_id' => $lockedRun->id,
+                'tenant_id' => $tenantId,
                 'attempt_number' => $lockedRun->analysis_attempts,
                 'model' => $model,
                 'prompt_version' => $promptVersion,
@@ -183,6 +192,8 @@ class AiBudgetService
                 throw new RuntimeException('budget_usage_invalid');
             }
 
+            $this->settleTenantPeriods($locked, $cost);
+
             $locked->forceFill([
                 'status' => 'settled',
                 'settled_micro_usd' => $cost,
@@ -242,6 +253,8 @@ class AiBudgetService
 
                 $budgetPeriod->decrement('reserved_micro_usd', $locked->reserved_micro_usd);
             }
+
+            $this->settleTenantPeriods($locked, 0);
 
             $locked->forceFill([
                 'status' => 'released',
@@ -305,8 +318,94 @@ class AiBudgetService
                 $budgetPeriod->decrement('reserved_micro_usd', $locked->reserved_micro_usd);
             }
 
+            $this->settleTenantPeriods($locked, 0);
+
             $locked->forceFill(['status' => 'released', 'failure_code' => $failureCode])->save();
         }, 3);
+    }
+
+
+    /**
+     * Create and reserve the tenant's daily/monthly allowance in the same
+     * transaction as the platform-wide cap. Platform limits remain global.
+     *
+     * @param array<int, array{type: string, start: string, limit: int}> $periods
+     */
+    private function reserveTenantPeriods(?string $tenantId, array $periods, int $reservation): void
+    {
+        if ($tenantId === null) {
+            return;
+        }
+
+        $limits = [
+            'daily' => (int) config('ai_budget.tenant_daily_limit_micro_usd', config('ai_budget.daily_limit_micro_usd')),
+            'monthly' => (int) config('ai_budget.tenant_monthly_limit_micro_usd', config('ai_budget.monthly_limit_micro_usd')),
+        ];
+
+        foreach ($periods as $period) {
+            $limit = $limits[$period['type']] ?? 0;
+            if ($limit < 1) {
+                throw new RuntimeException('budget_tenant_configuration_invalid');
+            }
+
+            DB::table('ai_tenant_budget_periods')->insertOrIgnore([
+                'tenant_id' => $tenantId,
+                'period_type' => $period['type'],
+                'period_start' => $period['start'],
+                'limit_micro_usd' => $limit,
+                'reserved_micro_usd' => 0,
+                'committed_micro_usd' => 0,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            $budgetPeriod = AiTenantBudgetPeriod::query()
+                ->where('tenant_id', $tenantId)
+                ->where('period_type', $period['type'])
+                ->whereDate('period_start', $period['start'])
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($budgetPeriod->limit_micro_usd !== $limit) {
+                throw new RuntimeException('budget_tenant_limit_configuration_changed');
+            }
+
+            if ($budgetPeriod->committed_micro_usd + $budgetPeriod->reserved_micro_usd + $reservation > $budgetPeriod->limit_micro_usd) {
+                throw new RuntimeException('budget_tenant_exhausted');
+            }
+
+            $budgetPeriod->increment('reserved_micro_usd', $reservation);
+        }
+    }
+
+    /**
+     * Move the captured tenant reservation to committed spend, or release it,
+     * using the immutable tenant UUID and UTC period keys stored on the attempt.
+     */
+    private function settleTenantPeriods(AiUsageAttempt $attempt, int $cost): void
+    {
+        if ($attempt->tenant_id === null) {
+            return;
+        }
+
+        foreach ($this->periodKeysForAttempt($attempt) as $period) {
+            $budgetPeriod = AiTenantBudgetPeriod::query()
+                ->where('tenant_id', $attempt->tenant_id)
+                ->where('period_type', $period['type'])
+                ->whereDate('period_start', $period['start'])
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($budgetPeriod->reserved_micro_usd < $attempt->reserved_micro_usd
+                || $budgetPeriod->committed_micro_usd > PHP_INT_MAX - $cost) {
+                throw new RuntimeException('budget_tenant_reservation_invariant_failed');
+            }
+
+            $budgetPeriod->forceFill([
+                'reserved_micro_usd' => $budgetPeriod->reserved_micro_usd - $attempt->reserved_micro_usd,
+                'committed_micro_usd' => $budgetPeriod->committed_micro_usd + $cost,
+            ])->save();
+        }
     }
 
     /**
