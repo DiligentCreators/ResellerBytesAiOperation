@@ -604,3 +604,11 @@ inferred from the repository changes.
 - Added regression coverage proving marker content—not mtime—determines backup freshness, and malformed UUID, impossible calendar date, and future timestamp are treated as unavailable. Existing hourly metric pruning schedule coverage remains intact.
 - Commits for this change: `9ef3526`, `f676b07`, `8f38006`, `f2a8e01`. All include [skip ci]. No workflow file or repository setting was changed. Tests are committed but not executed here; PHP 8.5 and the mounted project/dependencies are still required for full validation.
 - PR #2 remains open and Draft. No merge, deployment, production migration, live backup, or WHMCS operation was performed.
+
+## Provider usage settlement input hardening — 2026-11-14
+
+- Static review found provider-reported token counts were cast/clamped rather than strictly validated before integer cost calculation. Malformed fractional, negative, string, or extreme counts could cause inconsistent telemetry or arithmetic overflow during settlement.
+- Settlement now accepts only non-negative integer usage counts, rejects cached-input counts above total input, validates aggregate token totals, and uses overflow-checked integer multiplication/addition for micro-USD cost calculation.
+- Invalid usage fails closed and leaves the submitted reservation held; it does not release budget or mark the provider attempt settled. Operator reconciliation remains the only route to release ambiguous no-charge reservations.
+- Added regression coverage for negative, fractional, string, inconsistent cached-input, and overflow usage metadata.
+- Intermediate commits all include [skip ci]. No workflow file or repository setting changed. Tests have not been executed in this environment; exact-head CI is deferred to the single final non-[skip ci] commit after all engineering work is complete.
