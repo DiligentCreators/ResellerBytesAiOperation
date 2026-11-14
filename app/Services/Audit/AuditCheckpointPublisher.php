@@ -25,16 +25,36 @@ final class AuditCheckpointPublisher
      * @throws JsonException
      * @throws SodiumException
      */
-    public function publish(string $checkpointBytes): array
+    public function publish(string $checkpointBytes, ?string $expectedPreviousCheckpointSha256 = null): array
     {
-        $verified = $this->anchors->verifyCheckpoint($checkpointBytes);
         $envelope = json_decode($checkpointBytes, true, 512, JSON_THROW_ON_ERROR);
         $payload = is_array($envelope) ? ($envelope['payload'] ?? null) : null;
         if (! is_array($payload) || ! is_string($payload['environment'] ?? null)) {
             throw new RuntimeException('audit_anchor_publish_invalid_checkpoint');
         }
 
+        $payloadPrevious = $payload['previous_checkpoint_sha256'] ?? null;
+        if ($payloadPrevious !== null && $expectedPreviousCheckpointSha256 === null) {
+            throw new RuntimeException('audit_anchor_publish_expected_previous_required');
+        }
+        $verified = $this->anchors->verifyCheckpoint($checkpointBytes, $expectedPreviousCheckpointSha256);
         $environment = $payload['environment'];
+        $createdAtText = $payload['created_at'] ?? null;
+        if (! is_string($createdAtText)) {
+            throw new RuntimeException('audit_anchor_publish_invalid_timestamp');
+        }
+
+        $createdAt = DateTimeImmutable::createFromFormat(
+            '!Y-m-d\\TH:i:s.u\\Z',
+            $createdAtText,
+            new DateTimeZone('UTC'),
+        );
+        $dateErrors = DateTimeImmutable::getLastErrors();
+        if ($createdAt === false
+            || ($dateErrors !== false && ($dateErrors['warning_count'] > 0 || $dateErrors['error_count'] > 0))
+            || $createdAt->format('Y-m-d\\TH:i:s.u\\Z') !== $createdAtText) {
+            throw new RuntimeException('audit_anchor_publish_invalid_timestamp');
+        }
         if (preg_match('/\A[a-zA-Z0-9._-]+\z/', $environment) !== 1) {
             throw new RuntimeException('audit_anchor_publish_invalid_environment');
         }
@@ -42,7 +62,10 @@ final class AuditCheckpointPublisher
         $digest = $verified['checkpoint_sha256'];
         $sequence = $verified['anchor_sequence'];
         $objectKey = sprintf('audit-anchors/%s/sequence-%020d/%s.json', $environment, $sequence, $digest);
-        $retainUntil = (new DateTimeImmutable('now', new DateTimeZone('UTC')))->modify('+'.self::RETENTION_DAYS.' days');
+        $retainUntil = $createdAt->modify('+'.self::RETENTION_DAYS.' days');
+        if ($retainUntil <= new DateTimeImmutable('now', new DateTimeZone('UTC'))) {
+            throw new RuntimeException('audit_anchor_publish_retention_period_expired');
+        }
         // Never retry a create. After an error, resolve only the deterministic key and
         // accept it only after exact-version content and retention read-back.
         $reconciledAfterCreateError = false;
