@@ -37,6 +37,7 @@ class DiagnosticRun extends Model
 
     protected $fillable = [
         'integration_id',
+        'tenant_id',
         'snapshot_uuid',
         'schema_version',
         'addon_version',
