@@ -349,3 +349,12 @@ The tenant migration is authored on the branch but has not been executed; no ten
 - Webhook records now distinguish server receipt time from provider event occurrence time; both are immutable and replay identity compares provider occurrence time.
 - Added tests for adapter mismatch, stale signatures, successful account-to-tenant routing, unverified mapping rejection, and immutable account mapping. Tests remain unexecuted pending PHP 8.5 and dependencies.
 - No provider was selected, no credentials were added, and no public endpoint or payment collection was activated. Shahrukh's provider/account approval and secret-manager provisioning remain pending.
+
+
+### Payment failure and subscription renewal reconciliation — 2026-11-15
+
+- Added normalized invoice.payment_failed handling. It marks an unpaid invoice past_due, transitions eligible active/trialing subscriptions to past_due, appends tenant-attributed audit evidence, and enqueues an idempotent billing.payment.failed outbox event in the same transaction.
+- Chose a provisional seven-day payment-failure grace period, configurable through BILLING_PAYMENT_FAILURE_GRACE_DAYS and bounded to 1–30 days. This is an implementation default, not final commercial policy; Shahrukh can approve or change it before launch.
+- Added subscription.renewed handling. A renewal requires a fully settled invoice belonging to the same tenant/subscription, matching currency, confirmed payment ledger total, and a contiguous period extension no longer than 366 days. The subscription period/status update, audit event and outbox event are atomic.
+- Duplicate renewal notifications using a second provider event ID for the same invoice and period are idempotent; a period gap or unpaid invoice fails closed.
+- Added feature coverage for failed payment grace handling, settled renewal, and duplicate renewal delivery. Tests remain unexecuted pending PHP 8.5 and dependencies.
