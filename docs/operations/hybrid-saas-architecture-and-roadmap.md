@@ -291,7 +291,7 @@ The tenant migration is authored on the branch but has not been executed; no ten
 - Invitation acceptance uses an opaque tenant UUID route parameter rather than implicit tenant model binding so an invited-but-not-yet-active user can reach acceptance. The service then establishes tenant RLS context and verifies the invitation belongs to the authenticated user.
 - Added tenant branding settings read/write endpoints. Branding writes are restricted to owner/admin, validate display name, support email, six-digit hex primary color and HTTPS logo URL, preserve unrelated tenant settings, and append audit evidence. Arbitrary settings, custom domains, and billing/identity fields are not writable through this endpoint.
 - Feature tests cover lifecycle transitions, denied role changes, immutable owner authority, verified-account invitation rules, branding authorization, preservation of unrelated settings, and audit evidence. Tests are authored but have not been executed in the current PHP/dependency environment.
-- Workspace invitation delivery is implemented through a queued Postmark transactional API client. No SMTP credentials or SMTP transport are used. Runtime remains on the local log-preview driver until a verified sender and Postmark server token are provisioned.
+- Workspace invitation delivery is implemented as a queued job routed through the central platform outbound-mail service. The selected transport is configurable as `log`, SMTP, or Postmark; the driver can be switched without application code changes.
 
 
 ### Subscription lifecycle state machine — 2026-11-15
@@ -312,12 +312,12 @@ The tenant migration is authored on the branch but has not been executed; no ten
 
 ### Tenant invitation email delivery — 2026-11-15
 
-- Workspace invitations dispatch a queued delivery job only after the membership transaction commits. Delivery uses Postmark's transactional Email API directly; no SMTP credentials or SMTP transport are required.
-- Configuration is environment-only: POSTMARK_SERVER_TOKEN, POSTMARK_MESSAGE_STREAM, MAIL_FROM_ADDRESS, MAIL_FROM_NAME, APP_URL, and TENANT_INVITATION_MAILER. The repository example contains placeholders only. Local development defaults to a redacted log preview; tests fake the HTTP transport and never contact Postmark.
+- Workspace invitations dispatch a queued delivery job only after the membership transaction commits. Delivery uses the central platform-selected transport (`log`, SMTP, or Postmark); the invitation job is provider-neutral.
+- Platform transport settings are stored centrally in the encrypted platform mail settings record, with blank environment-variable fallbacks in `.env.example`. SMTP and Postmark credentials are never returned to the UI. Local/default delivery remains a redacted log preview; tests fake provider transports.
 - Invitation email contains tenant name, assigned role, and a seven-day temporary signed URL. The signed GET page is read-only, requires authenticated + verified + two-factor-protected access, and confirms that the signed-in user is the intended invitee. The user must explicitly submit the CSRF-protected POST acceptance form; opening the email link never grants membership.
 - Delivery jobs re-establish tenant RLS context, recheck that the membership is still pending before sending, use bounded queue retries, and log failure metadata without tokens, recipient addresses, or signed invitation URLs. Postmark response failures are surfaced to the queue retry/failure mechanism.
-- No real token or sender identity has been configured. The runtime mailer remains on the local log driver until Shahrukh provisions a Postmark server token and verifies the sender address in Postmark. No SMTP credentials, domain registrar credentials, or mailbox password are required.
-- Tests added for after-commit dispatch, Postmark request shape, signed/account-bound link, local log preview, missing configuration, expiry, and non-mutating GET. Tests are authored but not executed in this environment.
+- No real provider credentials or sender identity have been configured. The runtime remains on the `log` driver until the platform admin deliberately saves SMTP configuration for initial use; the planned launch transition to Postmark is a settings change after the Postmark token and sender are provisioned. No credentials are to be shared in chat.
+- Tests added for after-commit dispatch, provider-neutral invitation delivery, signed/account-bound link, local log preview, missing configuration, expiry, and non-mutating GET. Tests are authored but not executed in this environment.
 
 
 ### Central platform outbound mail system — 2026-11-15
