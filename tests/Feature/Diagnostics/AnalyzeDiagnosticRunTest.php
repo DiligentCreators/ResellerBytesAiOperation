@@ -87,6 +87,38 @@ it('persists validated AI findings and recommendations against their source snap
         ->and($finding->recommendations->first()->requires_manual_action)->toBeTrue();
 });
 
+
+it('does not start a billable analysis for a diagnostic run beyond its retention deadline', function () {
+    $integration = WhmcsIntegration::create([
+        'name' => 'Expired analysis guard test',
+        'status' => 'active',
+        'secret' => bin2hex(random_bytes(32)),
+        'secret_version' => 1,
+    ]);
+
+    $run = DiagnosticRun::create([
+        'integration_id' => $integration->id,
+        'snapshot_uuid' => (string) Str::uuid(),
+        'schema_version' => '1.0',
+        'addon_version' => '1.0.0',
+        'status' => 'queued',
+        'collected_at' => now()->subDays(366),
+        'received_at' => now()->subDays(366),
+        'payload' => ['system' => ['whmcs_version' => '8.13.7']],
+        'payload_sha256' => str_repeat('9', 64),
+    ]);
+
+    $analyzer = Mockery::mock(WhmcsDiagnosticAnalyzer::class);
+    $analyzer->shouldNotReceive('analyze');
+    $budget = Mockery::mock(AiBudgetService::class);
+    $budget->shouldNotReceive('reserve');
+
+    (new AnalyzeDiagnosticRun($run->id))->handle($analyzer, $budget);
+
+    expect($run->fresh()->status)->toBe('queued')
+        ->and($run->fresh()->analysis_attempts)->toBe(0);
+});
+
 it('marks a failed analysis attempt without modifying the source diagnostic payload', function () {
     $integration = WhmcsIntegration::create([
         'name' => 'Analysis failure test',
