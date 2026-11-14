@@ -342,3 +342,12 @@ A green CI run is necessary but does not close these release gates or authorize 
 
 - Hardened subscription renewal and webhook reactivation so the settled invoice must be covered by confirmed payment ledger entries from the exact provider and provider account that delivered the signed event. A different account belonging to the same tenant cannot reactivate/renew against an unrelated payment.
 - Added regression coverage proving a renewal from a mismatched provider account is dead-lettered without changing subscription status or period.
+
+
+### Subscription provider identity and append-only payment integrity — 2026-11-15
+
+- Added provider account binding to tenant subscriptions. Provider, provider account, and provider subscription ID may be bound once and cannot be changed/unset afterward at the database boundary.
+- Automated payment ledger writes require the invoice subscription's exact provider/account binding. Subscription past-due/canceled/expired/reactivated/renewed webhook events are also checked against that binding.
+- Payment rows are append-only at the database layer, and payment audit evidence is tenant-bound. Refunds/disputes remain separate append-only adjustment records.
+- Provider-supplied grace dates are no longer accepted: the platform applies its own bounded configurable grace policy (default seven days, 1–30 day clamp).
+- Added regression coverage for immutable payment rows, immutable provider subscription identity, and provider-account mismatch on renewal. Tests remain unexecuted pending PHP 8.5 and dependencies.
