@@ -5,6 +5,7 @@ use App\Models\TenantMembership;
 use App\Models\User;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Str;
 
 it('rejects cross-tenant diagnostic findings at the database boundary', function () {
@@ -162,4 +163,60 @@ it('rejects invoices and payments linked across tenant billing boundaries', func
         'created_at' => now(),
         'updated_at' => now(),
     ]))->toThrow(QueryException::class);
+});
+
+
+it('atomically assigns a legacy integration and its diagnostic descendants to a tenant', function () {
+    $owner = User::factory()->create();
+    $tenant = Tenant::create(['name' => 'Backfill Tenant', 'slug' => 'backfill-tenant', 'status' => Tenant::STATUS_ACTIVE]);
+    $integration = \App\Models\WhmcsIntegration::create([
+        'owner_user_id' => $owner->id,
+        'name' => 'Legacy integration for tenant backfill',
+        'status' => 'active',
+        'secret' => 'legacy-backfill-secret',
+    ]);
+    $run = \App\Models\DiagnosticRun::create([
+        'integration_id' => $integration->id,
+        'snapshot_uuid' => (string) Str::uuid(),
+        'schema_version' => '1.0',
+        'addon_version' => '1.0.0',
+        'status' => 'analyzed',
+        'collected_at' => now(),
+        'received_at' => now(),
+        'payload' => json_encode(['source' => 'legacy']),
+        'payload_sha256' => hash('sha256', 'legacy'),
+    ]);
+    $finding = \App\Models\DiagnosticFinding::create([
+        'diagnostic_run_id' => $run->id,
+        'fingerprint' => hash('sha256', 'legacy-finding'),
+        'category' => 'security',
+        'severity' => 'low',
+        'title' => 'Legacy finding',
+        'summary' => 'Legacy record.',
+        'evidence' => json_encode([]),
+        'status' => 'open',
+    ]);
+    $recommendation = \App\Models\DiagnosticRecommendation::create([
+        'diagnostic_finding_id' => $finding->id,
+        'recommendation' => 'Review legacy configuration.',
+        'rationale' => 'Tenant attribution backfill fixture.',
+        'risk_level' => 'low',
+        'requires_manual_action' => true,
+    ]);
+
+    expect(Artisan::call('whmcs:integration:assign-tenant', [
+        'integration' => $integration->id,
+        'tenant' => $tenant->id,
+    ]))->toBe(0);
+
+    expect($integration->fresh()->tenant_id)->toBe($tenant->id)
+        ->and($run->fresh()->tenant_id)->toBe($tenant->id)
+        ->and($finding->fresh()->tenant_id)->toBe($tenant->id)
+        ->and($recommendation->fresh()->tenant_id)->toBe($tenant->id)
+        ->and(DB::table('audit_events')->where('event_type', 'whmcs_integration.tenant_assigned')->where('subject_id', $integration->id)->where('tenant_id', $tenant->id)->exists())->toBeTrue();
+
+    expect(Artisan::call('whmcs:integration:assign-tenant', [
+        'integration' => $integration->id,
+        'tenant' => $tenant->id,
+    ]))->toBe(1);
 });
