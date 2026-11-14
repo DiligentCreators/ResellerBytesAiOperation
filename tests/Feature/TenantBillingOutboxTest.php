@@ -778,3 +778,22 @@ it('enforces tenant ownership on billing adjustment payment foreign keys', funct
         'updated_at' => now('UTC'),
     ]))->toThrow(\\Illuminate\\Database\\QueryException::class);
 });
+
+it('resolves a provider adapter only through the explicit billing provider registry', function () {
+    $adapter = new class implements \\App\\Contracts\\Billing\\BillingProviderAdapter {
+        public function provider(): string
+        {
+            return 'configured_gateway';
+        }
+
+        public function verifyAndNormalize(string $rawBody, array $headers): \\App\\Data\\Billing\\VerifiedBillingWebhook
+        {
+            throw new RuntimeException('not_called_in_registry_test');
+        }
+    };
+    app()->instance($adapter::class, $adapter);
+    config()->set('billing.providers.configured_gateway', $adapter::class);
+
+    expect(app(\\App\\Services\\Tenancy\\BillingProviderAdapterRegistry::class)->resolve('configured_gateway'))
+        ->toBe($adapter);
+});
