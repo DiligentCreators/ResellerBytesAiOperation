@@ -14,6 +14,7 @@ return new class extends Migration
             $table->foreignUuid('tenant_id')->constrained('tenants')->restrictOnDelete();
             $table->foreignId('tenant_billing_payment_id')->constrained('tenant_billing_payments')->restrictOnDelete();
             $table->string('provider', 40);
+            $table->string('provider_account_id', 160);
             $table->string('provider_adjustment_id', 180);
             $table->string('kind', 24);
             $table->string('idempotency_key', 160);
@@ -22,7 +23,7 @@ return new class extends Migration
             $table->timestampTz('occurred_at');
             $table->timestampsTz();
             $table->unique(['tenant_id', 'idempotency_key'], 'tenant_billing_adjustment_idempotency_unique');
-            $table->unique(['provider', 'provider_adjustment_id', 'kind'], 'tenant_billing_adjustment_provider_unique');
+            $table->unique(['tenant_id', 'provider', 'provider_account_id', 'provider_adjustment_id', 'kind'], 'tenant_billing_adjustment_provider_unique');
             $table->index(['tenant_id', 'tenant_billing_payment_id', 'kind'], 'tenant_billing_adjustment_payment_idx');
         });
 
