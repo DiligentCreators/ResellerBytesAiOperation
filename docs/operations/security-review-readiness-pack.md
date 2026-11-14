@@ -162,8 +162,9 @@ real isolated environment.
   chain verification race. Evidence: cross-engine tests and role probes.
 - **Legal hold:** Wrong Owner, missing MFA, stale TOTP, duplicate hold, expiry at the
   365-day boundary and audit append failure. Evidence: LegalHoldTest and audit events.
-- **Retention:** UTC inclusive cutoff, active processing state, bounded batch, audit
-  failure rollback and held target still expiring. Evidence: retention tests.
+- **Retention:** UTC inclusive cutoff, expired `received`/`queued`/`analyzing` states,
+  bounded batch, audit failure rollback and held target still expiring. Evidence:
+  retention and queue-recovery tests.
 - **Checkpoint:** Signature tamper, environment/predecessor mismatch, stale/future
   timestamp, duplicate key, missing version, checksum and retention mismatch. Evidence:
   verifier and publisher tests.
