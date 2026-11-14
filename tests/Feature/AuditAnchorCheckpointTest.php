@@ -101,6 +101,25 @@ it('exposes the checkpoint export artisan command', function () {
         ->and($envelope['signature'])->toBeString();
 });
 
+
+it('rejects a correctly signed checkpoint with an impossible calendar timestamp', function () {
+    appendAuditAnchorFixtureEvent(app(AuditEventWriter::class), 'test.anchor.invalid-timestamp');
+
+    $anchors = app(AuditAnchorService::class);
+    $envelope = json_decode($anchors->createCheckpoint(), true, 512, JSON_THROW_ON_ERROR);
+    $envelope['payload']['created_at'] = '2026-13-99T99:99:99.999999Z';
+    $secretKey = base64_decode((string) config('audit.anchor.private_key'), true);
+    $message = "resellerbytes.audit-anchor.v1\n".json_encode(
+        $envelope['payload'],
+        JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRESERVE_ZERO_FRACTION,
+    );
+    $envelope['signature'] = base64_encode(sodium_crypto_sign_detached($message, $secretKey));
+    $invalidCheckpoint = json_encode($envelope, JSON_THROW_ON_ERROR);
+
+    expect(fn () => $anchors->verifyCheckpoint($invalidCheckpoint))
+        ->toThrow(RuntimeException::class, 'audit_anchor_invalid_payload');
+});
+
 it('refuses to reuse the WHMCS addon signing secret for audit anchors', function () {
     config(['services.whmcs_addon.signing_secret_key' => config('audit.anchor.private_key')]);
 
