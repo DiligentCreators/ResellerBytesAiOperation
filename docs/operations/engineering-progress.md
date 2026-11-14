@@ -370,3 +370,11 @@ A green CI run is necessary but does not close these release gates or authorize 
 
 
 - Added tenant-authorized provider account registration/deactivation service with immutable identity, active/verified gating, and audit-chain evidence. The registration method records an operator attestation only after external account ownership verification; it does not handle provider secrets or perform provider-side verification itself.
+
+
+### Operational dead-letter recovery — 2026-11-15
+
+- Added manual replay counter with a hard limit of three operator requeues per webhook event.
+- Added tenant billing-authorized recovery service and explicit Artisan command. It requires a dead-lettered event, active verified provider-account mapping, tenant billing.manage permission, constrained reason code and explicit --confirm.
+- Recovery resets attempts/lease state, requeues immediately, and appends tenant-bound immutable audit evidence. Logs are redacted and do not include payloads or raw exception messages.
+- Registered outbox dispatch, webhook reconciliation and dead-letter recovery commands in the explicit Laravel command list. Added tests for authorization, active account requirement, replay limit and command fail-closed behavior. Tests remain unexecuted pending PHP 8.5 and dependencies.
