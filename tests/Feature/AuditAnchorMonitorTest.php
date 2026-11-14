@@ -70,6 +70,25 @@ it('fails when the local audit chain has an unanchored tail above threshold', fu
     }
 });
 
+
+it('fails closed when a chained checkpoint is monitored without its expected predecessor', function () {
+    appendAuditAnchorMonitorFixtureEvent('test.anchor.monitor.previous-required');
+    $path = tempnam(sys_get_temp_dir(), 'rb-anchor-monitor-chain-');
+    file_put_contents($path, app(AuditAnchorService::class)->createCheckpoint(str_repeat('d', 64)));
+
+    try {
+        expect(Artisan::call('audit:anchor:monitor', ['checkpoint' => $path]))->toBe(1)
+            ->and(Artisan::output())->toContain('verification_failed');
+
+        expect(Artisan::call('audit:anchor:monitor', [
+            'checkpoint' => $path,
+            '--expected-previous' => str_repeat('d', 64),
+        ]))->toBe(0);
+    } finally {
+        @unlink($path);
+    }
+});
+
 it('emits a redacted JSON evidence record for a healthy checkpoint', function () {
     $path = writeAuditAnchorMonitorFixture();
 
