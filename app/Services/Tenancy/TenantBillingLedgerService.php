@@ -4,6 +4,7 @@ namespace App\Services\Tenancy;
 
 use App\Models\TenantBillingInvoice;
 use App\Models\TenantBillingPayment;
+use App\Models\User;
 use App\Services\Audit\AuditEventWriter;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
@@ -38,12 +39,22 @@ class TenantBillingLedgerService
             throw new InvalidArgumentException('billing_provider_payment_reference_required');
         }
 
+        if ($payment['collection_mode'] === 'manual') {
+            $actor = User::query()->findOrFail($payment['recorded_by_user_id']);
+            app(TenantRoleAuthorization::class)->require($actor, $tenantId, 'billing.manage');
+        }
+
         return DB::transaction(function () use ($tenantId, $invoiceId, $payment): TenantBillingPayment {
             $invoice = TenantBillingInvoice::query()
                 ->whereKey($invoiceId)
                 ->where('tenant_id', $tenantId)
                 ->lockForUpdate()
                 ->firstOrFail();
+
+            if ($invoice->tenant_subscription_id !== null
+                && ! $invoice->subscription()->where('tenant_id', $tenantId)->exists()) {
+                throw new RuntimeException('billing_invoice_subscription_tenant_mismatch');
+            }
 
             $existing = TenantBillingPayment::query()
                 ->where('idempotency_key', $payment['idempotency_key'])
