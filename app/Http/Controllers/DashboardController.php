@@ -6,6 +6,7 @@ use App\Models\DiagnosticFinding;
 use App\Models\DiagnosticRun;
 use App\Models\WhmcsIntegration;
 use App\Support\WhmcsAddonPackageSigner;
+use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -13,7 +14,10 @@ class DashboardController extends Controller
 {
     public function __invoke(WhmcsAddonPackageSigner $signer): Response
     {
+        $ownerId = Auth::id();
+
         $latestRuns = DiagnosticRun::query()
+            ->whereHas('integration', fn ($query) => $query->where('owner_user_id', $ownerId))
             ->with('integration:id,name')
             ->withCount('findings')
             ->latest('received_at')
@@ -34,10 +38,11 @@ class DashboardController extends Controller
 
         return Inertia::render('dashboard', [
             'stats' => [
-                'active_integrations' => WhmcsIntegration::query()->where('status', 'active')->count(),
-                'total_runs' => DiagnosticRun::query()->count(),
-                'open_findings' => DiagnosticFinding::query()->where('status', 'open')->count(),
+                'active_integrations' => WhmcsIntegration::query()->where('owner_user_id', $ownerId)->where('status', 'active')->count(),
+                'total_runs' => DiagnosticRun::query()->whereHas('integration', fn ($query) => $query->where('owner_user_id', $ownerId))->count(),
+                'open_findings' => DiagnosticFinding::query()->whereHas('diagnosticRun.integration', fn ($query) => $query->where('owner_user_id', $ownerId))->where('status', 'open')->count(),
                 'critical_findings' => DiagnosticFinding::query()
+                    ->whereHas('diagnosticRun.integration', fn ($query) => $query->where('owner_user_id', $ownerId))
                     ->where('status', 'open')
                     ->where('severity', 'critical')
                     ->count(),
