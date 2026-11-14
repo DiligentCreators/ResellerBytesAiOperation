@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Services\Mail\CentralOutboundMailer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
 class PlatformMailSettingsTest extends TestCase
