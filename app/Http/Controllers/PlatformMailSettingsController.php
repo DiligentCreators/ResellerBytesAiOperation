@@ -53,7 +53,9 @@ class PlatformMailSettingsController extends Controller
             'smtp_encryption' => ['required_if:driver,smtp', 'nullable', 'in:none,tls,ssl'],
             'smtp_username' => ['nullable', 'string', 'max:255'],
             'smtp_password' => ['nullable', 'string', 'max:4096'],
+            'clear_smtp_password' => ['sometimes', 'boolean'],
             'postmark_server_token' => ['nullable', 'string', 'max:4096'],
+            'clear_postmark_token' => ['sometimes', 'boolean'],
             'postmark_message_stream' => ['required_if:driver,postmark', 'nullable', 'string', 'max:255'],
         ]);
 
@@ -62,7 +64,7 @@ class PlatformMailSettingsController extends Controller
         $config['from_address'] = $data['from_address'] ?? '';
         $config['from_name'] = $data['from_name'] ?? '';
 
-        if ($data['driver'] === 'smtp') {
+        if (($data['clear_smtp_password'] ?? false) === true) {\n            unset($config['password']);\n        }\n        if (($data['clear_postmark_token'] ?? false) === true) {\n            unset($config['server_token']);\n        }\n\n        if ($data['driver'] === 'smtp') {
             $config = array_merge($config, [
                 'host' => $data['smtp_host'],
                 'port' => (int) $data['smtp_port'],
