@@ -378,3 +378,6 @@ The tenant migration is authored on the branch but has not been executed; no ten
 
 
 - Invoice references are also account-bound: provider invoice IDs are persisted on local invoices under a tenant/provider/account unique key and immutable identity trigger. The webhook gateway resolves provider-side invoice/subscription references to local records only after signature verification and account-to-tenant mapping. Automated payment and lifecycle events are rejected if invoice, subscription, payment, provider and account identities do not all match.
+
+
+- Added tenant-authorized, audited provider-account registration and deactivation. Registration records a verification attestation only after external provider account ownership has been verified; provider secrets remain outside the database and no self-service/public route is enabled.
