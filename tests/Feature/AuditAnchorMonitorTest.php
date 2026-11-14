@@ -209,7 +209,6 @@ it('fails closed when the checkpoint file is missing', function () {
         ->and(Artisan::output())->toContain('checkpoint_unavailable');
 });
 
-
 it('emits redacted schema-conformant evidence when the checkpoint file is missing', function () {
     $path = sys_get_temp_dir().'/missing-rb-anchor-json-'.bin2hex(random_bytes(8)).'.json';
 
