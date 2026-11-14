@@ -40,6 +40,8 @@ class TenantSubscriptionLifecycle
         ?DateTimeInterface $graceEndsAt = null,
         ?int $actorUserId = null,
         ?int $settledInvoiceId = null,
+        ?string $settlementProvider = null,
+        ?string $settlementProviderAccountId = null,
     ): TenantSubscription {
         if (! array_key_exists($targetStatus, self::TRANSITIONS)) {
             throw new InvalidArgumentException('tenant_subscription_status_invalid');
@@ -49,6 +51,10 @@ class TenantSubscriptionLifecycle
             throw new InvalidArgumentException('tenant_subscription_grace_not_applicable');
         }
 
+        if (($settlementProvider === null) !== ($settlementProviderAccountId === null)) {
+            throw new InvalidArgumentException('tenant_subscription_settlement_provider_context_invalid');
+        }
+
         if ($settledInvoiceId !== null && $targetStatus !== 'active') {
             throw new InvalidArgumentException('tenant_subscription_settlement_not_applicable');
         }
@@ -56,7 +62,7 @@ class TenantSubscriptionLifecycle
         return app(TenantDatabaseContext::class)->run(
             $tenantId,
             $actorUserId,
-            fn (): TenantSubscription => DB::transaction(function () use ($tenantId, $subscriptionId, $targetStatus, $graceEndsAt, $actorUserId, $settledInvoiceId): TenantSubscription {
+            fn (): TenantSubscription => DB::transaction(function () use ($tenantId, $subscriptionId, $targetStatus, $graceEndsAt, $actorUserId, $settledInvoiceId, $settlementProvider, $settlementProviderAccountId): TenantSubscription {
                 Tenant::query()->whereKey($tenantId)->lockForUpdate()->firstOrFail();
 
                 if ($actorUserId !== null) {
@@ -98,7 +104,7 @@ class TenantSubscriptionLifecycle
                 }
 
                 if ($targetStatus === 'active' && in_array($subscription->status, ['past_due', 'suspended'], true)) {
-                    $this->requireSettledInvoice($tenantId, $subscription, $settledInvoiceId);
+                    $this->requireSettledInvoice($tenantId, $subscription, $settledInvoiceId, $settlementProvider, $settlementProviderAccountId);
                 }
 
                 if ($targetStatus !== 'past_due') {
@@ -152,6 +158,8 @@ class TenantSubscriptionLifecycle
         int $invoiceId,
         DateTimeInterface $periodStartsAt,
         DateTimeInterface $periodEndsAt,
+        string $provider,
+        string $providerAccountId,
     ): TenantSubscription {
         $periodStart = CarbonImmutable::instance($periodStartsAt)->utc();
         $periodEnd = CarbonImmutable::instance($periodEndsAt)->utc();
@@ -159,14 +167,16 @@ class TenantSubscriptionLifecycle
 
         if (! $periodEnd->greaterThan($periodStart)
             || $periodStart->greaterThan($now->addMinutes(5))
-            || $periodEnd->diffInDays($periodStart) > 366) {
+            || $periodEnd->diffInDays($periodStart) > 366
+            || ! preg_match('/^[a-z][a-z0-9_-]{1,39}$/', $provider)
+            || trim($providerAccountId) === '' || strlen($providerAccountId) > 160) {
             throw new InvalidArgumentException('tenant_subscription_renewal_period_invalid');
         }
 
         return app(TenantDatabaseContext::class)->run(
             $tenantId,
             null,
-            fn (): TenantSubscription => DB::transaction(function () use ($tenantId, $subscriptionId, $invoiceId, $periodStart, $periodEnd): TenantSubscription {
+            fn (): TenantSubscription => DB::transaction(function () use ($tenantId, $subscriptionId, $invoiceId, $periodStart, $periodEnd, $provider, $providerAccountId): TenantSubscription {
                 Tenant::query()->whereKey($tenantId)->lockForUpdate()->firstOrFail();
 
                 $subscription = TenantSubscription::query()
@@ -179,7 +189,7 @@ class TenantSubscriptionLifecycle
                     throw new InvalidArgumentException('tenant_subscription_renewal_status_invalid');
                 }
 
-                $this->requireSettledInvoice($tenantId, $subscription, $invoiceId);
+                $this->requireSettledInvoice($tenantId, $subscription, $invoiceId, $provider, $providerAccountId);
 
                 if ($periodStart->startOfSecond()->equalTo($subscription->current_period_starts_at->startOfSecond())
                     && $periodEnd->startOfSecond()->equalTo($subscription->current_period_ends_at->startOfSecond())) {
@@ -233,7 +243,7 @@ class TenantSubscriptionLifecycle
         );
     }
 
-    private function requireSettledInvoice(string $tenantId, TenantSubscription $subscription, ?int $invoiceId): void
+    private function requireSettledInvoice(string $tenantId, TenantSubscription $subscription, ?int $invoiceId, ?string $provider = null, ?string $providerAccountId = null): void
     {
         if ($invoiceId === null) {
             throw new InvalidArgumentException('tenant_subscription_settled_invoice_required');
@@ -253,11 +263,16 @@ class TenantSubscriptionLifecycle
             throw new InvalidArgumentException('tenant_subscription_settled_invoice_invalid');
         }
 
-        $confirmedAmount = TenantBillingPayment::query()
+        $payments = TenantBillingPayment::query()
             ->where('tenant_id', $tenantId)
             ->where('tenant_billing_invoice_id', $invoice->id)
-            ->where('status', 'succeeded')
-            ->sum('amount_minor');
+            ->where('status', 'succeeded');
+
+        if ($provider !== null && $providerAccountId !== null) {
+            $payments->where('provider', $provider)->where('provider_account_id', $providerAccountId);
+        }
+
+        $confirmedAmount = $payments->sum('amount_minor');
 
         if ((int) $confirmedAmount < $invoice->amount_due_minor) {
             throw new InvalidArgumentException('tenant_subscription_settled_invoice_invalid');
