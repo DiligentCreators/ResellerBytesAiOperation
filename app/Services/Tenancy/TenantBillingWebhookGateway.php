@@ -22,15 +22,18 @@ class TenantBillingWebhookGateway
         string $rawBody,
         array $headers,
     ): TenantBillingWebhookEvent {
+        if (! preg_match('/^[a-z][a-z0-9_-]{1,39}$/', $provider)
+            || ! hash_equals($provider, $adapter->provider())) {
+            throw new InvalidArgumentException('billing_webhook_provider_adapter_mismatch');
+        }
+
         if (strlen($rawBody) < 1 || strlen($rawBody) > 262144) {
             throw new InvalidArgumentException('billing_webhook_request_body_invalid');
         }
 
         $verified = $adapter->verifyAndNormalize($rawBody, $headers);
         $now = CarbonImmutable::now('UTC');
-        if ($verified->signatureTimestamp->diffInSeconds($now, false) > 300
-            || $verified->signatureTimestamp->diffInSeconds($now, false) < -300
-            || $verified->signatureTimestamp->greaterThan($now->addSeconds(300))
+        if ($verified->signatureTimestamp->greaterThan($now->addSeconds(300))
             || $verified->signatureTimestamp->lessThan($now->subSeconds(300))) {
             throw new RuntimeException('billing_webhook_signature_timestamp_outside_window');
         }
@@ -46,8 +49,9 @@ class TenantBillingWebhookGateway
             $verified->providerEventId,
             $verified->eventType,
             $verified->normalizedPayload,
-            $verified->occurredAt,
+            $now,
             $verified->providerAccountId,
+            $verified->occurredAt,
         );
     }
 }
