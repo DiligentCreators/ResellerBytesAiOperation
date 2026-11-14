@@ -62,8 +62,13 @@ final class AuditCheckpointPublisher
         $digest = $verified['checkpoint_sha256'];
         $sequence = $verified['anchor_sequence'];
         $objectKey = sprintf('audit-anchors/%s/sequence-%020d/%s.json', $environment, $sequence, $digest);
+        $now = new DateTimeImmutable('now', new DateTimeZone('UTC'));
+        if ($createdAt > $now->modify('+5 minutes')) {
+            throw new RuntimeException('audit_anchor_publish_timestamp_in_future');
+        }
+
         $retainUntil = $createdAt->modify('+'.self::RETENTION_DAYS.' days');
-        if ($retainUntil <= new DateTimeImmutable('now', new DateTimeZone('UTC'))) {
+        if ($retainUntil <= $now) {
             throw new RuntimeException('audit_anchor_publish_retention_period_expired');
         }
         // Never retry a create. After an error, resolve only the deterministic key and
