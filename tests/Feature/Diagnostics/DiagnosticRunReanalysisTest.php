@@ -5,7 +5,7 @@ use App\Models\AuditEvent;
 use App\Models\DiagnosticRun;
 use App\Models\User;
 use App\Models\WhmcsIntegration;
-use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Auth;\nuse Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 
 function createReanalysisTestRun(string $status = 'received'): DiagnosticRun
