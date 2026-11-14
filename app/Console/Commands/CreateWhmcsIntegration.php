@@ -60,7 +60,7 @@ class CreateWhmcsIntegration extends Command
         $secret = bin2hex(random_bytes(32));
 
         try {
-            $integration = DB::transaction(function () use ($name, $secret, $owner, $tenantId): WhmcsIntegration {
+            $provision = fn (): WhmcsIntegration => DB::transaction(function () use ($name, $secret, $owner, $tenantId): WhmcsIntegration {
                 if ($tenantId !== '') {
                     $tenant = Tenant::query()
                         ->whereKey($tenantId)
