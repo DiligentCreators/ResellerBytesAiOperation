@@ -70,6 +70,46 @@ it('fails when the local audit chain has an unanchored tail above threshold', fu
     }
 });
 
+it('emits a redacted JSON evidence record for a healthy checkpoint', function () {
+    $path = writeAuditAnchorMonitorFixture();
+
+    try {
+        expect(Artisan::call('audit:anchor:monitor', ['checkpoint' => $path, '--json' => true]))->toBe(0);
+        $evidence = json_decode(trim(Artisan::output()), true, 512, JSON_THROW_ON_ERROR);
+
+        expect($evidence)->toMatchArray([
+            'schema_version' => 1,
+            'status' => 'healthy',
+            'reason_code' => 'healthy',
+            'exit_code' => 0,
+            'unanchored_tail' => 0,
+        ])->and($evidence['checkpoint_sha256'])->toMatch('/^[a-f0-9]{64}$/')
+            ->and($evidence['observed_at_utc'])->toBeString();
+    } finally {
+        @unlink($path);
+    }
+});
+
+it('does not expose raw exception messages or checkpoint contents in JSON evidence', function () {
+    $path = tempnam(sys_get_temp_dir(), 'rb-anchor-monitor-secret-');
+    file_put_contents($path, '{"secret":"DO_NOT_LEAK_THIS_VALUE","payload":');
+
+    try {
+        expect(Artisan::call('audit:anchor:monitor', ['checkpoint' => $path, '--json' => true]))->toBe(1);
+        $output = Artisan::output();
+        $evidence = json_decode(trim($output), true, 512, JSON_THROW_ON_ERROR);
+
+        expect($output)->not->toContain('DO_NOT_LEAK_THIS_VALUE')
+            ->and($evidence)->toMatchArray([
+                'status' => 'failed',
+                'reason_code' => 'verification_failed',
+                'exit_code' => 1,
+            ]);
+    } finally {
+        @unlink($path);
+    }
+});
+
 it('fails closed when the checkpoint file is missing', function () {
     expect(Artisan::call('audit:anchor:monitor', ['checkpoint' => sys_get_temp_dir().'/missing-rb-anchor.json']))->toBe(1)
         ->and(Artisan::output())->toContain('checkpoint file is unavailable');
