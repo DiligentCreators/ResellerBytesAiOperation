@@ -172,7 +172,7 @@ class AiBudgetService
                 ])->save();
             }
 
-            $totalTokens = max(0, (int) ($usage['total_tokens'] ?? 0));
+            $totalTokens = $this->usageTokenCount($usage, 'total_tokens');
             if ($totalTokens === 0) {
                 $totalTokens = $input + $output;
             }
