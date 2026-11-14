@@ -655,3 +655,13 @@ inferred from the repository changes.
 - Snapshot ingestion queues AI analysis only for integrations with an assigned owner. Manual reanalysis passes the authenticated user ID. Stale-queue recovery joins and locks the integration ownership record, excludes unassigned legacy integrations, and passes the captured owner into the job.
 - Added regression coverage for owner changes between enqueue and execution and for recovery ignoring unassigned integrations; updated direct job fixtures to carry owners.
 - Tests are authored but not executed. PHP 8.5 and project dependencies are unavailable in this environment. All commits retain [skip ci]; no workflow files or repository settings were changed. PR #2 remains open and Draft; no merge, deployment, migration, or live WHMCS operation was performed.
+
+
+## Shared-database tenant schema and backfill design — 2026-11-15
+
+- Completed a table-by-table schema and relationship design in `docs/architecture/tenant-schema-and-backfill-design.md` before adding tenant migrations, as required by the approved roadmap.
+- Defined organization/workspace tenants, explicit user memberships and owner/admin/operator/viewer/billing roles, tenant ownership propagation through integrations, diagnostic runs/findings/recommendations, AI usage attempts and budget periods, audit events, and legal holds.
+- Classified users and operational telemetry as platform-scoped; kept the audit hash chain global/append-only and indefinite; retained 365-day diagnostic expiry and the no-exceptions policy; preserved a platform-wide AI budget cap alongside future tenant caps.
+- Specified tenant-aware authorization, job context and revalidation, composite integrity constraints, transaction-local PostgreSQL RLS context, export/download/notification boundaries, isolation test matrix, and restartable expand/backfill/verify/contract sequence.
+- No tenant migration or backfill was run. First tenant slug and explicit mapping of legacy integrations are held for Shahrukh's approval; no owner/tenant is inferred. External onboarding and payment collection remain disabled.
+- All commits use [skip ci]. No workflow/repository settings changed. Tests were not executed. PR #2 remains open and Draft; no merge or deployment.
