@@ -116,7 +116,7 @@ The production anchor is a separate trust boundary, not another table or disk on
 
 ### Current implementation boundary
 
-The repository currently implements the local SHA-256 chain and read-only chain verifier only. It does **not** yet upload external checkpoints, sign them with an independent key, verify remote anchors, or alert on missed checkpoints. These are explicit implementation and production-provisioning gates. No bucket, cloud credentials, signing key, retention period approval, or independent verifier credentials have been supplied, so no external storage integration is being falsely marked active.
+The repository implements the local SHA-256 chain, Ed25519 checkpoint signing/verification, freshness/tail monitoring, provider-neutral publication, and an AWS CLI-backed S3-compatible conditional Object Lock adapter. The manual publish command verifies exact-version read-back. Production bucket configuration, provider compatibility rehearsal, independent verifier scheduling, credentials, and alert delivery remain provisioning gates; no production upload is claimed.
 
 ### Acceptance criteria
 
@@ -131,12 +131,12 @@ The repository currently implements the local SHA-256 chain and read-only chain 
 - The project Owner is the approval authority for both placing and releasing a legal hold.
 - Each placement/release must append an immutable audit event recording the owner identity, UTC timestamp, affected record/scope, action, reason, controlled evidence/case reference, and resulting state. Sensitive case documents and customer payloads must not be copied into audit metadata.
 - Diagnostic content expires absolutely after 365 days from UTC received_at, with no legal-hold exception. At expiry, active hold metadata is marked expired_by_retention with an immutable audit event before diagnostic deletion; any audit-write failure aborts the transaction. Audit events themselves are retained indefinitely.
-- A legal hold overrides ordinary retention expiry, including the 365-day external-backup retention setting, until the Owner explicitly approves and audits release.
-- Governance is approved; the legal-hold schema/API/command and cleanup enforcement are **not yet implemented**. No automated diagnostic or audit-history deletion is permitted until implementation and negative-path tests pass.
+- Legal holds do not extend diagnostic content retention. Active hold metadata expires with the diagnostic target at the 365-day cutoff, with an immutable audit event; audit events themselves are retained indefinitely.
+- The legal-hold schema, Owner authority, commands, and cleanup enforcement are implemented and covered by feature tests. Production enablement remains disabled pending separate authorization.
 
 ## Signed external checkpoint tooling
 
-The branch now includes an Ed25519 checkpoint envelope generator and verifier. These commands are usable without cloud credentials, but they do not upload or lock objects in external storage.
+The branch includes an Ed25519 checkpoint envelope generator/verifier, an S3-compatible conditional Object Lock adapter, publisher orchestration, and a manual upload command. External publishing requires Shahrukh-provisioned credentials, an independent bucket, and production key custody.
 
 ### Key configuration
 
@@ -164,7 +164,7 @@ sha256sum audit-checkpoint.json
 
 The export command locks the chain-head row while it verifies the full local chain and signs the checkpoint, preventing normal writer appends from racing the exported head. This can briefly serialize audit appends; run it with an appropriate operational cadence and measure lock duration on production-sized history before scheduling it. The output is a signed JSON envelope; it contains only environment, timestamp, sequence, head digest, and prior checkpoint digest—not event metadata.
 
-Upload the exact output bytes to the independently administered Object Lock bucket using the security-controlled uploader role. Do not rewrite, reformat, or re-serialize the JSON after signing. Record the returned object version and the SHA-256 digest in the external evidence register.
+Publish the exact output bytes using `php artisan audit:anchor:publish /secure/path/audit-checkpoint.json`. For subsequent checkpoints, pass the previous digest to both export (`--previous`) and publish (`--expected-previous`). The publisher derives the deterministic object key, uses conditional creation, captures the exact VersionId, and verifies exact-version bytes and COMPLIANCE retention before reporting success. Do not rewrite, reformat, or re-serialize the JSON after signing.
 
 ### Verification
 
@@ -185,6 +185,6 @@ The verifier validates the detached signature, environment, checkpoint structure
 ### Current boundary
 
 - The signing and verification code is implemented and covered by feature tests, including tampered payload rejection, predecessor-digest mismatch, and unanchored-tail reporting.
-- The export command emits a signed artifact only. It does not automatically upload to S3, set Object Lock retention, create cloud IAM roles, or send alerts.
+- The publish command uploads to the configured dedicated S3-compatible bucket and verifies the exact immutable version. It does not create buckets, enable versioning/Object Lock, create IAM roles, schedule checkpoint publication, or send alerts.
 - **Shahrukh ke liye:** provision the separate cloud account/bucket, choose and approve Object Lock retention, generate/store the independent Ed25519 keypair, and provide the non-secret bucket/role configuration. Never commit the private key.
-- Before production scheduling, add an upload adapter with conditional-create semantics, remote read-back verification, immutable version capture, missed-checkpoint alerts, and a separate read-only verifier job. These remain release gates.
+- Before production scheduling, test the adapter against a disposable bucket/provider emulator, configure a separate read-only verifier, and implement missed-checkpoint alert routing. These remain release gates.
