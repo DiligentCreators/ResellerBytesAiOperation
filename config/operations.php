@@ -5,11 +5,11 @@ return [
     'owner_email' => env('OPERATIONS_OWNER_EMAIL'),
 
     'monitoring' => [
-        'error_rate' => ['window_minutes' => 5, 'threshold_percent' => 2],
-        'api_p95_latency_ms' => 1500,
-        'backup_max_age_hours' => 26,
-        'disk' => ['warning_percent' => 80, 'critical_percent' => 90],
-        'queue_job_max_age_minutes' => 15,
+        'error_rate' => ['window_minutes' => (int) env('OPERATIONS_ALERT_ERROR_RATE_WINDOW_MINUTES', 5), 'threshold_percent' => (float) env('OPERATIONS_ALERT_ERROR_RATE_PERCENT', 2)],
+        'api_p95_latency_ms' => (int) env('OPERATIONS_ALERT_API_P95_LATENCY_MS', 1500),
+        'backup_max_age_hours' => (int) env('OPERATIONS_ALERT_BACKUP_MAX_AGE_HOURS', 26),
+        'disk' => ['warning_percent' => (int) env('OPERATIONS_ALERT_DISK_WARNING_PERCENT', 80), 'critical_percent' => (int) env('OPERATIONS_ALERT_DISK_CRITICAL_PERCENT', 90)],
+        'queue_job_max_age_minutes' => (int) env('OPERATIONS_ALERT_QUEUE_JOB_MAX_AGE_MINUTES', 15),
     ],
 
     'alerts' => [
@@ -21,14 +21,14 @@ return [
     ],
 
     'recovery' => [
-        'rpo_hours' => 24,
-        'rto_hours' => 4,
-        'production_restore_requires_owner_approval' => true,
+        'rpo_hours' => (int) env('RECOVERY_POINT_OBJECTIVE_HOURS', 24),
+        'rto_hours' => (int) env('RECOVERY_TIME_OBJECTIVE_HOURS', 4),
+        'production_restore_requires_owner_approval' => (bool) env('PRODUCTION_RESTORE_REQUIRES_OWNER_APPROVAL', true),
     ],
 
     'audit' => [
-        'retention_days' => 365,
-        'object_lock_mode' => 'COMPLIANCE',
+        'retention_days' => (int) env('AUDIT_LOG_RETENTION_DAYS', 365),
+        'object_lock_mode' => env('AUDIT_OBJECT_LOCK_MODE', 'COMPLIANCE'),
     ],
 
     'signing' => [
