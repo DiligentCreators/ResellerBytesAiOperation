@@ -7,6 +7,7 @@ use App\Models\DiagnosticRun;
 use App\Services\Diagnostics\AiBudgetService;
 use App\Services\Diagnostics\WhmcsDiagnosticAnalyzer;
 use App\Services\Tenancy\TenantEntitlementService;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Bus\Queueable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -234,8 +235,8 @@ class AnalyzeDiagnosticRun implements ShouldQueue
 
 
     /**
-     * Revalidate the integration owner and immutable tenant context captured
-     * at dispatch. Tenant-owned jobs stop when their tenant is inactive.
+     * Revalidate the immutable tenant context captured at dispatch. Legacy jobs
+     * remain owner-bound; tenant-owned jobs require an active tenant.
      *
      * @return Builder<DiagnosticRun>
      */
@@ -287,7 +288,7 @@ class AnalyzeDiagnosticRun implements ShouldQueue
             'provider_usage_missing',
         ];
 
-        if ($exception instanceof \\Illuminate\\Auth\\Access\\AuthorizationException) {
+        if ($exception instanceof AuthorizationException) {
             return 'tenant_entitlement_denied';
         }
 
