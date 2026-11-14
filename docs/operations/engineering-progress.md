@@ -351,3 +351,11 @@ A green CI run is necessary but does not close these release gates or authorize 
 - Payment rows are append-only at the database layer, and payment audit evidence is tenant-bound. Refunds/disputes remain separate append-only adjustment records.
 - Provider-supplied grace dates are no longer accepted: the platform applies its own bounded configurable grace policy (default seven days, 1–30 day clamp).
 - Added regression coverage for immutable payment rows, immutable provider subscription identity, and provider-account mismatch on renewal. Tests remain unexecuted pending PHP 8.5 and dependencies.
+
+
+### Provider reference-to-tenant-local ID resolution — 2026-11-15
+
+- Added provider-side invoice identity fields on invoices, scoped by tenant/provider/account and immutable after binding.
+- Added TenantBillingWebhookReferenceResolver. After signature verification and provider-account-to-tenant mapping, it resolves provider invoice/subscription IDs to local invoice/subscription IDs within the exact tenant/provider/account. Adapters cannot choose internal IDs or tenant IDs.
+- Automated payment ledger, payment failure, refunds/disputes and settled subscription reactivation/renewal now require invoice, subscription, payment and provider account identities to match.
+- Added account-scoped resolver tests for invoice and subscription references, including rejection of an invoice reference from a different provider account. Tests remain unexecuted pending PHP 8.5 and dependencies.
