@@ -5,6 +5,7 @@ namespace App\\Console\\Commands;
 use App\\Models\\TenantBillingWebhookEvent;
 use App\\Services\\Tenancy\\TenantBillingLedgerService;
 use App\\Services\\Tenancy\\TenantBillingFailureReconciler;
+use App\\Services\\Tenancy\\TenantBillingAdjustmentService;
 use App\\Services\\Tenancy\\TenantDatabaseContext;
 use App\\Services\\Tenancy\\TenantBillingOperationsConnection;
 use App\\Services\\Tenancy\\TenantSubscriptionLifecycle;
@@ -167,6 +168,38 @@ class ReconcileTenantBillingWebhooks extends Command
     private function applyVerifiedEvent(TenantBillingWebhookEvent $event): void
     {
         $payload = $event->payload ?? [];
+
+        if (in_array($event->event_type, ['payment.refunded', 'payment.dispute_opened', 'payment.dispute_won', 'payment.dispute_lost'], true)) {
+            $amount = filter_var($payload['amount_minor'] ?? null, FILTER_VALIDATE_INT);
+            $paymentId = $payload['payment_id'] ?? null;
+            $adjustmentId = $payload['adjustment_id'] ?? null;
+            $currency = $payload['currency'] ?? null;
+            if ($amount === false || $amount < 1 || ! is_string($paymentId) || ! is_string($adjustmentId)
+                || ! is_string($currency)) {
+                throw new InvalidArgumentException('billing_adjustment_payload_invalid');
+            }
+
+            $kind = match ($event->event_type) {
+                'payment.refunded' => 'refund',
+                'payment.dispute_opened' => 'dispute_opened',
+                'payment.dispute_won' => 'dispute_won',
+                'payment.dispute_lost' => 'dispute_lost',
+            };
+
+            app(TenantBillingAdjustmentService::class)->recordProviderAdjustment(
+                $event->tenant_id,
+                $event->provider,
+                $event->provider_event_id,
+                $paymentId,
+                $adjustmentId,
+                $kind,
+                $amount,
+                $currency,
+                $event->provider_occurred_at ?? $event->received_at,
+            );
+
+            return;
+        }
 
         if ($event->event_type === 'invoice.payment_failed') {
             $invoiceId = filter_var($payload['invoice_id'] ?? null, FILTER_VALIDATE_INT);
