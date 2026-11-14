@@ -450,3 +450,39 @@ inferred from the repository changes.
   mounted. Static review is not represented as test execution.
 - PR #2 remains open and Draft. No merge, production migration, deployment, or live
   WHMCS operation is authorized.
+
+## Static source review follow-up — external audit-anchor publishing
+
+- Completed the missing production-integration code path (without provisioning resources):
+  added an AWS CLI-backed S3-compatible `AuditCheckpointObjectStore`, dependency
+  binding, and manual `audit:anchor:publish` command.
+- The adapter uses a dedicated audit bucket, separate audit credentials, explicit
+  HTTPS endpoint, conditional `If-None-Match: *` create, returned object VersionId,
+  exact-version read-back, and Object Lock COMPLIANCE metadata. It refuses to reuse the
+  configured backup bucket and fails closed on missing bucket/credentials, invalid
+  endpoint, unsupported conditional creation, missing VersionId, or missing retention
+  metadata. Raw AWS CLI diagnostics are suppressed.
+- Publisher retention deadline is now deterministic from the signed checkpoint
+  creation time plus 365 days, so retrying the same checkpoint cannot silently move the
+  retention target. Expired checkpoint objects cannot be newly published.
+- Chained checkpoint publication and verification now require the expected predecessor
+  digest; the monitor fails closed if a chained checkpoint is checked without that
+  digest. Added regression tests for predecessor enforcement, stable retention, and
+  dedicated-bucket/HTTPS/credential fail-closed behavior.
+- Reconciled audit hash-chain design, external anchor operations guide, independent
+  security checklist, and security-review pack to distinguish implemented adapter code
+  from unprovisioned production cloud controls.
+- Current branch head: `31d0449d01e4f80179db13deb54a5503e6ab3ea4`. All commits in this
+  follow-up use [skip ci]. No workflow file or repository setting was modified in this
+  follow-up. CI remains intentionally untriggered until the one final commit after all
+  remaining work is complete.
+- Provider-level rehearsal remains pending: no production bucket, credentials, key
+  custody, Object Lock configuration, actual provider read-back, independent verifier
+  schedule, or live anchor publication has been attempted. These stay in Shahrukh's
+  pending list.
+- Full automated tests and exact-head CI have not been run. The available environment
+  still lacks PHP 8.5 and a mounted repository/dependency checkout; static review is not
+  represented as test execution.
+- PR #2 remains open and Draft. No merge, production migration, deployment, or live
+  WHMCS operation is authorized.
+
