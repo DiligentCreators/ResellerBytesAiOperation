@@ -2,9 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Http\Middleware\EnsureTwoFactorEnabled;
 use App\Models\PlatformMailSettings;
 use App\Models\User;
-use App\Http\Middleware\EnsureTwoFactorEnabled;
 use App\Services\Mail\CentralOutboundMailer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -12,7 +12,13 @@ use Tests\TestCase;
 
 class PlatformMailSettingsTest extends TestCase
 {
-    use RefreshDatabase;\n\n    protected function setUp(): void\n    {\n        parent::setUp();\n        $this->withoutMiddleware(EnsureTwoFactorEnabled::class);\n    }
+    use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->withoutMiddleware(EnsureTwoFactorEnabled::class);
+    }
 
     public function test_only_designated_platform_owner_can_view_mail_settings(): void
     {
@@ -26,8 +32,11 @@ class PlatformMailSettingsTest extends TestCase
         config(['operations.owner_email' => 'owner@example.test']);
         $user = User::factory()->create(['email' => 'owner@example.test']);
         $this->actingAs($user)->put('/platform/mail-settings', [
-            'driver' => 'postmark', 'from_address' => 'mail@example.test', 'from_name' => 'ResellerBytes',
-            'postmark_server_token' => 'private-token-value', 'postmark_message_stream' => 'outbound',
+            'driver' => 'postmark',
+            'from_address' => 'mail@example.test',
+            'from_name' => 'ResellerBytes',
+            'postmark_server_token' => 'private-token-value',
+            'postmark_message_stream' => 'outbound',
         ])->assertRedirect();
 
         $row = PlatformMailSettings::query()->findOrFail(1);
@@ -38,8 +47,10 @@ class PlatformMailSettingsTest extends TestCase
     public function test_postmark_driver_uses_saved_encrypted_configuration(): void
     {
         PlatformMailSettings::query()->create(['id' => 1, 'driver' => 'postmark', 'configuration' => [
-            'server_token' => 'fake-token', 'message_stream' => 'outbound',
-            'from_address' => 'mail@example.test', 'from_name' => 'ResellerBytes',
+            'server_token' => 'fake-token',
+            'message_stream' => 'outbound',
+            'from_address' => 'mail@example.test',
+            'from_name' => 'ResellerBytes',
         ]]);
         Http::fake(['https://api.postmarkapp.com/email' => Http::response(['MessageID' => 'fake'], 200)]);
         app(CentralOutboundMailer::class)->send('recipient@example.test', 'Test', '<p>test</p>', 'test');
