@@ -3,7 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\TenantMembership;
-use App\Services\Mail\PostmarkTransactionalMailer;
+use App\Services\Mail\TenantInvitationMailer;
 use App\Services\Tenancy\TenantDatabaseContext;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -36,7 +36,7 @@ class SendTenantMembershipInvitation implements ShouldQueue
         return [60, 300, 900, 1800];
     }
 
-    public function handle(TenantDatabaseContext $databaseContext, PostmarkTransactionalMailer $mailer): void
+    public function handle(TenantDatabaseContext $databaseContext, TenantInvitationMailer $mailer): void
     {
         $databaseContext->run($this->tenantId, $this->inviteeUserId, function () use ($mailer): void {
             $membership = TenantMembership::query()
