@@ -100,3 +100,14 @@ Rollback is expand/contract aware: do not drop legacy owner attribution or tenan
 - Payment provider, pricing and production credentials remain separate operator approvals.
 - No migration, data backfill, customer onboarding, payment collection, production RLS activation, merge or deployment is performed by this design checkpoint.
 - This design does not authorize deleting or rewriting audit history, nor relaxing diagnostic retention.
+
+
+## 8. Application query and queued-work enforcement progress
+
+- Added a centralized `TenantRecordQuery` that keeps unassigned legacy integrations visible only to their recorded owner, while tenant-assigned integrations and their diagnostic runs/findings require an active tenant and active membership with a recognized role. A tenant assignment overrides historical owner access; a former owner without membership is denied.
+- Applied the query boundary to integration, diagnostic-run and finding list/detail controllers and dashboard aggregates. Nested detail reads authorize through the full integration-to-tenant relationship before loading child evidence/recommendations.
+- Kept manual reanalysis owner-only for now. Tenant members can read authorized diagnostics, but cannot submit analysis until tenant-aware user authorization and audit attribution are implemented end-to-end.
+- Analysis jobs now capture the integration tenant UUID at dispatch. They revalidate both historical integration owner and captured tenant identity before starting, before provider submission, and before persisting findings; tenant-owned jobs require the tenant to remain active. Failure mutation is also scoped to the captured context.
+- Stale queue recovery now carries tenant UUID into redispatched jobs and ignores tenant-owned jobs whose tenant is inactive. Legacy unassigned jobs retain their prior owner-bound path.
+- Added regression tests for tenant-member read access, former-owner/outsider denial, revoked membership, captured tenant reassignment, tenant suspension, and tenant-aware stale queue recovery. Tests are authored but not executed.
+- This does not yet implement tenant attribution in AI usage reservations/settlement and budget periods, tenant-aware audit event hashing, role-specific write permissions, RLS, exports/downloads/webhooks/notifications, or all billing surfaces. The tenant read path is not a substitute for those remaining gates.
