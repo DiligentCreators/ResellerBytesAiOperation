@@ -45,7 +45,7 @@ class AnalyzeDiagnosticRun implements ShouldQueue
 
     public function middleware(): array
     {
-        return $this->tenantId === null ? [] : [new SetTenantDatabaseContext($this->tenantId)];
+        return [new SetTenantDatabaseContext($this->tenantId, $this->ownerUserId)];
     }
 
     public function handle(WhmcsDiagnosticAnalyzer $analyzer, AiBudgetService $budget): void
