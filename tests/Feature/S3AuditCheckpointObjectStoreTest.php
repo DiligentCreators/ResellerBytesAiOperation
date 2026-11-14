@@ -40,3 +40,10 @@ it('requires HTTPS for the external audit storage endpoint', function () {
     expect(fn () => app(S3AuditCheckpointObjectStore::class)->findImmutableObject('audit-anchors/testing/checkpoint.json'))
         ->toThrow(RuntimeException::class, 'audit_anchor_storage_endpoint_invalid');
 });
+
+it('fails closed when dedicated audit storage credentials are missing', function () {
+    config(['audit.anchor.storage.secret_key' => null]);
+
+    expect(fn () => app(S3AuditCheckpointObjectStore::class)->findImmutableObject('audit-anchors/testing/checkpoint.json'))
+        ->toThrow(RuntimeException::class, 'audit_anchor_storage_secret_key_not_configured');
+});
