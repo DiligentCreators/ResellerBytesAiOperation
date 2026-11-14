@@ -586,3 +586,12 @@ inferred from the repository changes.
 - Found that `operations:metrics` already pruned samples older than one day but was not registered with the scheduler. Added a non-overlapping hourly schedule so the operational metric table has a bounded retention lifecycle; alert evaluation continues to take its own current snapshot each minute.
 - Added a scheduler regression test that asserts the metric maintenance command is registered. No alert destination, schedule enablement gate, production endpoint, or repository workflow was changed; the metric maintenance task is safe housekeeping and does not send notifications.
 - Tests remain committed but unexecuted pending the required PHP 8.5 environment and exact-head CI. All commits in this batch include [skip ci].
+
+
+## Combined follow-up checkpoint — 2026-11-14
+
+- Code/test changes in this continuation: confirmed AI usage settlement on unsuccessful provider responses (`611276e`, `3ef0056`); fake-CLI exact-VersionId S3 adapter test (`ebc5944`); hourly metric sample maintenance schedule and scheduler regression test (`e6e15eb`, `58bd6ff`).
+- Latest code/test commit at this checkpoint: `58bd6ff7570af5c73438accc19a7ba3b9bd85e38`. The current progress-log update is a separate documentation commit. Every commit message includes [skip ci].
+- Local PHP CLI is 8.4.24, while this repository requires PHP 8.5; repository checkout and Composer dependencies are not mounted. No local PHP tests or lint are claimed. Exact-head CI remains intentionally deferred until all remaining engineering work is complete.
+- Owner-only pending items remain unchanged: Wasabi account/bucket and non-production Object Lock rehearsal, signing keys, secret manager and three PostgreSQL roles provisioning, backup rehearsal access, AI price-card approval, independent security review, and final release authorization.
+- PR #2 remains open and Draft. No merge to `main`, deployment, production migration, live WHMCS operation, or production storage operation occurred.
