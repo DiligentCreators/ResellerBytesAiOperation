@@ -29,7 +29,7 @@ class TenantNotificationController extends Controller
         ]);
     }
 
-    public function markRead(Request $request, Tenant $tenant, int $notification, TenantRoleAuthorization $authorization): \Illuminate\Http\RedirectResponse
+    public function markRead(Request $request, Tenant $tenant, int $notification, TenantRoleAuthorization $authorization): JsonResponse
     {
         /** @var User $user */
         $user = $request->user();
