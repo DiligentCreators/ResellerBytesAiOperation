@@ -61,7 +61,7 @@ Configure only through the approved secret manager/runtime environment:
 - DB_OPERATIONS_PASSWORD
 - DB_OPERATIONS_SSLMODE
 
-.env.example contains blank placeholders only. Do not put credentials in source control or chat. The role must be separately provisioned, reviewed, and limited to the platform operations duties required for these billing tables (including provider-account mappings and append-only adjustment records), invoice/payment/subscription rows, and transactional billing reconciliation services. Its provisioning and RLS rehearsal remain owner/infrastructure gates. The commands fail closed on PostgreSQL if the dedicated operations username is absent; they do not fall back to the tenant runtime login.
+.env.example contains blank placeholders only. Do not put credentials in source control or chat. The role must be separately provisioned, reviewed, and limited to the platform operations duties required for these billing tables (including provider-account mappings and append-only adjustment records), invoice/payment/subscription rows, and transactional billing reconciliation services. Its provisioning and RLS rehearsal remain owner/infrastructure gates. The commands fail closed on PostgreSQL if the dedicated operations username is absent, the operations connection is not PostgreSQL, or its current database differs from the runtime connection; they do not fall back to the tenant runtime login.
 
 Both commands are scheduled every minute with overlap protection. Before enabling them in a PostgreSQL environment, rehearse with the actual non-production operations role and prove that the runtime role cannot read or mutate another tenant's outbox/inbox rows.
 
