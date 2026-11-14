@@ -7,12 +7,11 @@ use App\Models\TenantNotification;
 use App\Models\User;
 use App\Services\Tenancy\TenantRoleAuthorization;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
-use Inertia\Response as InertiaResponse;
+use Illuminate\Http\JsonResponse;
 
 class TenantNotificationController extends Controller
 {
-    public function index(Request $request, Tenant $tenant, TenantRoleAuthorization $authorization): InertiaResponse
+    public function index(Request $request, Tenant $tenant, TenantRoleAuthorization $authorization): JsonResponse
     {
         /** @var User $user */
         $user = $request->user();
