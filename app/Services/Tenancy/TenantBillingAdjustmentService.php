@@ -157,6 +157,23 @@ class TenantBillingAdjustmentService
                     'status' => $paid === 0 ? 'open' : 'partially_paid',
                     'paid_at' => null,
                 ])->save();
+
+                if ($invoice->tenant_subscription_id !== null) {
+                    $subscription = $invoice->subscription()
+                        ->where('tenant_id', $tenantId)
+                        ->lockForUpdate()
+                        ->firstOrFail();
+
+                    if (in_array($subscription->status, ['active', 'trialing'], true)) {
+                        $graceDays = max(1, min(30, (int) config('billing.payment_failure_grace_days', 7)));
+                        app(TenantSubscriptionLifecycle::class)->transition(
+                            $tenantId,
+                            (int) $subscription->id,
+                            'past_due',
+                            CarbonImmutable::now('UTC')->addDays($graceDays),
+                        );
+                    }
+                }
             }
 
             app(AuditEventWriter::class)->append([
