@@ -6,6 +6,7 @@ use App\Services\Audit\AuditAnchorService;
 use App\Services\Audit\AuditCheckpointPublisher;
 use App\Services\Audit\AuditEventWriter;
 use DateTimeImmutable;
+use Illuminate\Support\Facades\Artisan;
 use RuntimeException;
 
 final class FakeAuditCheckpointObjectStore implements AuditCheckpointObjectStore
@@ -265,4 +266,18 @@ it('derives Object Lock expiry from the signed checkpoint timestamp for idempote
     (new AuditCheckpointPublisher($store, app(AuditAnchorService::class)))->publish($checkpoint);
 
     expect($store->createCalls[0][2]->getTimestamp())->toBe($expectedRetention->getTimestamp());
+});
+
+it('registers the publish command and fails closed before storage access without a dedicated bucket', function () {
+    $checkpoint = createPublishableAuditCheckpoint();
+    $path = tempnam(sys_get_temp_dir(), 'rb-audit-publish-command-');
+    file_put_contents($path, $checkpoint);
+    config(['audit.anchor.storage.bucket' => null]);
+
+    try {
+        expect(Artisan::call('audit:anchor:publish', ['checkpoint' => $path]))->toBe(1)
+            ->and(Artisan::output())->toContain('audit_anchor_storage_bucket_not_configured');
+    } finally {
+        @unlink($path);
+    }
 });
