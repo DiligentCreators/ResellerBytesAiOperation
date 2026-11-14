@@ -15,6 +15,7 @@ tenant_billing_outbox stores tenant-scoped events in the same database transacti
 
 - Idempotency is unique per (tenant_id, idempotency_key). Repeating the same event returns the original row; reusing the key for different event content fails closed.
 - PostgreSQL RLS is enabled on the outbox table. Composite tenant ownership is represented directly by tenant_id.
+- Database triggers make tenant identity, event identity, aggregate identity, and payload immutable after insert; delivery state and retry counters remain mutable. A separate audit trigger verifies that webhook-receipt audit rows carry the exact tenant of the referenced inbox event.
 - billing:outbox:dispatch --limit=100 publishes due events as TenantBillingOutboxPublished on Laravel's event dispatcher.
 - Delivery is at-least-once: a crash after listener side effects but before the delivered marker is committed can cause a redelivery. Every listener MUST deduplicate on the stable outboxId and must not assume exactly-once delivery.
 - Attempts use exponential retry starting at 30 seconds, capped at six hours, with a maximum of 12 attempts. A message that exhausts attempts is marked dead_lettered; it is not silently deleted.
@@ -28,7 +29,7 @@ tenant_billing_webhook_events stores a provider-account-scoped, normalized event
 
 - Tenant, provider, provider account, and provider event ID are bound. Unique constraints prevent duplicate event IDs both within a tenant and for the same provider account.
 - The normalized payload is restricted to allowlisted keys for payment success and subscription past-due/canceled/expired/reactivated events. Raw provider payloads, signature headers, credentials, and arbitrary metadata are not stored.
-- A canonical SHA-256 digest binds the normalized payload. A duplicate with the same digest is an idempotent success; a duplicate with changed content is rejected.
+- A canonical SHA-256 digest binds the normalized payload. A duplicate with the same digest is an idempotent success; a duplicate with changed content is rejected. Concurrent duplicate inserts recover the winner's row after a unique-key race.
 - First receipt appends a tenant-attributed immutable audit event containing provider, event type, and payload digest only.
 - Supported reconciliation events are invoice.payment_succeeded, subscription.past_due, subscription.canceled, subscription.expired, and subscription.reactivated. Reactivation requires a fully settled invoice belonging to the same tenant and subscription.
 - Payment confirmation calls the existing confirmed-payment ledger. Invoice locking, provider payment ID uniqueness, payment idempotency, audit append, and outbox enqueue occur in the same transaction as marking the inbox event processed.
