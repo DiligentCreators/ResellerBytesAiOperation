@@ -77,11 +77,32 @@ final class OperationalMetricsSource
             return null;
         }
 
-        $modifiedAt = @filemtime($path);
+        $contents = @file_get_contents($path);
+        if (! is_string($contents)) {
+            return null;
+        }
 
-        return $modifiedAt === false
-            ? null
-            : CarbonImmutable::createFromTimestampUTC($modifiedAt)->toIso8601String();
+        try {
+            $marker = json_decode($contents, true, 16, JSON_THROW_ON_ERROR);
+            if (! is_array($marker)
+                || ! is_string($marker['backup_id'] ?? null)
+                || ! Str::isUuid($marker['backup_id'])
+                || ! is_string($marker['created_at'] ?? null)
+                || preg_match('/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\+00:00$/D', $marker['created_at']) !== 1) {
+                return null;
+            }
+
+            $createdAt = CarbonImmutable::createFromFormat('!Y-m-d\\TH:i:sP', $marker['created_at']);
+            if ($createdAt === false
+                || $createdAt->toIso8601String() !== $marker['created_at']
+                || $createdAt->greaterThan(CarbonImmutable::now('UTC')->addMinutes(5))) {
+                return null;
+            }
+
+            return $createdAt->toIso8601String();
+        } catch (\\Throwable) {
+            return null;
+        }
     }
 
     private function diskUsagePercent(): ?float
