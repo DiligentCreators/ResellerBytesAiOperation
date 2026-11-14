@@ -239,11 +239,12 @@ class AnalyzeDiagnosticRun implements ShouldQueue
         return DiagnosticRun::query()
             ->whereKey($runId)
             ->whereHas('integration', function (Builder $integration): void {
-                $integration->where('owner_user_id', $this->ownerUserId)
-                    ->where('tenant_id', $this->tenantId);
+                $integration->where('tenant_id', $this->tenantId);
 
                 if ($this->tenantId !== null) {
                     $integration->whereHas('tenant', fn (Builder $tenant) => $tenant->where('status', 'active'));
+                } else {
+                    $integration->where('owner_user_id', $this->ownerUserId);
                 }
             });
     }
