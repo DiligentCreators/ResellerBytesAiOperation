@@ -612,3 +612,10 @@ inferred from the repository changes.
 - Invalid usage fails closed and leaves the submitted reservation held; it does not release budget or mark the provider attempt settled. Operator reconciliation remains the only route to release ambiguous no-charge reservations.
 - Added regression coverage for negative, fractional, string, inconsistent cached-input, and overflow usage metadata.
 - Intermediate commits all include [skip ci]. No workflow file or repository setting changed. Tests have not been executed in this environment; exact-head CI is deferred to the single final non-[skip ci] commit after all engineering work is complete.
+
+## Operational webhook redirect hardening — 2026-11-14
+
+- Static review found outbound alert webhooks validated the initial URL as HTTPS but did not explicitly disable HTTP-client redirect following. Redirect forwarding could send alert payloads to an unintended second destination.
+- Webhook requests now refuse redirects and treat 3xx responses as failed delivery, preserving the existing retry behavior and avoiding forwarding payloads to redirect targets.
+- Added a regression test asserting that a redirect is not followed and the alert is not marked delivered; updated the operational delivery contract.
+- Tests remain unexecuted in this environment. Commit messages continue to include [skip ci]; no workflow or repository settings were changed.
