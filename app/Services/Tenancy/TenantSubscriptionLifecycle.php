@@ -11,6 +11,7 @@ use App\Services\Audit\AuditEventWriter;
 use Carbon\CarbonImmutable;
 use DateTimeInterface;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use InvalidArgumentException;
 
 class TenantSubscriptionLifecycle
