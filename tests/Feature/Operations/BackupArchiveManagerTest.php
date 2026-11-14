@@ -44,16 +44,14 @@ it('refuses to restore a backup into a database with a different identity', func
 });
 
 it('rejects a restore manifest whose database name differs from the configured target', function () {
-    config([
-        'database.default' => 'pgsql',
-        'database.connections.pgsql.database' => 'resellerbytes_rehearsal',
-    ]);
+    $connectionName = (string) config('database.default');
+    $targetDatabase = (string) config('database.connections.'.$connectionName.'.database');
 
     expect(fn () => app(BackupArchiveManager::class)->assertRestoreTargetMatches([
-        'database_name' => 'resellerbytes_production',
+        'database_name' => 'different_database',
     ]))->toThrow(RuntimeException::class);
 
     expect(fn () => app(BackupArchiveManager::class)->assertRestoreTargetMatches([
-        'database_name' => 'resellerbytes_rehearsal',
+        'database_name' => $targetDatabase,
     ]))->not->toThrow(RuntimeException::class);
 });
