@@ -36,9 +36,19 @@ if ($adjustment === null || ! is_string($adjustment->provider) || ! is_string($a
     throw new RuntimeException('billing_rls_rehearsal_adjustment_fixture_invalid');
 }
 
+$runtimeRole = $runtime->selectOne('SELECT current_user AS name');
+$operationsRole = $operations->selectOne('SELECT current_user AS name');
+$runtimeDatabase = $runtime->selectOne('SELECT current_database() AS name');
+$operationsDatabase = $operations->selectOne('SELECT current_database() AS name');
+if ($runtimeRole->name === $operationsRole->name || $runtimeDatabase->name !== $operationsDatabase->name) {
+    throw new RuntimeException('billing_rls_runtime_and_operations_connections_must_be_distinct_roles_on_same_database');
+}
+
 $role = $runtime->selectOne('SELECT rolbypassrls, rolsuper FROM pg_roles WHERE rolname = current_user');
-if ($role === null || filter_var($role->rolbypassrls, FILTER_VALIDATE_BOOLEAN) || filter_var($role->rolsuper, FILTER_VALIDATE_BOOLEAN)) {
-    throw new RuntimeException('billing_rls_runtime_role_must_not_bypass_rls_or_be_superuser');
+$operationsRoleFlags = $operations->selectOne('SELECT rolsuper FROM pg_roles WHERE rolname = current_user');
+if ($role === null || filter_var($role->rolbypassrls, FILTER_VALIDATE_BOOLEAN) || filter_var($role->rolsuper, FILTER_VALIDATE_BOOLEAN)
+    || $operationsRoleFlags === null || filter_var($operationsRoleFlags->rolsuper, FILTER_VALIDATE_BOOLEAN)) {
+    throw new RuntimeException('billing_rls_runtime_role_must_not_bypass_rls_or_be_superuser_and_operations_role_must_not_be_superuser');
 }
 
 $tables = [
