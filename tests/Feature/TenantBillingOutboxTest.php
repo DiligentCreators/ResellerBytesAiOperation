@@ -363,8 +363,11 @@ it('verifies and maps provider webhooks through the provider-neutral gateway', f
         'created_at' => now('UTC'),
         'updated_at' => now('UTC'),
     ]);
+    $invoice = createBillingOutboxInvoice($tenant, 4900, 'acct_gateway_001');
 
-    $adapter = new class implements \\App\\Contracts\\Billing\\BillingProviderAdapter {
+    $adapter = new class($invoice->provider_invoice_id) implements \\App\\Contracts\\Billing\\BillingProviderAdapter {
+        public function __construct(private readonly string $providerInvoiceId) {}
+
         public function provider(): string
         {
             return 'approved_gateway';
@@ -379,7 +382,7 @@ it('verifies and maps provider webhooks through the provider-neutral gateway', f
                 'acct_gateway_001',
                 'evt_gateway_001',
                 'invoice.payment_succeeded',
-                ['invoice_id' => 303, 'payment_id' => 'pay_gateway_001', 'amount_minor' => 303, 'currency' => 'USD'],
+                ['provider_invoice_id' => $this->providerInvoiceId, 'payment_id' => 'pay_gateway_001', 'amount_minor' => 303, 'currency' => 'USD'],
                 \\Carbon\\CarbonImmutable::now('UTC'),
                 \\Carbon\\CarbonImmutable::now('UTC'),
             );
@@ -395,6 +398,7 @@ it('verifies and maps provider webhooks through the provider-neutral gateway', f
 
     expect($event->tenant_id)->toBe($tenant->id)
         ->and($event->provider_account_id)->toBe('acct_gateway_001')
+        ->and($event->payload['invoice_id'])->toBe($invoice->id)
         ->and($event->provider_occurred_at)->not->toBeNull()
         ->and($event->received_at->diffInSeconds(now('UTC')))->toBeLessThan(5);
 });
