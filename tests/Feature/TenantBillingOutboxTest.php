@@ -948,3 +948,53 @@ it('registers and deactivates provider accounts with tenant authorization and au
         ->where('subject_id', (string) $mapping->id)
         ->count())->toBe(2);
 });
+
+it('requeues dead-lettered webhooks only with tenant authorization and a verified active provider account', function () {
+    $tenant = createBillingOutboxTenant('billing-webhook-recovery');
+    $user = \\App\\Models\\User::factory()->create();
+    $tenant->memberships()->create([
+        'user_id' => $user->id,
+        'role' => \\App\\Models\\TenantMembership::ROLE_BILLING,
+        'status' => \\App\\Models\\TenantMembership::STATUS_ACTIVE,
+        'accepted_at' => now('UTC'),
+    ]);
+    $mapping = app(\\App\\Services\\Tenancy\\TenantBillingProviderAccountService::class)
+        ->registerVerifiedAccount($tenant->id, 'approved_gateway', 'acct_recovery_001', $user->id);
+
+    $event = app(TenantBillingWebhookInbox::class)->acceptVerifiedEvent(
+        $tenant->id,
+        'approved_gateway',
+        'evt_recovery_001',
+        'invoice.payment_failed',
+        ['invoice_id' => 7001, 'failure_code' => 'card_declined'],
+        now('UTC'),
+        'acct_recovery_001',
+    );
+    $event->forceFill([
+        'status' => 'dead_lettered',
+        'attempts' => 12,
+        'dead_lettered_at' => now('UTC'),
+        'last_error_code' => 'billing_webhook_processing_failed',
+    ])->save();
+
+    $recovery = app(\\App\\Services\\Tenancy\\TenantBillingWebhookRecoveryService::class);
+    $requeued = $recovery->requeueDeadLetter($tenant->id, $event->id, $user->id, 'provider_configuration_corrected');
+
+    expect($requeued->status)->toBe('pending')
+        ->and($requeued->attempts)->toBe(0)
+        ->and($requeued->manual_replay_count)->toBe(1)
+        ->and($requeued->dead_lettered_at)->toBeNull()
+        ->and(DB::table('audit_events')->where('tenant_id', $tenant->id)->where('event_type', 'tenant_billing.webhook_dead_letter_requeued')->count())->toBe(1);
+
+    $requeued->forceFill(['status' => 'dead_lettered', 'manual_replay_count' => 3, 'dead_lettered_at' => now('UTC')])->save();
+    expect(fn () => $recovery->requeueDeadLetter($tenant->id, $event->id, $user->id, 'provider_configuration_corrected'))
+        ->toThrow(RuntimeException::class, 'billing_webhook_manual_replay_limit_reached');
+
+    app(\\App\\Services\\Tenancy\\TenantBillingProviderAccountService::class)
+        ->deactivateAccount($tenant->id, $mapping->id, $user->id);
+    $requeued->forceFill(['manual_replay_count' => 1])->save();
+    expect(fn () => $recovery->requeueDeadLetter($tenant->id, $event->id, $user->id, 'provider_configuration_corrected'))
+        ->toThrow(RuntimeException::class, 'billing_webhook_provider_account_inactive');
+
+    expect(Artisan::all())->toHaveKey('billing:webhooks:retry-dead-letter');
+});
