@@ -68,6 +68,28 @@ it('routes critical alerts to every configured critical webhook and requires pro
     Http::assertSentCount(3);
 });
 
+it('does not follow webhook redirects to a second destination', function () {
+    Mail::fake();
+    Http::fake([
+        'https://hooks.slack.test/alerts' => Http::response('', 302, [
+            'Location' => 'https://internal.example.test/redirect-target',
+        ]),
+    ]);
+
+    $result = app(AlertNotificationDispatcher::class)->dispatch([
+        'code' => 'error_rate_exceeded',
+        'severity' => 'alert',
+        'observed' => 3,
+        'threshold' => 2,
+    ]);
+
+    expect($result['success'])->toBeFalse()
+        ->and($result['deliveries']['team_channel'])->toBe('failed');
+
+    Http::assertSentCount(1);
+    Http::assertNotSent(fn (HttpRequest $request): bool => str_contains($request->url(), 'internal.example.test'));
+});
+
 it('does not report delivery when a required route is missing or a webhook does not acknowledge', function () {
     Mail::fake();
     config([
