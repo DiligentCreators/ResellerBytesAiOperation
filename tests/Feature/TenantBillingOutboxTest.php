@@ -1027,7 +1027,7 @@ it('requeues dead-lettered outbox messages with tenant authorization and bounded
     $message->forceFill([
         'status' => 'dead_lettered',
         'attempts' => 12,
-        'dead_lettered_at' => now('UTC'),
+        'failed_at' => now('UTC'),
         'last_error_code' => 'billing_outbox_publish_failed',
     ])->save();
 
@@ -1037,10 +1037,10 @@ it('requeues dead-lettered outbox messages with tenant authorization and bounded
     expect($requeued->status)->toBe('pending')
         ->and($requeued->attempts)->toBe(0)
         ->and($requeued->manual_replay_count)->toBe(1)
-        ->and($requeued->dead_lettered_at)->toBeNull()
+        ->and($requeued->failed_at)->toBeNull()
         ->and(DB::table('audit_events')->where('tenant_id', $tenant->id)->where('event_type', 'tenant_billing.outbox_dead_letter_requeued')->count())->toBe(1);
 
-    $requeued->forceFill(['status' => 'dead_lettered', 'manual_replay_count' => 3, 'dead_lettered_at' => now('UTC')])->save();
+    $requeued->forceFill(['status' => 'dead_lettered', 'manual_replay_count' => 3, 'failed_at' => now('UTC')])->save();
     expect(fn () => $recovery->requeueDeadLetter($tenant->id, $message->id, $user->id, 'consumer_configuration_corrected'))
         ->toThrow(RuntimeException::class, 'billing_outbox_manual_replay_limit_reached');
 });
