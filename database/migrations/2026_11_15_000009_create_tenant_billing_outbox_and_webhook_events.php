@@ -41,6 +41,7 @@ return new class extends Migration
             $table->jsonb('payload');
             $table->string('status', 20)->default('pending');
             $table->unsignedInteger('attempts')->default(0);
+            $table->unsignedTinyInteger('manual_replay_count')->default(0);
             $table->timestampTz('received_at');
             $table->timestampTz('provider_occurred_at')->nullable();
             $table->timestampTz('available_at');
