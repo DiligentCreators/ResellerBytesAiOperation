@@ -229,6 +229,45 @@ it('records actual provider cost when usage exceeds the reserved ceiling', funct
         ->and(AiBudgetPeriod::query()->where('period_type', 'daily')->sole()->committed_micro_usd)->toBe(322_164);
 });
 
+it('rejects malformed provider token counts and keeps the submitted reservation held', function (array $usage) {
+    $run = makeBudgetDiagnosticRun();
+    $service = app(AiBudgetService::class);
+    $attempt = $service->reserve($run, 'gpt-5.6-sol', '2026-11-12.1');
+    $service->markSubmitted($attempt);
+
+    expect(fn () => $service->settle($attempt, $usage, 'resp_budget_invalid_usage'))
+        ->toThrow(RuntimeException::class, 'budget_usage_invalid');
+
+    expect($attempt->fresh()->status)->toBe('submitted')
+        ->and(AiBudgetPeriod::query()->where('period_type', 'daily')->sole()->reserved_micro_usd)
+        ->toBe($attempt->reserved_micro_usd)
+        ->and(AiBudgetPeriod::query()->where('period_type', 'daily')->sole()->committed_micro_usd)
+        ->toBe(0);
+})->with([
+    'negative input' => [['input_tokens' => -1, 'cached_input_tokens' => 0, 'output_tokens' => 1]],
+    'fractional output' => [['input_tokens' => 1, 'cached_input_tokens' => 0, 'output_tokens' => 1.5]],
+    'string token count' => [['input_tokens' => '100', 'cached_input_tokens' => 0, 'output_tokens' => 1]],
+    'cached greater than input' => [['input_tokens' => 1, 'cached_input_tokens' => 2, 'output_tokens' => 1]],
+]);
+
+it('rejects provider usage whose integer cost arithmetic would overflow', function () {
+    $run = makeBudgetDiagnosticRun();
+    $service = app(AiBudgetService::class);
+    $attempt = $service->reserve($run, 'gpt-5.6-sol', '2026-11-12.1');
+    $service->markSubmitted($attempt);
+
+    expect(fn () => $service->settle($attempt, [
+        'input_tokens' => PHP_INT_MAX,
+        'cached_input_tokens' => 0,
+        'output_tokens' => 0,
+    ], 'resp_budget_overflow'))
+        ->toThrow(RuntimeException::class, 'budget_usage_invalid');
+
+    expect($attempt->fresh()->status)->toBe('submitted')
+        ->and(AiBudgetPeriod::query()->where('period_type', 'daily')->sole()->reserved_micro_usd)
+        ->toBe($attempt->reserved_micro_usd);
+});
+
 it('settles an old attempt using its stored price rates after the price card expires', function () {
     $run = makeBudgetDiagnosticRun();
     $service = app(AiBudgetService::class);
