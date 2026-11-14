@@ -223,6 +223,7 @@ SQL);
             'rb_diagnostic_run_tenant_guard',
             'rb_diagnostic_finding_tenant_guard',
             'rb_diagnostic_recommendation_tenant_guard',
+            'rb_ai_usage_tenant_guard',
             'rb_ai_usage_tenant_guard_insert',
             'rb_ai_usage_tenant_guard_update',
             'rb_audit_event_tenant_guard',
