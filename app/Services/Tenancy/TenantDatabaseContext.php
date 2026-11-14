@@ -32,6 +32,10 @@ class TenantDatabaseContext
             throw new \InvalidArgumentException('Invalid tenant database context user ID.');
         }
 
+        $previousTenantId = (string) ($connection->selectOne("select current_setting('app.current_tenant_id', true) as value", [], false)->value ?? '');
+        $previousUserId = (string) ($connection->selectOne("select current_setting('app.current_user_id', true) as value", [], false)->value ?? '');
+        $previousIntegrationLookupId = (string) ($connection->selectOne("select current_setting('app.integration_lookup_id', true) as value", [], false)->value ?? '');
+
         try {
             $connection->statement("select set_config('app.current_tenant_id', ?, false)", [$tenantId ?? '']);
             $connection->statement("select set_config('app.current_user_id', ?, false)", [$userId === null ? '' : (string) $userId]);
@@ -40,9 +44,9 @@ class TenantDatabaseContext
             return $callback();
         } finally {
             try {
-                $connection->statement("select set_config('app.current_tenant_id', '', false)");
-                $connection->statement("select set_config('app.current_user_id', '', false)");
-                $connection->statement("select set_config('app.integration_lookup_id', '', false)");
+                $connection->statement("select set_config('app.current_tenant_id', ?, false)", [$previousTenantId]);
+                $connection->statement("select set_config('app.current_user_id', ?, false)", [$previousUserId]);
+                $connection->statement("select set_config('app.integration_lookup_id', ?, false)", [$previousIntegrationLookupId]);
             } catch (Throwable) {
                 $connection->disconnect();
             }
