@@ -46,11 +46,13 @@ final class BackupArchiveManager
             $manifestKey = 'backups/manifests/'.$backupId.'.json';
 
             $manifest = [
-                'schema_version' => 1,
+                'schema_version' => 2,
                 'backup_id' => $backupId,
                 'created_at' => $createdAt->toIso8601String(),
                 'database_driver' => 'pgsql',
                 'database_name' => (string) $connection['database'],
+                'database_host' => (string) ($connection['host'] ?? ''),
+                'database_port' => (int) ($connection['port'] ?? 5432),
                 'archive_format' => 'pg_dump_custom',
                 'object_key' => $objectKey,
                 'manifest_key' => $manifestKey,
@@ -100,14 +102,19 @@ final class BackupArchiveManager
                 $manifestHash,
                 'application/json',
             );
+            $manifestBytes = (int) filesize($manifestPath);
             $this->verifyLockedObject(
                 $settings,
                 $manifestKey,
                 $manifestHash,
-                (int) filesize($manifestPath),
+                $manifestBytes,
                 $retentionUntil,
                 $manifestVersionId,
             );
+            $this->downloadObject($settings, $manifestKey, $verificationPath, $manifestVersionId);
+            if (! hash_equals($manifestHash, (string) hash_file('sha256', $verificationPath))) {
+                throw new RuntimeException('Uploaded backup manifest did not pass exact-version read-back checksum verification.');
+            }
 
             $this->updateSuccessMarker($backupId, $createdAt);
 
@@ -145,7 +152,7 @@ final class BackupArchiveManager
 
             $manifest = json_decode($manifestContents, true, 512, JSON_THROW_ON_ERROR);
             if (! is_array($manifest)
-                || ($manifest['schema_version'] ?? null) !== 1
+                || ($manifest['schema_version'] ?? null) !== 2
                 || ($manifest['backup_id'] ?? null) !== $backupId
                 || ($manifest['database_driver'] ?? null) !== 'pgsql'
                 || ($manifest['object_lock_mode'] ?? null) !== 'COMPLIANCE'
@@ -156,7 +163,12 @@ final class BackupArchiveManager
                 || ! is_string($manifest['object_version_id'] ?? null)
                 || trim($manifest['object_version_id']) === ''
                 || ! is_numeric($manifest['encrypted_bytes'] ?? null)
-                || ! is_string($manifest['retention_until'] ?? null)) {
+                || ! is_string($manifest['retention_until'] ?? null)
+                || ! is_string($manifest['database_host'] ?? null)
+                || trim($manifest['database_host']) === ''
+                || ! is_numeric($manifest['database_port'] ?? null)
+                || (int) $manifest['database_port'] < 1
+                || (int) $manifest['database_port'] > 65535) {
                 throw new RuntimeException('Backup manifest is invalid or unsupported.');
             }
 
@@ -252,12 +264,23 @@ final class BackupArchiveManager
     public function assertRestoreTargetMatches(array $manifest): void
     {
         $connectionName = (string) config('database.default');
-        $targetDatabase = config('database.connections.'.$connectionName.'.database');
+        $target = config('database.connections.'.$connectionName, []);
+        $targetDatabase = $target['database'] ?? null;
+        $targetHost = $target['host'] ?? null;
+        $targetPort = $target['port'] ?? null;
         $manifestDatabase = $manifest['database_name'] ?? null;
+        $manifestHost = $manifest['database_host'] ?? null;
+        $manifestPort = $manifest['database_port'] ?? null;
 
         if (! is_string($targetDatabase)
             || ! is_string($manifestDatabase)
-            || ! hash_equals($targetDatabase, $manifestDatabase)) {
+            || ! hash_equals($targetDatabase, $manifestDatabase)
+            || ! is_string($targetHost)
+            || ! is_string($manifestHost)
+            || ! hash_equals(mb_strtolower(trim($targetHost)), mb_strtolower(trim($manifestHost)))
+            || ! is_numeric($targetPort)
+            || ! is_numeric($manifestPort)
+            || (int) $targetPort !== (int) $manifestPort) {
             throw new RuntimeException('Backup database identity does not match the configured restore target.');
         }
     }
