@@ -6,6 +6,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Models\WhmcsIntegration;
 use App\Services\Audit\AuditEventWriter;
+use App\Services\Tenancy\TenantDatabaseContext;
 use App\Services\Tenancy\TenantResourceLimitService;
 use App\Services\Tenancy\TenantRoleAuthorization;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -58,45 +59,48 @@ class CreateWhmcsIntegration extends Command
         }
 
         $secret = bin2hex(random_bytes(32));
+        $provision = fn (): WhmcsIntegration => DB::transaction(function () use ($name, $secret, $owner, $tenantId): WhmcsIntegration {
+            if ($tenantId !== '') {
+                $tenant = Tenant::query()
+                    ->whereKey($tenantId)
+                    ->where('status', Tenant::STATUS_ACTIVE)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                app(TenantRoleAuthorization::class)->require($owner, $tenant->id, 'integrations.manage');
+                app(TenantResourceLimitService::class)->requireIntegrationCapacity($tenant->id);
+            }
+
+            $integration = WhmcsIntegration::create([
+                'owner_user_id' => $owner->getKey(),
+                'tenant_id' => $tenantId !== '' ? $tenantId : null,
+                'name' => $name,
+                'status' => 'active',
+                'secret' => $secret,
+                'secret_version' => 1,
+            ]);
+
+            app(AuditEventWriter::class)->append([
+                'actor_type' => 'system_operator',
+                'event_type' => 'whmcs_integration.created',
+                'subject_type' => 'whmcs_integration',
+                'subject_id' => $integration->id,
+                'tenant_id' => $tenantId !== '' ? $tenantId : null,
+                'metadata' => [
+                    'owner_user_id' => (string) $owner->getKey(),
+                    'secret_version' => 1,
+                    'tenant_id' => $tenantId !== '' ? $tenantId : null,
+                ],
+                'occurred_at' => now(),
+            ]);
+
+            return $integration;
+        });
 
         try {
-            $provision = fn (): WhmcsIntegration => DB::transaction(function () use ($name, $secret, $owner, $tenantId): WhmcsIntegration {
-                if ($tenantId !== '') {
-                    $tenant = Tenant::query()
-                        ->whereKey($tenantId)
-                        ->where('status', Tenant::STATUS_ACTIVE)
-                        ->lockForUpdate()
-                        ->firstOrFail();
-
-                    app(TenantRoleAuthorization::class)->require($owner, $tenant->id, 'integrations.manage');
-                    app(TenantResourceLimitService::class)->requireIntegrationCapacity($tenant->id);
-                }
-
-                $integration = WhmcsIntegration::create([
-                    'owner_user_id' => $owner->getKey(),
-                    'tenant_id' => $tenantId !== '' ? $tenantId : null,
-                    'name' => $name,
-                    'status' => 'active',
-                    'secret' => $secret,
-                    'secret_version' => 1,
-                ]);
-
-                app(AuditEventWriter::class)->append([
-                    'actor_type' => 'system_operator',
-                    'event_type' => 'whmcs_integration.created',
-                    'subject_type' => 'whmcs_integration',
-                    'subject_id' => $integration->id,
-                    'tenant_id' => $tenantId !== '' ? $tenantId : null,
-                    'metadata' => [
-                        'owner_user_id' => (string) $owner->getKey(),
-                        'secret_version' => 1,
-                        'tenant_id' => $tenantId !== '' ? $tenantId : null,
-                    ],
-                    'occurred_at' => now(),
-                ]);
-
-                return $integration;
-            });
+            $integration = $tenantId !== ''
+                ? app(TenantDatabaseContext::class)->run($tenantId, (int) $owner->getKey(), $provision)
+                : $provision();
         } catch (AuthorizationException $exception) {
             $this->error($exception->getMessage());
 
