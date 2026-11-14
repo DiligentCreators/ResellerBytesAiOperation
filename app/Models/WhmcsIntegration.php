@@ -5,18 +5,21 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 use LogicException;
 
 /**
  * @property string $id
+ * @property int|null $owner_user_id
  * @property string $name
  * @property string $status
  * @property string $secret
  * @property int $secret_version
  * @property string|null $addon_version
  * @property Carbon|null $last_seen_at
+ * @property-read User|null $owner
  * @property-read Collection<int, DiagnosticRun> $diagnosticRuns
  * @property-read int $diagnostic_runs_count
  */
@@ -25,6 +28,7 @@ class WhmcsIntegration extends Model
     use HasUuids;
 
     protected $fillable = [
+        'owner_user_id',
         'name',
         'status',
         'secret',
@@ -49,10 +53,19 @@ class WhmcsIntegration extends Model
     protected function casts(): array
     {
         return [
+            'owner_user_id' => 'integer',
             'secret' => 'encrypted',
             'secret_version' => 'integer',
             'last_seen_at' => 'immutable_datetime',
         ];
+    }
+
+    /**
+     * @return BelongsTo<User, $this>
+     */
+    public function owner(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'owner_user_id');
     }
 
     /**
