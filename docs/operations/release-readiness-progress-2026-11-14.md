@@ -689,3 +689,17 @@ inferred from the repository changes.
 - Tests remain unexecuted (PHP 8.5/runtime dependencies unavailable). No migration was executed and no tenant mapping/backfill was performed.
 - Remaining tenant roadmap work: tenant attribution for AI usage/budget periods and billing; audit event tenant attribution with hash-version-safe global chain; role-specific writes; tenant-aware reanalysis; exports/downloads/webhooks/notifications; composite constraints; PostgreSQL RLS and migration/backfill rehearsal.
 - All commits include [skip ci]. No workflows or repo settings changed. PR #2 remains open and Draft; no merge or deployment.
+
+
+## Tenant AI budgets and audit hash-version checkpoint — 2026-11-15
+
+- Added migration `2026_11_15_000003_add_tenant_scoped_ai_budgets.php`: nullable tenant attribution on AI usage attempts and tenant daily/monthly reserved/committed budget periods.
+- AI budget reservation now atomically checks both platform-wide caps and each tenant's daily/monthly caps. Tenant allowance defaults to the platform cap and can be configured independently through `AI_TENANT_DAILY_BUDGET_MICRO_USD` / `AI_TENANT_MONTHLY_BUDGET_MICRO_USD`. A tenant cannot spend another tenant's allowance; the platform cap remains global.
+- Tenant UUID is captured at reservation, stored on the usage attempt and immutable through model updates. Settlement, release-before-submit and dual-approved audited no-charge reconciliation update both global and tenant ledgers atomically against original UTC period keys.
+- Suspended tenant reservations fail closed. Provider-accepted requests still settle against their captured tenant even if suspension happens after submission.
+- Added migration `2026_11_15_000004_add_tenant_attribution_to_audit_events.php`. New audit writes use hash version 2 and a separate v2 domain prefix with tenant UUID in the canonical payload. Existing v1 event hashes remain byte-compatible and verifiable; audit chain and external checkpoint verification accept both versions in the same sequence.
+- Tenant context is included in AI reconciliation and integration owner assignment, secret rotation and revocation audit events. No existing audit event or usage attempt was backfilled; historical tenant attribution stays null pending explicit mapping approval.
+- Added regression tests for per-tenant daily/monthly budgets, shared global cap, cross-tenant allowance isolation, suspended tenant denial, tenant immutable usage attribution, tenant-aware audit hashing and v1 hash compatibility. Tests remain unexecuted because PHP 8.5/runtime dependencies are unavailable.
+- Both migrations are authored only; no database migration was executed. No tenant data or historical ledger backfill was performed.
+- Remaining roadmap: tenant-aware billing/entitlements; role-specific writes and manual reanalysis; tenant-scoped exports/downloads/webhooks/notifications; complete audit-event tenant attribution across all tenant workflows; composite constraints and PostgreSQL RLS; operational migration/backfill rehearsal and full test/CI verification.
+- All commits include [skip ci]. PR #2 remains open and Draft. No workflow/repository setting changes, merge, CI run, or deployment.
