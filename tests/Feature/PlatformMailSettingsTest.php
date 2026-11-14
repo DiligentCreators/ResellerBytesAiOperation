@@ -61,17 +61,24 @@ class PlatformMailSettingsTest extends TestCase
     public function test_smtp_driver_uses_saved_settings_with_a_fake_mailer(): void
     {
         PlatformMailSettings::query()->create(['id' => 1, 'driver' => 'smtp', 'configuration' => [
-            'host' => 'smtp.example.test', 'port' => 587, 'encryption' => 'tls',
-            'username' => 'mailer-user', 'password' => 'smtp-secret',
-            'from_address' => 'mail@example.test', 'from_name' => 'ResellerBytes',
+            'host' => 'smtp.example.test',
+            'port' => 587,
+            'encryption' => 'tls',
+            'username' => 'mailer-user',
+            'password' => 'smtp-secret',
+            'from_address' => 'mail@example.test',
+            'from_name' => 'ResellerBytes',
         ]]);
+
         $fakeMailer = \Mockery::mock();
         $fakeMailer->shouldReceive('html')->once();
         Mail::shouldReceive('build')->once()
             ->with(\Mockery::on(fn (array $config): bool => $config['host'] === 'smtp.example.test'
-                && $config['port'] === 587 && $config['username'] === 'mailer-user'
+                && $config['port'] === 587
+                && $config['username'] === 'mailer-user'
                 && $config['password'] === 'smtp-secret'))
             ->andReturn($fakeMailer);
+
         app(CentralOutboundMailer::class)->send('recipient@example.test', 'Test', '<p>test</p>', 'test');
     }
 
