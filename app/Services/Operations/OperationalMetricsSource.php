@@ -11,6 +11,8 @@ use Throwable;
 
 final class OperationalMetricsSource
 {
+    public function __construct(private readonly QueueJobMetricsTracker $queueMetrics) {}
+
     /**
      * Return normalized metrics for AlertThresholdPolicy without exposing request payloads.
      *
@@ -52,7 +54,7 @@ final class OperationalMetricsSource
             'api_p95_latency_ms' => $p95Latency !== null ? (float) $p95Latency : null,
             'last_successful_backup_at' => $this->lastSuccessfulBackupAt(),
             'disk_usage_percent' => $this->diskUsagePercent(),
-            'oldest_queue_job_age_minutes' => $this->oldestDatabaseQueueJobAgeMinutes($observedAt),
+            'oldest_queue_job_age_minutes' => $this->oldestQueueJobAgeMinutes($observedAt),
         ];
     }
 
@@ -100,13 +102,30 @@ final class OperationalMetricsSource
         return (($totalBytes - $freeBytes) / $totalBytes) * 100;
     }
 
+    private function oldestQueueJobAgeMinutes(CarbonImmutable $observedAt): ?float
+    {
+        $trackedAge = $this->queueMetrics->oldestQueuedJobAgeMinutes($observedAt);
+        $databaseAge = $this->oldestDatabaseQueueJobAgeMinutes($observedAt);
+
+        if ($trackedAge === null) {
+            return $databaseAge;
+        }
+
+        if ($databaseAge === null) {
+            return $trackedAge;
+        }
+
+        return max($trackedAge, $databaseAge);
+    }
+
     private function oldestDatabaseQueueJobAgeMinutes(CarbonImmutable $observedAt): ?float
     {
-        $connectionName = (string) config('queue.connections.'.config('queue.default').'.connection');
-        $connectionName = $connectionName !== '' ? $connectionName : config('database.default');
-        $table = (string) config('queue.connections.'.config('queue.default').'.table', 'jobs');
+        $defaultConnection = (string) config('queue.default');
+        $connectionName = (string) config('queue.connections.'.$defaultConnection.'.connection');
+        $connectionName = $connectionName !== '' ? $connectionName : (string) config('database.default');
+        $table = (string) config('queue.connections.'.$defaultConnection.'.table', 'jobs');
 
-        if (config('queue.connections.'.config('queue.default').'.driver') !== 'database') {
+        if (config('queue.connections.'.$defaultConnection.'.driver') !== 'database') {
             return null;
         }
 
@@ -117,6 +136,7 @@ final class OperationalMetricsSource
 
             $oldestCreatedAt = DB::connection($connectionName)->table($table)
                 ->whereNull('reserved_at')
+                ->where('available_at', '<=', $observedAt->getTimestamp())
                 ->min('created_at');
 
             if (! is_numeric($oldestCreatedAt)) {
@@ -127,7 +147,6 @@ final class OperationalMetricsSource
 
             return $ageSeconds < 0 ? null : $ageSeconds / 60;
         } catch (Throwable) {
-            // Unsupported or temporarily unavailable queue backends are reported as unavailable.
             return null;
         }
     }

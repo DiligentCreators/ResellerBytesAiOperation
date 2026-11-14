@@ -118,7 +118,7 @@ Approved monitoring, alert-routing, recovery, retention, signing-operator, and P
 - Successful-backup age is sourced from the modification time of an operator-provisioned marker file. The backup agent must update that marker atomically only after a backup has completed and passed its verification checks. A missing marker remains a missing-backup signal.
 - Added php artisan operations:metrics to emit a versioned, redacted JSON snapshot and prune telemetry samples older than 24 hours. It is not scheduled and does not send alerts in this step.
 - Added portable migration and feature tests for rolling-window aggregation, p95, API status capture without payload persistence, backup marker timestamps, and telemetry pruning.
-- Queue-age collection currently supports Laravel's database queue driver. Redis/SQS/Beanstalkd queue-age adapters remain a known follow-up and must not be represented as measured when unavailable.
+- Queue age is now tracked through Laravel queue lifecycle events across Redis and other evented queue backends: dispatch delay is respected, processing/failure clears the sample, and exception retries are re-enqueued using their backoff. The database queue also has a direct fallback for pre-existing jobs. Only jobs enqueued after instrumentation is deployed are tracked on non-database backends; explicit manual releases without an exception are conservatively treated as immediately available.
 - This is application-side metric collection, not an independent external monitor. Alert scheduling, notification adapters, backup/restore tooling, and security-review readiness remain subsequent roadmap steps.
 - Exact-head run #43597533823 passed all six CI jobs on `d0fcf3f246fdd37d531068cde6cdfcb913e497d6`; general CI reported **198 passed, 3 skipped, 891 assertions**. No production marker, external queue provider, backup credential, or alert destination has been configured.
 
@@ -143,3 +143,12 @@ Approved monitoring, alert-routing, recovery, retention, signing-operator, and P
 - Approve AI provider pricing and the price card.
 - Complete the independent security review and provide release authorization.
 - Keep PR #2 Draft; do not merge or deploy without explicit separate authorization.
+
+## Queue-age metric coverage follow-up
+
+- Added a queue-job sample table and lifecycle event tracking for Laravel JobQueued, JobProcessing, JobReleasedAfterException, JobProcessed, and JobFailed events.
+- Delayed dispatches are not counted until their available_at time; jobs are removed from the waiting metric when processing starts, and exception retries are re-tracked with their backoff.
+- This closes the default Redis queue coverage gap for newly enqueued jobs. The database queue retains a direct query fallback for existing rows.
+- No queue payload, job arguments, or customer data are stored; only connection name, queue name, job ID, and availability timestamp are recorded.
+- Non-database backlog already present before this instrumentation is deployed is not backfilled. Explicit manual releases without exception metadata are tracked as immediately available.
+- Validation is pending on the exact queue-tracking commit.
