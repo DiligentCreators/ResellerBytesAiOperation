@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Http\Middleware\EnsureTwoFactorEnabled;
+use App\Mail\OperationalAlertMail;
 use App\Models\PlatformMailSettings;
 use App\Models\User;
 use App\Services\Mail\CentralOutboundMailer;
@@ -126,6 +127,25 @@ class PlatformMailSettingsTest extends TestCase
             ->andReturn($fakeMailer);
 
         app(CentralOutboundMailer::class)->send('recipient@example.test', 'Test', '<p>test</p>', 'test');
+    }
+
+
+    public function test_laravel_transactional_mailables_use_the_central_platform_transport(): void
+    {
+        PlatformMailSettings::query()->create(['id' => 1, 'driver' => 'postmark', 'configuration' => [
+            'server_token' => 'central-token',
+            'message_stream' => 'outbound',
+            'from_address' => 'mail@example.test',
+            'from_name' => 'ResellerBytes',
+        ]]);
+        Http::fake(['https://api.postmarkapp.com/email' => Http::response(['MessageID' => 'fake'], 200)]);
+
+        \Illuminate\Support\Facades\Mail::to('recipient@example.test')->send(
+            new OperationalAlertMail('warning', 'test-alert', 'Test alert body'),
+        );
+
+        Http::assertSent(fn ($request) => $request->hasHeader('X-Postmark-Server-Token', 'central-token')
+            && $request['To'] === 'recipient@example.test');
     }
 
     public function test_log_driver_never_contacts_external_transport(): void
