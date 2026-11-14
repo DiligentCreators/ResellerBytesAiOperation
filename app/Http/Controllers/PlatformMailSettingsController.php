@@ -114,9 +114,15 @@ class PlatformMailSettingsController extends Controller
                 $config['password'] = $data['smtp_password'];
             }
 
-            if (($config['username'] ?? '') !== '' && empty($config['password']) && empty(config('platform_mail.smtp.password'))) {
+            $effectivePassword = $config['password'] ?? config('platform_mail.smtp.password');
+            if (($config['username'] ?? '') !== '' && empty($effectivePassword)) {
                 throw ValidationException::withMessages([
                     'smtp_password' => 'A password is required when SMTP authentication is enabled.',
+                ]);
+            }
+            if (($config['username'] ?? '') === '' && ! empty($effectivePassword)) {
+                throw ValidationException::withMessages([
+                    'smtp_username' => 'A username is required when an SMTP password is configured.',
                 ]);
             }
         }
