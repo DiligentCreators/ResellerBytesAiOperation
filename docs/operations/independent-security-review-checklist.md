@@ -106,7 +106,7 @@ deployment assumptions, and unresolved findings.
       by locking the chain head while streaming.
 - [ ] Verify Ed25519 checkpoint tooling rejects signature tampering, environment
       mismatch, predecessor mismatch, local-prefix mismatch, and key reuse.
-- [ ] Confirm provider-neutral checkpoint publishing and fake-store contract tests are implemented, but no real provider adapter, external bucket, Object Lock read-back, independent verifier schedule, or production alert delivery is provisioned.
+- [ ] Review the AWS CLI-backed S3-compatible checkpoint adapter: dedicated bucket/credentials, HTTPS endpoint, conditional `If-None-Match` creation, exact VersionId lookup/read-back, COMPLIANCE mode and 365-day retention, and fail-closed provider errors. Fake-store and configuration tests exist; real provider rehearsal, external bucket, independent verifier schedule, and production alert delivery remain pending.
 - [ ] Confirm production migration/owner, runtime, and backup/restore database
       identities are separate.
 - [ ] Test runtime-role negative privileges against a disposable restored
@@ -128,7 +128,7 @@ deployment assumptions, and unresolved findings.
 - [ ] Confirm the Owner-authorized legal-hold placement/release workflow records immutable audit evidence, uses fresh TOTP, and fails closed on audit-write failure. Confirm active holds are marked expired with immutable audit evidence when diagnostic content reaches 365 days; legal holds do not extend diagnostic retention.
 - [ ] Review nonce cleanup for bounded batches, idempotency, expiry boundary,
       and rerun behavior.
-- [ ] Review backup scheduler gating, the 5 GB single-PutObject fail-closed limit, conditional object creation, exact archive and manifest VersionId verification/read-back, manifest schema and Object Lock metadata, encrypted read-back, exact PostgreSQL database/host/port restore-target identity checks, production owner approval, fresh TOTP, pre-restore backup, and immutable approval evidence.
+- [ ] Review backup scheduler gating, the 5 GB single-PutObject fail-closed limit, conditional object creation, exact archive and manifest VersionId verification/read-back, manifest schema and Object Lock metadata, encrypted read-back, exact PostgreSQL database/host/port restore-target identity checks, production owner approval, fresh TOTP, pre-restore backup, and immutable approval evidence. Separately verify audit-anchor conditional create, dedicated credentials/bucket, predecessor continuity, exact checkpoint VersionId read-back, and COMPLIANCE retention.
 - [ ] Verify backup retention days remain unset until Shahrukh explicitly approves the retention period; no default retention period is inferred.
 - [ ] Require isolated backup restore rehearsal and compare the restored chain
       head with the newest independent external checkpoint before production
