@@ -60,6 +60,7 @@ return new class extends Migration
             $table->timestampTz('received_at')->nullable();
             $table->timestampsTz();
             $table->index(['tenant_id', 'status', 'received_at']);
+            $table->unique(['id', 'tenant_id'], 'tenant_billing_payment_id_tenant_unique');
         });
     }
 
