@@ -571,3 +571,22 @@ it('does not start tenant analysis while the captured tenant is suspended', func
     expect($run->fresh()->status)->toBe('queued')
         ->and($run->fresh()->analysis_attempts)->toBe(0);
 });
+
+
+it('denies tenant AI analysis without an active subscription feature entitlement before budget reservation', function () {
+    $tenant = Tenant::create(['name' => 'Unentitled Analysis Tenant', 'slug' => 'unentitled-analysis-tenant', 'status' => Tenant::STATUS_ACTIVE]);
+    $owner = User::factory()->create();
+    $integration = WhmcsIntegration::create(['owner_user_id' => $owner->id, 'tenant_id' => $tenant->id, 'name' => 'Unentitled analysis integration', 'status' => 'active', 'secret' => bin2hex(random_bytes(32)), 'secret_version' => 1]);
+    $run = DiagnosticRun::create(['integration_id' => $integration->id, 'snapshot_uuid' => (string) Str::uuid(), 'schema_version' => '1.0', 'addon_version' => '1.0.0', 'status' => 'received', 'collected_at' => now(), 'received_at' => now(), 'payload' => ['system' => ['whmcs_version' => '8.13.7']], 'payload_sha256' => str_repeat('d', 64)]);
+
+    $analyzer = Mockery::mock(WhmcsDiagnosticAnalyzer::class);
+    $analyzer->shouldNotReceive('analyze');
+    $budget = Mockery::mock(AiBudgetService::class);
+    $budget->shouldNotReceive('reserve');
+
+    (new AnalyzeDiagnosticRun($run->id, $owner->id, $tenant->id))->handle($analyzer, $budget);
+
+    expect($run->fresh()->status)->toBe('analysis_failed')
+        ->and($run->fresh()->analysis_error_code)->toBe('tenant_entitlement_denied')
+        ->and(AiUsageAttempt::query()->count())->toBe(0);
+});
