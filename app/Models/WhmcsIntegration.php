@@ -13,6 +13,8 @@ use LogicException;
 /**
  * @property string $id
  * @property int|null $owner_user_id
+ * @property string|null $tenant_id
+ * @property-read Tenant|null $tenant
  * @property string $name
  * @property string $status
  * @property string $secret
