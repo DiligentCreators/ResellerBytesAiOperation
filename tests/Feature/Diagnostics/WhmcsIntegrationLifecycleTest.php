@@ -170,3 +170,52 @@ test('does not reassign an integration that already has an owner', function () {
     expect($integration->fresh()->owner_user_id)->toBe($firstOwner->id)
         ->and(AuditEvent::where('event_type', 'whmcs_integration.owner_assigned')->count())->toBe(0);
 });
+
+
+test('provisions tenant integrations only for authorized members within the active plan limit', function () {
+    $owner = User::factory()->withTwoFactor()->create([
+        'email' => 'tenant-owner@example.test',
+        'email_verified_at' => now(),
+    ]);
+    $tenant = \\App\\Models\\Tenant::create([
+        'name' => 'Provisioning Workspace',
+        'slug' => 'provisioning-workspace',
+        'status' => \\App\\Models\\Tenant::STATUS_ACTIVE,
+    ]);
+    $tenant->memberships()->create([
+        'user_id' => $owner->id,
+        'role' => \\App\\Models\\TenantMembership::ROLE_OWNER,
+        'status' => \\App\\Models\\TenantMembership::STATUS_ACTIVE,
+        'accepted_at' => now(),
+    ]);
+    \\App\\Models\\TenantSubscription::create([
+        'tenant_id' => $tenant->id,
+        'plan_code' => 'tenant-provisioning-test',
+        'billing_mode' => 'manual',
+        'status' => 'active',
+        'currency' => 'USD',
+        'unit_amount_minor' => 0,
+        'entitlements' => ['limits' => ['integrations' => 1]],
+        'current_period_starts_at' => now()->subDay(),
+        'current_period_ends_at' => now()->addMonth(),
+    ]);
+
+    $this->artisan('whmcs:integration:create', [
+        'name' => 'Tenant WHMCS',
+        '--owner' => $owner->email,
+        '--tenant' => $tenant->id,
+    ])->assertSuccessful();
+
+    $integration = WhmcsIntegration::query()->sole();
+    expect($integration->tenant_id)->toBe($tenant->id)
+        ->and(AuditEvent::query()->where('event_type', 'whmcs_integration.created')->sole()->tenant_id)->toBe($tenant->id);
+
+    $this->artisan('whmcs:integration:create', [
+        'name' => 'Over Limit WHMCS',
+        '--owner' => $owner->email,
+        '--tenant' => $tenant->id,
+    ])->assertFailed();
+
+    expect(WhmcsIntegration::query()->count())->toBe(1)
+        ->and(AuditEvent::query()->where('event_type', 'whmcs_integration.created')->count())->toBe(1);
+});
