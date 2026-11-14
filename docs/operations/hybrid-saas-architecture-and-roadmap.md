@@ -292,3 +292,12 @@ The tenant migration is authored on the branch but has not been executed; no ten
 - Added tenant branding settings read/write endpoints. Branding writes are restricted to owner/admin, validate display name, support email, six-digit hex primary color and HTTPS logo URL, preserve unrelated tenant settings, and append audit evidence. Arbitrary settings, custom domains, and billing/identity fields are not writable through this endpoint.
 - Feature tests cover lifecycle transitions, denied role changes, immutable owner authority, verified-account invitation rules, branding authorization, preservation of unrelated settings, and audit evidence. Tests are authored but have not been executed in the current PHP/dependency environment.
 - Invitation delivery/email transport is not enabled here; this implementation creates auditable in-app pending invitations only. Production email delivery, sender/domain configuration and secret provisioning remain external prerequisites.
+
+
+### Subscription lifecycle state machine — 2026-11-15
+
+- Added an internal TenantSubscriptionLifecycle service with explicit transitions for trialing, active, past-due, suspended, canceled and expired states. Canceled and expired subscriptions are terminal; invalid transitions fail closed.
+- Billing-role actors must hold the tenant billing.manage capability. Trusted system reconciliation may call the service without a user actor, but no public webhook or HTTP entry point is exposed.
+- Past-due transitions require a future grace deadline; recovery clears grace, cancellation records canceled_at, and each actual state change appends tenant-attributed audit evidence in the same database transaction. Repeated identical transitions are no-ops and do not duplicate audit events.
+- Tests cover grace-period entitlement behavior, role denial, terminal-state protection, invalid grace, audit evidence and idempotent no-op behavior. Tests are authored but not executed in this environment.
+- No plan catalogue, price, currency/tax policy, payment provider, webhook endpoint, outbound delivery, subscription activation or production entitlement has been configured. Provider-signed event ingestion and transactional outbox delivery remain separate work and require provider selection, endpoint/security policy and key custody before activation.
