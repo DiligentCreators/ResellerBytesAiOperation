@@ -73,7 +73,7 @@ If the backup format or restore procedure requires a different invocation, recor
 
 ## 4. Verify audit integrity and external checkpoint
 
-Run the following from the restored application checkout with the isolated runtime database identity and the trusted, independently obtained verification key configured:
+Run the following from the restored application checkout with the isolated runtime database identity and the trusted, independently obtained verification key configured. The checkpoint verifier enforces an exact environment match, so set the restored application's `APP_ENV` to the environment identifier recorded in the checkpoint while keeping all outbound integrations, queues, scheduler tasks, and AI calls disabled:
 
 ```sh
 php artisan audit:verify-integrity
