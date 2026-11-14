@@ -5,6 +5,7 @@ namespace App\\Console\\Commands;
 use App\\Events\\TenantBillingOutboxPublished;
 use App\\Models\\TenantBillingOutboxMessage;
 use App\\Services\\Tenancy\\TenantDatabaseContext;
+use App\\Services\\Tenancy\\TenantBillingOperationsConnection;
 use Carbon\\CarbonImmutable;
 use Illuminate\\Console\\Command;
 use Illuminate\\Support\\Facades\\DB;
@@ -29,6 +30,23 @@ class DispatchTenantBillingOutbox extends Command
             return self::FAILURE;
         }
 
+        try {
+            return app(TenantBillingOperationsConnection::class)->run(
+                fn (): int => $this->dispatchDue((int) $limit),
+            );
+        } catch (Throwable $exception) {
+            Log::error('Billing outbox dispatch could not start.', [
+                'reason_code' => 'billing_operations_database_role_not_configured',
+                'exception_class' => $exception::class,
+            ]);
+            $this->error('Billing outbox dispatch requires the separately provisioned PostgreSQL operations connection.');
+
+            return self::FAILURE;
+        }
+    }
+
+    private function dispatchDue(int $limit): int
+    {
         $now = CarbonImmutable::now('UTC');
         $ids = TenantBillingOutboxMessage::query()
             ->where(function ($query) use ($now): void {
