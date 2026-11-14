@@ -15,15 +15,29 @@ The standalone verifier and application monitor return non-zero exit codes for i
 
 ## Monitoring and alert routing
 
-- [ ] Select and approve a checkpoint cadence and maximum acceptable unanchored window.
-- [ ] Run the monitor from an external scheduler/monitoring agent at a cadence shorter than the approved freshness threshold.
+Shahrukh approved the following operational thresholds on 2026-11-14; treat these as the release baseline, not as values awaiting approval:
+
+| Signal | Trigger | Severity |
+| --- | --- | --- |
+| Error rate | > 2% over a rolling 5-minute window | Alert |
+| API latency | p95 > 1,500 ms | Alert |
+| Successful backup | No successful backup for 26 hours | Alert |
+| Disk utilization | 80% | Warning |
+| Disk utilization | 90% | Critical |
+| Queue age | Any queued job older than 15 minutes | Alert |
+
+Route standard alerts to the configured owner email and one configured team channel (Slack or Discord). Critical alerts must additionally be sent through configured WhatsApp and/or SMS delivery adapters. Destinations and provider credentials are runtime environment/secret-manager configuration only; repository templates contain blank values and no real addresses, webhook URLs, phone numbers, or tokens. Delivery adapters must redact secrets and must not treat an HTTP request being queued as confirmed delivery without provider acknowledgement.
+
+- [ ] Configure the owner email and exactly one primary team channel (Slack or Discord) in the deployment secret manager.
+- [ ] Configure and test critical WhatsApp/SMS provider adapters and delivery receipts.
+- [ ] Run the monitor from an external scheduler/monitoring agent at a cadence shorter than the configured checkpoint freshness threshold.
 - [ ] Alert on every non-zero exit, missing checkpoint, stale checkpoint, signature failure, chain mismatch, or unanchored-tail threshold breach.
 - [ ] Capture `php artisan audit:anchor:monitor /secure/path/checkpoint.json --max-age-minutes=N --max-unanchored-tail=N --json` stdout as the structured alert evidence; send only the allowlisted fields to the approved security/on-call route.
 - [ ] Do not include private keys, checkpoint signing secrets, audit event metadata, customer data, database connection strings, or raw exception traces in notifications.
 - [ ] Treat an alert as an incident until the last known-good external checkpoint and local chain prefix are independently verified.
 - [ ] Preserve alert delivery receipts and incident disposition in the external audit evidence store.
 
-The repository does not configure a scheduler or alert destination. Do not silently enable a production schedule before the owner approves the checkpoint cadence, monitoring identity, and alert route.
+The approved alert thresholds and destination policy are recorded in `config/operations.php` and `.env.example`. A scheduler, provider-specific notification adapters, and production delivery credentials are not provisioned by this repository; do not claim alerts are live until a non-production delivery test and production configuration evidence exist. Checkpoint cadence and maximum unanchored window remain explicit operational configuration decisions.
 
 ## Immutable object upload contract
 
@@ -52,9 +66,9 @@ The provider-neutral publisher has automated fake-store tests for duplicate-key 
 
 ## Shahrukh ke liye pending
 
-- Select and provision the independent cloud/security account, storage provider, bucket, and 365-day Object Lock COMPLIANCE retention.
-- Approve the signer and read-only verifier identities, public-key distribution, secret-manager access, and monitoring/alert destination.
+- Create and fund the independent cloud/security account, select the storage provider, provision the bucket, and provide actual 365-day Object Lock COMPLIANCE configuration/read-back evidence.
+- Generate and custody the production Ed25519 keys; Shahrukh is the sole signing/verifier operator initially. Keep the operator model extensible for a second trusted operator. Provide secret-manager access and configure the approved alert destinations.
 - Provide isolated non-production storage access for adapter integration tests and read-back rehearsal.
-- Approve checkpoint cadence, maximum unanchored window, operational alert thresholds, alert destination, and evidence-retention location.
+- Choose checkpoint cadence and maximum unanchored window, and provision the external alert evidence-retention location. Monitoring thresholds and alert routing policy are already approved.
 
 No cloud resource, production signing key, credential, or production alert route was created or accessed by this implementation.
