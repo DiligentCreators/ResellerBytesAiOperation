@@ -189,6 +189,7 @@ class ReconcileTenantBillingWebhooks extends Command
             app(TenantBillingAdjustmentService::class)->recordProviderAdjustment(
                 $event->tenant_id,
                 $event->provider,
+                $event->provider_account_id,
                 $event->provider_event_id,
                 $paymentId,
                 $adjustmentId,
