@@ -93,9 +93,11 @@ class AnalyzeDiagnosticRun implements ShouldQueue
                             ->lockForUpdate()
                             ->first();
 
-                        if ($currentRun === null
-                            || ! $this->authorizedRunQuery($currentRun->id)->exists()
-                            || $currentRun->received_at === null
+                        if ($currentRun === null || ! $this->authorizedRunQuery($currentRun->id)->exists()) {
+                            throw new RuntimeException('analysis_context_changed');
+                        }
+
+                        if ($currentRun->received_at === null
                             || $currentRun->received_at->lessThanOrEqualTo(now('UTC')->subDays(365))) {
                             throw new RuntimeException('diagnostic_retention_expired');
                         }
@@ -261,6 +263,7 @@ class AnalyzeDiagnosticRun implements ShouldQueue
             'provider_evidence_reference_invalid',
             'budget_input_limit_exceeded',
             'diagnostic_retention_expired',
+            'analysis_context_changed',
             'budget_configuration_invalid',
             'budget_attempt_unresolved',
             'budget_attempt_not_reservable',
