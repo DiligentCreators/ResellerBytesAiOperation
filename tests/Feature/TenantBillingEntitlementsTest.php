@@ -89,7 +89,7 @@ it('applies explicit role capability boundaries', function () {
 
 it('records manual and automated confirmed payments idempotently and updates invoice totals', function () {
     $tenant = Tenant::create(['name' => 'Billing Ledger Workspace', 'slug' => 'billing-ledger-workspace', 'status' => Tenant::STATUS_ACTIVE]);
-    $subscription = createTenantSubscriptionFixture($tenant);
+    $subscription = createTenantSubscriptionFixture($tenant, ['billing_provider' => 'approved_gateway', 'provider_account_id' => 'acct_approved_gateway_test']);
     $invoice = TenantBillingInvoice::create([
         'tenant_id' => $tenant->id,
         'tenant_subscription_id' => $subscription->id,
@@ -139,7 +139,7 @@ it('records manual and automated confirmed payments idempotently and updates inv
 it('rejects cross-tenant invoice payment and overpayment without ledger mutation', function () {
     $tenantA = Tenant::create(['name' => 'Billing Tenant A', 'slug' => 'billing-tenant-a', 'status' => Tenant::STATUS_ACTIVE]);
     $tenantB = Tenant::create(['name' => 'Billing Tenant B', 'slug' => 'billing-tenant-b', 'status' => Tenant::STATUS_ACTIVE]);
-    $subscription = createTenantSubscriptionFixture($tenantA);
+    $subscription = createTenantSubscriptionFixture($tenantA, ['billing_provider' => 'approved_gateway', 'provider_account_id' => 'acct_approved_gateway_test']);
     $invoice = TenantBillingInvoice::create([
         'tenant_id' => $tenantA->id,
         'tenant_subscription_id' => $subscription->id,
