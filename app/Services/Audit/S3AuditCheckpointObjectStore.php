@@ -131,14 +131,13 @@ final class S3AuditCheckpointObjectStore implements AuditCheckpointObjectStore
      */
     private function settings(): array
     {
-        $disk = config('filesystems.disks.s3', []);
         $settings = [
             'bucket' => config('audit.anchor.storage.bucket'),
             'endpoint' => config('audit.anchor.storage.endpoint'),
             'region' => config('audit.anchor.storage.region'),
             'aws_binary' => config('audit.anchor.storage.aws_cli_binary'),
-            'access_key' => is_array($disk) ? ($disk['key'] ?? null) : null,
-            'secret_key' => is_array($disk) ? ($disk['secret'] ?? null) : null,
+            'access_key' => config('audit.anchor.storage.access_key'),
+            'secret_key' => config('audit.anchor.storage.secret_key'),
         ];
 
         foreach ($settings as $name => $value) {
@@ -151,8 +150,15 @@ final class S3AuditCheckpointObjectStore implements AuditCheckpointObjectStore
             throw new RuntimeException('audit_anchor_storage_bucket_invalid');
         }
 
-        if (filter_var($settings['endpoint'], FILTER_VALIDATE_URL) === false) {
+        if (filter_var($settings['endpoint'], FILTER_VALIDATE_URL) === false
+            || strtolower((string) parse_url($settings['endpoint'], PHP_URL_SCHEME)) !== 'https') {
             throw new RuntimeException('audit_anchor_storage_endpoint_invalid');
+        }
+
+        $backupBucket = config('filesystems.disks.s3.bucket');
+        if (is_string($backupBucket) && $backupBucket !== ''
+            && hash_equals($backupBucket, $settings['bucket'])) {
+            throw new RuntimeException('audit_anchor_storage_bucket_must_be_dedicated');
         }
 
         return $settings;
