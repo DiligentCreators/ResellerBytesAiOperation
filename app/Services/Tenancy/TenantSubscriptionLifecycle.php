@@ -76,6 +76,12 @@ class TenantSubscriptionLifecycle
                     ->lockForUpdate()
                     ->firstOrFail();
 
+                if ($settlementProvider !== null
+                    && ($subscription->billing_provider !== $settlementProvider
+                        || $subscription->provider_account_id !== $settlementProviderAccountId)) {
+                    throw new InvalidArgumentException('tenant_subscription_provider_account_mismatch');
+                }
+
                 if ($subscription->status === $targetStatus) {
                     if ($graceEndsAt !== null || $settledInvoiceId !== null) {
                         throw new InvalidArgumentException('tenant_subscription_transition_already_applied');
@@ -184,6 +190,10 @@ class TenantSubscriptionLifecycle
                     ->whereKey($subscriptionId)
                     ->lockForUpdate()
                     ->firstOrFail();
+
+                if ($subscription->billing_provider !== $provider || $subscription->provider_account_id !== $providerAccountId) {
+                    throw new InvalidArgumentException('tenant_subscription_provider_account_mismatch');
+                }
 
                 if (! in_array($subscription->status, ['trialing', 'active', 'past_due', 'suspended'], true)) {
                     throw new InvalidArgumentException('tenant_subscription_renewal_status_invalid');
