@@ -220,6 +220,44 @@ it('does not persist provider results when a diagnostic expires during analysis'
         ->and($attempt->status)->toBe('settled');
 });
 
+
+
+it('refuses to analyze or mutate a run after its captured owner no longer matches', function () {
+    $owner = User::factory()->create();
+    $replacementOwner = User::factory()->create();
+    $integration = WhmcsIntegration::create([
+        'owner_user_id' => $owner->id,
+        'name' => 'Owner change during queue test',
+        'status' => 'active',
+        'secret' => bin2hex(random_bytes(32)),
+        'secret_version' => 1,
+    ]);
+    $run = DiagnosticRun::create([
+        'integration_id' => $integration->id,
+        'snapshot_uuid' => (string) Str::uuid(),
+        'schema_version' => '1.0',
+        'addon_version' => '1.0.0',
+        'status' => 'queued',
+        'collected_at' => now(),
+        'received_at' => now(),
+        'payload' => ['system' => ['whmcs_version' => '8.13.7']],
+        'payload_sha256' => str_repeat('2', 64),
+    ]);
+
+    $job = new AnalyzeDiagnosticRun($run->id, $owner->id);
+    $integration->forceFill(['owner_user_id' => $replacementOwner->id])->save();
+    $analyzer = Mockery::mock(WhmcsDiagnosticAnalyzer::class);
+    $analyzer->shouldNotReceive('analyze');
+    $budget = Mockery::mock(AiBudgetService::class);
+    $budget->shouldNotReceive('reserve');
+
+    $job->handle($analyzer, $budget);
+    $job->failed(new RuntimeException('provider_request_failed'));
+
+    expect($run->fresh()->status)->toBe('queued')
+        ->and($run->fresh()->analysis_attempts)->toBe(0);
+});
+
 it('marks a failed analysis attempt without modifying the source diagnostic payload', function () {
     $integration = WhmcsIntegration::create([
         'owner_user_id' => User::factory()->create()->id,
