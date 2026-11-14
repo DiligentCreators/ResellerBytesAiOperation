@@ -42,6 +42,7 @@ class RevokeWhmcsIntegration extends Command
                 'event_type' => 'whmcs_integration.revoked',
                 'subject_type' => 'whmcs_integration',
                 'subject_id' => $integration->id,
+                'tenant_id' => $integration->tenant_id,
                 'metadata' => ['secret_version' => $version],
                 'occurred_at' => now(),
             ]);
