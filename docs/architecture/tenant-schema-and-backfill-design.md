@@ -111,3 +111,16 @@ Rollback is expand/contract aware: do not drop legacy owner attribution or tenan
 - Stale queue recovery now carries tenant UUID into redispatched jobs and ignores tenant-owned jobs whose tenant is inactive. Legacy unassigned jobs retain their prior owner-bound path.
 - Added regression tests for tenant-member read access, former-owner/outsider denial, revoked membership, captured tenant reassignment, tenant suspension, and tenant-aware stale queue recovery. Tests are authored but not executed.
 - This does not yet implement tenant attribution in AI usage reservations/settlement and budget periods, tenant-aware audit event hashing, role-specific write permissions, RLS, exports/downloads/webhooks/notifications, or all billing surfaces. The tenant read path is not a substitute for those remaining gates.
+
+
+## 9. Tenant-aware AI budgets and audit attribution
+
+- Added nullable tenant UUID to each AI usage attempt. The tenant is captured from the diagnostic run's integration inside the reservation transaction and cannot be changed through the Eloquent model after creation.
+- Added tenant daily/monthly budget periods with independent reserved and committed balances. Reservation checks and locks the platform-wide daily/monthly caps and the tenant-specific daily/monthly caps in one transaction; any failure rolls the entire reservation back.
+- Platform-wide caps remain authoritative across all tenants. Tenant caps default to the same configured daily/monthly ceiling unless separately configured with `AI_TENANT_DAILY_BUDGET_MICRO_USD` and `AI_TENANT_MONTHLY_BUDGET_MICRO_USD`.
+- Settlement, pre-submit release and audited ambiguous no-charge reconciliation move/release both global and captured-tenant reservations atomically, using the attempt's immutable tenant UUID and original UTC period keys.
+- Suspended/inactive tenants cannot create a new billable reservation. A request already accepted by the provider must still be settled against the captured tenant, even if the tenant is suspended while the provider call is in flight.
+- Added nullable tenant attribution to audit events. New writes use canonical hash version 2 with a domain-separated payload that includes tenant UUID; legacy hash version 1 payloads remain verifiable without changing historical digests. The audit verifier and signed external checkpoint verifier accept both versions in the same global sequence.
+- AI budget reconciliation and integration owner/secret/revocation audit events now carry tenant attribution where the affected record has a tenant. Platform/global events remain null-scoped.
+- Added tests for tenant-specific budget exhaustion, isolation between tenant allowances, preservation of the platform cap, suspended-tenant denial, immutable attempt tenant identity, tenant audit hashing, and version-one hash compatibility. Tests are authored, not executed.
+- Existing AI attempts and audit events are not backfilled to tenants. Their tenant_id remains null until explicit historical mapping is approved; no migration has been executed.
