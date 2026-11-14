@@ -102,6 +102,7 @@ it('records manual and automated confirmed payments idempotently and updates inv
         'due_at' => now()->addDays(14),
     ]);
     $operator = User::factory()->create();
+    $tenant->memberships()->create(['user_id' => $operator->id, 'role' => TenantMembership::ROLE_BILLING, 'status' => TenantMembership::STATUS_ACTIVE, 'accepted_at' => now()]);
     $service = app(TenantBillingLedgerService::class);
     $manual = [
         'collection_mode' => 'manual',
@@ -149,7 +150,7 @@ it('rejects cross-tenant invoice payment and overpayment without ledger mutation
         'issued_at' => now(),
     ]);
     $service = app(TenantBillingLedgerService::class);
-    $payment = ['collection_mode' => 'manual', 'idempotency_key' => 'wrong-tenant', 'amount_minor' => 1001, 'currency' => 'USD', 'reference' => 'BANK-REF', 'recorded_by_user_id' => User::factory()->create()->id, 'received_at' => now()];
+    $payment = ['collection_mode' => 'automated', 'idempotency_key' => 'wrong-tenant', 'amount_minor' => 1001, 'currency' => 'USD', 'provider' => 'approved_gateway', 'provider_payment_id' => 'PAY-WRONG', 'received_at' => now()];
 
     expect(fn () => $service->recordConfirmedPayment($tenantB->id, $invoice->id, $payment))
         ->toThrow(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
