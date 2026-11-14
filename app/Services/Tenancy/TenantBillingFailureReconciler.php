@@ -21,7 +21,7 @@ class TenantBillingFailureReconciler
         }
 
         app(TenantDatabaseContext::class)->run($tenantId, null, function () use ($tenantId, $invoiceId, $provider, $providerAccountId, $providerEventId, $failureCode): void {
-            DB::transaction(function () use ($tenantId, $invoiceId, $provider, $providerEventId, $failureCode): void {
+            DB::transaction(function () use ($tenantId, $invoiceId, $provider, $providerAccountId, $providerEventId, $failureCode): void {
                 Tenant::query()->whereKey($tenantId)->lockForUpdate()->firstOrFail();
 
                 $invoice = TenantBillingInvoice::query()
@@ -65,7 +65,7 @@ class TenantBillingFailureReconciler
                     'subject_id' => (string) $invoice->id,
                     'metadata' => [
                         'provider_account_id' => $providerAccountId,
-                    'provider_event_id' => $providerEventId,
+                        'provider_event_id' => $providerEventId,
                         'failure_code' => $failureCode,
                         'previous_invoice_status' => $previousStatus,
                         'new_invoice_status' => $invoice->fresh()->status,
