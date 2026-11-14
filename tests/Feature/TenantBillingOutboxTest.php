@@ -669,6 +669,7 @@ it('keeps billing adjustments append-only after insertion', function () {
     $adjustment = app(\\App\\Services\\Tenancy\\TenantBillingAdjustmentService::class)->recordProviderAdjustment(
         $tenant->id,
         'approved_gateway',
+        'acct_adjustment_immutable',
         'evt_adjustment_immutable',
         'pay_immutable_adjustment',
         'refund_immutable',
