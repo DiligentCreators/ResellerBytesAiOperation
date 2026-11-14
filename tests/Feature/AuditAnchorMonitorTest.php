@@ -309,4 +309,3 @@ it('emits redacted schema-conformant evidence when the signed checkpoint timesta
         @unlink($path);
     }
 });
-
