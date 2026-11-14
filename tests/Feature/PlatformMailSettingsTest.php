@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\PlatformMailSettings;
 use App\Models\User;
+use App\Http\Middleware\EnsureTwoFactorEnabled;
 use App\Services\Mail\CentralOutboundMailer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
