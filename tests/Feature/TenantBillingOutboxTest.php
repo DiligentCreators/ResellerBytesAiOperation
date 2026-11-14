@@ -685,3 +685,8 @@ it('keeps billing adjustments append-only after insertion', function () {
         ->and(fn () => DB::table('tenant_billing_adjustments')->where('id', $adjustment->id)->delete())
         ->toThrow(\\Illuminate\\Database\\QueryException::class);
 });
+
+it('keeps provider adapters disabled until a provider is explicitly configured', function () {
+    expect(fn () => app(\\App\\Services\\Tenancy\\BillingProviderAdapterRegistry::class)->resolve('approved_gateway'))
+        ->toThrow(RuntimeException::class, 'billing_provider_adapter_not_configured');
+});
