@@ -170,6 +170,7 @@ it('releases an ambiguous reservation only through audited no-charge reconciliat
         ->and($attempt->fresh()->reconciled_at)->not->toBeNull()
         ->and(AiBudgetPeriod::query()->where('period_type', 'daily')->sole()->reserved_micro_usd)->toBe(0)
         ->and(AiBudgetPeriod::query()->where('period_type', 'monthly')->sole()->reserved_micro_usd)->toBe(0)
+        ->and(AuditEvent::query()->where('event_type', 'ai_usage_attempt.reconciled_not_charged')->value('tenant_id'))->toBe($tenant->id)
         ->and(AuditEvent::query()->where('event_type', 'ai_usage_attempt.reconciled_not_charged')->count())->toBe(1)
         ->and(AuditEvent::query()->where('event_type', 'ai_usage_attempt.reconciliation_approved')->sole()->actor_id)->toBe((string) $approver->getKey());
 
