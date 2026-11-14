@@ -6,6 +6,8 @@ use App\Jobs\AnalyzeDiagnosticRun;
 use App\Models\DiagnosticRun;
 use App\Services\Audit\AuditEventWriter;
 use App\Services\Tenancy\TenantRecordQuery;
+use App\Services\Tenancy\TenantRoleAuthorization;
+use App\Services\Tenancy\TenantEntitlementService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -41,16 +43,29 @@ class DiagnosticRunController extends Controller
 
     public function reanalyze(DiagnosticRun $diagnosticRun): RedirectResponse
     {
-        if (! $diagnosticRun->integration()->whereNull('tenant_id')->where('owner_user_id', Auth::id())->exists()) {
+        $integration = $diagnosticRun->integration()->first();
+        if ($integration === null || ! app(TenantRecordQuery::class)->runs(Auth::user())->whereKey($diagnosticRun->id)->exists()) {
             throw new NotFoundHttpException();
+        }
+
+        if ($integration->tenant_id === null) {
+            abort_unless((int) $integration->owner_user_id === (int) Auth::id(), 404);
+        } else {
+            app(TenantRoleAuthorization::class)->require(Auth::user(), $integration->tenant_id, 'diagnostics.reanalyze');
+            app(TenantEntitlementService::class)->requireFeature($integration->tenant_id, 'diagnostics.reanalyze');
         }
         abort_unless(filled(config('services.openai.key')), 503, 'AI analysis is not configured.');
 
         $expired = false;
-        $queued = DB::transaction(function () use ($diagnosticRun, &$expired): bool {
+        $queued = DB::transaction(function () use ($diagnosticRun, $integration, &$expired): bool {
             $run = DiagnosticRun::query()
                 ->whereKey($diagnosticRun->id)
-                ->whereHas('integration', fn ($query) => $query->whereNull('tenant_id')->where('owner_user_id', Auth::id()))
+                ->whereHas('integration', function ($query) use ($integration): void {
+                    $query->whereKey($integration->id)->where('tenant_id', $integration->tenant_id);
+                    if ($integration->tenant_id === null) {
+                        $query->where('owner_user_id', Auth::id());
+                    }
+                })
                 ->lockForUpdate()
                 ->firstOrFail();
 
@@ -64,6 +79,11 @@ class DiagnosticRunController extends Controller
                 return false;
             }
 
+            if ($integration->tenant_id !== null) {
+                app(TenantRoleAuthorization::class)->require(Auth::user(), $integration->tenant_id, 'diagnostics.reanalyze');
+                app(TenantEntitlementService::class)->requireFeature($integration->tenant_id, 'diagnostics.reanalyze');
+            }
+
             $run->forceFill(['status' => 'queued'])->save();
 
             app(AuditEventWriter::class)->append([
@@ -72,6 +92,7 @@ class DiagnosticRunController extends Controller
                 'event_type' => 'diagnostic_run.analysis_requested',
                 'subject_type' => 'diagnostic_run',
                 'subject_id' => $run->id,
+                'tenant_id' => $integration->tenant_id,
                 'metadata' => [],
                 'occurred_at' => now(),
             ]);
@@ -88,11 +109,11 @@ class DiagnosticRunController extends Controller
         }
 
         try {
-            AnalyzeDiagnosticRun::dispatch($diagnosticRun->id, (int) Auth::id())->afterCommit();
+            AnalyzeDiagnosticRun::dispatch($diagnosticRun->id, (int) Auth::id(), $integration->tenant_id)->afterCommit();
         } catch (Throwable $exception) {
             DiagnosticRun::query()
                 ->whereKey($diagnosticRun->id)
-                ->whereHas('integration', fn ($query) => $query->whereNull('tenant_id')->where('owner_user_id', Auth::id()))
+                ->whereHas('integration', fn ($query) => $query->whereKey($integration->id)->where('tenant_id', $integration->tenant_id))
                 ->where('status', 'queued')
                 ->update([
                     'status' => 'analysis_failed',
