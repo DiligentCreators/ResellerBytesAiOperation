@@ -1,13 +1,13 @@
 <?php
 
 use App\Models\AuditEvent;
-use App\Models\WhmcsIntegration;
+use App\Models\User;\nuse App\Models\WhmcsIntegration;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use LogicException;
 
 test('creates an integration with a one-time encrypted secret and an audit event', function () {
-    $this->artisan('whmcs:integration:create', ['name' => 'ResellerBytes Production'])
+    $owner = User::factory()->withTwoFactor()->create(['email' => 'owner@example.test', 'email_verified_at' => now()]);\n\n    $this->artisan('whmcs:integration:create', ['name' => 'ResellerBytes Production', '--owner' => $owner->email])
         ->expectsOutputToContain('WHMCS integration created.')
         ->expectsOutputToContain('Integration secret (shown once):')
         ->assertSuccessful();
@@ -17,7 +17,7 @@ test('creates an integration with a one-time encrypted secret and an audit event
         ->where('id', $integration->id)
         ->value('secret');
 
-    expect($integration->name)->toBe('ResellerBytes Production')
+    expect($integration->owner_user_id)->toBe($owner->id)\n        ->and($integration->name)->toBe('ResellerBytes Production')
         ->and($integration->status)->toBe('active')
         ->and($integration->secret)->toMatch('/\A[a-f0-9]{64}\z/')
         ->and($storedSecret)->not->toBe($integration->secret)
