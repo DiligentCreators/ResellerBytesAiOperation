@@ -24,7 +24,7 @@ class TenantBillingLedgerService
     {
         if (! in_array($payment['collection_mode'] ?? null, ['manual', 'automated'], true)
             || ! is_string($payment['idempotency_key'] ?? null)
-            || trim($payment['idempotency_key']) === ''
+            || trim($payment['idempotency_key']) === '' || strlen($payment['idempotency_key']) > 120
             || ! is_int($payment['amount_minor'] ?? null)
             || $payment['amount_minor'] < 1
             || ! is_string($payment['currency'] ?? null)
@@ -33,7 +33,9 @@ class TenantBillingLedgerService
         }
 
         if ($payment['collection_mode'] === 'manual'
-            && (! is_int($payment['recorded_by_user_id'] ?? null) || empty($payment['reference']))) {
+            && (! is_int($payment['recorded_by_user_id'] ?? null)
+                || ! is_string($payment['reference'] ?? null)
+                || trim($payment['reference']) === '' || strlen($payment['reference']) > 160)) {
             throw new InvalidArgumentException('billing_manual_payment_evidence_required');
         }
         if ($payment['collection_mode'] === 'automated'
@@ -46,9 +48,23 @@ class TenantBillingLedgerService
             throw new InvalidArgumentException('billing_provider_payment_reference_required');
         }
 
+        if (! (($payment['received_at'] ?? null) instanceof \\DateTimeInterface) && ! is_string($payment['received_at'] ?? null)) {
+            throw new InvalidArgumentException('billing_payment_received_at_invalid');
+        }
+
+        try {
+            $receivedAt = CarbonImmutable::parse($payment['received_at'])->utc();
+        } catch (\\Throwable) {
+            throw new InvalidArgumentException('billing_payment_received_at_invalid');
+        }
+
+        if ($receivedAt->greaterThan(now('UTC')->addMinutes(5))) {
+            throw new InvalidArgumentException('billing_payment_received_at_invalid');
+        }
+
         $actorUserId = isset($payment['recorded_by_user_id']) ? (int) $payment['recorded_by_user_id'] : null;
 
-        return app(TenantDatabaseContext::class)->run($tenantId, $actorUserId, fn (): TenantBillingPayment => DB::transaction(function () use ($tenantId, $invoiceId, $payment): TenantBillingPayment {
+        return app(TenantDatabaseContext::class)->run($tenantId, $actorUserId, fn (): TenantBillingPayment => DB::transaction(function () use ($tenantId, $invoiceId, $payment, $receivedAt): TenantBillingPayment {
             $invoice = TenantBillingInvoice::query()
                 ->whereKey($invoiceId)
                 ->where('tenant_id', $tenantId)
@@ -112,7 +128,7 @@ class TenantBillingLedgerService
                 'amount_minor' => $payment['amount_minor'],
                 'reference' => $payment['reference'] ?? null,
                 'recorded_by_user_id' => $payment['recorded_by_user_id'] ?? null,
-                'received_at' => $payment['received_at'],
+                'received_at' => $receivedAt,
             ]);
 
             $paid = $invoice->amount_paid_minor + $record->amount_minor;
