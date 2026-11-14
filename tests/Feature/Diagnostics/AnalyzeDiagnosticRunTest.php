@@ -6,6 +6,7 @@ use App\Models\AiUsageAttempt;
 use App\Models\DiagnosticFinding;
 use App\Models\DiagnosticRun;
 use App\Models\WhmcsIntegration;
+use App\Models\User;
 use App\Services\Diagnostics\AiBudgetService;
 use App\Services\Diagnostics\WhmcsDiagnosticAnalyzer;
 use Illuminate\Support\Str;
@@ -14,6 +15,7 @@ use RuntimeException;
 
 it('persists validated AI findings and recommendations against their source snapshot', function () {
     $integration = WhmcsIntegration::create([
+        'owner_user_id' => User::factory()->create()->id,
         'name' => 'Analysis job test',
         'status' => 'active',
         'secret' => bin2hex(random_bytes(32)),
@@ -74,7 +76,7 @@ it('persists validated AI findings and recommendations against their source snap
         ];
     });
 
-    (new AnalyzeDiagnosticRun($run->id))->handle($analyzer, app(AiBudgetService::class));
+    (new AnalyzeDiagnosticRun($run->id, (int) $integration->owner_user_id))->handle($analyzer, app(AiBudgetService::class));
 
     $freshRun = $run->fresh();
     $finding = DiagnosticFinding::query()->with('recommendations')->sole();
@@ -91,6 +93,7 @@ it('persists validated AI findings and recommendations against their source snap
 
 it('does not start a billable analysis for a diagnostic run beyond its retention deadline', function () {
     $integration = WhmcsIntegration::create([
+        'owner_user_id' => User::factory()->create()->id,
         'name' => 'Expired analysis guard test',
         'status' => 'active',
         'secret' => bin2hex(random_bytes(32)),
@@ -123,6 +126,7 @@ it('does not start a billable analysis for a diagnostic run beyond its retention
 
 it('releases a pre-submit reservation if the diagnostic crosses its retention cutoff before provider submission', function () {
     $integration = WhmcsIntegration::create([
+        'owner_user_id' => User::factory()->create()->id,
         'name' => 'Retention boundary submission test',
         'status' => 'active',
         'secret' => bin2hex(random_bytes(32)),
@@ -165,6 +169,7 @@ it('releases a pre-submit reservation if the diagnostic crosses its retention cu
 
 it('does not persist provider results when a diagnostic expires during analysis', function () {
     $integration = WhmcsIntegration::create([
+        'owner_user_id' => User::factory()->create()->id,
         'name' => 'Retention completion boundary test',
         'status' => 'active',
         'secret' => bin2hex(random_bytes(32)),
@@ -217,6 +222,7 @@ it('does not persist provider results when a diagnostic expires during analysis'
 
 it('marks a failed analysis attempt without modifying the source diagnostic payload', function () {
     $integration = WhmcsIntegration::create([
+        'owner_user_id' => User::factory()->create()->id,
         'name' => 'Analysis failure test',
         'status' => 'active',
         'secret' => bin2hex(random_bytes(32)),
@@ -248,6 +254,7 @@ it('marks a failed analysis attempt without modifying the source diagnostic payl
 
 it('reclaims an analysis lease after the queue retry visibility timeout', function () {
     $integration = WhmcsIntegration::create([
+        'owner_user_id' => User::factory()->create()->id,
         'name' => 'Stale analysis lease test',
         'status' => 'active',
         'secret' => bin2hex(random_bytes(32)),
@@ -299,6 +306,7 @@ it('reclaims an analysis lease after the queue retry visibility timeout', functi
 
 it('does not start a duplicate analysis while the current worker lease is active', function () {
     $integration = WhmcsIntegration::create([
+        'owner_user_id' => User::factory()->create()->id,
         'name' => 'Active analysis lease test',
         'status' => 'active',
         'secret' => bin2hex(random_bytes(32)),
@@ -330,6 +338,7 @@ it('does not start a duplicate analysis while the current worker lease is active
 
 it('keeps a submitted provider timeout ambiguous and blocks an automatic duplicate charge', function () {
     $integration = WhmcsIntegration::create([
+        'owner_user_id' => User::factory()->create()->id,
         'name' => 'Ambiguous provider timeout test',
         'status' => 'active',
         'secret' => bin2hex(random_bytes(32)),
@@ -384,6 +393,7 @@ it('keeps a submitted provider timeout ambiguous and blocks an automatic duplica
 
 it('settles confirmed provider usage before surfacing an unsuccessful HTTP response', function () {
     $integration = WhmcsIntegration::create([
+        'owner_user_id' => User::factory()->create()->id,
         'name' => 'Confirmed usage on provider error test',
         'status' => 'active',
         'secret' => bin2hex(random_bytes(32)),
