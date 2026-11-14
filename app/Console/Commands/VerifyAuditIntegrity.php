@@ -38,7 +38,7 @@ class VerifyAuditIntegrity extends Command
                     return self::FAILURE;
                 }
 
-                if ((int) ($row->hash_version ?? 0) !== AuditEventCanonicalizer::VERSION) {
+                if (! in_array((int) ($row->hash_version ?? 0), [1, AuditEventCanonicalizer::VERSION], true)) {
                     $this->error("Integrity failure at event {$eventId}: unsupported hash version.");
 
                     return self::FAILURE;
@@ -53,6 +53,8 @@ class VerifyAuditIntegrity extends Command
                 $event = [
                     'chain_sequence' => $sequence,
                     'previous_hash' => $row->previous_hash,
+                    'hash_version' => (int) $row->hash_version,
+                    'tenant_id' => $row->tenant_id,
                     'actor_type' => $row->actor_type,
                     'actor_id' => $row->actor_id,
                     'event_type' => $row->event_type,
