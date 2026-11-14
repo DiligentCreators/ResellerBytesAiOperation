@@ -8,7 +8,7 @@ use Illuminate\\Database\\Eloquent\\Relations\\BelongsTo;
 class TenantBillingAdjustment extends Model
 {
     protected $fillable = [
-        'tenant_id', 'tenant_billing_payment_id', 'provider', 'provider_adjustment_id',
+        'tenant_id', 'tenant_billing_payment_id', 'provider', 'provider_account_id', 'provider_adjustment_id',
         'kind', 'idempotency_key', 'amount_minor', 'currency', 'occurred_at',
     ];
 
