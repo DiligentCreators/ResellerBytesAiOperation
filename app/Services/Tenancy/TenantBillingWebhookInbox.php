@@ -226,6 +226,7 @@ class TenantBillingWebhookInbox
 
             if (! $periodEnd->greaterThan($periodStart)
                 || $periodStart->greaterThan(now('UTC')->addMinutes(5))
+                || ! $periodEnd->isFuture()
                 || $periodEnd->diffInDays($periodStart) > 366) {
                 throw new InvalidArgumentException('tenant_subscription_renewal_period_invalid');
             }
