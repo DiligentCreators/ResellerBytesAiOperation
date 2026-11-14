@@ -2,14 +2,14 @@
 
 use Symfony\Component\Process\Process;
 
-function createIndependentAuditAnchorFixture(?string $previous = null): array
+function createIndependentAuditAnchorFixture(?string $previous = null, ?string $createdAt = null): array
 {
     $keyPair = sodium_crypto_sign_keypair();
     $publicKey = base64_encode(sodium_crypto_sign_publickey($keyPair));
     $payload = [
         'anchor_version' => 1,
         'environment' => 'testing',
-        'created_at' => '2026-11-14T09:00:00.000000Z',
+        'created_at' => $createdAt ?? (new DateTimeImmutable('now', new DateTimeZone('UTC')))->format('Y-m-d\\TH:i:s.u\\Z'),
         'chain_sequence' => 7,
         'chain_head_hash' => str_repeat('a', 64),
         'previous_checkpoint_sha256' => $previous,
@@ -28,12 +28,15 @@ function createIndependentAuditAnchorFixture(?string $previous = null): array
     return [$path, $publicKey, $envelope];
 }
 
-function runIndependentAuditAnchorVerifier(string $checkpoint, string $publicKey, string $environment = 'testing', ?string $previous = null): Process
+function runIndependentAuditAnchorVerifier(string $checkpoint, string $publicKey, string $environment = 'testing', ?string $previous = null, ?int $maxAgeMinutes = null): Process
 {
     $root = dirname(__DIR__, 2);
     $command = [PHP_BINARY, $root.'/tools/verify-audit-anchor.php', $checkpoint];
     if ($previous !== null) {
         $command[] = $previous;
+    }
+    if ($maxAgeMinutes !== null) {
+        $command[] = '--max-age-minutes='.$maxAgeMinutes;
     }
 
     $process = new Process($command, $root, [
@@ -81,6 +84,47 @@ it('rejects a checkpoint from a different environment', function () {
 
         expect($process->isSuccessful())->toBeFalse()
             ->and($process->getErrorOutput())->toContain('environment does not match');
+    } finally {
+        @unlink($path);
+    }
+});
+
+it('rejects a checkpoint whose timestamp is too far in the future', function () {
+    $future = (new DateTimeImmutable('+10 minutes', new DateTimeZone('UTC')))->format('Y-m-d\\TH:i:s.u\\Z');
+    [$path, $publicKey] = createIndependentAuditAnchorFixture(null, $future);
+
+    try {
+        $process = runIndependentAuditAnchorVerifier($path, $publicKey);
+
+        expect($process->isSuccessful())->toBeFalse()
+            ->and($process->getErrorOutput())->toContain('too far in the future');
+    } finally {
+        @unlink($path);
+    }
+});
+
+it('rejects an invalid calendar timestamp even when its signature is valid', function () {
+    [$path, $publicKey] = createIndependentAuditAnchorFixture(null, '2026-02-31T09:00:00.000000Z');
+
+    try {
+        $process = runIndependentAuditAnchorVerifier($path, $publicKey);
+
+        expect($process->isSuccessful())->toBeFalse()
+            ->and($process->getErrorOutput())->toContain('not a valid canonical UTC timestamp');
+    } finally {
+        @unlink($path);
+    }
+});
+
+it('enforces an explicitly configured maximum checkpoint age', function () {
+    $stale = (new DateTimeImmutable('-2 hours', new DateTimeZone('UTC')))->format('Y-m-d\\TH:i:s.u\\Z');
+    [$path, $publicKey] = createIndependentAuditAnchorFixture(null, $stale);
+
+    try {
+        $process = runIndependentAuditAnchorVerifier($path, $publicKey, 'testing', null, 60);
+
+        expect($process->isSuccessful())->toBeFalse()
+            ->and($process->getErrorOutput())->toContain('exceeds the configured maximum age');
     } finally {
         @unlink($path);
     }
