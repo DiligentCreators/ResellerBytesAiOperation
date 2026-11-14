@@ -378,3 +378,12 @@ A green CI run is necessary but does not close these release gates or authorize 
 - Added tenant billing-authorized recovery service and explicit Artisan command. It requires a dead-lettered event, active verified provider-account mapping, tenant billing.manage permission, constrained reason code and explicit --confirm.
 - Recovery resets attempts/lease state, requeues immediately, and appends tenant-bound immutable audit evidence. Logs are redacted and do not include payloads or raw exception messages.
 - Registered outbox dispatch, webhook reconciliation and dead-letter recovery commands in the explicit Laravel command list. Added tests for authorization, active account requirement, replay limit and command fail-closed behavior. Tests remain unexecuted pending PHP 8.5 and dependencies.
+
+
+### Outbox dead-letter recovery — 2026-11-15
+
+- Added a bounded manual replay counter for tenant billing outbox messages, capped at three operator requeues.
+- Added tenant billing-authorized outbox recovery service and explicit Artisan command, with reason-code-only audit evidence and no event payload logging.
+- Added a database audit guard that binds outbox replay audit records to the exact tenant of the outbox message.
+- Outbox and webhook dead-letter recovery commands are explicitly registered; consumers remain responsible for stable outbox-ID deduplication under at-least-once delivery.
+- Added tests for tenant authorization, replay counter reset/limit, and audit evidence. Tests remain unexecuted pending PHP 8.5 and dependencies.
