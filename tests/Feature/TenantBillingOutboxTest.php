@@ -458,3 +458,25 @@ it('rejects inactive or unverified provider account mappings', function () {
         'acct_unverified_001',
     ))->toThrow(RuntimeException::class, 'billing_provider_account_unmapped');
 });
+
+it('keeps provider account tenant and external identity immutable', function () {
+    $tenant = createBillingOutboxTenant('billing-provider-account-immutable');
+    DB::table('tenant_billing_provider_accounts')->insert([
+        'tenant_id' => $tenant->id,
+        'provider' => 'approved_gateway',
+        'provider_account_id' => 'acct_immutable_mapping',
+        'status' => 'inactive',
+        'created_at' => now('UTC'),
+        'updated_at' => now('UTC'),
+    ]);
+
+    expect(fn () => DB::table('tenant_billing_provider_accounts')
+        ->where('provider_account_id', 'acct_immutable_mapping')
+        ->update(['provider_account_id' => 'acct_reassigned']))
+        ->toThrow(\\Illuminate\\Database\\QueryException::class);
+
+    expect(fn () => DB::table('tenant_billing_provider_accounts')
+        ->where('provider_account_id', 'acct_immutable_mapping')
+        ->update(['tenant_id' => createBillingOutboxTenant('billing-provider-account-other')->id]))
+        ->toThrow(\\Illuminate\\Database\\QueryException::class);
+});
