@@ -128,7 +128,9 @@ Artisan::command('diagnostics:recover-queued {--stale-minutes=15} {--limit=100}'
     $staleSeconds = max($staleMinutes * 60, $minimumStaleSeconds);
     $cutoff = now()->subSeconds($staleSeconds);
 
+    $retentionCutoff = now('UTC')->subDays(365)->format('Y-m-d H:i:s');
     $runIds = DB::table('diagnostic_runs')
+        ->where('received_at', '>', $retentionCutoff)
         ->where(function ($query) use ($cutoff) {
             $query
                 ->where(function ($query) use ($cutoff) {
