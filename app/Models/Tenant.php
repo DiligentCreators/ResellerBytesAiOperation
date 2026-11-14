@@ -50,6 +50,12 @@ class Tenant extends Model
         return $this->hasMany(WhmcsIntegration::class);
     }
 
+    /** @return HasMany<TenantNotification, $this> */
+    public function notifications(): HasMany
+    {
+        return $this->hasMany(TenantNotification::class);
+    }
+
     /** @return HasMany<TenantSubscription, $this> */
     public function subscriptions(): HasMany
     {
