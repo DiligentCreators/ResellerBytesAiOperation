@@ -375,3 +375,6 @@ The tenant migration is authored on the branch but has not been executed; no ten
 
 
 - Provider event normalization now resolves provider-side invoice and subscription references to local IDs only after signature verification and trusted provider-account tenant mapping. The resolver scopes every lookup by tenant + provider + provider account, preventing adapters from supplying local tenant/invoice/subscription IDs.
+
+
+- Invoice references are also account-bound: provider invoice IDs are persisted on local invoices under a tenant/provider/account unique key and immutable identity trigger. The webhook gateway resolves provider-side invoice/subscription references to local records only after signature verification and account-to-tenant mapping. Automated payment and lifecycle events are rejected if invoice, subscription, payment, provider and account identities do not all match.
