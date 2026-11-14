@@ -595,3 +595,12 @@ inferred from the repository changes.
 - Local PHP CLI is 8.4.24, while this repository requires PHP 8.5; repository checkout and Composer dependencies are not mounted. No local PHP tests or lint are claimed. Exact-head CI remains intentionally deferred until all remaining engineering work is complete.
 - Owner-only pending items remain unchanged: Wasabi account/bucket and non-production Object Lock rehearsal, signing keys, secret manager and three PostgreSQL roles provisioning, backup rehearsal access, AI price-card approval, independent security review, and final release authorization.
 - PR #2 remains open and Draft. No merge to `main`, deployment, production migration, live WHMCS operation, or production storage operation occurred.
+
+
+## Backup freshness telemetry integrity — 2026-11-14
+
+- Static review found that backup-age monitoring used the marker file's filesystem modification time rather than the `created_at` timestamp written by the verified backup operation. Copying/restoring the marker file could therefore make an old backup appear newer than it is.
+- Updated `OperationalMetricsSource` to parse the atomic JSON marker and require a valid UUID backup ID, canonical UTC timestamp, real calendar value, and timestamp no more than five minutes ahead of the observation time. Invalid, malformed, unreadable, or implausibly future markers now return unavailable, which keeps the backup-age alert fail-closed.
+- Added regression coverage proving marker content—not mtime—determines backup freshness, and malformed UUID, impossible calendar date, and future timestamp are treated as unavailable. Existing hourly metric pruning schedule coverage remains intact.
+- Commits for this change: `9ef3526`, `f676b07`, `8f38006`, `f2a8e01`. All include [skip ci]. No workflow file or repository setting was changed. Tests are committed but not executed here; PHP 8.5 and the mounted project/dependencies are still required for full validation.
+- PR #2 remains open and Draft. No merge, deployment, production migration, live backup, or WHMCS operation was performed.
