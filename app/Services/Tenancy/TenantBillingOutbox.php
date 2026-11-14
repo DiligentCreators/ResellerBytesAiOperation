@@ -42,7 +42,8 @@ class TenantBillingOutbox
         }
 
         return app(TenantDatabaseContext::class)->run($tenantId, null, function () use ($tenantId, $idempotencyKey, $eventType, $aggregateType, $aggregateId, $payload): TenantBillingOutboxMessage {
-            Tenant::query()->whereKey($tenantId)->where('status', Tenant::STATUS_ACTIVE)->firstOrFail();
+            // Suspended tenants still need billing lifecycle and reconciliation events.
+            Tenant::query()->whereKey($tenantId)->firstOrFail();
 
             $existing = TenantBillingOutboxMessage::query()
                 ->where('tenant_id', $tenantId)
