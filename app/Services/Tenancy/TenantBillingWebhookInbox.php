@@ -47,7 +47,7 @@ class TenantBillingWebhookInbox
             'invoice.payment_failed' => ['invoice_id', 'failure_code'],
             'payment.refunded', 'payment.dispute_opened', 'payment.dispute_won', 'payment.dispute_lost' => ['payment_id', 'adjustment_id', 'amount_minor', 'currency'],
             'subscription.renewed' => ['subscription_id', 'settled_invoice_id', 'period_starts_at', 'period_ends_at'],
-            'subscription.past_due' => ['subscription_id', 'grace_ends_at'],
+            'subscription.past_due' => ['subscription_id'],
             'subscription.canceled', 'subscription.expired' => ['subscription_id'],
             'subscription.reactivated' => ['subscription_id', 'settled_invoice_id'],
             default => throw new InvalidArgumentException('billing_webhook_event_type_unsupported'),
@@ -228,22 +228,6 @@ class TenantBillingWebhookInbox
                 || $periodStart->greaterThan(now('UTC')->addMinutes(5))
                 || $periodEnd->diffInDays($periodStart) > 366) {
                 throw new InvalidArgumentException('tenant_subscription_renewal_period_invalid');
-            }
-        }
-
-        if ($eventType === 'subscription.past_due') {
-            if (! is_string($payload['grace_ends_at'] ?? null)) {
-                throw new InvalidArgumentException('billing_webhook_grace_period_invalid');
-            }
-
-            try {
-                $graceEndsAt = CarbonImmutable::parse($payload['grace_ends_at']);
-            } catch (\\Throwable) {
-                throw new InvalidArgumentException('billing_webhook_grace_period_invalid');
-            }
-
-            if (! $graceEndsAt->isFuture()) {
-                throw new InvalidArgumentException('billing_webhook_grace_period_invalid');
             }
         }
 
