@@ -37,11 +37,11 @@ class TenantMembershipController extends Controller
         return response()->json(['membership' => $membership->load('user:id,name,email')], 201);
     }
 
-    public function accept(Request $request, Tenant $tenant, TenantMembershipLifecycle $lifecycle): JsonResponse
+    public function accept(Request $request, string $tenantId, TenantMembershipLifecycle $lifecycle): JsonResponse
     {
         /** @var User $user */
         $user = $request->user();
-        $membership = $lifecycle->accept($user, $tenant->id, $request->ip());
+        $membership = $lifecycle->accept($user, $tenantId, $request->ip());
 
         return response()->json(['membership' => $membership]);
     }
