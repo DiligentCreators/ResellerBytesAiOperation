@@ -11,7 +11,7 @@ class TenantBillingOutboxMessage extends Model
 
     protected $fillable = [
         'tenant_id', 'idempotency_key', 'event_type', 'aggregate_type', 'aggregate_id',
-        'payload', 'status', 'attempts', 'available_at', 'locked_at', 'delivered_at',
+        'payload', 'status', 'attempts', 'manual_replay_count', 'available_at', 'locked_at', 'delivered_at',
         'failed_at', 'last_error_code',
     ];
 
@@ -20,6 +20,7 @@ class TenantBillingOutboxMessage extends Model
         return [
             'payload' => 'array',
             'attempts' => 'integer',
+            'manual_replay_count' => 'integer',
             'available_at' => 'immutable_datetime',
             'locked_at' => 'immutable_datetime',
             'delivered_at' => 'immutable_datetime',
