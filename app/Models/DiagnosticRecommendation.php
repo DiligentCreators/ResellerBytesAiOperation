@@ -21,6 +21,7 @@ class DiagnosticRecommendation extends Model
 
     protected $fillable = [
         'diagnostic_finding_id',
+        'tenant_id',
         'recommendation',
         'rationale',
         'risk_level',
