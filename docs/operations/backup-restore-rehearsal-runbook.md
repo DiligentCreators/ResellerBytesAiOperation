@@ -133,5 +133,4 @@ Any failed check, unverifiable checkpoint, missing backup object lock, privilege
 - Provide secret-manager access for backup decryption and the trusted production public verification key. Never send passwords or private keys through chat.
 - Any production restore remains gated by explicit, incident-specific Shahrukh approval; the approved RPO/RTO do not constitute standing restore authorization.
 
-
 No production backup, password, secret, or private key is requested in chat or stored in this repository.
