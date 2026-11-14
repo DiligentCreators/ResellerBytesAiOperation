@@ -387,3 +387,11 @@ A green CI run is necessary but does not close these release gates or authorize 
 - Added a database audit guard that binds outbox replay audit records to the exact tenant of the outbox message.
 - Outbox and webhook dead-letter recovery commands are explicitly registered; consumers remain responsible for stable outbox-ID deduplication under at-least-once delivery.
 - Added tests for tenant authorization, replay counter reset/limit, and audit evidence. Tests remain unexecuted pending PHP 8.5 and dependencies.
+
+
+### PostgreSQL billing RLS rehearsal harness — 2026-11-15
+
+- Added a standalone PostgreSQL rehearsal script covering tenant-local visibility and cross-tenant insert/update denial for billing outbox, webhook inbox, provider-account registry and adjustment ledger.
+- The script verifies RLS is enabled, runtime and operations roles are distinct on the same database, the runtime role is neither BYPASSRLS nor superuser, the operations role has BYPASSRLS but is neither superuser nor table owner, and cleans up only mutable test fixtures.
+- Global reconciliation now fails closed unless the dedicated operations role has the expected privilege boundary and does not own the protected billing/audit tables.
+- The script is authored but not run; it requires provisioned PostgreSQL runtime/operations roles, two test tenant UUIDs, and an existing tenant-A adjustment fixture. These remain infrastructure rehearsal gates.
