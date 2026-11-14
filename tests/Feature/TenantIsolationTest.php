@@ -241,6 +241,6 @@ it('does not publish notifications for suspended or non-member tenant users', fu
         ->toThrow(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
 
     $tenant->forceFill(['status' => Tenant::STATUS_SUSPENDED])->save();
-    expect(fn () => app(TenantNotificationService::class)->publish($tenant->id, $outsider->id, 'tenant.notice.created', ['message' => 'test']))
+    expect(fn () => app(TenantNotificationService::class)->publish($tenant->id, $outsider->id, 'tenant.notice.created', ['message' => 'test'], 'notice:outsider:002'))
         ->toThrow(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
 });
