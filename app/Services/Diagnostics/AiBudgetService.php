@@ -269,6 +269,7 @@ class AiBudgetService
             app(AuditEventWriter::class)->append([
                 'actor_type' => 'user',
                 'actor_id' => $approverId,
+                'tenant_id' => $locked->tenant_id,
                 'event_type' => 'ai_usage_attempt.reconciliation_approved',
                 'subject_type' => 'ai_usage_attempt',
                 'subject_id' => $locked->id,
@@ -282,6 +283,7 @@ class AiBudgetService
             app(AuditEventWriter::class)->append([
                 'actor_type' => 'user',
                 'actor_id' => $operatorId,
+                'tenant_id' => $locked->tenant_id,
                 'event_type' => 'ai_usage_attempt.reconciled_not_charged',
                 'subject_type' => 'ai_usage_attempt',
                 'subject_id' => $locked->id,
