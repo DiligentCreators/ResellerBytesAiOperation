@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://resellerbytes.example/schemas/audit-anchor-alert-evidence-v1.json",
+  "title": "ResellerBytes Audit Anchor Alert Evidence",
+  "description": "Redacted, non-secret evidence emitted by audit:anchor:monitor --json. This record does not itself prove remote Object Lock storage or alert delivery.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "reason_code",
+    "observed_at_utc",
+    "environment",
+    "checkpoint_sha256",
+    "anchor_sequence",
+    "local_sequence",
+    "unanchored_tail",
+    "checkpoint_age_seconds",
+    "exit_code"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "status": { "enum": ["healthy", "failed"] },
+    "reason_code": {
+      "enum": [
+        "healthy",
+        "checkpoint_unavailable",
+        "invalid_threshold",
+        "checkpoint_read_failed",
+        "invalid_timestamp",
+        "timestamp_in_future",
+        "checkpoint_stale",
+        "unanchored_tail_exceeded",
+        "verification_failed"
+      ]
+    },
+    "observed_at_utc": { "type": "string", "format": "date-time" },
+    "environment": {
+      "type": ["string", "null"],
+      "pattern": "^[a-zA-Z0-9._-]+$"
+    },
+    "checkpoint_sha256": {
+      "type": ["string", "null"],
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "anchor_sequence": { "type": ["integer", "null"], "minimum": 0 },
+    "local_sequence": { "type": ["integer", "null"], "minimum": 0 },
+    "unanchored_tail": { "type": ["integer", "null"], "minimum": 0 },
+    "checkpoint_age_seconds": { "type": ["integer", "null"] },
+    "exit_code": { "enum": [0, 1] }
+  }
+}
