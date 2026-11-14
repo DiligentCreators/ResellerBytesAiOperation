@@ -285,7 +285,7 @@ SQL);
             $scope = "(tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid OR {$membership})";
 
             if ($table === 'diagnostic_runs') {
-                $legacyOwner = "EXISTS (SELECT 1 FROM whmcs_integrations AS rls_integration WHERE rls_integration.id = diagnostic_runs.integration_id AND rls_integration.owner_user_id = NULLIF(current_setting('app.current_user_id', true), '')::bigint)";
+                $legacyOwner = "EXISTS (SELECT 1 FROM whmcs_integrations AS rls_integration WHERE rls_integration.id = diagnostic_runs.integration_id AND (rls_integration.owner_user_id = NULLIF(current_setting('app.current_user_id', true), '')::bigint OR rls_integration.id::text = NULLIF(current_setting('app.integration_lookup_id', true), '')))";
                 $scope = "({$scope} OR (tenant_id IS NULL AND {$legacyOwner}))";
             } elseif ($table === 'diagnostic_findings') {
                 $legacyOwner = "EXISTS (SELECT 1 FROM diagnostic_runs AS rls_run INNER JOIN whmcs_integrations AS rls_integration ON rls_integration.id = rls_run.integration_id WHERE rls_run.id = diagnostic_findings.diagnostic_run_id AND rls_integration.owner_user_id = NULLIF(current_setting('app.current_user_id', true), '')::bigint)";
