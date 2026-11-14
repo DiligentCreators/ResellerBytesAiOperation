@@ -83,12 +83,12 @@ real isolated environment.
   non-mutating integrity verification.
 - Checkpoint signing uses Ed25519. Shahrukh is the sole initial signing operator;
   private keys must remain in the approved secret manager and must not be committed.
-- Provider-neutral checkpoint publishing and fake-store contract tests exist. No real
-  external storage adapter, account, bucket, Object Lock read-back, or independent
-  verifier schedule is provisioned.
-- The current checkpoint envelope/key verifier does not yet provide a versioned
-  multi-key rotation transition; do not rotate the production public key until that
-  support is reviewed and implemented.
+- Provider-neutral checkpoint publishing, an AWS CLI-backed S3-compatible adapter,
+  manual publish command, and fake-store contract tests exist. No production account,
+  bucket, Object Lock read-back, or independent verifier schedule is provisioned.
+- The checkpoint envelope/key verifier does not yet provide a versioned multi-key
+  rotation transition; do not rotate the production public key until that support is
+  reviewed and implemented.
 
 ### Retention and legal holds
 
@@ -195,9 +195,9 @@ real isolated environment.
 6. Backups above 5 GB fail closed until a multipart Object Lock adapter is implemented.
 7. Production alert destinations and provider-specific WhatsApp/SMS bridges are not
    provisioned or delivery-tested.
-8. External audit checkpoint storage provider adapter, actual Object Lock
-   configuration/read-back, independent verifier schedule, and production alerting are
-   not provisioned.
+8. External audit checkpoint production bucket, actual Object Lock configuration/read-
+   back rehearsal, independent verifier schedule, and production alerting are not
+   provisioned. The S3-compatible adapter and manual publisher are implemented.
 9. Production Ed25519 key custody and key-rotation transition support remain pending.
 10. AI provider pricing and production price-card approval remain pending.
 11. Independent security review and final release authorization remain pending.
