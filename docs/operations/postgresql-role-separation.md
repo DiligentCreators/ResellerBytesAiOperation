@@ -61,13 +61,13 @@ GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO rb_runtime;
 -- Reconcile only the explicitly approved reporting allowlist after migrations.
 -- Example: GRANT SELECT ON TABLE reporting_safe_view TO rb_readonly;
 REVOKE INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON ALL TABLES IN SCHEMA public FROM rb_readonly;
-DO $
+DO $$
 BEGIN
     IF to_regclass('public.migrations') IS NOT NULL THEN
         REVOKE ALL PRIVILEGES ON TABLE public.migrations FROM rb_readonly;
     END IF;
 END;
-$;
+$$;
 
 -- Ensure objects created by future migrations inherit runtime DML access.
 -- The explicit audit_events and migrations revocations above must be reapplied
