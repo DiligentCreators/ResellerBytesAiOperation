@@ -41,7 +41,9 @@ class TenantBillingLedgerService
             throw new InvalidArgumentException('billing_provider_payment_reference_required');
         }
 
-        return DB::transaction(function () use ($tenantId, $invoiceId, $payment): TenantBillingPayment {
+        $actorUserId = isset($payment['recorded_by_user_id']) ? (int) $payment['recorded_by_user_id'] : null;
+
+        return app(TenantDatabaseContext::class)->run($tenantId, $actorUserId, fn (): TenantBillingPayment => DB::transaction(function () use ($tenantId, $invoiceId, $payment): TenantBillingPayment {
             $invoice = TenantBillingInvoice::query()
                 ->whereKey($invoiceId)
                 ->where('tenant_id', $tenantId)
@@ -126,6 +128,6 @@ class TenantBillingLedgerService
             ]);
 
             return $record;
-        }, 3);
+        }, 3));
     }
 }
