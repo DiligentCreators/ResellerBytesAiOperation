@@ -96,3 +96,11 @@ Approved monitoring, alert-routing, recovery, retention, signing-operator, and P
 - PostgreSQL CI verified the runtime identity's append-only audit and no-DDL restrictions, plus a read-only reporting identity that can SELECT only from an explicitly granted reporting table and is denied unapproved audit reads, writes, migration-ledger reads, and DDL.
 - MySQL 8.4, MariaDB 11.4, SQL Server 2022, and WHMCS PHP 8.1 compatibility jobs all passed.
 - PR #2 remains open and Draft; no merge, deployment, production migration, or live WHMCS operation occurred.
+
+
+## Approved monitoring threshold evaluator
+
+- Added `app/Services/Operations/AlertThresholdPolicy.php` to evaluate the approved error-rate, API p95, backup age, disk utilization, and queue-age thresholds from normalized metric inputs.
+- Added boundary tests for strict error/latency/queue thresholds, disk warning/critical escalation, the 26-hour backup limit, and missing/invalid/future backup timestamps.
+- The evaluator does not collect metrics, schedule checks, or deliver notifications. Production metric sources and email/Slack-or-Discord/critical WhatsApp-or-SMS adapters remain unconfigured.
+- CI for this new evaluator and the final documentation update is pending on the newest exact branch head.
