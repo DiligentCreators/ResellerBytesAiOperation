@@ -99,7 +99,7 @@ return new class extends Migration
 
         DB::statement('ALTER TABLE whmcs_integrations ENABLE ROW LEVEL SECURITY');
         $integrationMembership = "EXISTS (SELECT 1 FROM tenant_memberships AS rls_membership WHERE rls_membership.tenant_id = whmcs_integrations.tenant_id AND rls_membership.user_id = NULLIF(current_setting('app.current_user_id', true), '')::bigint AND rls_membership.status = 'active')";
-        $integrationScope = "((tenant_id IS NULL AND owner_user_id = NULLIF(current_setting('app.current_user_id', true), '')::bigint) OR tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid OR {$integrationMembership})";
+        $integrationScope = "((tenant_id IS NULL AND owner_user_id = NULLIF(current_setting('app.current_user_id', true), '')::bigint) OR tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid OR {$integrationMembership} OR id = NULLIF(current_setting('app.integration_lookup_id', true), '')::uuid)";
         DB::statement("CREATE POLICY tenant_integration_select ON whmcs_integrations FOR SELECT USING ({$integrationScope} OR id = NULLIF(current_setting('app.integration_lookup_id', true), '')::uuid)");
         DB::statement("CREATE POLICY tenant_integration_write ON whmcs_integrations FOR ALL USING ({$integrationScope}) WITH CHECK ({$integrationScope})");
 
@@ -124,7 +124,7 @@ return new class extends Migration
                 $legacyOwner = "EXISTS (SELECT 1 FROM diagnostic_runs AS rls_run INNER JOIN whmcs_integrations AS rls_integration ON rls_integration.id = rls_run.integration_id WHERE rls_run.id = ai_usage_attempts.diagnostic_run_id AND rls_integration.owner_user_id = NULLIF(current_setting('app.current_user_id', true), '')::bigint)";
                 $scope = "({$scope} OR (tenant_id IS NULL AND {$legacyOwner}))";
             } elseif ($table === 'audit_events') {
-                $legacyActor = "((audit_events.actor_type = 'user' AND audit_events.actor_id = NULLIF(current_setting('app.current_user_id', true), '')) OR (audit_events.actor_type = 'integration' AND EXISTS (SELECT 1 FROM whmcs_integrations AS rls_integration WHERE rls_integration.id::text = audit_events.actor_id AND rls_integration.owner_user_id = NULLIF(current_setting('app.current_user_id', true), '')::bigint)))";
+                $legacyActor = "((audit_events.actor_type = 'user' AND audit_events.actor_id = NULLIF(current_setting('app.current_user_id', true), '')) OR (audit_events.actor_type = 'integration' AND (audit_events.actor_id = NULLIF(current_setting('app.integration_lookup_id', true), '') OR EXISTS (SELECT 1 FROM whmcs_integrations AS rls_integration WHERE rls_integration.id::text = audit_events.actor_id AND rls_integration.owner_user_id = NULLIF(current_setting('app.current_user_id', true), '')::bigint))))";
                 $scope = "({$scope} OR (tenant_id IS NULL AND {$legacyActor}))";
             }
 
