@@ -537,3 +537,10 @@ inferred from the repository changes.
 - Latest branch head after this documentation correction: 54f3d7613f8feafa666ad3cbc46d5f677d55151e. All intermediate commits use [skip ci]. CI remains deferred until the one final non-skip-ci commit. Full PHP 8.5 suite remains pending because the current execution environment lacks PHP 8.5 and the repository checkout/dependencies.
 - PR #2 remains open and Draft. No merge, deployment, production migration, or live WHMCS operation was performed.
 
+
+## WHMCS request-authentication regression coverage — 2026-11-14
+
+- Added `tests/Feature/WhmcsIntegrationAuthenticationTest.php` for successful HMAC-authenticated ingestion, duplicate nonce replay (409), revoked integration (401), and invalid HMAC (401). The tests use generated ephemeral integration secrets and do not call a live WHMCS installation or AI provider.
+- Tests are committed but not executed in this environment. Validate request path canonicalization, Laravel test response assertions, and schema compatibility in the final PHP 8.5 CI run.
+- Current head: `0dcc3e715fd3145ae294b4419021f03ecf927fc2`. Intermediate commits use [skip ci]. No workflow file or repository setting was modified; CI remains deferred.
+
