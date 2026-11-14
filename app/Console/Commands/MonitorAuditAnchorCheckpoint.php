@@ -74,16 +74,23 @@ class MonitorAuditAnchorCheckpoint extends Command
         $expectedPrevious = is_string($previous) && $previous !== '' ? $previous : null;
 
         try {
-            $verification = $anchors->verifyCheckpoint($bytes, $expectedPrevious);
             $envelope = json_decode($bytes, true, 512, JSON_THROW_ON_ERROR);
             $payload = is_array($envelope) ? ($envelope['payload'] ?? null) : null;
             $createdAt = is_array($payload) ? ($payload['created_at'] ?? null) : null;
             $environment = is_array($payload) ? ($payload['environment'] ?? null) : null;
-            if (! is_string($createdAt) || preg_match('/\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z\z/', $createdAt) !== 1) {
+            if (! is_string($createdAt) || preg_match('/\\A\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{6}Z\\z/', $createdAt) !== 1) {
                 return $finish('invalid_timestamp');
             }
 
-            $checkpointTime = new DateTimeImmutable($createdAt, new DateTimeZone('UTC'));
+            $checkpointTime = DateTimeImmutable::createFromFormat('!Y-m-d\\TH:i:s.u\\Z', $createdAt, new DateTimeZone('UTC'));
+            $dateErrors = DateTimeImmutable::getLastErrors();
+            if ($checkpointTime === false
+                || ($dateErrors !== false && ($dateErrors['warning_count'] > 0 || $dateErrors['error_count'] > 0))
+                || $checkpointTime->format('Y-m-d\\TH:i:s.u\\Z') !== $createdAt) {
+                return $finish('invalid_timestamp');
+            }
+
+            $verification = $anchors->verifyCheckpoint($bytes, $expectedPrevious);
             $ageSeconds = now()->utc()->getTimestamp() - $checkpointTime->getTimestamp();
             if ($ageSeconds < -300) {
                 return $finish('timestamp_in_future');
