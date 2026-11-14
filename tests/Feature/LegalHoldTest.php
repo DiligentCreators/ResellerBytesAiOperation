@@ -288,3 +288,40 @@ it('uses an inclusive UTC cutoff for cleanup and excludes active diagnostic runs
         \\Illuminate\\Support\\Carbon::setTestNow();
     }
 });
+
+
+it('propagates a recommendation hold to its finding and parent diagnostic run', function () {
+    $owner = legalHoldOwner();
+    $run = legalHoldDiagnosticRun();
+    $finding = DiagnosticFinding::create([
+        'diagnostic_run_id' => $run->id,
+        'fingerprint' => str_repeat('e', 64),
+        'category' => 'configuration',
+        'severity' => 'low',
+        'title' => 'Recommendation-held finding',
+        'summary' => 'Legal hold descendant fixture',
+        'evidence' => [],
+        'confidence' => 0.9,
+        'status' => 'open',
+    ]);
+    $recommendation = DiagnosticRecommendation::create([
+        'diagnostic_finding_id' => $finding->id,
+        'recommendation' => 'Preserve this recommendation',
+        'rationale' => 'Legal hold descendant fixture',
+        'risk_level' => 'low',
+        'requires_manual_action' => true,
+    ]);
+
+    $service = app(LegalHoldService::class);
+    $service->place(
+        $owner,
+        'diagnostic_recommendation',
+        $recommendation->id,
+        'Preserve this recommendation for a formal legal matter',
+        'CASE-2026-0045',
+    );
+
+    expect($service->isHeld('diagnostic_recommendation', $recommendation->id))->toBeTrue()
+        ->and($service->isHeld('diagnostic_finding', $finding->id))->toBeTrue()
+        ->and($service->isHeld('diagnostic_run', $run->id))->toBeTrue();
+});
