@@ -2,6 +2,8 @@
 
 use App\Models\AiBudgetPeriod;
 use App\Models\AiUsageAttempt;
+use App\Models\AiTenantBudgetPeriod;
+use App\Models\Tenant;
 use App\Models\AuditEvent;
 use App\Models\DiagnosticRun;
 use App\Models\User;
@@ -12,9 +14,10 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use RuntimeException;
 
-function makeBudgetDiagnosticRun(int $attempts = 1): DiagnosticRun
+function makeBudgetDiagnosticRun(int $attempts = 1, ?Tenant $tenant = null): DiagnosticRun
 {
     $integration = WhmcsIntegration::create([
+        'tenant_id' => $tenant?->id,
         'name' => 'AI budget ledger test',
         'status' => 'active',
         'secret' => bin2hex(random_bytes(32)),
@@ -297,4 +300,73 @@ it('refuses to reserve against an expired model price card', function () {
 
     expect(fn () => app(AiBudgetService::class)->reserve($run, 'gpt-5.6-sol', '2026-11-12.1'))
         ->toThrow(RuntimeException::class, 'budget_price_card_expired');
+});
+
+
+it('enforces tenant daily and monthly budgets while retaining the platform-wide caps', function () {
+    config()->set('ai_budget.tenant_daily_limit_micro_usd', 400_000);
+    config()->set('ai_budget.tenant_monthly_limit_micro_usd', 500_000);
+    $tenantA = Tenant::create(['name' => 'Budget Tenant A', 'slug' => 'budget-tenant-a', 'status' => Tenant::STATUS_ACTIVE]);
+    $tenantB = Tenant::create(['name' => 'Budget Tenant B', 'slug' => 'budget-tenant-b', 'status' => Tenant::STATUS_ACTIVE]);
+    $runA = makeBudgetDiagnosticRun(1, $tenantA);
+    $runB = makeBudgetDiagnosticRun(1, $tenantB);
+    $service = app(AiBudgetService::class);
+
+    $attemptA = $service->reserve($runA, 'gpt-5.6-sol', '2026-11-12.1');
+    $attemptB = $service->reserve($runB, 'gpt-5.6-sol', '2026-11-12.1');
+
+    expect($attemptA->tenant_id)->toBe($tenantA->id)
+        ->and($attemptB->tenant_id)->toBe($tenantB->id)
+        ->and(AiTenantBudgetPeriod::query()->where('tenant_id', $tenantA->id)->where('period_type', 'daily')->sole()->reserved_micro_usd)->toBe(322_144)
+        ->and(AiTenantBudgetPeriod::query()->where('tenant_id', $tenantB->id)->where('period_type', 'daily')->sole()->reserved_micro_usd)->toBe(322_144)
+        ->and(AiBudgetPeriod::query()->where('period_type', 'daily')->sole()->reserved_micro_usd)->toBe(644_288);
+
+    $service->markSubmitted($attemptA);
+    $service->settle($attemptA, ['input_tokens' => 1_000, 'cached_input_tokens' => 0, 'output_tokens' => 500], 'resp_tenant_budget_a');
+
+    expect(AiTenantBudgetPeriod::query()->where('tenant_id', $tenantA->id)->where('period_type', 'daily')->sole()->reserved_micro_usd)->toBe(0)
+        ->and(AiTenantBudgetPeriod::query()->where('tenant_id', $tenantA->id)->where('period_type', 'daily')->sole()->committed_micro_usd)->toBe(14_000)
+        ->and(AiTenantBudgetPeriod::query()->where('tenant_id', $tenantB->id)->where('period_type', 'daily')->sole()->reserved_micro_usd)->toBe(322_144);
+});
+
+it('rejects a tenant budget overrun without consuming platform or tenant capacity', function () {
+    config()->set('ai_budget.tenant_daily_limit_micro_usd', 100_000);
+    config()->set('ai_budget.tenant_monthly_limit_micro_usd', 500_000);
+    $tenant = Tenant::create(['name' => 'Budget Limited Tenant', 'slug' => 'budget-limited-tenant', 'status' => Tenant::STATUS_ACTIVE]);
+    $run = makeBudgetDiagnosticRun(1, $tenant);
+
+    expect(fn () => app(AiBudgetService::class)->reserve($run, 'gpt-5.6-sol', '2026-11-12.1'))
+        ->toThrow(RuntimeException::class, 'budget_tenant_exhausted');
+
+    expect(AiUsageAttempt::query()->count())->toBe(0)
+        ->and(AiBudgetPeriod::query()->count())->toBe(0)
+        ->and(AiTenantBudgetPeriod::query()->count())->toBe(0);
+});
+
+it('does not reserve budget for a suspended tenant', function () {
+    $tenant = Tenant::create(['name' => 'Suspended Budget Tenant', 'slug' => 'suspended-budget-tenant', 'status' => Tenant::STATUS_SUSPENDED]);
+    $run = makeBudgetDiagnosticRun(1, $tenant);
+
+    expect(fn () => app(AiBudgetService::class)->reserve($run, 'gpt-5.6-sol', '2026-11-12.1'))
+        ->toThrow(RuntimeException::class, 'budget_tenant_inactive');
+
+    expect(AiUsageAttempt::query()->count())->toBe(0)
+        ->and(AiBudgetPeriod::query()->count())->toBe(0)
+        ->and(AiTenantBudgetPeriod::query()->count())->toBe(0);
+});
+
+it('releases tenant reservations with the same two-person audited reconciliation', function () {
+    $tenant = Tenant::create(['name' => 'Reconciliation Budget Tenant', 'slug' => 'reconciliation-budget-tenant', 'status' => Tenant::STATUS_ACTIVE]);
+    $run = makeBudgetDiagnosticRun(1, $tenant);
+    $service = app(AiBudgetService::class);
+    $attempt = $service->reserve($run, 'gpt-5.6-sol', '2026-11-12.1');
+    $service->markSubmitted($attempt);
+    $service->markAmbiguous($attempt, 'provider_timeout_after_submit');
+    $operator = User::factory()->create();
+    $approver = User::factory()->create();
+
+    $service->reconcileConfirmedNoCharge($attempt, (string) $operator->id, (string) $approver->id, 'tenant-budget-case-1', 'Verified no provider charge.');
+
+    expect(AiTenantBudgetPeriod::query()->where('tenant_id', $tenant->id)->where('period_type', 'daily')->sole()->reserved_micro_usd)->toBe(0)
+        ->and(AiTenantBudgetPeriod::query()->where('tenant_id', $tenant->id)->where('period_type', 'monthly')->sole()->reserved_micro_usd)->toBe(0);
 });
