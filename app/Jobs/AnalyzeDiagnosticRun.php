@@ -9,6 +9,7 @@ use App\Jobs\Middleware\SetTenantDatabaseContext;
 use App\Services\Diagnostics\AiBudgetService;
 use App\Services\Diagnostics\WhmcsDiagnosticAnalyzer;
 use App\Services\Tenancy\TenantEntitlementService;
+use App\Services\Tenancy\TenantDatabaseContext;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Bus\Queueable;
 use Illuminate\Database\Eloquent\Builder;
@@ -257,13 +258,15 @@ class AnalyzeDiagnosticRun implements ShouldQueue
 
     public function failed(?Throwable $exception): void
     {
-        $this->authorizedRunQuery($this->diagnosticRunId)
-            ->where('status', '!=', 'analyzed')
-            ->update([
-                'status' => 'analysis_failed',
-                'analysis_error_code' => $this->safeErrorCode($exception),
-                'updated_at' => now(),
-            ]);
+        app(TenantDatabaseContext::class)->run($this->tenantId, $this->ownerUserId, function () use ($exception): void {
+            $this->authorizedRunQuery($this->diagnosticRunId)
+                ->where('status', '!=', 'analyzed')
+                ->update([
+                    'status' => 'analysis_failed',
+                    'analysis_error_code' => $this->safeErrorCode($exception),
+                    'updated_at' => now(),
+                ]);
+        });
     }
 
 
