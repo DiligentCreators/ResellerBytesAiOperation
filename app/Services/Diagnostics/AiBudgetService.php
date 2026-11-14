@@ -172,13 +172,14 @@ class AiBudgetService
                 ])->save();
             }
 
+            if ($input > PHP_INT_MAX - $output) {
+                throw new RuntimeException('budget_usage_invalid');
+            }
+            $minimumTotalTokens = $input + $output;
             $totalTokens = $this->usageTokenCount($usage, 'total_tokens');
             if ($totalTokens === 0) {
-                if ($input > PHP_INT_MAX - $output) {
-                    throw new RuntimeException('budget_usage_invalid');
-                }
-                $totalTokens = $input + $output;
-            } elseif ($totalTokens < $input + $output) {
+                $totalTokens = $minimumTotalTokens;
+            } elseif ($totalTokens < $minimumTotalTokens) {
                 throw new RuntimeException('budget_usage_invalid');
             }
 
