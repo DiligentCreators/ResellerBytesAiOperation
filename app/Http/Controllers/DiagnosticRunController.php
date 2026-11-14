@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Throwable;
 
 class DiagnosticRunController extends Controller
@@ -18,6 +19,7 @@ class DiagnosticRunController extends Controller
     public function index(): Response
     {
         $runs = DiagnosticRun::query()
+            ->whereHas('integration', fn ($query) => $query->where('owner_user_id', Auth::id()))
             ->with('integration:id,name')
             ->withCount('findings')
             ->latest('received_at')
@@ -39,12 +41,14 @@ class DiagnosticRunController extends Controller
 
     public function reanalyze(DiagnosticRun $diagnosticRun): RedirectResponse
     {
+        $this->authorizeRun($diagnosticRun);
         abort_unless(filled(config('services.openai.key')), 503, 'AI analysis is not configured.');
 
         $expired = false;
         $queued = DB::transaction(function () use ($diagnosticRun, &$expired): bool {
             $run = DiagnosticRun::query()
                 ->whereKey($diagnosticRun->id)
+                ->whereHas('integration', fn ($query) => $query->where('owner_user_id', Auth::id()))
                 ->lockForUpdate()
                 ->firstOrFail();
 
@@ -86,6 +90,7 @@ class DiagnosticRunController extends Controller
         } catch (Throwable $exception) {
             DiagnosticRun::query()
                 ->whereKey($diagnosticRun->id)
+                ->whereHas('integration', fn ($query) => $query->where('owner_user_id', Auth::id()))
                 ->where('status', 'queued')
                 ->update([
                     'status' => 'analysis_failed',
@@ -107,6 +112,7 @@ class DiagnosticRunController extends Controller
 
     public function show(DiagnosticRun $diagnosticRun): Response
     {
+        $this->authorizeRun($diagnosticRun);
         $diagnosticRun->load([
             'integration:id,name',
             'findings.recommendations',
@@ -136,5 +142,12 @@ class DiagnosticRunController extends Controller
                 ]),
             ],
         ]);
+    }
+
+    private function authorizeRun(DiagnosticRun $run): void
+    {
+        if (! $run->integration()->where('owner_user_id', Auth::id())->exists()) {
+            throw new NotFoundHttpException();
+        }
     }
 }
