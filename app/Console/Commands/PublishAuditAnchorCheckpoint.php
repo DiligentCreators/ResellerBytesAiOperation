@@ -46,7 +46,9 @@ final class PublishAuditAnchorCheckpoint extends Command
         $this->line('Object key: '.$result['object_key']);
         $this->line('Object VersionId: '.$result['object_version_id']);
         $this->line('Checkpoint SHA-256: '.$result['checkpoint_sha256']);
+        $this->line('Environment: '.$result['environment']);
         $this->line('Anchored sequence: '.$result['chain_sequence']);
+        $this->line('Object Lock mode: '.$result['retention_mode']);
         $this->line('COMPLIANCE retain-until UTC: '.$result['retain_until']);
         $this->line('Reconciled after create error: '.($result['reconciled_after_create_error'] ? 'yes' : 'no'));
 
