@@ -151,6 +151,11 @@ BEGIN
         IF NEW.tenant_id IS DISTINCT FROM expected_tenant THEN
             RAISE EXCEPTION 'audit_event_tenant_mismatch' USING ERRCODE = '23514';
         END IF;
+    ELSIF NEW.subject_type = 'ai_usage_attempt' THEN
+        SELECT tenant_id INTO expected_tenant FROM ai_usage_attempts WHERE id::text = NEW.subject_id;
+        IF NEW.tenant_id IS DISTINCT FROM expected_tenant THEN
+            RAISE EXCEPTION 'audit_event_tenant_mismatch' USING ERRCODE = '23514';
+        END IF;
     ELSIF NEW.subject_type = 'tenant_billing_payment' THEN
         SELECT tenant_id INTO expected_tenant FROM tenant_billing_payments WHERE id::text = NEW.subject_id;
         IF NEW.tenant_id IS DISTINCT FROM expected_tenant THEN
@@ -196,6 +201,7 @@ WHEN (NEW.subject_type = 'tenant' AND NEW.tenant_id IS NOT NEW.subject_id)
  OR (NEW.subject_type = 'diagnostic_run' AND NEW.tenant_id IS NOT (SELECT tenant_id FROM diagnostic_runs WHERE id = NEW.subject_id))
  OR (NEW.subject_type = 'diagnostic_finding' AND NEW.tenant_id IS NOT (SELECT tenant_id FROM diagnostic_findings WHERE id = NEW.subject_id))
  OR (NEW.subject_type = 'diagnostic_recommendation' AND NEW.tenant_id IS NOT (SELECT tenant_id FROM diagnostic_recommendations WHERE id = NEW.subject_id))
+ OR (NEW.subject_type = 'ai_usage_attempt' AND NEW.tenant_id IS NOT (SELECT tenant_id FROM ai_usage_attempts WHERE id = NEW.subject_id))
  OR (NEW.subject_type = 'tenant_billing_payment' AND NEW.tenant_id IS NOT (SELECT tenant_id FROM tenant_billing_payments WHERE id = CAST(NEW.subject_id AS INTEGER)))
  OR (NEW.subject_type = 'tenant_billing_invoice' AND NEW.tenant_id IS NOT (SELECT tenant_id FROM tenant_billing_invoices WHERE id = CAST(NEW.subject_id AS INTEGER)))
 BEGIN SELECT RAISE(ABORT, 'audit_event_tenant_mismatch'); END;
