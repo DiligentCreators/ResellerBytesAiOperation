@@ -74,7 +74,7 @@ it('does not report delivery when a required route is missing or a webhook does 
         'operations.alerts.slack_webhook_url' => null,
         'operations.alerts.discord_webhook_url' => null,
     ]);
-    Http::fake();
+    Http::fake(['https://hooks.slack.test/*' => Http::response([], 503)]);
 
     $missing = app(AlertNotificationDispatcher::class)->dispatch([
         'code' => 'queue_job_age_exceeded',
@@ -87,7 +87,6 @@ it('does not report delivery when a required route is missing or a webhook does 
         ->and($missing['deliveries']['team_channel'])->toBe('missing');
 
     config(['operations.alerts.slack_webhook_url' => 'https://hooks.slack.test/alerts']);
-    Http::fake(['https://hooks.slack.test/*' => Http::response([], 503)]);
 
     $failed = app(AlertNotificationDispatcher::class)->dispatch([
         'code' => 'queue_job_age_exceeded',

@@ -11,6 +11,8 @@ use Throwable;
 
 final class AlertStateService
 {
+    public function __construct(private readonly AlertNotificationDispatcher $dispatcher) {}
+
     /**
      * @param  list<array{code: string, severity: string, observed: int|float|null, threshold: int|float, window_minutes?: int}>  $alerts
      * @return array{active_alerts: int, notifications_sent: int, notifications_failed: int}
@@ -96,7 +98,7 @@ final class AlertStateService
             }
 
             try {
-                $delivery = app(AlertNotificationDispatcher::class)->dispatch($alert, $observedAt);
+                $delivery = $this->dispatcher->dispatch($alert, $observedAt);
                 if ($delivery['success'] === true) {
                     DB::table('operations_alert_states')
                         ->where('code', $code)

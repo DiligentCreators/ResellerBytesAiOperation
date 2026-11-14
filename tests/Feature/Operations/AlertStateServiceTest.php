@@ -74,6 +74,7 @@ it('retries failed delivery and re-notifies after an alert resolves and returns'
         ->once()
         ->andReturn(['success' => true, 'deliveries' => ['email' => 'delivered', 'team_channel' => 'delivered']]);
     app()->instance(AlertNotificationDispatcher::class, $reactivatingDispatcher);
+    $service = app(AlertStateService::class);
 
     $reactivated = $service->process([$alert], $start->addMinutes(3));
 

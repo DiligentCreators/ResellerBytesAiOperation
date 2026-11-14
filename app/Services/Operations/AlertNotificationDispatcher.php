@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Throwable;
 
-final class AlertNotificationDispatcher
+class AlertNotificationDispatcher
 {
     /**
      * @param  array{code: string, severity: string, observed: int|float|null, threshold: int|float, window_minutes?: int}  $alert
