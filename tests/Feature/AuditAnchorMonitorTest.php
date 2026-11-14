@@ -265,3 +265,48 @@ it('emits redacted schema-conformant evidence when the checkpoint timestamp is t
         @unlink($path);
     }
 });
+
+it('emits redacted schema-conformant evidence when the signed checkpoint timestamp is malformed', function () {
+    $path = writeAuditAnchorMonitorFixture();
+    $envelope = json_decode(file_get_contents($path), true, 512, JSON_THROW_ON_ERROR);
+    $envelope['payload']['created_at'] = '2026-02-31T25:61:61.000000Z';
+    $secretKey = base64_decode(config('audit.anchor.private_key'), true);
+    $message = "resellerbytes.audit-anchor.v1\\n".json_encode(
+        $envelope['payload'],
+        JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRESERVE_ZERO_FRACTION
+    );
+    $envelope['signature'] = base64_encode(sodium_crypto_sign_detached($message, $secretKey));
+    file_put_contents($path, json_encode(
+        $envelope,
+        JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT
+    )."\\n");
+
+    try {
+        expect(Artisan::call('audit:anchor:monitor', [
+            'checkpoint' => $path,
+            '--json' => true,
+        ]))->toBe(1);
+
+        $output = Artisan::output();
+        $evidence = json_decode(trim($output), true, 512, JSON_THROW_ON_ERROR);
+        $schema = json_decode(file_get_contents(base_path('docs/operations/audit-anchor-alert-evidence.schema.json')), true, 512, JSON_THROW_ON_ERROR);
+
+        expect(array_keys($evidence))->toBe($schema['required'])
+            ->and($schema['properties']['reason_code']['enum'])->toContain($evidence['reason_code'])
+            ->and($evidence)->toMatchArray([
+                'schema_version' => 1,
+                'status' => 'failed',
+                'reason_code' => 'invalid_timestamp',
+                'checkpoint_sha256' => null,
+                'anchor_sequence' => null,
+                'local_sequence' => null,
+                'unanchored_tail' => null,
+                'checkpoint_age_seconds' => null,
+                'exit_code' => 1,
+            ])
+            ->and($output)->not->toContain('2026-02-31T25:61:61.000000Z');
+    } finally {
+        @unlink($path);
+    }
+});
+
