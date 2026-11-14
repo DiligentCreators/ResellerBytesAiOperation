@@ -676,3 +676,16 @@ inferred from the repository changes.
 - Migration is authored only; it has not been executed against any database. No tenant or membership records have been provisioned. Tests have not been executed because the required PHP 8.5 runtime/dependencies are unavailable.
 - Remaining: tenant-scope all domain queries and nested resources; enforce role policy across controllers; tenant attribution and atomic caps for AI usage/billing; tenant attribution/hash versioning for immutable audit events; tenant-bound jobs, exports, downloads, notifications; DB integrity/RLS; migration/backfill rehearsal and verification.
 - All commits retain [skip ci]. No workflows/settings changed. PR #2 stays open and Draft; no merge or deployment.
+
+
+## Tenant application authorization and queue context — 2026-11-15
+
+- Added centralized `TenantRecordQuery`: legacy records with null tenant_id remain visible only to their recorded owner; tenant-assigned records require an active tenant and active recognized membership. Tenant ownership overrides the historical integration owner field.
+- Applied membership-aware query scopes to integration lists, diagnostic-run lists/details, finding lists/details, and dashboard statistics/latest runs. Detail authorization is checked before nested diagnostic evidence and recommendations are loaded.
+- Kept manual reanalysis owner-only because the complete tenant-aware user action, role policy, and audit actor/tenant context are not yet complete.
+- Analysis jobs now serialize the captured tenant UUID and verify the same integration owner + tenant assignment + active tenant at initial execution, immediately before provider submission, and before persisting results. Failure updates are scoped to the captured tenant context.
+- Updated stale queue recovery to select active tenant records, carry tenant UUID into redispatched jobs, and ignore tenant-owned runs for inactive tenants. Legacy unassigned recovery remains owner-bound.
+- Added feature regression coverage for tenant-member access through controllers, former-owner and outsider denial, revoked membership, tenant reassignment during queue execution, suspended-tenant job rejection, and recovery carrying the correct tenant ID.
+- Tests remain unexecuted (PHP 8.5/runtime dependencies unavailable). No migration was executed and no tenant mapping/backfill was performed.
+- Remaining tenant roadmap work: tenant attribution for AI usage/budget periods and billing; audit event tenant attribution with hash-version-safe global chain; role-specific writes; tenant-aware reanalysis; exports/downloads/webhooks/notifications; composite constraints; PostgreSQL RLS and migration/backfill rehearsal.
+- All commits include [skip ci]. No workflows or repo settings changed. PR #2 remains open and Draft; no merge or deployment.
