@@ -127,11 +127,11 @@ The rehearsal is successful only when all of the following are recorded and inde
 
 Any failed check, unverifiable checkpoint, missing backup object lock, privilege escalation, or unexplained audit-tail gap is a failed rehearsal. Preserve sanitized evidence, stop the recovery exercise, and escalate to the project Owner and independent security reviewer.
 
-## Shahrukh ke liye pending
+## Pending for Shahrukh
 
-- Provision the separate cloud/security account and backup bucket with the approved 365-day Object Lock retention; provide object-version and retention read-back evidence.
-- Arrange approved backup read access and an isolated recovery PostgreSQL environment for rehearsal. Any future production restore still requires explicit approval at the time of the incident.
-- Provision independent Ed25519 signing/anchor key custody and supply the trusted public verification key through the approved secure channel.
-- Provide secret-manager access and approve the isolated rehearsal window. Production restore approval remains event-specific and must be explicit.
+- Create and fund the separate cloud/security account and provide approved backup/restore rehearsal access with an isolated recovery PostgreSQL environment.
+- Provide secret-manager access for backup decryption and the trusted production public verification key. Never send passwords or private keys through chat.
+- Any production restore remains gated by explicit, incident-specific Shahrukh approval; the approved RPO/RTO do not constitute standing restore authorization.
+
 
 No production backup, password, secret, or private key is requested in chat or stored in this repository.
