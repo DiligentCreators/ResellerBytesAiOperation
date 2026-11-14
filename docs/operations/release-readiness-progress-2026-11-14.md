@@ -544,3 +544,12 @@ inferred from the repository changes.
 - Tests are committed but not executed in this environment. Validate request path canonicalization, Laravel test response assertions, and schema compatibility in the final PHP 8.5 CI run.
 - Current head: `0dcc3e715fd3145ae294b4419021f03ecf927fc2`. Intermediate commits use [skip ci]. No workflow file or repository setting was modified; CI remains deferred.
 
+
+## Follow-up verification checkpoint — 2026-11-14
+
+- Corrected both PostgreSQL anonymous-block delimiters in the role-separation runbook to valid `DO $$ ... $$;` syntax; verified the final file contains no malformed single-dollar `DO $` block.
+- Completed the WHMCS authentication feature-test helper wiring: the tests bind to the Pest/Laravel test case and exercise the actual API route. Source-level inspection confirms all helper invocations pass the test case.
+- Compare from the prior checkpoint `fcdf05e528bf0cd4f2d2a943e16f81093df6802e` shows only the PostgreSQL role runbook, this progress log, and the new WHMCS authentication feature test changed. No workflow files are in this follow-up diff.
+- Latest code head: `7bc3039d394e3cc2d5f8a8c933b86d025f9c5c4b`. Exact-head workflow runs: none (all intermediate commits use [skip ci]). No full tests have been executed; PHP 8.5 and the mounted repository/dependency environment are unavailable here.
+- PR #2 remains open and Draft, not merged. No deployment, production migration, live WHMCS call, production credential use, or repository-setting change occurred.
+
