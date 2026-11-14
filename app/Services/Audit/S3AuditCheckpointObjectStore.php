@@ -198,7 +198,12 @@ final class S3AuditCheckpointObjectStore implements AuditCheckpointObjectStore
         }
 
         try {
-            return json_decode($this->run($settings, $arguments), true, 512, JSON_THROW_ON_ERROR);
+            $response = json_decode($this->run($settings, $arguments), true, 512, JSON_THROW_ON_ERROR);
+            if (! is_array($response)) {
+                throw new RuntimeException('audit_anchor_storage_invalid_response');
+            }
+
+            return $response;
         } catch (RuntimeException $exception) {
             if (str_contains($exception->getMessage(), 'NoSuchKey')
                 || str_contains($exception->getMessage(), 'Not Found')
