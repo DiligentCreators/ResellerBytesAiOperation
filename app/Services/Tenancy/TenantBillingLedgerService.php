@@ -127,6 +127,21 @@ class TenantBillingLedgerService
                 'occurred_at' => $record->received_at,
             ]);
 
+            app(TenantBillingOutbox::class)->enqueue(
+                $tenantId,
+                'billing.payment.recorded:'.$record->id,
+                'billing.payment.recorded',
+                'billing_payment',
+                $record->id,
+                [
+                    'invoice_id' => $invoice->id,
+                    'payment_id' => $record->id,
+                    'amount_minor' => $record->amount_minor,
+                    'currency' => $record->currency,
+                    'invoice_status' => $invoice->status,
+                ],
+            );
+
             return $record;
         }, 3));
     }
