@@ -6,7 +6,7 @@
 - Pull request: [#2 — Release
   readiness](https://github.com/DiligentCreators/ResellerBytesAiOperation/pull/2)
 - Branch: `work/release-readiness-audit`
-- Latest reviewed head: `775a2330ad80eb32f1ae21a2ba29b5b755cd7780`
+- Latest reviewed head: `b6a77893a3836c1ec7f8763b255a116a6413fbf2`
 - PR remains open and Draft. No merge, production migration, deployment, or live WHMCS
   change has been performed.
 
@@ -418,3 +418,35 @@ inferred from the repository changes.
 - PR #2 remains open and Draft. No merge, production migration, deployment, or live
   WHMCS operation is authorized.
 
+## Static source review follow-up — retention and alert lifecycle
+
+- Closed a retention-policy gap: the cleanup command no longer excludes received,
+  queued, or analyzing diagnostic runs at the 365-day UTC cutoff. Active legal-hold
+  metadata is expired and audited before the diagnostic content is deleted.
+- Analysis jobs now refuse to start for expired diagnostics, queue recovery skips expired
+  runs, and the provider pre-submit callback re-locks/rechecks the diagnostic row before
+  marking an AI attempt submitted. If the retention cutoff is reached before submission,
+  the reservation is released and no provider request is made.
+- Updated regression coverage for inclusive cutoff deletion of active-status runs,
+  expired queue-recovery suppression, analysis-start rejection, and reservation release
+  at the pre-submit expiry boundary.
+- The independent alert review found that missing metrics could incorrectly clear an
+  existing alert. Alert resolution now requires a known/evaluated metric; unavailable
+  error-rate, latency, disk, or queue data preserves the active state. Known healthy
+  samples resolve the corresponding alert. The active-alert count reflects persisted
+  states, and policy/state regression tests cover the behavior.
+- Backup/restore hardening remains in place: manifest v2 binds database name/host/port;
+  exact manifest and archive VersionIds are verified; manifest bytes receive an
+  exact-version SHA-256 read-back; restore refuses endpoint mismatches.
+- Retention, backup, alert, security-review, and progress documentation were reconciled.
+  The PR description now correctly states absolute diagnostic expiry with no exceptions
+  and indefinite live audit-event retention.
+- Current exact head: b6a77893a3836c1ec7f8763b255a116a6413fbf2. All intermediate
+  commits in this batch include [skip ci]. No workflow file or repository setting was
+  changed. CI has not been triggered for this head by design; full tests and exact-head
+  CI remain pending until the final one-shot commit.
+- The current assistant environment cannot run the repository test suite: the project
+  requires PHP 8.5, while only PHP 8.4 is available and the checkout/dependencies are not
+  mounted. Static review is not represented as test execution.
+- PR #2 remains open and Draft. No merge, production migration, deployment, or live
+  WHMCS operation is authorized.
