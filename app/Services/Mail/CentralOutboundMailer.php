@@ -68,6 +68,10 @@ class CentralOutboundMailer
                 'local_domain' => parse_url((string) config('app.url'), PHP_URL_HOST) ?: 'localhost',
             ]);
 
+            if ($encryption === 'none') {
+                $mailer->getSymfonyTransport()->setAutoTls(false);
+            }
+
             $mailer->html($html, function ($message) use ($to, $subject, $from, $name, $text): void {
                 $message->to($to)->from($from, $name)->subject($subject)->text($text);
             });
