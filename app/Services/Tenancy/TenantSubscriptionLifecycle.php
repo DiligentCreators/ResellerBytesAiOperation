@@ -127,6 +127,19 @@ class TenantSubscriptionLifecycle
                     'occurred_at' => $now,
                 ]);
 
+                app(TenantBillingOutbox::class)->enqueue(
+                    $tenantId,
+                    'billing.subscription.status_changed:'.$subscription->id.':'.$subscription->updated_at?->getTimestamp(),
+                    'billing.subscription.status_changed',
+                    'tenant_subscription',
+                    $subscription->id,
+                    [
+                        'previous_status' => $previousStatus,
+                        'new_status' => $targetStatus,
+                        'grace_ends_at' => $grace?->utc()->toIso8601String(),
+                    ],
+                );
+
                 return $subscription->refresh();
             }, 3),
         );
