@@ -272,7 +272,7 @@ it('rolls back diagnostic deletion when its immutable audit event cannot be appe
     expect(DB::table('diagnostic_runs')->where('id', $run->id)->exists())->toBeTrue();
 });
 
-it('uses an inclusive UTC cutoff for cleanup and excludes active diagnostic runs', function () {
+it('uses an inclusive UTC cutoff and expires active diagnostic runs at the absolute retention deadline', function () {
     Carbon::setTestNow('2026-11-14 12:00:00');
 
     try {
@@ -294,11 +294,11 @@ it('uses an inclusive UTC cutoff for cleanup and excludes active diagnostic runs
         config(['diagnostics.retention_cleanup_enabled' => true]);
 
         $this->artisan('diagnostics:retention:prune', ['--execute' => true])
-            ->expectsOutputToContain('Deleted 1 expired diagnostic run(s); any active legal holds were separately expired and audited.')
+            ->expectsOutputToContain('Deleted 2 expired diagnostic run(s); any active legal holds were separately expired and audited.')
             ->assertSuccessful();
 
         expect(DB::table('diagnostic_runs')->where('id', $boundaryRun->id)->exists())->toBeFalse()
-            ->and(DB::table('diagnostic_runs')->where('id', $activeRun->id)->exists())->toBeTrue()
+            ->and(DB::table('diagnostic_runs')->where('id', $activeRun->id)->exists())->toBeFalse()
             ->and(DB::table('diagnostic_runs')->where('id', $recentRun->id)->exists())->toBeTrue();
     } finally {
         Carbon::setTestNow();
