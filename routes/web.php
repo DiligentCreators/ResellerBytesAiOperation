@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::inertia('/', 'welcome')->name('home');
 
-Route::middleware(['auth', 'verified', EnsureTwoFactorEnabled::class, SetTenantDatabaseContext::class])->group(function () {
+Route::middleware(['auth', 'verified', EnsureTwoFactorEnabled::class])->group(function () {
     Route::get('dashboard', DashboardController::class)->name('dashboard');
     Route::get('tenants/{tenant}/notifications', [TenantNotificationController::class, 'index'])->middleware('throttle:30,1')->name('tenants.notifications.index');
     Route::post('tenants/{tenant}/notifications/{notification}/read', [TenantNotificationController::class, 'markRead'])->middleware('throttle:30,1')->name('tenants.notifications.read');
