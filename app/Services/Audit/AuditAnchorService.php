@@ -131,7 +131,7 @@ final class AuditAnchorService
                     throw new RuntimeException('audit_chain_sequence_gap');
                 }
 
-                if ((int) ($row->hash_version ?? 0) !== AuditEventCanonicalizer::VERSION
+                if (! in_array((int) ($row->hash_version ?? 0), [1, AuditEventCanonicalizer::VERSION], true)
                     || ! is_string($row->previous_hash)
                     || ! hash_equals($previousHash, $row->previous_hash)) {
                     throw new RuntimeException('audit_chain_previous_hash_mismatch');
@@ -140,6 +140,8 @@ final class AuditAnchorService
                 $event = [
                     'chain_sequence' => $sequence,
                     'previous_hash' => $row->previous_hash,
+                    'hash_version' => (int) $row->hash_version,
+                    'tenant_id' => $row->tenant_id,
                     'actor_type' => $row->actor_type,
                     'actor_id' => $row->actor_id,
                     'event_type' => $row->event_type,
