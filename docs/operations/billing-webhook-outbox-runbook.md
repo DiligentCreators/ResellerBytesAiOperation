@@ -35,14 +35,14 @@ The event bus is an internal extension point. It is not an outbound HTTP webhook
 
 tenant_billing_webhook_events stores a provider-account-scoped, normalized event envelope:
 
-- Tenant, provider, provider account, and provider event ID are bound. Unique constraints prevent duplicate event IDs both within a tenant and for the same provider account.
+- Tenant, provider, provider account, and provider event ID are bound. Unique constraints prevent duplicate event IDs both within a tenant and for the same provider account. Confirmed automated payment rows also persist the originating provider account; refunds/disputes must match that exact account and payment, not merely a provider payment ID.
 - The normalized payload is restricted to allowlisted keys for payment success and subscription past-due/canceled/expired/reactivated events. Raw provider payloads, signature headers, credentials, and arbitrary metadata are not stored.
 - A canonical SHA-256 digest binds the normalized payload. A duplicate with the same digest is an idempotent success; a duplicate with changed content is rejected. Concurrent duplicate inserts recover the winner's row after a unique-key race.
 - First receipt appends a tenant-attributed immutable audit event containing provider, event type, and payload digest only.
 - Supported reconciliation events are invoice.payment_succeeded, invoice.payment_failed, payment.refunded, payment.dispute_opened, payment.dispute_won, payment.dispute_lost, subscription.past_due, subscription.canceled, subscription.expired, subscription.reactivated, and subscription.renewed. Failed payment attempts mark the unpaid invoice past_due and move eligible active/trialing subscriptions into a configurable grace period (default seven days, bounded to 1–30 days). Renewals require a fully settled invoice for the same tenant/subscription and a contiguous period extension; duplicate renewal events for the same paid invoice are idempotent. Reactivation requires a fully settled invoice belonging to the same tenant and subscription.
 - Payment confirmation calls the existing confirmed-payment ledger. Invoice locking, provider payment ID uniqueness, payment idempotency, audit append, and outbox enqueue occur in the same transaction as marking the inbox event processed.
 - Failed payment attempts mark unpaid invoices past_due and place eligible subscriptions into the configurable grace period (default seven days, bounded to 1–30 days). A settled renewal invoice must belong to the same tenant/subscription, match currency, and have confirmed payment ledger coverage; renewal periods must be contiguous and no longer than 366 days.
-- Refunds and dispute lifecycle events are recorded in the append-only tenant_billing_adjustments ledger. Refunds and lost disputes reduce the invoice net paid balance; an open dispute does not change entitlements, and a won dispute does not reduce the paid balance. Refund/dispute losses cannot cumulatively exceed the original payment amount. Underpaid subscriptions enter the same grace workflow.
+- Refunds and dispute lifecycle events are recorded in the append-only tenant_billing_adjustments ledger. A composite foreign key binds every adjustment to a payment owned by the same tenant. Refunds and lost disputes reduce the invoice net paid balance; an open dispute does not change entitlements, and a won dispute does not reduce the paid balance. Refund/dispute losses cannot cumulatively exceed the original payment amount. Underpaid subscriptions enter the same grace workflow.
 - Malformed/unsupported events are dead-lettered. Transient failures retry with exponential backoff starting at 30 seconds, capped at six hours, for at most 12 attempts. No raw exception message or payload is written to logs.
 - Processing leases older than five minutes are eligible for recovery. Processed and dead-lettered rows are retained; no automatic purge is configured.
 
@@ -50,7 +50,7 @@ billing:webhooks:reconcile --limit=100 performs the bounded reconciliation pass.
 
 ## PostgreSQL RLS and operations role
 
-The ordinary runtime PostgreSQL login remains tenant-scoped and must not receive BYPASSRLS, table ownership, or superuser rights. Global scheduled reconciliation needs to scan due rows across tenants, so both commands execute through the separate pgsql_operations connection.
+The ordinary runtime PostgreSQL login remains tenant-scoped and must not receive BYPASSRLS, table ownership, or superuser rights. The separately provisioned operations role may receive only the narrowly scoped privileges (and RLS bypass if required for cross-tenant scheduling) needed for these platform billing tasks; it must not be a superuser or table owner. Global scheduled reconciliation needs to scan due rows across tenants, so both commands execute through the separate pgsql_operations connection.
 
 Configure only through the approved secret manager/runtime environment:
 
