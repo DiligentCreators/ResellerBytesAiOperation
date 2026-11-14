@@ -86,6 +86,7 @@ final class AuditCheckpointPublisher
             'checkpoint_sha256' => $digest,
             'chain_sequence' => $sequence,
             'retain_until' => $readBack->retainUntil->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d\TH:i:s\Z'),
+            'reconciled_after_create_error' => $reconciledAfterCreateError,
         ];
     }
 }
