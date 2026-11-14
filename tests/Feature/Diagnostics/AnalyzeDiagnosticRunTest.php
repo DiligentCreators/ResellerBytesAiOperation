@@ -509,6 +509,7 @@ it('does not analyze or mutate a run after its captured tenant assignment change
     ]);
     $run = DiagnosticRun::create([
         'integration_id' => $integration->id,
+        'tenant_id' => $tenant->id,
         'snapshot_uuid' => (string) Str::uuid(),
         'schema_version' => '1.0',
         'addon_version' => '1.0.0',
@@ -550,6 +551,7 @@ it('does not start tenant analysis while the captured tenant is suspended', func
     ]);
     $run = DiagnosticRun::create([
         'integration_id' => $integration->id,
+        'tenant_id' => $tenant->id,
         'snapshot_uuid' => (string) Str::uuid(),
         'schema_version' => '1.0',
         'addon_version' => '1.0.0',
@@ -577,7 +579,7 @@ it('denies tenant AI analysis without an active subscription feature entitlement
     $tenant = Tenant::create(['name' => 'Unentitled Analysis Tenant', 'slug' => 'unentitled-analysis-tenant', 'status' => Tenant::STATUS_ACTIVE]);
     $owner = User::factory()->create();
     $integration = WhmcsIntegration::create(['owner_user_id' => $owner->id, 'tenant_id' => $tenant->id, 'name' => 'Unentitled analysis integration', 'status' => 'active', 'secret' => bin2hex(random_bytes(32)), 'secret_version' => 1]);
-    $run = DiagnosticRun::create(['integration_id' => $integration->id, 'snapshot_uuid' => (string) Str::uuid(), 'schema_version' => '1.0', 'addon_version' => '1.0.0', 'status' => 'received', 'collected_at' => now(), 'received_at' => now(), 'payload' => ['system' => ['whmcs_version' => '8.13.7']], 'payload_sha256' => str_repeat('d', 64)]);
+    $run = DiagnosticRun::create(['integration_id' => $integration->id, 'tenant_id' => $tenant->id, 'snapshot_uuid' => (string) Str::uuid(), 'schema_version' => '1.0', 'addon_version' => '1.0.0', 'status' => 'received', 'collected_at' => now(), 'received_at' => now(), 'payload' => ['system' => ['whmcs_version' => '8.13.7']], 'payload_sha256' => str_repeat('d', 64)]);
 
     $analyzer = Mockery::mock(WhmcsDiagnosticAnalyzer::class);
     $analyzer->shouldNotReceive('analyze');
