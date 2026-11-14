@@ -91,7 +91,6 @@ return new class extends Migration
             'tenant_subscriptions',
             'tenant_billing_invoices',
             'tenant_billing_payments',
-            'tenant_notifications',
         ];
 
         $membership = "EXISTS (SELECT 1 FROM tenant_memberships AS rls_membership WHERE rls_membership.tenant_id = tenants.id AND rls_membership.user_id = NULLIF(current_setting('app.current_user_id', true), '')::bigint AND rls_membership.status = 'active')";
@@ -100,7 +99,7 @@ return new class extends Migration
 
         DB::statement('ALTER TABLE whmcs_integrations ENABLE ROW LEVEL SECURITY');
         $integrationMembership = "EXISTS (SELECT 1 FROM tenant_memberships AS rls_membership WHERE rls_membership.tenant_id = whmcs_integrations.tenant_id AND rls_membership.user_id = NULLIF(current_setting('app.current_user_id', true), '')::bigint AND rls_membership.status = 'active')";
-        $integrationScope = "(tenant_id IS NULL OR tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid OR {$integrationMembership})";
+        $integrationScope = "((tenant_id IS NULL AND owner_user_id = NULLIF(current_setting('app.current_user_id', true), '')::bigint) OR tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid OR {$integrationMembership})";
         DB::statement("CREATE POLICY tenant_integration_select ON whmcs_integrations FOR SELECT USING ({$integrationScope} OR id = NULLIF(current_setting('app.integration_lookup_id', true), '')::uuid)");
         DB::statement("CREATE POLICY tenant_integration_write ON whmcs_integrations FOR ALL USING ({$integrationScope}) WITH CHECK ({$integrationScope})");
 
@@ -110,9 +109,33 @@ return new class extends Migration
         foreach ($tenantTables as $table) {
             DB::statement("ALTER TABLE {$table} ENABLE ROW LEVEL SECURITY");
             $membership = "EXISTS (SELECT 1 FROM tenant_memberships AS rls_membership WHERE rls_membership.tenant_id = {$table}.tenant_id AND rls_membership.user_id = NULLIF(current_setting('app.current_user_id', true), '')::bigint AND rls_membership.status = 'active')";
-            $scope = "(tenant_id IS NULL OR tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid OR {$membership})";
+            $scope = "(tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid OR {$membership})";
+
+            if ($table === 'diagnostic_runs') {
+                $legacyOwner = "EXISTS (SELECT 1 FROM whmcs_integrations AS rls_integration WHERE rls_integration.id = diagnostic_runs.integration_id AND rls_integration.owner_user_id = NULLIF(current_setting('app.current_user_id', true), '')::bigint)";
+                $scope = "({$scope} OR (tenant_id IS NULL AND {$legacyOwner}))";
+            } elseif ($table === 'diagnostic_findings') {
+                $legacyOwner = "EXISTS (SELECT 1 FROM diagnostic_runs AS rls_run INNER JOIN whmcs_integrations AS rls_integration ON rls_integration.id = rls_run.integration_id WHERE rls_run.id = diagnostic_findings.diagnostic_run_id AND rls_integration.owner_user_id = NULLIF(current_setting('app.current_user_id', true), '')::bigint)";
+                $scope = "({$scope} OR (tenant_id IS NULL AND {$legacyOwner}))";
+            } elseif ($table === 'diagnostic_recommendations') {
+                $legacyOwner = "EXISTS (SELECT 1 FROM diagnostic_findings AS rls_finding INNER JOIN diagnostic_runs AS rls_run ON rls_run.id = rls_finding.diagnostic_run_id INNER JOIN whmcs_integrations AS rls_integration ON rls_integration.id = rls_run.integration_id WHERE rls_finding.id = diagnostic_recommendations.diagnostic_finding_id AND rls_integration.owner_user_id = NULLIF(current_setting('app.current_user_id', true), '')::bigint)";
+                $scope = "({$scope} OR (tenant_id IS NULL AND {$legacyOwner}))";
+            } elseif ($table === 'ai_usage_attempts') {
+                $legacyOwner = "EXISTS (SELECT 1 FROM diagnostic_runs AS rls_run INNER JOIN whmcs_integrations AS rls_integration ON rls_integration.id = rls_run.integration_id WHERE rls_run.id = ai_usage_attempts.diagnostic_run_id AND rls_integration.owner_user_id = NULLIF(current_setting('app.current_user_id', true), '')::bigint)";
+                $scope = "({$scope} OR (tenant_id IS NULL AND {$legacyOwner}))";
+            } elseif ($table === 'audit_events') {
+                $legacyActor = "((audit_events.actor_type = 'user' AND audit_events.actor_id = NULLIF(current_setting('app.current_user_id', true), '')) OR (audit_events.actor_type = 'integration' AND EXISTS (SELECT 1 FROM whmcs_integrations AS rls_integration WHERE rls_integration.id::text = audit_events.actor_id AND rls_integration.owner_user_id = NULLIF(current_setting('app.current_user_id', true), '')::bigint)))";
+                $scope = "({$scope} OR (tenant_id IS NULL AND {$legacyActor}))";
+            }
+
             DB::statement("CREATE POLICY tenant_isolation_policy ON {$table} USING ({$scope}) WITH CHECK ({$scope})");
         }
+
+        DB::statement('ALTER TABLE tenant_notifications ENABLE ROW LEVEL SECURITY');
+        $notificationMembership = "EXISTS (SELECT 1 FROM tenant_memberships AS rls_membership WHERE rls_membership.tenant_id = tenant_notifications.tenant_id AND rls_membership.user_id = tenant_notifications.user_id AND rls_membership.status = 'active')";
+        DB::statement("CREATE POLICY tenant_notifications_select ON tenant_notifications FOR SELECT USING (user_id = NULLIF(current_setting('app.current_user_id', true), '')::bigint AND {$notificationMembership})");
+        DB::statement("CREATE POLICY tenant_notifications_insert ON tenant_notifications FOR INSERT WITH CHECK (tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid AND {$notificationMembership})");
+        DB::statement("CREATE POLICY tenant_notifications_update ON tenant_notifications FOR UPDATE USING (user_id = NULLIF(current_setting('app.current_user_id', true), '')::bigint AND {$notificationMembership}) WITH CHECK (user_id = NULLIF(current_setting('app.current_user_id', true), '')::bigint AND {$notificationMembership})");
     }
 
     public function down(): void
@@ -124,7 +147,11 @@ return new class extends Migration
                 'ai_usage_attempts', 'diagnostic_recommendations', 'diagnostic_findings',
                 'diagnostic_runs', 'tenant_memberships',
             ] as $table) {
-                if ($table === 'whmcs_integrations') {
+                if ($table === 'tenant_notifications') {
+                    DB::statement('DROP POLICY IF EXISTS tenant_notifications_select ON tenant_notifications');
+                    DB::statement('DROP POLICY IF EXISTS tenant_notifications_insert ON tenant_notifications');
+                    DB::statement('DROP POLICY IF EXISTS tenant_notifications_update ON tenant_notifications');
+                } elseif ($table === 'whmcs_integrations') {
                     DB::statement('DROP POLICY IF EXISTS tenant_integration_select ON whmcs_integrations');
                     DB::statement('DROP POLICY IF EXISTS tenant_integration_write ON whmcs_integrations');
                 } else {
