@@ -8,6 +8,7 @@ use DateTimeZone;
 use JsonException;
 use RuntimeException;
 use SodiumException;
+use Throwable;
 
 final class AuditCheckpointPublisher
 {
@@ -19,7 +20,7 @@ final class AuditCheckpointPublisher
     ) {}
 
     /**
-     * @return array{object_key: string, object_version_id: string, checkpoint_sha256: string, chain_sequence: int, retain_until: string}
+     * @return array{object_key: string, object_version_id: string, checkpoint_sha256: string, chain_sequence: int, retain_until: string, reconciled_after_create_error: bool}
      *
      * @throws JsonException
      * @throws SodiumException
@@ -42,8 +43,25 @@ final class AuditCheckpointPublisher
         $sequence = $verified['anchor_sequence'];
         $objectKey = sprintf('audit-anchors/%s/sequence-%020d/%s.json', $environment, $sequence, $digest);
         $retainUntil = (new DateTimeImmutable('now', new DateTimeZone('UTC')))->modify('+'.self::RETENTION_DAYS.' days');
-        // A duplicate or ambiguous create is an error. Never retry with overwrite semantics.
-        $created = $this->store->createImmutableIfAbsent($objectKey, $checkpointBytes, $retainUntil);
+        // Never retry a create. After an error, resolve only the deterministic key and
+        // accept it only after exact-version content and retention read-back.
+        $reconciledAfterCreateError = false;
+        try {
+            $created = $this->store->createImmutableIfAbsent($objectKey, $checkpointBytes, $retainUntil);
+        } catch (Throwable $createException) {
+            try {
+                $created = $this->store->findImmutableObject($objectKey);
+            } catch (Throwable $lookupException) {
+                throw new RuntimeException('audit_anchor_publish_outcome_ambiguous', 0, $lookupException);
+            }
+
+            if ($created === null) {
+                throw new RuntimeException('audit_anchor_publish_outcome_unresolved', 0, $createException);
+            }
+
+            $reconciledAfterCreateError = true;
+        }
+
         if (! is_string($created->versionId) || $created->versionId === '') {
             throw new RuntimeException('audit_anchor_publish_version_missing');
         }
