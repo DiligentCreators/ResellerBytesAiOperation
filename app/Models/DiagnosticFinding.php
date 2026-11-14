@@ -28,6 +28,7 @@ class DiagnosticFinding extends Model
 
     protected $fillable = [
         'diagnostic_run_id',
+        'tenant_id',
         'fingerprint',
         'category',
         'severity',
