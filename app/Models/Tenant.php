@@ -92,6 +92,18 @@ class Tenant extends Model
         return $this->hasMany(TenantBillingPayment::class);
     }
 
+    /** @return HasMany<TenantBillingOutboxMessage, $this> */
+    public function billingOutboxMessages(): HasMany
+    {
+        return $this->hasMany(TenantBillingOutboxMessage::class, 'tenant_id');
+    }
+
+    /** @return HasMany<TenantBillingWebhookEvent, $this> */
+    public function billingWebhookEvents(): HasMany
+    {
+        return $this->hasMany(TenantBillingWebhookEvent::class, 'tenant_id');
+    }
+
     /** @return HasMany<AiUsageAttempt, $this> */
     public function aiUsageAttempts(): HasMany
     {
