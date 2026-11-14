@@ -665,3 +665,14 @@ inferred from the repository changes.
 - Specified tenant-aware authorization, job context and revalidation, composite integrity constraints, transaction-local PostgreSQL RLS context, export/download/notification boundaries, isolation test matrix, and restartable expand/backfill/verify/contract sequence.
 - No tenant migration or backfill was run. First tenant slug and explicit mapping of legacy integrations are held for Shahrukh's approval; no owner/tenant is inferred. External onboarding and payment collection remain disabled.
 - All commits use [skip ci]. No workflow/repository settings changed. Tests were not executed. PR #2 remains open and Draft; no merge or deployment.
+
+
+## Tenant schema implementation foundation — 2026-11-15
+
+- Authored additive migration `2026_11_15_000002_create_tenants_and_memberships.php`: UUID tenants, unique slug, provisioning/active/suspended/closed lifecycle, creator FK, membership table with tenant/user/inviter restrictive FKs, closed role/status conventions, one row per tenant/user, and supporting indexes.
+- Added nullable `whmcs_integrations.tenant_id` FK/index. Existing integrations remain unassigned; migration contains no default tenant and no guessed backfill.
+- Added `Tenant` and `TenantMembership` Eloquent models, `User` tenant/membership relationships, `WhmcsIntegration` tenant relationship, and `TenantAccess::requireMembership` which denies missing/inactive tenants, missing/inactive memberships, and insufficient roles by default.
+- Added feature tests for explicit membership versus outsider, role restrictions, suspended/revoked membership, and nullable legacy integration tenant assignment.
+- Migration is authored only; it has not been executed against any database. No tenant or membership records have been provisioned. Tests have not been executed because the required PHP 8.5 runtime/dependencies are unavailable.
+- Remaining: tenant-scope all domain queries and nested resources; enforce role policy across controllers; tenant attribution and atomic caps for AI usage/billing; tenant attribution/hash versioning for immutable audit events; tenant-bound jobs, exports, downloads, notifications; DB integrity/RLS; migration/backfill rehearsal and verification.
+- All commits retain [skip ci]. No workflows/settings changed. PR #2 stays open and Draft; no merge or deployment.
