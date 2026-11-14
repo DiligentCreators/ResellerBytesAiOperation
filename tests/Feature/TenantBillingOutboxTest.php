@@ -797,3 +797,41 @@ it('resolves a provider adapter only through the explicit billing provider regis
     expect(app(\\App\\Services\\Tenancy\\BillingProviderAdapterRegistry::class)->resolve('configured_gateway'))
         ->toBe($adapter);
 });
+
+it('rejects a renewal notification when its provider account did not settle the invoice', function () {
+    $tenant = createBillingOutboxTenant('billing-renewal-account-mismatch');
+    $invoice = createBillingOutboxInvoice($tenant, 4900);
+    $subscription = $invoice->subscription;
+
+    app(TenantBillingLedgerService::class)->recordConfirmedPayment($tenant->id, $invoice->id, [
+        'collection_mode' => 'automated',
+        'idempotency_key' => 'renewal-account-mismatch-payment',
+        'amount_minor' => 4900,
+        'currency' => 'USD',
+        'provider' => 'approved_gateway',
+        'provider_account_id' => 'acct_real_settlement',
+        'provider_payment_id' => 'pay_renewal_mismatch',
+        'received_at' => now('UTC'),
+    ]);
+
+    $periodStart = $subscription->current_period_ends_at->startOfSecond();
+    $periodEnd = $periodStart->addMonth();
+    $event = app(TenantBillingWebhookInbox::class)->acceptVerifiedEvent(
+        $tenant->id,
+        'approved_gateway',
+        'evt_renewal_wrong_account',
+        'subscription.renewed',
+        [
+            'subscription_id' => $subscription->id,
+            'settled_invoice_id' => $invoice->id,
+            'period_starts_at' => $periodStart->format('Y-m-d\\TH:i:s.uP'),
+            'period_ends_at' => $periodEnd->format('Y-m-d\\TH:i:s.uP'),
+        ],
+        now('UTC'),
+        'acct_claimed_but_not_paid',
+    );
+
+    expect(Artisan::call('billing:webhooks:reconcile', ['--limit' => 10]))->toBe(0)
+        ->and($event->fresh()->status)->toBe('dead_lettered')
+        ->and($subscription->fresh()->current_period_ends_at->startOfSecond()->equalTo($periodStart))->toBeFalse();
+});
