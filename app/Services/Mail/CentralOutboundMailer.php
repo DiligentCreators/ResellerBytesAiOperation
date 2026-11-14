@@ -10,12 +10,9 @@ use RuntimeException;
 
 class CentralOutboundMailer
 {
-    public function send(string $to, string $subject, string $html, string $text): void
+    private function effectiveConfiguration(?PlatformMailSettings $settings): array
     {
-        $settings = PlatformMailSettings::query()->find(1);
-        $driver = $settings?->driver ?? config('platform_mail.driver', 'log');
-        $stored = $settings?->configuration ?? [];
-        $config = $stored ?: [
+        $config = [
             'from_address' => config('platform_mail.from_address'),
             'from_name' => config('platform_mail.from_name'),
             'host' => config('platform_mail.smtp.host'),
@@ -27,13 +24,29 @@ class CentralOutboundMailer
             'message_stream' => config('platform_mail.postmark.message_stream'),
         ];
 
+        foreach (($settings?->configuration ?? []) as $key => $value) {
+            if ($value !== null && $value !== '') {
+                $config[$key] = $value;
+            }
+        }
+
+        return $config;
+    }
+
+    public function send(string $to, string $subject, string $html, string $text): void
+    {
+        $settings = PlatformMailSettings::query()->find(1);
+        $driver = $settings?->driver ?? config('platform_mail.driver', 'log');
+
         if ($driver === 'log') {
             Log::info('outbound_mail.preview', ['driver' => 'log', 'subject' => $subject]);
             return;
         }
 
+        $config = $this->effectiveConfiguration($settings);
         $from = (string) ($config['from_address'] ?? '');
         $name = str_replace(["\r", "\n", '"', '<', '>'], '', (string) ($config['from_name'] ?? ''));
+
         if (! filter_var($from, FILTER_VALIDATE_EMAIL) || $name === '') {
             throw new RuntimeException('platform_mail_sender_configuration_invalid');
         }
@@ -42,9 +55,11 @@ class CentralOutboundMailer
             if (empty($config['host']) || (int) ($config['port'] ?? 0) < 1) {
                 throw new RuntimeException('platform_mail_smtp_configuration_invalid');
             }
+
+            $encryption = $config['encryption'] ?? 'tls';
             $mailer = Mail::build([
                 'transport' => 'smtp',
-                'scheme' => ($config['encryption'] ?? 'tls') === 'ssl' ? 'smtps' : null,
+                'scheme' => $encryption === 'ssl' ? 'smtps' : null,
                 'host' => $config['host'],
                 'port' => (int) $config['port'],
                 'username' => ($config['username'] ?? '') !== '' ? $config['username'] : null,
@@ -52,18 +67,22 @@ class CentralOutboundMailer
                 'timeout' => 10,
                 'local_domain' => parse_url((string) config('app.url'), PHP_URL_HOST) ?: 'localhost',
             ]);
+
             $mailer->html($html, function ($message) use ($to, $subject, $from, $name, $text): void {
                 $message->to($to)->from($from, $name)->subject($subject)->text($text);
             });
+
             return;
         }
 
         if ($driver === 'postmark') {
             $token = (string) ($config['server_token'] ?? '');
             $stream = (string) ($config['message_stream'] ?? '');
+
             if ($token === '' || $stream === '') {
                 throw new RuntimeException('platform_mail_postmark_configuration_invalid');
             }
+
             Http::acceptJson()
                 ->withHeaders(['X-Postmark-Server-Token' => $token])
                 ->connectTimeout(3)
@@ -77,6 +96,7 @@ class CentralOutboundMailer
                     'TextBody' => $text,
                     'MessageStream' => $stream,
                 ])->throw();
+
             return;
         }
 
