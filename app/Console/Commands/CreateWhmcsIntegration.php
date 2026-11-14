@@ -1,12 +1,16 @@
 <?php
 
-namespace App\Console\Commands;
+namespace App\\Console\\Commands;
 
-use App\Models\User;
-use App\Models\WhmcsIntegration;
-use App\Services\Audit\AuditEventWriter;
-use Illuminate\Console\Command;
-use Illuminate\Support\Facades\DB;
+use App\\Models\\Tenant;
+use App\\Models\\User;
+use App\\Models\\WhmcsIntegration;
+use App\\Services\\Audit\\AuditEventWriter;
+use App\\Services\\Tenancy\\TenantResourceLimitService;
+use App\\Services\\Tenancy\\TenantRoleAuthorization;
+use Illuminate\\Console\\Command;
+use Illuminate\\Support\\Facades\\DB;
+use Illuminate\\Support\\Str;
 
 class CreateWhmcsIntegration extends Command
 {
@@ -44,11 +48,30 @@ class CreateWhmcsIntegration extends Command
             return self::FAILURE;
         }
 
-        $tenantId = trim((string) $this->option('tenant'));\n        if ($tenantId !== '' && ! \\Illuminate\\Support\\Str::isUuid($tenantId)) {\n            $this->error('The --tenant value must be a valid tenant UUID.');\n\n            return self::FAILURE;\n        }\n\n        $secret = bin2hex(random_bytes(32));
+        $tenantId = trim((string) $this->option('tenant'));
+        if ($tenantId !== '' && ! Str::isUuid($tenantId)) {
+            $this->error('The --tenant value must be a valid tenant UUID.');
 
-        $integration = DB::transaction(function () use ($name, $secret, $owner): WhmcsIntegration {
+            return self::FAILURE;
+        }
+
+        $secret = bin2hex(random_bytes(32));
+
+        $integration = DB::transaction(function () use ($name, $secret, $owner, $tenantId): WhmcsIntegration {
+            if ($tenantId !== '') {
+                $tenant = Tenant::query()
+                    ->whereKey($tenantId)
+                    ->where('status', Tenant::STATUS_ACTIVE)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                app(TenantRoleAuthorization::class)->require($owner, $tenant->id, 'integrations.manage');
+                app(TenantResourceLimitService::class)->requireIntegrationCapacity($tenant->id);
+            }
+
             $integration = WhmcsIntegration::create([
                 'owner_user_id' => $owner->getKey(),
+                'tenant_id' => $tenantId !== '' ? $tenantId : null,
                 'name' => $name,
                 'status' => 'active',
                 'secret' => $secret,
@@ -60,9 +83,11 @@ class CreateWhmcsIntegration extends Command
                 'event_type' => 'whmcs_integration.created',
                 'subject_type' => 'whmcs_integration',
                 'subject_id' => $integration->id,
+                'tenant_id' => $tenantId !== '' ? $tenantId : null,
                 'metadata' => [
                     'owner_user_id' => (string) $owner->getKey(),
                     'secret_version' => 1,
+                    'tenant_id' => $tenantId !== '' ? $tenantId : null,
                 ],
                 'occurred_at' => now(),
             ]);
@@ -72,7 +97,10 @@ class CreateWhmcsIntegration extends Command
 
         $this->info('WHMCS integration created.');
         $this->line('Integration ID: '.$integration->id);
-        $this->line('Owner: '.$owner->email);\n        if ($tenantId !== '') {\n            $this->line('Tenant ID: '.$tenantId);\n        }
+        $this->line('Owner: '.$owner->email);
+        if ($tenantId !== '') {
+            $this->line('Tenant ID: '.$tenantId);
+        }
         $this->warn('Integration secret (shown once):');
         $this->line($secret);
         $this->comment('Copy the secret to a secure password manager. It cannot be displayed again.');
