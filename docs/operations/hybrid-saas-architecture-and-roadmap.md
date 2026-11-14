@@ -247,3 +247,13 @@ The tenant migration is authored on the branch but has not been executed; no ten
 - Automated billing and manual invoice/payment paths share the same tenant subscription and entitlement snapshot model. No provider, pricing, or payment collection is activated; Shahrukh approval remains required.
 - Test coverage has been authored for role boundaries, subscription expiry/grace, feature/limit denial, manual reanalysis entitlement, AI entitlement gating, payment idempotency and tenant isolation. Tests remain unexecuted pending PHP 8.5/runtime dependencies.
 - Migration `2026_11_15_000005_create_tenant_billing_entitlements.php` is authored only and has not been executed. No subscription, invoice or payment data has been provisioned.
+
+
+## Tenant audit exports and internal notification inbox — 2026-11-15
+
+- Added owner/admin-only tenant audit CSV export with tenant-scoped query, optional UTC date bounds, immutable chain sequence/hash columns, chunked streaming, CSV formula-injection neutralization, private no-store headers, rate limiting, and an immutable tenant-attributed audit event recording each export request.
+- Added tenant notification inbox storage and JSON endpoints. Reads and mark-read updates are scoped simultaneously by tenant UUID and authenticated recipient user ID; notification publishing requires an active tenant and active membership, bounds payload size, accepts scalar payload values only, and uses a unique deduplication key.
+- Successful tenant diagnostic analysis now creates deduplicated in-app completion notifications for active owner/admin/operator/viewer members in the same database transaction as the analyzed status. Billing-only members do not receive diagnostic notifications. Legacy owner-only diagnostics remain unchanged.
+- Added tests for audit-export role restrictions/cache headers, notification recipient isolation, cross-user mark-read denial, inactive/non-member publication denial, and notification idempotency. Tests are authored, not executed.
+- External tenant webhooks and outbound email/SMS/push notifications remain disabled pending endpoint ownership verification, destination allowlisting/SSRF controls, signed payload key custody, retry/dead-letter policy and Shahrukh's provider/secret configuration. The new inbox is internal only.
+- New migration `2026_11_15_000006_create_tenant_notifications.php` is authored only and has not been executed. Audit export uses the existing tenant-attributed append-only hash chain; no retention changes were made.
