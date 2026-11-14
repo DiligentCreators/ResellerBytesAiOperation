@@ -1,5 +1,6 @@
 <?php
 
+use App\Console\Commands\AssignWhmcsIntegrationTenant;
 use App\Console\Commands\CheckOperationalAlerts;
 use App\Console\Commands\CollectOperationalMetrics;
 use App\Console\Commands\CreateOperationalBackup;
@@ -42,6 +43,7 @@ return Application::configure(basePath: dirname(__DIR__))
         CollectOperationalMetrics::class,
         CreateOperationsUser::class,
         CreateWhmcsIntegration::class,
+        AssignWhmcsIntegrationTenant::class,
         ExportAuditAnchorCheckpoint::class,
         MonitorAuditAnchorCheckpoint::class,
         PublishAuditAnchorCheckpoint::class,
