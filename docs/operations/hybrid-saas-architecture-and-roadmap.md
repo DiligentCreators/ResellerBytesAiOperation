@@ -318,3 +318,15 @@ The tenant migration is authored on the branch but has not been executed; no ten
 - Delivery jobs re-establish tenant RLS context, recheck that the membership is still pending before sending, use bounded queue retries, and log failure metadata without tokens, recipient addresses, or signed invitation URLs. Postmark response failures are surfaced to the queue retry/failure mechanism.
 - No real token or sender identity has been configured. The runtime mailer remains on the local log driver until Shahrukh provisions a Postmark server token and verifies the sender address in Postmark. No SMTP credentials, domain registrar credentials, or mailbox password are required.
 - Tests added for after-commit dispatch, Postmark request shape, signed/account-bound link, local log preview, missing configuration, expiry, and non-mutating GET. Tests are authored but not executed in this environment.
+
+
+### Central platform outbound mail system — 2026-11-15
+
+- Added a central platform-super-admin mail settings screen, authorized only for the configured `OPERATIONS_OWNER_EMAIL` account (with the existing verified-account and two-factor middleware).
+- The selectable drivers are `log`, `smtp`, and `postmark`. SMTP supports host, port, encryption, username/password and sender identity. Postmark supports server token, message stream and sender identity. The driver can be switched without code changes.
+- Settings are stored as a single platform record. The full configuration payload uses Laravel's authenticated encrypted cast at rest; secret fields are never returned to the page, and the UI only indicates whether a secret is already saved. Blank password/token fields preserve the stored secret.
+- Added a central outbound mail service and Laravel mail transport so notification/Mailable traffic using Laravel's default mailer and tenant invitations share the same selected driver. SMTP uses Laravel's Symfony SMTP transport; Postmark uses the transactional API with redirects disabled and bounded connection/total timeouts.
+- The default driver is `log`; no external email is sent until an authorized platform admin saves SMTP or Postmark settings. Environment fallback keys are blank placeholders in `.env.example`; database settings take precedence.
+- Added a rate-limited test-email endpoint and validation for driver-specific required fields, sender identity, SMTP port/encryption, Postmark token/message stream, and recipient.
+- Added feature tests for platform-owner authorization, encrypted-at-rest secrets, UI secret non-disclosure, Postmark HTTP fake, and log-driver no-network behavior. Tests are authored, not executed pending the required PHP/runtime dependencies.
+- Migration `2026_11_15_000008_create_platform_mail_settings_table.php` is authored only and has not been executed. No credentials or live sender identities have been provisioned.
