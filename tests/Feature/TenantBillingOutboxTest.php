@@ -844,3 +844,36 @@ it('rejects a renewal notification when its provider account did not settle the 
         ->and($subscription->fresh()->status)->toBe('active')
         ->and($subscription->fresh()->current_period_ends_at->startOfSecond()->equalTo($periodStart))->toBeTrue();
 });
+
+it('does not extend the platform grace deadline on repeated provider past-due events', function () {
+    $tenant = createBillingOutboxTenant('billing-past-due-idempotency');
+    $invoice = createBillingOutboxInvoice($tenant, 4900, 'acct_past_due_001');
+    $subscription = $invoice->subscription;
+
+    $first = app(TenantBillingWebhookInbox::class)->acceptVerifiedEvent(
+        $tenant->id,
+        'approved_gateway',
+        'evt_past_due_001',
+        'subscription.past_due',
+        ['subscription_id' => $subscription->id],
+        now('UTC'),
+        'acct_past_due_001',
+    );
+    expect(Artisan::call('billing:webhooks:reconcile', ['--limit' => 10]))->toBe(0);
+    $graceDeadline = $subscription->fresh()->grace_ends_at->toIso8601String();
+
+    $second = app(TenantBillingWebhookInbox::class)->acceptVerifiedEvent(
+        $tenant->id,
+        'approved_gateway',
+        'evt_past_due_002',
+        'subscription.past_due',
+        ['subscription_id' => $subscription->id],
+        now('UTC'),
+        'acct_past_due_001',
+    );
+    expect(Artisan::call('billing:webhooks:reconcile', ['--limit' => 10]))->toBe(0);
+
+    expect($first->fresh()->status)->toBe('processed')
+        ->and($second->fresh()->status)->toBe('processed')
+        ->and($subscription->fresh()->grace_ends_at->toIso8601String())->toBe($graceDeadline);
+});
