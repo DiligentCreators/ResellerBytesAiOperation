@@ -271,7 +271,7 @@ it('emits redacted schema-conformant evidence when the signed checkpoint timesta
     $envelope = json_decode(file_get_contents($path), true, 512, JSON_THROW_ON_ERROR);
     $envelope['payload']['created_at'] = '2026-02-31T25:61:61.000000Z';
     $secretKey = base64_decode(config('audit.anchor.private_key'), true);
-    $message = "resellerbytes.audit-anchor.v1\\n".json_encode(
+    $message = "resellerbytes.audit-anchor.v1\n".json_encode(
         $envelope['payload'],
         JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRESERVE_ZERO_FRACTION
     );
@@ -279,7 +279,7 @@ it('emits redacted schema-conformant evidence when the signed checkpoint timesta
     file_put_contents($path, json_encode(
         $envelope,
         JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT
-    )."\\n");
+    )."\n");
 
     try {
         expect(Artisan::call('audit:anchor:monitor', [
