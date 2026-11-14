@@ -123,11 +123,11 @@ These steps are a target procedure, not an executable current capability. The ke
 - [ ] Key fingerprint, checkpoint digest, object version, and retention read-back are recorded outside the application database.
 - [ ] Key rotation and compromise-response exercises pass before production anchoring is enabled.
 
-## Shahrukh ke liye pending
+## Pending for Shahrukh
 
-- Provision the independent security account and secret-manager/key-custody boundary.
-- Generate or authorize generation of the production Ed25519 key pair and retain the private key only in the approved secret manager/HSM. Do not send it through chat or commit it.
-- Provide the non-secret key reference/fingerprint and approve the named signing and verification operators.
-- Approve the production Object Lock bucket and independent verifier access.
+- Create and fund the independent cloud/security account and provide the approved secret-manager/key-custody boundary.
+- Generate and retain custody of the production Ed25519 key pair; Shahrukh is the sole initial signing/verifier operator. Provide only the non-secret public-key reference/fingerprint through the approved secure channel.
+- Provide secret-manager access and policy. Do not send the private key through chat or commit it.
+
 
 No production key, password, secret, or cloud credential has been generated or used by this repository work.
