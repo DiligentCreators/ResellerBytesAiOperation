@@ -358,3 +358,11 @@ The tenant migration is authored on the branch but has not been executed; no ten
 - Added subscription.renewed handling. A renewal requires a fully settled invoice belonging to the same tenant/subscription, matching currency, confirmed payment ledger total, and a contiguous period extension no longer than 366 days. The subscription period/status update, audit event and outbox event are atomic.
 - Duplicate renewal notifications using a second provider event ID for the same invoice and period are idempotent; a period gap or unpaid invoice fails closed.
 - Added feature coverage for failed payment grace handling, settled renewal, and duplicate renewal delivery. Tests remain unexecuted pending PHP 8.5 and dependencies.
+
+
+### Refund, dispute and recurring billing reconciliation — 2026-11-15
+
+- Added an append-only tenant billing adjustment ledger for provider refunds and dispute opened/won/lost events. Every adjustment is linked to the tenant's confirmed payment, provider payment reference, amount and currency; immutable DB triggers prevent updates/deletes and audit rows are tenant-bound.
+- Refunds and lost disputes reduce invoice net paid balance. Open disputes do not change entitlements; won disputes do not reverse payment. Cumulative refunds and lost disputes cannot exceed the original payment amount. A dispute must have a matching opening event and can be resolved only once.
+- When a refund or lost dispute leaves a subscription invoice underpaid, eligible active/trialing subscriptions move into the configured grace period. Adjustment, invoice balance, audit, subscription transition and outbox events share a transaction.
+- Added feature tests for refund idempotency, dispute open/won/lost outcomes, balance reconciliation, and append-only adjustment records. Tests remain unexecuted pending PHP 8.5 and dependencies.
