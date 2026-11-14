@@ -40,6 +40,12 @@ class HandleInertiaRequests extends Middleware
             'name' => config('app.name'),
             'auth' => [
                 'user' => $request->user(),
+                'is_platform_admin' => $request->user() !== null
+                    && trim((string) config('operations.owner_email')) !== ''
+                    && hash_equals(
+                        mb_strtolower(trim((string) config('operations.owner_email'))),
+                        mb_strtolower((string) $request->user()->email),
+                    ),
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];
