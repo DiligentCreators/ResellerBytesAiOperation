@@ -1,6 +1,6 @@
 # External audit-anchor verification, monitoring, and immutable storage
 
-Status: independent signature verifier and local freshness/tail monitor implemented; cloud upload adapter and production alert delivery are not provisioned.
+Status: independent signature verifier, local freshness/tail monitor, provider-neutral publisher orchestration, and storage contract tests implemented; provider adapter and production alert delivery are not provisioned.
 
 ## Verification boundaries
 
@@ -27,7 +27,7 @@ The repository does not configure a scheduler or alert destination. Do not silen
 
 ## Immutable object upload contract
 
-No cloud provider, bucket, account, or credential is configured by this repository. The application currently exports signed checkpoint bytes; it does not upload them. Do not describe a local export as an immutable external anchor.
+No cloud provider, bucket, account, or credential is configured by this repository. The application now has an `AuditCheckpointObjectStore` contract and `AuditCheckpointPublisher` orchestration. The publisher first verifies the signed checkpoint against the local audit-chain prefix, derives a deterministic environment/sequence/digest key, requests conditional immutable creation, then reads back the exact returned version and requires matching bytes, version ID, COMPLIANCE mode, and at least 365 days of retention. Duplicate keys, missing/mismatched versions, checksum mismatch, insufficient retention, and ambiguous create outcomes fail closed. No provider adapter is wired or configured; do not describe a local export or fake-store test as an immutable external anchor.
 
 When the owner provisions the independent security account and selects the storage provider, implement the upload adapter with these mandatory properties:
 
@@ -41,7 +41,7 @@ When the owner provisions the independent security account and selects the stora
 8. If the upload response is ambiguous, do not retry with an overwrite-capable operation and do not mark success. Query the deterministic key/version, reconcile the exact bytes and retention metadata, and raise an alert if the outcome remains ambiguous.
 9. A duplicate object key, missing version ID, retention mismatch, failed read-back, or unsupported conditional-create capability must fail closed.
 
-The provider adapter must have automated tests for duplicate-key rejection, concurrent create races, checksum mismatch, missing version ID, retention-mode mismatch, too-short retention, failed read-back, and ambiguous upload response. Tests must use disposable non-production storage or a provider emulator. Production Object Lock configuration and actual retention read-back remain owner-controlled release gates.
+The provider-neutral publisher has automated fake-store tests for duplicate-key rejection, missing version ID, version mismatch, checksum mismatch, retention-mode mismatch, too-short retention, and ambiguous create response. The real provider adapter must additionally test concurrent create races, failed network read-back, actual provider version IDs, and Object Lock metadata against disposable non-production storage or a provider emulator. Production Object Lock configuration and actual retention read-back remain owner-controlled release gates.
 
 ## Recovery and chain continuity
 
