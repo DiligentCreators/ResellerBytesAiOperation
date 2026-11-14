@@ -635,3 +635,14 @@ inferred from the repository changes.
 - Tenant-isolation review also identified a release blocker: integration records have no owner/tenant foreign key, and dashboard, integration, diagnostic-run, and finding queries are global across authenticated users. Ownership cannot be safely assigned to existing integrations until the authorized owner account and tenant model are provisioned; this is tracked for architectural implementation rather than silently exposing or guessing ownership.
 - All engineering commits in this continuation use [skip ci]. No workflow file or repository setting was changed. Tests remain unexecuted here; PHP 8.5 and the mounted project/dependencies are required. Exact-head CI remains deferred until the single final non-skip-ci commit.
 - PR #2 remains open and Draft. No merge, deployment, production migration, or live WHMCS operation was performed.
+
+
+## Account ownership and tenant-isolation foundation — 2026-11-15
+
+- Added nullable `whmcs_integrations.owner_user_id` FK with owner/status index. Existing integrations are intentionally left unassigned; no owner was guessed or bulk-backfilled.
+- Integration provisioning now requires an explicit owner email for an existing email-verified user with confirmed TOTP MFA. Added audited `whmcs:integration:assign-owner` for one-time assignment of legacy unowned integrations; it refuses to reassign an already-owned integration.
+- Scoped dashboard counts/latest runs, integration lists, diagnostic lists/details/reanalysis, and finding lists/details to the authenticated integration owner. Cross-owner detail requests return 404.
+- Added regression tests for cross-owner list isolation, dashboard aggregate isolation, detail/IDOR rejection, reanalysis rejection, explicit provisioning ownership, and legacy assignment/no-reassignment.
+- This is an account-ownership baseline, not completion of approved organization-level SaaS tenancy. Still required: tenant/workspace and membership model, roles/permission matrix, tenant attribution across AI usage/billing/audit/notifications, queued-job tenant context and revalidation, exports/downloads, tenant-aware uniqueness/constraints, safe existing-data mapping, and evaluation of PostgreSQL RLS. External onboarding remains disabled.
+- Legacy integration ownership requires Shahrukh's explicit mapping decision. They remain unassigned and invisible in user-scoped dashboards until assigned through the audited command.
+- All commits carry [skip ci]. No workflow/repository setting changes. Tests have not been executed; PHP 8.5 and project dependencies are required. No merge, deployment, production migration, or live WHMCS operation performed.
