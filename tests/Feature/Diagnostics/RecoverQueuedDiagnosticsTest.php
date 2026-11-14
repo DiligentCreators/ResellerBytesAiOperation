@@ -216,3 +216,23 @@ it('does not repeat a provider charge when a worker dies after usage settlement'
 
     Queue::assertNothingPushed();
 });
+
+it('does not re-dispatch diagnostic runs that have reached the absolute retention cutoff', function () {
+    Queue::fake();
+
+    $expiredRun = createQueuedRecoveryTestRun();
+    DB::table('diagnostic_runs')
+        ->where('id', $expiredRun->id)
+        ->update([
+            'received_at' => now('UTC')->subDays(400),
+            'updated_at' => now()->subMinutes(30),
+        ]);
+
+    expect(Artisan::call('diagnostics:recover-queued'))->toBe(0);
+
+    Queue::assertNotPushed(
+        AnalyzeDiagnosticRun::class,
+        fn (AnalyzeDiagnosticRun $job): bool => $job->diagnosticRunId === $expiredRun->id,
+    );
+    expect($expiredRun->fresh()->status)->toBe('queued');
+});
