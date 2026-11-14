@@ -371,3 +371,15 @@ it('releases tenant reservations with the same two-person audited reconciliation
     expect(AiTenantBudgetPeriod::query()->where('tenant_id', $tenant->id)->where('period_type', 'daily')->sole()->reserved_micro_usd)->toBe(0)
         ->and(AiTenantBudgetPeriod::query()->where('tenant_id', $tenant->id)->where('period_type', 'monthly')->sole()->reserved_micro_usd)->toBe(0);
 });
+
+
+it('keeps tenant attribution immutable on an AI usage attempt', function () {
+    $tenantA = Tenant::create(['name' => 'Immutable Tenant A', 'slug' => 'immutable-tenant-a', 'status' => Tenant::STATUS_ACTIVE]);
+    $tenantB = Tenant::create(['name' => 'Immutable Tenant B', 'slug' => 'immutable-tenant-b', 'status' => Tenant::STATUS_ACTIVE]);
+    $attempt = app(AiBudgetService::class)->reserve(makeBudgetDiagnosticRun(1, $tenantA), 'gpt-5.6-sol', '2026-11-12.1');
+
+    expect(fn () => $attempt->update(['tenant_id' => $tenantB->id]))
+        ->toThrow(LogicException::class, 'tenant attribution is immutable');
+
+    expect($attempt->fresh()->tenant_id)->toBe($tenantA->id);
+});
