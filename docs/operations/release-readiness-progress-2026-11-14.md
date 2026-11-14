@@ -527,3 +527,13 @@ inferred from the repository changes.
   actual non-production S3/Wasabi conditional-create and Object Lock rehearsal, production
   key/credential provisioning, independent security review, and release approval.
 
+## Security-boundary review follow-up — 2026-11-14
+
+- Reviewed the audit-chain append transaction, canonical hash payload, PostgreSQL runtime/read-only role tests, WHMCS addon setup/download routes, signed integration-request middleware, nonce replay handling, and integration revoke/rotate commands.
+- Audit append uses a locked singleton chain-head row and a conditional sequence/hash update in the same transaction; PostgreSQL concurrency coverage exists. Runtime-role tests exercise append + chain verification while denying audit mutation, migration-ledger reads, schema creation, and integration hard delete.
+- WHMCS operator routes are behind authenticated, verified, confirmed-2FA middleware. API ingestion requires a bounded JSON body, strict integration/timestamp/nonce/signature headers, HMAC verification, and unique nonce insertion; revoked integrations are excluded by the active-status lookup.
+- Corrected a malformed PostgreSQL anonymous-block delimiter in the role-separation runbook (DO $$ ... $$;). No workflow file or repository setting was changed.
+- Review note: no dedicated HTTP feature test for the WHMCS signed-request middleware was found in the changed test inventory; add direct authentication/replay/revocation coverage before the final validation pass.
+- Latest branch head after this documentation correction: 54f3d7613f8feafa666ad3cbc46d5f677d55151e. All intermediate commits use [skip ci]. CI remains deferred until the one final non-skip-ci commit. Full PHP 8.5 suite remains pending because the current execution environment lacks PHP 8.5 and the repository checkout/dependencies.
+- PR #2 remains open and Draft. No merge, deployment, production migration, or live WHMCS operation was performed.
+
