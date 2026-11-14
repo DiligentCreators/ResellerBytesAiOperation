@@ -208,3 +208,61 @@ it('fails closed when the checkpoint file is missing', function () {
     expect(Artisan::call('audit:anchor:monitor', ['checkpoint' => sys_get_temp_dir().'/missing-rb-anchor.json']))->toBe(1)
         ->and(Artisan::output())->toContain('checkpoint_unavailable');
 });
+
+
+it('emits redacted schema-conformant evidence when the checkpoint file is missing', function () {
+    $path = sys_get_temp_dir().'/missing-rb-anchor-json-'.bin2hex(random_bytes(8)).'.json';
+
+    try {
+        expect(Artisan::call('audit:anchor:monitor', [
+            'checkpoint' => $path,
+            '--json' => true,
+        ]))->toBe(1);
+
+        $evidence = json_decode(trim(Artisan::output()), true, 512, JSON_THROW_ON_ERROR);
+        $schema = json_decode(file_get_contents(base_path('docs/operations/audit-anchor-alert-evidence.schema.json')), true, 512, JSON_THROW_ON_ERROR);
+
+        expect(array_keys($evidence))->toBe($schema['required'])
+            ->and($schema['properties']['reason_code']['enum'])->toContain($evidence['reason_code'])
+            ->and($evidence)->toMatchArray([
+                'schema_version' => 1,
+                'status' => 'failed',
+                'reason_code' => 'checkpoint_unavailable',
+                'checkpoint_sha256' => null,
+                'anchor_sequence' => null,
+                'local_sequence' => null,
+                'unanchored_tail' => null,
+                'checkpoint_age_seconds' => null,
+                'exit_code' => 1,
+            ]);
+    } finally {
+        @unlink($path);
+    }
+});
+
+it('emits redacted schema-conformant evidence when the checkpoint timestamp is too far in the future', function () {
+    $path = writeAuditAnchorMonitorFixture();
+    Date::setTestNow(now()->subHour());
+
+    try {
+        expect(Artisan::call('audit:anchor:monitor', [
+            'checkpoint' => $path,
+            '--json' => true,
+        ]))->toBe(1);
+
+        $evidence = json_decode(trim(Artisan::output()), true, 512, JSON_THROW_ON_ERROR);
+        $schema = json_decode(file_get_contents(base_path('docs/operations/audit-anchor-alert-evidence.schema.json')), true, 512, JSON_THROW_ON_ERROR);
+
+        expect(array_keys($evidence))->toBe($schema['required'])
+            ->and($schema['properties']['reason_code']['enum'])->toContain($evidence['reason_code'])
+            ->and($evidence)->toMatchArray([
+                'status' => 'failed',
+                'reason_code' => 'timestamp_in_future',
+                'exit_code' => 1,
+            ])
+            ->and($evidence['checkpoint_sha256'])->toBeNull();
+    } finally {
+        Date::setTestNow();
+        @unlink($path);
+    }
+});
