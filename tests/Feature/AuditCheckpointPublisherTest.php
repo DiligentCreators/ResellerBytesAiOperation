@@ -169,6 +169,8 @@ it('publishes only after exact-version checksum and compliance retention read-ba
     expect($result['checkpoint_sha256'])->toBe(hash('sha256', $checkpoint))
         ->and($result['chain_sequence'])->toBe(1)
         ->and($result['object_version_id'])->toBe('version-1')
+        ->and($result['environment'])->toBe('testing')
+        ->and($result['retention_mode'])->toBe('COMPLIANCE')
         ->and($result['object_key'])->toContain('audit-anchors/testing/sequence-')
         ->and($store->createCalls)->toHaveCount(1)
         ->and($store->readCalls)->toHaveCount(1);
