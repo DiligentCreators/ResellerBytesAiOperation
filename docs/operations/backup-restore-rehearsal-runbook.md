@@ -51,7 +51,7 @@ chmod 600 "$PGPASSFILE"
 # RESTORE_PGSERVICE names a service in PGSERVICEFILE; it contains no password.
 PGSERVICE="$RECOVERY_ADMIN_SERVICE" createdb "$RESTORE_DATABASE"
 
-pg_restore \
+PGSERVICE="$RESTORE_PGSERVICE" pg_restore \
   --exit-on-error \
   --no-owner \
   --no-acl \
