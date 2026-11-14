@@ -5,6 +5,7 @@ use App\Models\AiBudgetPeriod;
 use App\Models\AiUsageAttempt;
 use App\Models\DiagnosticRun;
 use App\Models\WhmcsIntegration;
+use App\Models\User;
 use App\Services\Diagnostics\AiBudgetService;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
@@ -14,6 +15,7 @@ use Illuminate\Support\Str;
 function createQueuedRecoveryTestRun(): DiagnosticRun
 {
     $integration = WhmcsIntegration::create([
+        'owner_user_id' => User::factory()->create()->id,
         'name' => 'Queue recovery test '.Str::uuid(),
         'status' => 'active',
         'secret' => bin2hex(random_bytes(32)),
@@ -51,7 +53,7 @@ it('re-dispatches stale queued runs but leaves fresh queued runs untouched', fun
 
     Queue::assertPushed(
         AnalyzeDiagnosticRun::class,
-        fn (AnalyzeDiagnosticRun $job): bool => $job->diagnosticRunId === $staleRun->id,
+        fn (AnalyzeDiagnosticRun $job): bool => $job->diagnosticRunId === $staleRun->id && $job->ownerUserId === (int) $staleRun->integration->owner_user_id,
     );
     Queue::assertNotPushed(
         AnalyzeDiagnosticRun::class,
