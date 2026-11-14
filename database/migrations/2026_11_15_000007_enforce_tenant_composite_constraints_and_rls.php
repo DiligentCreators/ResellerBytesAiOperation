@@ -74,8 +74,99 @@ return new class extends Migration
                 ->references(['tenant_id', 'user_id'])->on('tenant_memberships')->restrictOnDelete();
         });
 
+        $this->createTenantConsistencyTriggers();
+
         if (DB::connection()->getDriverName() === 'pgsql') {
             $this->enablePostgresRls();
+        }
+    }
+
+    private function createTenantConsistencyTriggers(): void
+    {
+        $driver = DB::connection()->getDriverName();
+
+        if ($driver === 'pgsql') {
+            DB::unprepared(<<<'SQL'
+CREATE FUNCTION rb_check_diagnostic_run_tenant() RETURNS trigger LANGUAGE plpgsql AS $
+DECLARE expected_tenant uuid;
+BEGIN
+    SELECT tenant_id INTO expected_tenant FROM whmcs_integrations WHERE id = NEW.integration_id;
+    IF NEW.tenant_id IS DISTINCT FROM expected_tenant THEN
+        RAISE EXCEPTION 'diagnostic_run_tenant_mismatch' USING ERRCODE = '23514';
+    END IF;
+    RETURN NEW;
+END;
+$;
+CREATE FUNCTION rb_check_diagnostic_finding_tenant() RETURNS trigger LANGUAGE plpgsql AS $
+DECLARE expected_tenant uuid;
+BEGIN
+    SELECT tenant_id INTO expected_tenant FROM diagnostic_runs WHERE id = NEW.diagnostic_run_id;
+    IF NEW.tenant_id IS DISTINCT FROM expected_tenant THEN
+        RAISE EXCEPTION 'diagnostic_finding_tenant_mismatch' USING ERRCODE = '23514';
+    END IF;
+    RETURN NEW;
+END;
+$;
+CREATE FUNCTION rb_check_diagnostic_recommendation_tenant() RETURNS trigger LANGUAGE plpgsql AS $
+DECLARE expected_tenant uuid;
+BEGIN
+    SELECT tenant_id INTO expected_tenant FROM diagnostic_findings WHERE id = NEW.diagnostic_finding_id;
+    IF NEW.tenant_id IS DISTINCT FROM expected_tenant THEN
+        RAISE EXCEPTION 'diagnostic_recommendation_tenant_mismatch' USING ERRCODE = '23514';
+    END IF;
+    RETURN NEW;
+END;
+$;
+CREATE TRIGGER rb_diagnostic_run_tenant_guard BEFORE INSERT OR UPDATE OF integration_id, tenant_id ON diagnostic_runs FOR EACH ROW EXECUTE FUNCTION rb_check_diagnostic_run_tenant();
+CREATE TRIGGER rb_diagnostic_finding_tenant_guard BEFORE INSERT OR UPDATE OF diagnostic_run_id, tenant_id ON diagnostic_findings FOR EACH ROW EXECUTE FUNCTION rb_check_diagnostic_finding_tenant();
+CREATE TRIGGER rb_diagnostic_recommendation_tenant_guard BEFORE INSERT OR UPDATE OF diagnostic_finding_id, tenant_id ON diagnostic_recommendations FOR EACH ROW EXECUTE FUNCTION rb_check_diagnostic_recommendation_tenant();
+SQL);
+        } elseif ($driver === 'sqlite') {
+            DB::unprepared(<<<'SQL'
+CREATE TRIGGER rb_diagnostic_run_tenant_guard_insert BEFORE INSERT ON diagnostic_runs
+WHEN NEW.tenant_id IS NOT (SELECT tenant_id FROM whmcs_integrations WHERE id = NEW.integration_id)
+BEGIN SELECT RAISE(ABORT, 'diagnostic_run_tenant_mismatch'); END;
+CREATE TRIGGER rb_diagnostic_run_tenant_guard_update BEFORE UPDATE OF integration_id, tenant_id ON diagnostic_runs
+WHEN NEW.tenant_id IS NOT (SELECT tenant_id FROM whmcs_integrations WHERE id = NEW.integration_id)
+BEGIN SELECT RAISE(ABORT, 'diagnostic_run_tenant_mismatch'); END;
+CREATE TRIGGER rb_diagnostic_finding_tenant_guard_insert BEFORE INSERT ON diagnostic_findings
+WHEN NEW.tenant_id IS NOT (SELECT tenant_id FROM diagnostic_runs WHERE id = NEW.diagnostic_run_id)
+BEGIN SELECT RAISE(ABORT, 'diagnostic_finding_tenant_mismatch'); END;
+CREATE TRIGGER rb_diagnostic_finding_tenant_guard_update BEFORE UPDATE OF diagnostic_run_id, tenant_id ON diagnostic_findings
+WHEN NEW.tenant_id IS NOT (SELECT tenant_id FROM diagnostic_runs WHERE id = NEW.diagnostic_run_id)
+BEGIN SELECT RAISE(ABORT, 'diagnostic_finding_tenant_mismatch'); END;
+CREATE TRIGGER rb_diagnostic_recommendation_tenant_guard_insert BEFORE INSERT ON diagnostic_recommendations
+WHEN NEW.tenant_id IS NOT (SELECT tenant_id FROM diagnostic_findings WHERE id = NEW.diagnostic_finding_id)
+BEGIN SELECT RAISE(ABORT, 'diagnostic_recommendation_tenant_mismatch'); END;
+CREATE TRIGGER rb_diagnostic_recommendation_tenant_guard_update BEFORE UPDATE OF diagnostic_finding_id, tenant_id ON diagnostic_recommendations
+WHEN NEW.tenant_id IS NOT (SELECT tenant_id FROM diagnostic_findings WHERE id = NEW.diagnostic_finding_id)
+BEGIN SELECT RAISE(ABORT, 'diagnostic_recommendation_tenant_mismatch'); END;
+SQL);
+        }
+    }
+
+    private function dropTenantConsistencyTriggers(): void
+    {
+        $driver = DB::connection()->getDriverName();
+
+        foreach ([
+            'rb_diagnostic_run_tenant_guard_insert',
+            'rb_diagnostic_run_tenant_guard_update',
+            'rb_diagnostic_finding_tenant_guard_insert',
+            'rb_diagnostic_finding_tenant_guard_update',
+            'rb_diagnostic_recommendation_tenant_guard_insert',
+            'rb_diagnostic_recommendation_tenant_guard_update',
+            'rb_diagnostic_run_tenant_guard',
+            'rb_diagnostic_finding_tenant_guard',
+            'rb_diagnostic_recommendation_tenant_guard',
+        ] as $trigger) {
+            DB::unprepared("DROP TRIGGER IF EXISTS {$trigger}");
+        }
+
+        if ($driver === 'pgsql') {
+            DB::unprepared('DROP FUNCTION IF EXISTS rb_check_diagnostic_run_tenant()');
+            DB::unprepared('DROP FUNCTION IF EXISTS rb_check_diagnostic_finding_tenant()');
+            DB::unprepared('DROP FUNCTION IF EXISTS rb_check_diagnostic_recommendation_tenant()');
         }
     }
 
@@ -140,6 +231,8 @@ return new class extends Migration
 
     public function down(): void
     {
+        $this->dropTenantConsistencyTriggers();
+
         if (DB::connection()->getDriverName() === 'pgsql') {
             foreach ([
                 'tenant_notifications', 'tenant_billing_payments', 'whmcs_integrations', 'tenant_billing_invoices',
