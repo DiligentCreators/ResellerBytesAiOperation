@@ -12,7 +12,7 @@ class AuditEventWriter
     public function __construct(private readonly AuditEventCanonicalizer $canonicalizer) {}
 
     /**
-     * @param  array{actor_type?: ?string, actor_id?: ?string, event_type: string, subject_type?: ?string, subject_id?: ?string, metadata?: array<string, mixed>|null, ip_address?: ?string, occurred_at: mixed}  $attributes
+     * @param  array{actor_type?: ?string, actor_id?: ?string, event_type: string, subject_type?: ?string, subject_id?: ?string, tenant_id?: ?string, metadata?: array<string, mixed>|null, ip_address?: ?string, occurred_at: mixed}  $attributes
      */
     public function append(array $attributes): AuditEvent
     {
@@ -34,6 +34,7 @@ class AuditEventWriter
                 'previous_hash' => $previousHash,
                 'actor_type' => $attributes['actor_type'] ?? null,
                 'actor_id' => isset($attributes['actor_id']) ? (string) $attributes['actor_id'] : null,
+                'tenant_id' => isset($attributes['tenant_id']) ? (string) $attributes['tenant_id'] : null,
                 'event_type' => $attributes['event_type'],
                 'subject_type' => $attributes['subject_type'] ?? null,
                 'subject_id' => isset($attributes['subject_id']) ? (string) $attributes['subject_id'] : null,
