@@ -568,3 +568,88 @@ it('renews a subscription only against a fully settled tenant invoice', function
             ->where('event_type', 'billing.subscription.renewed')
             ->count())->toBe(1);
 });
+
+it('records refunds idempotently and reduces the invoice net paid balance', function () {
+    $tenant = createBillingOutboxTenant('billing-refund-ledger');
+    $invoice = createBillingOutboxInvoice($tenant, 4900);
+    app(TenantBillingLedgerService::class)->recordConfirmedPayment($tenant->id, $invoice->id, [
+        'collection_mode' => 'automated',
+        'idempotency_key' => 'refund-test-payment-1',
+        'amount_minor' => 4900,
+        'currency' => 'USD',
+        'provider' => 'approved_gateway',
+        'provider_payment_id' => 'pay_refund_001',
+        'received_at' => now('UTC'),
+    ]);
+
+    $payload = [
+        'payment_id' => 'pay_refund_001',
+        'adjustment_id' => 'refund_001',
+        'amount_minor' => 1200,
+        'currency' => 'USD',
+    ];
+    $first = app(TenantBillingWebhookInbox::class)->acceptVerifiedEvent(
+        $tenant->id, 'approved_gateway', 'evt_refund_001', 'payment.refunded', $payload, now('UTC'), 'acct_refund_001',
+    );
+    expect(Artisan::call('billing:webhooks:reconcile', ['--limit' => 10]))->toBe(0);
+
+    $duplicate = app(TenantBillingWebhookInbox::class)->acceptVerifiedEvent(
+        $tenant->id, 'approved_gateway', 'evt_refund_002', 'payment.refunded', $payload, now('UTC'), 'acct_refund_001',
+    );
+    expect(Artisan::call('billing:webhooks:reconcile', ['--limit' => 10]))->toBe(0);
+
+    expect($first->fresh()->status)->toBe('processed')
+        ->and($duplicate->fresh()->status)->toBe('processed')
+        ->and($invoice->fresh()->amount_paid_minor)->toBe(3700)
+        ->and($invoice->fresh()->status)->toBe('partially_paid')
+        ->and(\\App\\Models\\TenantBillingAdjustment::query()->where('tenant_id', $tenant->id)->where('kind', 'refund')->count())->toBe(1);
+});
+
+it('records dispute opening and applies a lost dispute once without changing a won dispute balance', function () {
+    $tenant = createBillingOutboxTenant('billing-dispute-ledger');
+    $invoice = createBillingOutboxInvoice($tenant, 4900);
+    app(TenantBillingLedgerService::class)->recordConfirmedPayment($tenant->id, $invoice->id, [
+        'collection_mode' => 'automated',
+        'idempotency_key' => 'dispute-test-payment-1',
+        'amount_minor' => 4900,
+        'currency' => 'USD',
+        'provider' => 'approved_gateway',
+        'provider_payment_id' => 'pay_dispute_001',
+        'received_at' => now('UTC'),
+    ]);
+
+    $base = ['payment_id' => 'pay_dispute_001', 'amount_minor' => 1000, 'currency' => 'USD'];
+    $opened = app(TenantBillingWebhookInbox::class)->acceptVerifiedEvent(
+        $tenant->id, 'approved_gateway', 'evt_dispute_open_1', 'payment.dispute_opened',
+        $base + ['adjustment_id' => 'dispute_won_001'], now('UTC'), 'acct_dispute_001',
+    );
+    expect(Artisan::call('billing:webhooks:reconcile', ['--limit' => 10]))->toBe(0);
+    expect($invoice->fresh()->amount_paid_minor)->toBe(4900);
+
+    $won = app(TenantBillingWebhookInbox::class)->acceptVerifiedEvent(
+        $tenant->id, 'approved_gateway', 'evt_dispute_won_1', 'payment.dispute_won',
+        $base + ['adjustment_id' => 'dispute_won_001'], now('UTC'), 'acct_dispute_001',
+    );
+    expect(Artisan::call('billing:webhooks:reconcile', ['--limit' => 10]))->toBe(0);
+    expect($invoice->fresh()->amount_paid_minor)->toBe(4900);
+
+    $lostBase = ['payment_id' => 'pay_dispute_001', 'amount_minor' => 1500, 'currency' => 'USD', 'adjustment_id' => 'dispute_lost_001'];
+    $lostOpen = app(TenantBillingWebhookInbox::class)->acceptVerifiedEvent(
+        $tenant->id, 'approved_gateway', 'evt_dispute_open_2', 'payment.dispute_opened',
+        $lostBase, now('UTC'), 'acct_dispute_001',
+    );
+    expect(Artisan::call('billing:webhooks:reconcile', ['--limit' => 10]))->toBe(0);
+
+    $lost = app(TenantBillingWebhookInbox::class)->acceptVerifiedEvent(
+        $tenant->id, 'approved_gateway', 'evt_dispute_lost_1', 'payment.dispute_lost',
+        $lostBase, now('UTC'), 'acct_dispute_001',
+    );
+    expect(Artisan::call('billing:webhooks:reconcile', ['--limit' => 10]))->toBe(0);
+
+    expect($opened->fresh()->status)->toBe('processed')
+        ->and($won->fresh()->status)->toBe('processed')
+        ->and($lostOpen->fresh()->status)->toBe('processed')
+        ->and($lost->fresh()->status)->toBe('processed')
+        ->and($invoice->fresh()->amount_paid_minor)->toBe(3400)
+        ->and(\\App\\Models\\TenantBillingAdjustment::query()->where('tenant_id', $tenant->id)->where('kind', 'dispute_lost')->count())->toBe(1);
+});
