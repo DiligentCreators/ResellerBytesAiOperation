@@ -146,7 +146,7 @@ final class BackupArchiveManager
             $manifestKey = 'backups/manifests/'.$backupId.'.json';
             $manifestVersionId = $this->downloadObject($settings, $manifestKey, $manifestPath);
             if (! is_string($manifestVersionId) || trim($manifestVersionId) === '') {
-                throw new RuntimeException('Wasabi did not return a version ID for the backup manifest.'); 
+                throw new RuntimeException('Wasabi did not return a version ID for the backup manifest.');
             }
             $manifestContents = file_get_contents($manifestPath);
             if (! is_string($manifestContents)) {
@@ -280,7 +280,7 @@ final class BackupArchiveManager
     }
 
     /**
-     * Refuse to restore a manifest into a differently named configured database.
+     * Refuse to restore a manifest into a different configured PostgreSQL endpoint.
      *
      * @param  array<string, mixed>  $manifest
      */
