@@ -23,7 +23,7 @@ test('creates an integration with a one-time encrypted secret and an audit event
         ->and($storedSecret)->not->toBe($integration->secret)
         ->and($integration->secret_version)->toBe(1)
         ->and(AuditEvent::where('event_type', 'whmcs_integration.created')->count())->toBe(1)
-        ->and(AuditEvent::query()->first()->metadata)->toBe(['secret_version' => 1]);
+        ->and(AuditEvent::query()->first()->metadata)->toBe(['owner_user_id' => (string) $owner->id, 'secret_version' => 1]);
 });
 
 test('rotates an active integration secret and increments its version', function () {
