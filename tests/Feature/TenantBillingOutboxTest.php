@@ -694,3 +694,56 @@ it('keeps provider adapters disabled until a provider is explicitly configured',
     expect(fn () => app(\\App\\Services\\Tenancy\\BillingProviderAdapterRegistry::class)->resolve('approved_gateway'))
         ->toThrow(RuntimeException::class, 'billing_provider_adapter_not_configured');
 });
+
+it('rejects payment idempotency-key reuse with a different provider account', function () {
+    $tenant = createBillingOutboxTenant('billing-payment-account-idempotency');
+    $invoice = createBillingOutboxInvoice($tenant, 4900);
+    $service = app(TenantBillingLedgerService::class);
+    $payment = [
+        'collection_mode' => 'automated',
+        'idempotency_key' => 'payment-account-bound-key',
+        'amount_minor' => 4900,
+        'currency' => 'USD',
+        'provider' => 'approved_gateway',
+        'provider_account_id' => 'acct_original_001',
+        'provider_payment_id' => 'pay_account_bound_001',
+        'received_at' => now('UTC'),
+    ];
+    $service->recordConfirmedPayment($tenant->id, $invoice->id, $payment);
+
+    expect(fn () => $service->recordConfirmedPayment($tenant->id, $invoice->id, [
+        ...$payment,
+        'provider_account_id' => 'acct_attacker_002',
+    ]))->toThrow(RuntimeException::class, 'billing_payment_idempotency_conflict');
+});
+
+it('does not allow a refund from another provider account to mutate a payment', function () {
+    $tenant = createBillingOutboxTenant('billing-refund-account-binding');
+    $invoice = createBillingOutboxInvoice($tenant, 4900);
+    app(TenantBillingLedgerService::class)->recordConfirmedPayment($tenant->id, $invoice->id, [
+        'collection_mode' => 'automated',
+        'idempotency_key' => 'refund-account-bound-payment',
+        'amount_minor' => 4900,
+        'currency' => 'USD',
+        'provider' => 'approved_gateway',
+        'provider_account_id' => 'acct_payment_owner_001',
+        'provider_payment_id' => 'pay_account_owner_001',
+        'received_at' => now('UTC'),
+    ]);
+
+    expect(fn () => app(\\App\\Services\\Tenancy\\TenantBillingAdjustmentService::class)->recordProviderAdjustment(
+        $tenant->id,
+        'approved_gateway',
+        'acct_other_tenant_account_002',
+        'evt_cross_account_refund',
+        'pay_account_owner_001',
+        'refund_cross_account_001',
+        'refund',
+        100,
+        'USD',
+        now('UTC'),
+    ))->toThrow(\\Illuminate\\Database\\Eloquent\\ModelNotFoundException::class);
+
+    expect($invoice->fresh()->amount_paid_minor)->toBe(4900)
+        ->and(\\App\\Models\\TenantBillingAdjustment::query()->where('tenant_id', $tenant->id)->count())->toBe(0);
+});
