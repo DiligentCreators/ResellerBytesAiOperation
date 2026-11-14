@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\WhmcsIntegration;
+use App\Services\Tenancy\TenantRecordQuery;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -11,8 +12,7 @@ class WhmcsIntegrationController extends Controller
 {
     public function index(): Response
     {
-        $integrations = WhmcsIntegration::query()
-            ->where('owner_user_id', Auth::id())
+        $integrations = app(TenantRecordQuery::class)->integrations(Auth::user())
             ->withCount('diagnosticRuns')
             ->latest()
             ->paginate(20)
