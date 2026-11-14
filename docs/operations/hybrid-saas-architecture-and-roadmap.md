@@ -339,3 +339,13 @@ The tenant migration is authored on the branch but has not been executed; no ten
 - Provider integration remains deliberately unselected and inactive. No public webhook endpoint, charge initiation, payment checkout, or outbound HTTP tenant webhook has been enabled. A future provider adapter must verify signatures and map provider accounts to tenants before inbox ingestion.
 - PostgreSQL global reconciliation uses a separate platform operations connection; the runtime role remains RLS-restricted. Operations-role provisioning and non-production RLS rehearsal remain infrastructure/owner gates.
 - Pricing, provider, merchant-account ownership, and payment collection decisions remain pending. No migration, production resource, provider credential, merge, or deployment has been performed.
+
+
+### Provider-neutral billing adapter checkpoint — 2026-11-15
+
+- Added the BillingProviderAdapter contract and immutable VerifiedBillingWebhook DTO. Provider implementations must verify signatures against the exact raw request body and normalize only supported event fields; no provider-specific SDK or credentials are assumed.
+- Added the internal TenantBillingWebhookGateway: provider/adapter identity matching, 256 KiB body limit, five-minute signature timestamp window, trusted provider-account tenant lookup, and ingestion into the existing idempotent inbox. No public route is registered.
+- Added a provider-account registry with a globally unique provider/account mapping, active + verified gating, tenant RLS, immutable provider/account/tenant identity, and lookup through the separately provisioned operations connection. Provider credentials and signing secrets are not stored in this registry.
+- Webhook records now distinguish server receipt time from provider event occurrence time; both are immutable and replay identity compares provider occurrence time.
+- Added tests for adapter mismatch, stale signatures, successful account-to-tenant routing, unverified mapping rejection, and immutable account mapping. Tests remain unexecuted pending PHP 8.5 and dependencies.
+- No provider was selected, no credentials were added, and no public endpoint or payment collection was activated. Shahrukh's provider/account approval and secret-manager provisioning remain pending.
