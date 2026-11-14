@@ -71,6 +71,12 @@ class DiagnosticRun extends Model
         ];
     }
 
+    /** @return BelongsTo<Tenant, $this> */
+    public function tenant(): BelongsTo
+    {
+        return $this->belongsTo(Tenant::class);
+    }
+
     /**
      * @return BelongsTo<WhmcsIntegration, $this>
      */
