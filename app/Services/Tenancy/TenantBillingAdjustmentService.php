@@ -110,6 +110,15 @@ class TenantBillingAdjustmentService
                 if ($opened) {
                     throw new RuntimeException('billing_dispute_already_recorded');
                 }
+
+                $alreadyAdjusted = (int) TenantBillingAdjustment::query()
+                    ->where('tenant_id', $tenantId)
+                    ->where('tenant_billing_payment_id', $payment->id)
+                    ->whereIn('kind', ['refund', 'dispute_lost'])
+                    ->sum('amount_minor');
+                if ($alreadyAdjusted + $amountMinor > $payment->amount_minor) {
+                    throw new InvalidArgumentException('billing_dispute_amount_exceeds_paid_balance');
+                }
             }
 
             if ($kind === 'refund' || $kind === 'dispute_lost') {
