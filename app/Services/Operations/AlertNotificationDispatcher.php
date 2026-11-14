@@ -118,6 +118,7 @@ class AlertNotificationDispatcher
 
         try {
             return Http::acceptJson()
+                ->withoutRedirecting()
                 ->timeout(5)
                 ->post($url, $payload)
                 ->successful();
