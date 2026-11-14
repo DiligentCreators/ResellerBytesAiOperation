@@ -42,6 +42,11 @@ class AnalyzeDiagnosticRun implements ShouldQueue
         }
     }
 
+    public function middleware(): array
+    {
+        return $this->tenantId === null ? [] : [new SetTenantDatabaseContext($this->tenantId)];
+    }
+
     public function handle(WhmcsDiagnosticAnalyzer $analyzer, AiBudgetService $budget): void
     {
         $run = DB::transaction(function (): ?DiagnosticRun {
@@ -190,6 +195,7 @@ class AnalyzeDiagnosticRun implements ShouldQueue
 
                 $finding = DiagnosticFinding::create([
                     'diagnostic_run_id' => $lockedRun->id,
+                    'tenant_id' => $lockedRun->tenant_id,
                     'fingerprint' => $fingerprint,
                     'category' => $findingData['category'],
                     'severity' => $findingData['severity'],
