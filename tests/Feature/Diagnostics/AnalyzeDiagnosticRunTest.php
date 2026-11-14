@@ -119,6 +119,49 @@ it('does not start a billable analysis for a diagnostic run beyond its retention
         ->and($run->fresh()->analysis_attempts)->toBe(0);
 });
 
+
+it('releases a pre-submit reservation if the diagnostic crosses its retention cutoff before provider submission', function () {
+    $integration = WhmcsIntegration::create([
+        'name' => 'Retention boundary submission test',
+        'status' => 'active',
+        'secret' => bin2hex(random_bytes(32)),
+        'secret_version' => 1,
+    ]);
+
+    $run = DiagnosticRun::create([
+        'integration_id' => $integration->id,
+        'snapshot_uuid' => (string) Str::uuid(),
+        'schema_version' => '1.0',
+        'addon_version' => '1.0.0',
+        'status' => 'received',
+        'collected_at' => now(),
+        'received_at' => now(),
+        'payload' => ['system' => ['whmcs_version' => '8.13.7']],
+        'payload_sha256' => str_repeat('8', 64),
+    ]);
+
+    $analyzer = Mockery::mock(WhmcsDiagnosticAnalyzer::class);
+    $analyzer->shouldReceive('analyze')->once()->andReturnUsing(function ($model, $beforeSubmit) use ($run) {
+        $run->forceFill(['received_at' => now('UTC')->subDays(365)])->save();
+        $beforeSubmit();
+
+        throw new RuntimeException('provider should not be called');
+    });
+
+    $budget = app(AiBudgetService::class);
+    expect(fn () => (new AnalyzeDiagnosticRun($run->id))->handle($analyzer, $budget))
+        ->toThrow(RuntimeException::class, 'diagnostic_retention_expired');
+
+    $attempt = AiUsageAttempt::query()->where('diagnostic_run_id', $run->id)->sole();
+
+    expect($attempt->status)->toBe('released')
+        ->and($run->fresh()->status)->toBe('analysis_failed');
+
+    foreach (AiBudgetPeriod::query()->get() as $period) {
+        expect($period->reserved_micro_usd)->toBe(0);
+    }
+});
+
 it('marks a failed analysis attempt without modifying the source diagnostic payload', function () {
     $integration = WhmcsIntegration::create([
         'name' => 'Analysis failure test',
