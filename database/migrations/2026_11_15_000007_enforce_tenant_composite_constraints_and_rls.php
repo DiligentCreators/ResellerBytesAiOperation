@@ -120,6 +120,8 @@ $;
 CREATE TRIGGER rb_diagnostic_run_tenant_guard BEFORE INSERT OR UPDATE OF integration_id, tenant_id ON diagnostic_runs FOR EACH ROW EXECUTE FUNCTION rb_check_diagnostic_run_tenant();
 CREATE TRIGGER rb_diagnostic_finding_tenant_guard BEFORE INSERT OR UPDATE OF diagnostic_run_id, tenant_id ON diagnostic_findings FOR EACH ROW EXECUTE FUNCTION rb_check_diagnostic_finding_tenant();
 CREATE TRIGGER rb_diagnostic_recommendation_tenant_guard BEFORE INSERT OR UPDATE OF diagnostic_finding_id, tenant_id ON diagnostic_recommendations FOR EACH ROW EXECUTE FUNCTION rb_check_diagnostic_recommendation_tenant();
+CREATE TRIGGER rb_ai_usage_tenant_guard BEFORE INSERT OR UPDATE OF diagnostic_run_id, tenant_id ON ai_usage_attempts FOR EACH ROW EXECUTE FUNCTION rb_check_ai_usage_tenant();
+CREATE TRIGGER rb_audit_event_tenant_guard BEFORE INSERT ON audit_events FOR EACH ROW EXECUTE FUNCTION rb_check_audit_event_tenant();
 SQL);
         } elseif ($driver === 'sqlite') {
             DB::unprepared(<<<'SQL'
@@ -135,6 +137,20 @@ BEGIN SELECT RAISE(ABORT, 'diagnostic_finding_tenant_mismatch'); END;
 CREATE TRIGGER rb_diagnostic_finding_tenant_guard_update BEFORE UPDATE OF diagnostic_run_id, tenant_id ON diagnostic_findings
 WHEN NEW.tenant_id IS NOT (SELECT tenant_id FROM diagnostic_runs WHERE id = NEW.diagnostic_run_id)
 BEGIN SELECT RAISE(ABORT, 'diagnostic_finding_tenant_mismatch'); END;
+CREATE TRIGGER rb_ai_usage_tenant_guard_insert BEFORE INSERT ON ai_usage_attempts
+WHEN NEW.diagnostic_run_id IS NOT NULL AND NEW.tenant_id IS NOT (SELECT tenant_id FROM diagnostic_runs WHERE id = NEW.diagnostic_run_id)
+BEGIN SELECT RAISE(ABORT, 'ai_usage_tenant_mismatch'); END;
+CREATE TRIGGER rb_ai_usage_tenant_guard_update BEFORE UPDATE OF diagnostic_run_id, tenant_id ON ai_usage_attempts
+WHEN NEW.diagnostic_run_id IS NOT NULL AND NEW.tenant_id IS NOT (SELECT tenant_id FROM diagnostic_runs WHERE id = NEW.diagnostic_run_id)
+BEGIN SELECT RAISE(ABORT, 'ai_usage_tenant_mismatch'); END;
+CREATE TRIGGER rb_audit_event_tenant_guard BEFORE INSERT ON audit_events
+WHEN (NEW.subject_type = 'tenant' AND NEW.tenant_id IS NOT NEW.subject_id)
+ OR (NEW.subject_type = 'diagnostic_run' AND NEW.tenant_id IS NOT (SELECT tenant_id FROM diagnostic_runs WHERE id = NEW.subject_id))
+ OR (NEW.subject_type = 'diagnostic_finding' AND NEW.tenant_id IS NOT (SELECT tenant_id FROM diagnostic_findings WHERE id = NEW.subject_id))
+ OR (NEW.subject_type = 'diagnostic_recommendation' AND NEW.tenant_id IS NOT (SELECT tenant_id FROM diagnostic_recommendations WHERE id = NEW.subject_id))
+ OR (NEW.subject_type = 'tenant_billing_payment' AND NEW.tenant_id IS NOT (SELECT tenant_id FROM tenant_billing_payments WHERE id = CAST(NEW.subject_id AS INTEGER)))
+ OR (NEW.subject_type = 'tenant_billing_invoice' AND NEW.tenant_id IS NOT (SELECT tenant_id FROM tenant_billing_invoices WHERE id = CAST(NEW.subject_id AS INTEGER)))
+BEGIN SELECT RAISE(ABORT, 'audit_event_tenant_mismatch'); END;
 CREATE TRIGGER rb_diagnostic_recommendation_tenant_guard_insert BEFORE INSERT ON diagnostic_recommendations
 WHEN NEW.tenant_id IS NOT (SELECT tenant_id FROM diagnostic_findings WHERE id = NEW.diagnostic_finding_id)
 BEGIN SELECT RAISE(ABORT, 'diagnostic_recommendation_tenant_mismatch'); END;
@@ -159,6 +175,9 @@ SQL);
             'rb_diagnostic_run_tenant_guard',
             'rb_diagnostic_finding_tenant_guard',
             'rb_diagnostic_recommendation_tenant_guard',
+            'rb_ai_usage_tenant_guard_insert',
+            'rb_ai_usage_tenant_guard_update',
+            'rb_audit_event_tenant_guard',
         ] as $trigger) {
             DB::unprepared("DROP TRIGGER IF EXISTS {$trigger}");
         }
@@ -167,6 +186,8 @@ SQL);
             DB::unprepared('DROP FUNCTION IF EXISTS rb_check_diagnostic_run_tenant()');
             DB::unprepared('DROP FUNCTION IF EXISTS rb_check_diagnostic_finding_tenant()');
             DB::unprepared('DROP FUNCTION IF EXISTS rb_check_diagnostic_recommendation_tenant()');
+            DB::unprepared('DROP FUNCTION IF EXISTS rb_check_ai_usage_tenant()');
+            DB::unprepared('DROP FUNCTION IF EXISTS rb_check_audit_event_tenant()');
         }
     }
 
