@@ -331,6 +331,7 @@ it('binds webhook receipt audit evidence to the webhook tenant without retaining
         ->and($audit->tenant_id)->toBe($tenantA->id)
         ->and(json_decode($audit->metadata, true))->toMatchArray([
             'provider' => 'approved_gateway',
+        'provider_account_id' => 'acct_approved_gateway_test',
             'event_type' => 'invoice.payment_succeeded',
             'payload_sha256' => $event->payload_sha256,
         ]);
