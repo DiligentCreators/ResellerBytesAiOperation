@@ -10,6 +10,7 @@ use Carbon\\CarbonImmutable;
 use Illuminate\\Console\\Command;
 use Illuminate\\Database\\Eloquent\\ModelNotFoundException;
 use Illuminate\\Support\\Facades\\DB;
+use Illuminate\\Support\\Facades\\Log;
 use InvalidArgumentException;
 use Throwable;
 
@@ -133,7 +134,12 @@ class ReconcileTenantBillingWebhooks extends Command
                 ])->save();
             }, 3);
 
-            report($exception);
+            Log::warning('Tenant billing webhook reconciliation failed.', [
+                'webhook_event_id' => $claimed->id,
+                'tenant_id' => $claimed->tenant_id,
+                'reason_code' => $permanent ? 'billing_webhook_payload_rejected' : 'billing_webhook_processing_failed',
+                'exception_class' => $exception::class,
+            ]);
 
             return false;
         }
