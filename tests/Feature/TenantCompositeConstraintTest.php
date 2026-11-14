@@ -20,6 +20,22 @@ it('rejects cross-tenant diagnostic findings at the database boundary', function
         'secret' => 'test-integration-secret',
     ]);
 
+    expect(fn () => DB::table('diagnostic_runs')->insert([
+        'id' => (string) Str::uuid(),
+        'integration_id' => $integration->id,
+        'tenant_id' => null,
+        'snapshot_uuid' => (string) Str::uuid(),
+        'schema_version' => '1.0',
+        'addon_version' => '1.0.0',
+        'status' => 'received',
+        'collected_at' => now(),
+        'received_at' => now(),
+        'payload' => json_encode(['source' => 'test']),
+        'payload_sha256' => hash('sha256', 'legacy-null-bypass'),
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]))->toThrow(QueryException::class);
+
     $runId = (string) Str::uuid();
     DB::table('diagnostic_runs')->insert([
         'id' => $runId,
@@ -36,6 +52,21 @@ it('rejects cross-tenant diagnostic findings at the database boundary', function
         'created_at' => now(),
         'updated_at' => now(),
     ]);
+
+    expect(fn () => DB::table('diagnostic_findings')->insert([
+        'id' => (string) Str::uuid(),
+        'diagnostic_run_id' => $runId,
+        'tenant_id' => null,
+        'fingerprint' => hash('sha256', 'null-tenant-bypass'),
+        'category' => 'security',
+        'severity' => 'high',
+        'title' => 'Null tenant child',
+        'summary' => 'A tenant child cannot omit tenant attribution.',
+        'evidence' => json_encode([]),
+        'status' => 'open',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]))->toThrow(QueryException::class);
 
     expect(fn () => DB::table('diagnostic_findings')->insert([
         'id' => (string) Str::uuid(),
