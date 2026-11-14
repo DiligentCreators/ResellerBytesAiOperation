@@ -130,27 +130,29 @@ Artisan::command('diagnostics:recover-queued {--stale-minutes=15} {--limit=100}'
 
     $retentionCutoff = now('UTC')->subDays(365)->format('Y-m-d H:i:s');
     $runIds = DB::table('diagnostic_runs')
-        ->where('received_at', '>', $retentionCutoff)
+        ->join('whmcs_integrations', 'whmcs_integrations.id', '=', 'diagnostic_runs.integration_id')
+        ->whereNotNull('whmcs_integrations.owner_user_id')
+        ->where('diagnostic_runs.received_at', '>', $retentionCutoff)
         ->where(function ($query) use ($cutoff) {
             $query
                 ->where(function ($query) use ($cutoff) {
-                    $query->where('status', 'queued')
-                        ->where('updated_at', '<=', $cutoff);
+                    $query->where('diagnostic_runs.status', 'queued')
+                        ->where('diagnostic_runs.updated_at', '<=', $cutoff);
                 })
                 ->orWhere(function ($query) use ($cutoff) {
-                    $query->where('status', 'analyzing')
+                    $query->where('diagnostic_runs.status', 'analyzing')
                         ->where(function ($query) use ($cutoff) {
-                            $query->where('analysis_started_at', '<=', $cutoff)
+                            $query->where('diagnostic_runs.analysis_started_at', '<=', $cutoff)
                                 ->orWhere(function ($query) use ($cutoff) {
-                                    $query->whereNull('analysis_started_at')
-                                        ->where('updated_at', '<=', $cutoff);
+                                    $query->whereNull('diagnostic_runs.analysis_started_at')
+                                        ->where('diagnostic_runs.updated_at', '<=', $cutoff);
                                 });
                         });
                 });
         })
-        ->orderBy('updated_at')
+        ->orderBy('diagnostic_runs.updated_at')
         ->limit($limit)
-        ->pluck('id');
+        ->pluck('diagnostic_runs.id');
 
     $dispatched = 0;
     $heldForOperatorReview = 0;
@@ -158,7 +160,10 @@ Artisan::command('diagnostics:recover-queued {--stale-minutes=15} {--limit=100}'
     foreach ($runIds as $runId) {
         $recoveryState = DB::transaction(function () use ($runId, $cutoff, $budget): string {
             $run = DB::table('diagnostic_runs')
-                ->where('id', $runId)
+                ->join('whmcs_integrations', 'whmcs_integrations.id', '=', 'diagnostic_runs.integration_id')
+                ->where('diagnostic_runs.id', $runId)
+                ->whereNotNull('whmcs_integrations.owner_user_id')
+                ->select('diagnostic_runs.*', 'whmcs_integrations.owner_user_id')
                 ->lockForUpdate()
                 ->first();
 
@@ -230,7 +235,7 @@ Artisan::command('diagnostics:recover-queued {--stale-minutes=15} {--limit=100}'
                     'updated_at' => now(),
                 ]);
 
-            return 'claimed';
+            return 'claimed:'.(int) $run->owner_user_id;
         }, 3);
 
         if ($recoveryState === 'held') {
@@ -239,12 +244,17 @@ Artisan::command('diagnostics:recover-queued {--stale-minutes=15} {--limit=100}'
             continue;
         }
 
-        if ($recoveryState !== 'claimed') {
+        if (! is_string($recoveryState) || ! str_starts_with($recoveryState, 'claimed:')) {
+            continue;
+        }
+
+        $ownerUserId = (int) substr($recoveryState, strlen('claimed:'));
+        if ($ownerUserId < 1) {
             continue;
         }
 
         try {
-            AnalyzeDiagnosticRun::dispatch((string) $runId);
+            AnalyzeDiagnosticRun::dispatch((string) $runId, $ownerUserId);
             $dispatched++;
         } catch (Throwable $exception) {
             Log::warning('Queued diagnostic analysis recovery dispatch failed.', [
