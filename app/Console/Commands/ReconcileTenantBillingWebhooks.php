@@ -4,6 +4,7 @@ namespace App\\Console\\Commands;
 
 use App\\Models\\TenantBillingWebhookEvent;
 use App\\Services\\Tenancy\\TenantBillingLedgerService;
+use App\\Services\\Tenancy\\TenantBillingFailureReconciler;
 use App\\Services\\Tenancy\\TenantDatabaseContext;
 use App\\Services\\Tenancy\\TenantBillingOperationsConnection;
 use App\\Services\\Tenancy\\TenantSubscriptionLifecycle;
@@ -166,6 +167,23 @@ class ReconcileTenantBillingWebhooks extends Command
     private function applyVerifiedEvent(TenantBillingWebhookEvent $event): void
     {
         $payload = $event->payload ?? [];
+
+        if ($event->event_type === 'invoice.payment_failed') {
+            $invoiceId = filter_var($payload['invoice_id'] ?? null, FILTER_VALIDATE_INT);
+            $failureCode = $payload['failure_code'] ?? null;
+            if ($invoiceId === false || $invoiceId < 1 || ! is_string($failureCode)) {
+                throw new InvalidArgumentException('billing_payment_failure_payload_invalid');
+            }
+
+            app(TenantBillingFailureReconciler::class)->recordInvoicePaymentFailure(
+                $event->tenant_id,
+                $invoiceId,
+                $event->provider_event_id,
+                $failureCode,
+            );
+
+            return;
+        }
 
         if ($event->event_type === 'invoice.payment_succeeded') {
             $invoiceId = filter_var($payload['invoice_id'] ?? null, FILTER_VALIDATE_INT);
