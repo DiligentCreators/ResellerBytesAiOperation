@@ -12,6 +12,12 @@ return [
         'queue_job_max_age_minutes' => (int) env('OPERATIONS_ALERT_QUEUE_JOB_MAX_AGE_MINUTES', 15),
     ],
 
+    'metrics' => [
+        'disk_path' => env('OPERATIONS_METRICS_DISK_PATH', storage_path()),
+        // The backup agent must atomically update this marker only after a verified successful backup.
+        'backup_success_marker_path' => env('OPERATIONS_BACKUP_SUCCESS_MARKER_PATH'),
+    ],
+
     'alerts' => [
         'email' => env('OPERATIONS_ALERT_EMAIL'),
         'slack_webhook_url' => env('OPERATIONS_ALERT_SLACK_WEBHOOK_URL'),

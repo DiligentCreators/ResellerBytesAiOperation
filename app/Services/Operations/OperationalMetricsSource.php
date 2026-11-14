@@ -1,0 +1,134 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Services\Operations;
+
+use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Throwable;
+
+final class OperationalMetricsSource
+{
+    /**
+     * Return normalized metrics for AlertThresholdPolicy without exposing request payloads.
+     *
+     * @return array{
+     *   error_rate_percent: float|null,
+     *   api_p95_latency_ms: float|null,
+     *   last_successful_backup_at: string|null,
+     *   disk_usage_percent: float|null,
+     *   oldest_queue_job_age_minutes: float|null
+     * }
+     */
+    public function snapshot(?CarbonImmutable $observedAt = null): array
+    {
+        $observedAt = ($observedAt ?? CarbonImmutable::now())->utc();
+        $windowMinutes = max(1, (int) config('operations.monitoring.error_rate.window_minutes', 5));
+        $cutoff = $observedAt->subMinutes($windowMinutes);
+        $sampleCount = 0;
+        $failedCount = 0;
+        $p95Latency = null;
+
+        if (Schema::hasTable('operations_metric_samples')) {
+            $samples = DB::table('operations_metric_samples')
+                ->where('created_at', '>=', $cutoff);
+
+            $sampleCount = (clone $samples)->count();
+            $failedCount = (clone $samples)->where('status_code', '>=', 500)->count();
+
+            if ($sampleCount > 0) {
+                $p95Index = max(0, (int) ceil($sampleCount * 0.95) - 1);
+                $p95Latency = (clone $samples)
+                    ->orderBy('duration_ms')
+                    ->offset($p95Index)
+                    ->value('duration_ms');
+            }
+        }
+
+        return [
+            'error_rate_percent' => $sampleCount > 0 ? ($failedCount / $sampleCount) * 100 : null,
+            'api_p95_latency_ms' => $p95Latency !== null ? (float) $p95Latency : null,
+            'last_successful_backup_at' => $this->lastSuccessfulBackupAt(),
+            'disk_usage_percent' => $this->diskUsagePercent(),
+            'oldest_queue_job_age_minutes' => $this->oldestDatabaseQueueJobAgeMinutes($observedAt),
+        ];
+    }
+
+    public function pruneSamples(?CarbonImmutable $observedAt = null): int
+    {
+        if (! Schema::hasTable('operations_metric_samples')) {
+            return 0;
+        }
+
+        return DB::table('operations_metric_samples')
+            ->where('created_at', '<', ($observedAt ?? CarbonImmutable::now())->utc()->subDay())
+            ->delete();
+    }
+
+    private function lastSuccessfulBackupAt(): ?string
+    {
+        $path = config('operations.metrics.backup_success_marker_path');
+
+        if (! is_string($path) || trim($path) === '' || ! is_file($path)) {
+            return null;
+        }
+
+        $modifiedAt = @filemtime($path);
+
+        return $modifiedAt === false
+            ? null
+            : CarbonImmutable::createFromTimestampUTC($modifiedAt)->toIso8601String();
+    }
+
+    private function diskUsagePercent(): ?float
+    {
+        $path = config('operations.metrics.disk_path', storage_path());
+
+        if (! is_string($path) || ! is_dir($path)) {
+            return null;
+        }
+
+        $totalBytes = @disk_total_space($path);
+        $freeBytes = @disk_free_space($path);
+
+        if ($totalBytes === false || $freeBytes === false || $totalBytes <= 0 || $freeBytes < 0) {
+            return null;
+        }
+
+        return (($totalBytes - $freeBytes) / $totalBytes) * 100;
+    }
+
+    private function oldestDatabaseQueueJobAgeMinutes(CarbonImmutable $observedAt): ?float
+    {
+        $connectionName = (string) config('queue.connections.'.config('queue.default').'.connection');
+        $connectionName = $connectionName !== '' ? $connectionName : config('database.default');
+        $table = (string) config('queue.connections.'.config('queue.default').'.table', 'jobs');
+
+        if (config('queue.connections.'.config('queue.default').'.driver') !== 'database') {
+            return null;
+        }
+
+        try {
+            if (! Schema::connection($connectionName)->hasTable($table)) {
+                return null;
+            }
+
+            $oldestCreatedAt = DB::connection($connectionName)->table($table)
+                ->whereNull('reserved_at')
+                ->min('created_at');
+
+            if (! is_numeric($oldestCreatedAt)) {
+                return null;
+            }
+
+            $ageSeconds = $observedAt->getTimestamp() - (int) $oldestCreatedAt;
+
+            return $ageSeconds < 0 ? null : $ageSeconds / 60;
+        } catch (Throwable) {
+            // Unsupported or temporarily unavailable queue backends are reported as unavailable.
+            return null;
+        }
+    }
+}

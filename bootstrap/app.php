@@ -1,5 +1,6 @@
 <?php
 
+use App\Console\Commands\CollectOperationalMetrics;
 use App\Console\Commands\CreateOperationsUser;
 use App\Console\Commands\CreateWhmcsIntegration;
 use App\Console\Commands\ExportAuditAnchorCheckpoint;
@@ -13,6 +14,7 @@ use App\Console\Commands\RevokeWhmcsIntegration;
 use App\Console\Commands\RotateWhmcsIntegrationSecret;
 use App\Console\Commands\VerifyAuditAnchorCheckpoint;
 use App\Console\Commands\VerifyAuditIntegrity;
+use App\Http\Middleware\CaptureOperationalMetrics;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use Illuminate\Foundation\Application;
@@ -29,6 +31,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withCommands([
+        CollectOperationalMetrics::class,
         CreateOperationsUser::class,
         CreateWhmcsIntegration::class,
         ExportAuditAnchorCheckpoint::class,
@@ -45,6 +48,10 @@ return Application::configure(basePath: dirname(__DIR__))
     ])
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
+
+        $middleware->api(append: [
+            CaptureOperationalMetrics::class,
+        ]);
 
         $middleware->web(append: [
             HandleAppearance::class,

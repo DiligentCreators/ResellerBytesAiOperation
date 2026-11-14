@@ -110,3 +110,15 @@ Approved monitoring, alert-routing, recovery, retention, signing-operator, and P
 - PostgreSQL runtime and read-only reporting role checks passed, including explicit reporting allowlist enforcement.
 - MySQL 8.4, MariaDB 11.4, SQL Server 2022, and WHMCS PHP 8.1 jobs passed.
 - PR #2 remains open and Draft. No merge, deployment, production migration, or live WHMCS change has been performed.
+
+
+## Metric-source integration — implementation in progress
+
+- Added API middleware that records response status and elapsed time into a dedicated operations_metric_samples table. It stores no request body, URL parameters, customer identifiers, or response content; telemetry write failures are logged by exception class and never fail the API request.
+- Added OperationalMetricsSource to compute rolling-window 5xx error rate and p95 latency from those samples, disk utilization from a configured filesystem path, and queue age when Laravel uses the database queue driver.
+- Successful-backup age is sourced from the modification time of an operator-provisioned marker file. The backup agent must update that marker atomically only after a backup has completed and passed its verification checks. A missing marker remains a missing-backup signal.
+- Added php artisan operations:metrics to emit a versioned, redacted JSON snapshot and prune telemetry samples older than 24 hours. It is not scheduled and does not send alerts in this step.
+- Added portable migration and feature tests for rolling-window aggregation, p95, API status capture without payload persistence, backup marker timestamps, and telemetry pruning.
+- Queue-age collection currently supports Laravel's database queue driver. Redis/SQS/Beanstalkd queue-age adapters remain a known follow-up and must not be represented as measured when unavailable.
+- This is application-side metric collection, not an independent external monitor. Alert scheduling, notification adapters, backup/restore tooling, and security-review readiness remain subsequent roadmap steps.
+- Validation is pending on the exact commit produced by this change. No production marker, external queue provider, backup credential, or alert destination has been configured.
