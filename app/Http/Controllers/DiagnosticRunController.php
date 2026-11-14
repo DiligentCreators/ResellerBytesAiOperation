@@ -86,7 +86,7 @@ class DiagnosticRunController extends Controller
         }
 
         try {
-            AnalyzeDiagnosticRun::dispatch($diagnosticRun->id)->afterCommit();
+            AnalyzeDiagnosticRun::dispatch($diagnosticRun->id, (int) Auth::id())->afterCommit();
         } catch (Throwable $exception) {
             DiagnosticRun::query()
                 ->whereKey($diagnosticRun->id)
