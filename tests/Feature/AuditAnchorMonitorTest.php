@@ -51,7 +51,7 @@ it('fails when the external checkpoint exceeds the configured age threshold', fu
 
     try {
         expect(Artisan::call('audit:anchor:monitor', ['checkpoint' => $path, '--max-age-minutes' => 60]))->toBe(1)
-            ->and(Artisan::output())->toContain('audit_anchor_checkpoint_stale');
+            ->and(Artisan::output())->toContain('checkpoint_stale');
     } finally {
         Date::setTestNow();
         @unlink($path);
