@@ -19,7 +19,7 @@ class TenantMembershipLifecycle
             throw ValidationException::withMessages(['role' => 'The requested invitation role is not assignable.']);
         }
 
-        $target = User::query()->where('email', mb_strtolower(trim($email)))->whereNotNull('email_verified_at')->first();
+        $target = User::query()->whereRaw('LOWER(email) = ?', [mb_strtolower(trim($email))])->whereNotNull('email_verified_at')->first();
         if (! $target) {
             throw ValidationException::withMessages(['email' => 'An existing account with a verified email address is required.']);
         }
