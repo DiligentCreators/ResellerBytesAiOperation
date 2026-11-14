@@ -13,10 +13,11 @@ use App\Models\WhmcsIntegration;
 use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
 
-function createForeignTenantDiagnosticRecords(User $owner): array
+function createForeignTenantDiagnosticRecords(User $owner, ?string $tenantId = null): array
 {
     $integration = WhmcsIntegration::create([
         'owner_user_id' => $owner->id,
+        'tenant_id' => $tenantId,
         'name' => 'Private tenant integration',
         'status' => 'active',
         'secret' => bin2hex(random_bytes(32)),
@@ -25,6 +26,7 @@ function createForeignTenantDiagnosticRecords(User $owner): array
 
     $run = DiagnosticRun::create([
         'integration_id' => $integration->id,
+        'tenant_id' => $tenantId,
         'snapshot_uuid' => (string) Str::uuid(),
         'schema_version' => '1.0',
         'addon_version' => '1.0.0',
@@ -37,6 +39,7 @@ function createForeignTenantDiagnosticRecords(User $owner): array
 
     $finding = DiagnosticFinding::create([
         'diagnostic_run_id' => $run->id,
+        'tenant_id' => $tenantId,
         'fingerprint' => hash('sha256', 'foreign-tenant-finding'),
         'category' => 'security',
         'severity' => 'critical',
@@ -113,14 +116,13 @@ it('does not allow a different owner to trigger reanalysis', function () {
 
 it('serves tenant-assigned integrations and nested diagnostics only to active tenant members', function () {
     $historicalOwner = User::factory()->withTwoFactor()->create(['email_verified_at' => now()]);
-    [$integration, $run, $finding] = createForeignTenantDiagnosticRecords($historicalOwner);
     $tenant = Tenant::create([
         'name' => 'Controller Access Workspace',
         'slug' => 'controller-access-workspace',
         'status' => Tenant::STATUS_ACTIVE,
         'created_by_user_id' => $historicalOwner->id,
     ]);
-    $integration->forceFill(['tenant_id' => $tenant->id])->save();
+    [$integration, $run, $finding] = createForeignTenantDiagnosticRecords($historicalOwner, $tenant->id);
 
     $member = User::factory()->withTwoFactor()->create(['email_verified_at' => now()]);
     $tenant->memberships()->create([
@@ -158,9 +160,8 @@ it('allows only tenant operators and above with an active entitlement to request
     config(['services.openai.key' => 'test-api-key']);
     Queue::fake();
     $historicalOwner = User::factory()->withTwoFactor()->create(['email_verified_at' => now()]);
-    [$integration, $run] = createForeignTenantDiagnosticRecords($historicalOwner);
     $tenant = Tenant::create(['name' => 'Reanalysis Role Workspace', 'slug' => 'reanalyze-role-workspace', 'status' => Tenant::STATUS_ACTIVE]);
-    $integration->forceFill(['tenant_id' => $tenant->id])->save();
+    [$integration, $run] = createForeignTenantDiagnosticRecords($historicalOwner, $tenant->id);
 
     $viewer = User::factory()->withTwoFactor()->create(['email_verified_at' => now()]);
     $tenant->memberships()->create(['user_id' => $viewer->id, 'role' => TenantMembership::ROLE_VIEWER, 'status' => TenantMembership::STATUS_ACTIVE, 'accepted_at' => now()]);
