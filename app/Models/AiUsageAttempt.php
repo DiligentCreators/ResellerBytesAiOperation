@@ -12,6 +12,7 @@ class AiUsageAttempt extends Model
 
     protected $fillable = [
         'diagnostic_run_id',
+        'tenant_id',
         'attempt_number',
         'model',
         'prompt_version',
@@ -53,5 +54,11 @@ class AiUsageAttempt extends Model
     public function diagnosticRun(): BelongsTo
     {
         return $this->belongsTo(DiagnosticRun::class);
+    }
+
+    /** @return BelongsTo<Tenant, $this> */
+    public function tenant(): BelongsTo
+    {
+        return $this->belongsTo(Tenant::class);
     }
 }
