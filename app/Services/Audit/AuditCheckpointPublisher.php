@@ -20,7 +20,7 @@ final class AuditCheckpointPublisher
     ) {}
 
     /**
-     * @return array{object_key: string, object_version_id: string, checkpoint_sha256: string, chain_sequence: int, retain_until: string, reconciled_after_create_error: bool}
+     * @return array{object_key: string, object_version_id: string, checkpoint_sha256: string, chain_sequence: int, environment: string, retention_mode: string, retain_until: string, reconciled_after_create_error: bool}
      *
      * @throws JsonException
      * @throws SodiumException
@@ -113,6 +113,8 @@ final class AuditCheckpointPublisher
             'object_version_id' => $created->versionId,
             'checkpoint_sha256' => $digest,
             'chain_sequence' => $sequence,
+            'environment' => $environment,
+            'retention_mode' => strtoupper($readBack->retentionMode),
             'retain_until' => $readBack->retainUntil->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d\TH:i:s\Z'),
             'reconciled_after_create_error' => $reconciledAfterCreateError,
         ];
