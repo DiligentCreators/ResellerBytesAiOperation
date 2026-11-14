@@ -44,6 +44,7 @@ class TenantBillingWebhookInbox
 
         $allowedPayloadKeys = match ($eventType) {
             'invoice.payment_succeeded' => ['invoice_id', 'payment_id', 'amount_minor', 'currency'],
+            'invoice.payment_failed' => ['invoice_id', 'failure_code'],
             'subscription.past_due' => ['subscription_id', 'grace_ends_at'],
             'subscription.canceled', 'subscription.expired' => ['subscription_id'],
             'subscription.reactivated' => ['subscription_id', 'settled_invoice_id'],
@@ -164,6 +165,17 @@ class TenantBillingWebhookInbox
     /** @param array<string, mixed> $payload */
     private function validateNormalizedPayload(string $eventType, array $payload): void
     {
+        if ($eventType === 'invoice.payment_failed') {
+            $invoiceId = filter_var($payload['invoice_id'] ?? null, FILTER_VALIDATE_INT);
+            if ($invoiceId === false || $invoiceId < 1
+                || ! is_string($payload['failure_code'] ?? null)
+                || ! preg_match('/^[a-zA-Z0-9_.-]{1,80}$/', $payload['failure_code'])) {
+                throw new InvalidArgumentException('billing_payment_failure_payload_invalid');
+            }
+
+            return;
+        }
+
         if ($eventType === 'invoice.payment_succeeded') {
             $invoiceId = filter_var($payload['invoice_id'] ?? null, FILTER_VALIDATE_INT);
             $amount = filter_var($payload['amount_minor'] ?? null, FILTER_VALIDATE_INT);
