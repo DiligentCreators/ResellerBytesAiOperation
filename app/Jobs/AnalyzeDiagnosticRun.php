@@ -44,6 +44,12 @@ class AnalyzeDiagnosticRun implements ShouldQueue
                 return null;
             }
 
+            // Expired diagnostics must never enter a new billable analysis attempt.
+            $retentionCutoff = now('UTC')->subDays(365);
+            if ($run->received_at === null || $run->received_at->lessThanOrEqualTo($retentionCutoff)) {
+                return null;
+            }
+
             if ($run->status === 'analyzing') {
                 if ($run->analysis_started_at?->greaterThan(now()->subSeconds(self::ANALYSIS_LEASE_SECONDS))) {
                     return null;
