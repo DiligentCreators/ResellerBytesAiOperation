@@ -5,6 +5,8 @@ namespace App\\Services\\Tenancy;
 use App\\Models\\Tenant;
 use App\\Models\\TenantBillingWebhookEvent;
 use App\\Services\\Audit\\AuditEventWriter;
+use Carbon\\CarbonImmutable;
+use DateTimeInterface;
 use Illuminate\\Support\\Facades\\DB;
 use InvalidArgumentException;
 use RuntimeException;
@@ -34,7 +36,7 @@ class TenantBillingWebhookInbox
             || trim($providerEventId) === ''
             || strlen($providerEventId) > 180
             || ! preg_match('/^[a-z][a-z0-9_.-]{2,119}$/', $eventType)
-            || ($providerAccountId !== null && strlen($providerAccountId) > 160)) {
+            || ! is_string($providerAccountId) || trim($providerAccountId) === '' || strlen($providerAccountId) > 160) {
             throw new InvalidArgumentException('billing_webhook_input_invalid');
         }
 
@@ -49,6 +51,22 @@ class TenantBillingWebhookInbox
         if (array_diff(array_keys($normalizedPayload), $allowedPayloadKeys) !== []
             || array_diff($allowedPayloadKeys, array_keys($normalizedPayload)) !== []) {
             throw new InvalidArgumentException('billing_webhook_payload_fields_invalid');
+        }
+
+        $this->validateNormalizedPayload($eventType, $normalizedPayload);
+
+        if (! $receivedAt instanceof DateTimeInterface && ! is_string($receivedAt)) {
+            throw new InvalidArgumentException('billing_webhook_received_at_invalid');
+        }
+
+        try {
+            $receivedAt = CarbonImmutable::parse($receivedAt)->utc();
+        } catch (\\Throwable) {
+            throw new InvalidArgumentException('billing_webhook_received_at_invalid');
+        }
+
+        if ($receivedAt->greaterThan(now('UTC')->addMinutes(5))) {
+            throw new InvalidArgumentException('billing_webhook_received_at_future');
         }
 
         $encoded = json_encode($normalizedPayload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
@@ -109,6 +127,52 @@ class TenantBillingWebhookInbox
 
             return $event;
         }, 3));
+    }
+
+    /** @param array<string, mixed> $payload */
+    private function validateNormalizedPayload(string $eventType, array $payload): void
+    {
+        if ($eventType === 'invoice.payment_succeeded') {
+            $invoiceId = filter_var($payload['invoice_id'] ?? null, FILTER_VALIDATE_INT);
+            $amount = filter_var($payload['amount_minor'] ?? null, FILTER_VALIDATE_INT);
+            if ($invoiceId === false || $invoiceId < 1 || $amount === false || $amount < 1
+                || ! is_string($payload['payment_id'] ?? null)
+                || trim($payload['payment_id']) === '' || strlen($payload['payment_id']) > 160
+                || ! is_string($payload['currency'] ?? null)
+                || ! preg_match('/^[A-Z]{3}$/', $payload['currency'])) {
+                throw new InvalidArgumentException('billing_webhook_payment_payload_invalid');
+            }
+
+            return;
+        }
+
+        $subscriptionId = filter_var($payload['subscription_id'] ?? null, FILTER_VALIDATE_INT);
+        if ($subscriptionId === false || $subscriptionId < 1) {
+            throw new InvalidArgumentException('billing_webhook_subscription_payload_invalid');
+        }
+
+        if ($eventType === 'subscription.past_due') {
+            if (! is_string($payload['grace_ends_at'] ?? null)) {
+                throw new InvalidArgumentException('billing_webhook_grace_period_invalid');
+            }
+
+            try {
+                $graceEndsAt = CarbonImmutable::parse($payload['grace_ends_at']);
+            } catch (\\Throwable) {
+                throw new InvalidArgumentException('billing_webhook_grace_period_invalid');
+            }
+
+            if (! $graceEndsAt->isFuture()) {
+                throw new InvalidArgumentException('billing_webhook_grace_period_invalid');
+            }
+        }
+
+        if ($eventType === 'subscription.reactivated') {
+            $invoiceId = filter_var($payload['settled_invoice_id'] ?? null, FILTER_VALIDATE_INT);
+            if ($invoiceId === false || $invoiceId < 1) {
+                throw new InvalidArgumentException('billing_webhook_settled_invoice_required');
+            }
+        }
     }
 
     /** @param array<string, mixed> $payload */
