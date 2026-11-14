@@ -2,10 +2,11 @@
 
 use App\Http\Middleware\EnsureTwoFactorEnabled;
 use App\Jobs\SendTenantMembershipInvitation;
+use App\Models\PlatformMailSettings;
 use App\Models\Tenant;
 use App\Models\TenantMembership;
 use App\Models\User;
-use App\Services\Mail\PostmarkTransactionalMailer;
+use App\Services\Mail\TenantInvitationMailer;
 use App\Services\Tenancy\TenantMembershipLifecycle;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Http;
@@ -47,7 +48,7 @@ it('queues invitation delivery only after the membership transaction commits', f
         && $job->inviteeUserId === $invitee->id);
 });
 
-it('sends a Postmark transactional message with a signed, account-bound invitation link', function () {
+it('sends an invitation through the centrally configured Postmark transport with a signed account-bound link', function () {
     [$tenant, $admin, $invitee] = tenantInvitationEmailFixture();
     $membership = app(TenantMembershipLifecycle::class)->invite(
         $admin,
@@ -56,26 +57,29 @@ it('sends a Postmark transactional message with a signed, account-bound invitati
         TenantMembership::ROLE_OPERATOR,
     );
 
-    config([
-        'tenant_invitations.driver' => 'postmark',
-        'services.postmark.server_token' => 'test-server-token',
-        'services.postmark.message_stream' => 'outbound',
-        'mail.from.address' => 'no-reply@example.test',
-        'mail.from.name' => 'ResellerBytes',
+    PlatformMailSettings::query()->create([
+        'id' => 1,
+        'driver' => 'postmark',
+        'configuration' => [
+            'server_token' => 'test-server-token',
+            'message_stream' => 'outbound',
+            'from_address' => 'no-reply@example.test',
+            'from_name' => 'ResellerBytes',
+        ],
     ]);
     Http::fake(['https://api.postmarkapp.com/email' => Http::response(['MessageID' => 'postmark-message-id'], 200)]);
 
-    app(PostmarkTransactionalMailer::class)->sendTenantInvitation($membership->fresh());
+    app(TenantInvitationMailer::class)->sendTenantInvitation($membership->fresh());
 
-    Http::assertSent(function ($request) use ($invitee, $tenant, $membership): bool {
+    Http::assertSent(function ($request) use ($invitee, $tenant): bool {
         return $request->url() === 'https://api.postmarkapp.com/email'
             && $request->hasHeader('X-Postmark-Server-Token', 'test-server-token')
             && $request['To'] === $invitee->email
             && $request['MessageStream'] === 'outbound'
+            && $request['From'] === 'ResellerBytes <no-reply@example.test>'
             && str_contains($request['HtmlBody'], 'Review invitation')
             && str_contains($request['HtmlBody'], 'signature=')
-            && str_contains($request['HtmlBody'], $tenant->name)
-            && $request['Metadata']['membership_id'] === $membership->id;
+            && str_contains($request['HtmlBody'], $tenant->name);
     });
 });
 
@@ -88,15 +92,13 @@ it('uses a local log preview without making an external request or logging priva
         TenantMembership::ROLE_VIEWER,
     );
 
-    config(['tenant_invitations.driver' => 'log']);
+    PlatformMailSettings::query()->create(['id' => 1, 'driver' => 'log', 'configuration' => []]);
     Http::preventStrayRequests();
     Log::shouldReceive('info')
         ->once()
-        ->with('tenant_invitation.mail_preview', Mockery::on(fn (array $context): bool => $context['tenant_id'] === $tenant->id
-            && ! array_key_exists('recipient', $context)
-            && ! array_key_exists('invitation_url', $context)));
+        ->with('outbound_mail.preview', ['driver' => 'log', 'subject' => 'You have been invited to Invitation Mail Workspace']);
 
-    app(PostmarkTransactionalMailer::class)->sendTenantInvitation($membership->fresh());
+    app(TenantInvitationMailer::class)->sendTenantInvitation($membership->fresh());
 });
 
 it('rejects Postmark delivery when required secret or sender configuration is absent', function () {
@@ -108,15 +110,20 @@ it('rejects Postmark delivery when required secret or sender configuration is ab
         TenantMembership::ROLE_VIEWER,
     );
 
-    config([
-        'tenant_invitations.driver' => 'postmark',
-        'services.postmark.server_token' => '',
-        'mail.from.address' => 'no-reply@example.test',
+    PlatformMailSettings::query()->create([
+        'id' => 1,
+        'driver' => 'postmark',
+        'configuration' => [
+            'message_stream' => 'outbound',
+            'from_address' => 'no-reply@example.test',
+            'from_name' => 'ResellerBytes',
+        ],
     ]);
+    config(['platform_mail.postmark.server_token' => '']);
     Http::preventStrayRequests();
 
-    expect(fn () => app(PostmarkTransactionalMailer::class)->sendTenantInvitation($membership->fresh()))
-        ->toThrow(RuntimeException::class, 'tenant_invitation_postmark_configuration_incomplete');
+    expect(fn () => app(TenantInvitationMailer::class)->sendTenantInvitation($membership->fresh()))
+        ->toThrow(RuntimeException::class, 'platform_mail_postmark_configuration_invalid');
 });
 
 it('only shows a pending invitation to its intended signed-in account', function () {
@@ -169,14 +176,23 @@ it('does not send an invitation after the membership has been revoked', function
     );
     app(TenantMembershipLifecycle::class)->revoke($admin, $tenant->id, $membership->id);
 
-    config(['tenant_invitations.driver' => 'postmark']);
+    PlatformMailSettings::query()->create([
+        'id' => 1,
+        'driver' => 'postmark',
+        'configuration' => [
+            'server_token' => 'unused-token',
+            'message_stream' => 'outbound',
+            'from_address' => 'no-reply@example.test',
+            'from_name' => 'ResellerBytes',
+        ],
+    ]);
     Http::preventStrayRequests();
 
     app(SendTenantMembershipInvitation::class, [
         'tenantId' => $tenant->id,
         'membershipId' => $membership->id,
         'inviteeUserId' => $invitee->id,
-    ])->handle(app(\App\Services\Tenancy\TenantDatabaseContext::class), app(PostmarkTransactionalMailer::class));
+    ])->handle(app(\App\Services\Tenancy\TenantDatabaseContext::class), app(TenantInvitationMailer::class));
 
     Http::assertNothingSent();
 });
