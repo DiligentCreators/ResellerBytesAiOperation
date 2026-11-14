@@ -157,12 +157,18 @@ class PlatformMailSettingsController extends Controller
         $this->authorizePlatformAdmin($request);
         $data = $request->validate(['recipient' => ['required', 'email:rfc', 'max:255']]);
 
-        $mailer->send(
-            $data['recipient'],
-            'ResellerBytes mail configuration test',
-            '<p>Your central outbound email configuration is working.</p>',
-            'Your central outbound email configuration is working.',
-        );
+        try {
+            $mailer->send(
+                $data['recipient'],
+                'ResellerBytes mail configuration test',
+                '<p>Your central outbound email configuration is working.</p>',
+                'Your central outbound email configuration is working.',
+            );
+        } catch (Throwable) {
+            throw ValidationException::withMessages([
+                'recipient' => 'Test delivery failed. Check the selected transport configuration and connectivity.',
+            ]);
+        }
 
         $driver = PlatformMailSettings::query()->find(1)?->driver ?? config('platform_mail.driver', 'log');
         $status = $driver === 'log'
