@@ -80,7 +80,22 @@ class AnalyzeDiagnosticRun implements ShouldQueue
 
             $result = $analyzer->analyze(
                 $run,
-                fn () => $budget->markSubmitted($attempt),
+                function () use ($budget, $attempt, $run): void {
+                    DB::transaction(function () use ($budget, $attempt, $run): void {
+                        $currentRun = DiagnosticRun::query()
+                            ->whereKey($run->id)
+                            ->lockForUpdate()
+                            ->first();
+
+                        if ($currentRun === null
+                            || $currentRun->received_at === null
+                            || $currentRun->received_at->lessThanOrEqualTo(now('UTC')->subDays(365))) {
+                            throw new RuntimeException('diagnostic_retention_expired');
+                        }
+
+                        $budget->markSubmitted($attempt);
+                    }, 3);
+                },
                 function (array $body, array $usage) use ($budget, $attempt): void {
                     $responseId = is_string($body['id'] ?? null) ? substr($body['id'], 0, 100) : null;
                     $budget->settle($attempt, $usage, $responseId);
@@ -199,6 +214,7 @@ class AnalyzeDiagnosticRun implements ShouldQueue
             'provider_no_findings_reason_unexpected',
             'provider_evidence_reference_invalid',
             'budget_input_limit_exceeded',
+            'diagnostic_retention_expired',
             'budget_configuration_invalid',
             'budget_attempt_unresolved',
             'budget_attempt_not_reservable',
