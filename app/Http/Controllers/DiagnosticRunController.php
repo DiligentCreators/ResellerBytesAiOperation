@@ -41,7 +41,9 @@ class DiagnosticRunController extends Controller
 
     public function reanalyze(DiagnosticRun $diagnosticRun): RedirectResponse
     {
-        $this->authorizeRun($diagnosticRun);
+        if (! $diagnosticRun->integration()->whereNull('tenant_id')->where('owner_user_id', Auth::id())->exists()) {
+            throw new NotFoundHttpException();
+        }
         abort_unless(filled(config('services.openai.key')), 503, 'AI analysis is not configured.');
 
         $expired = false;
