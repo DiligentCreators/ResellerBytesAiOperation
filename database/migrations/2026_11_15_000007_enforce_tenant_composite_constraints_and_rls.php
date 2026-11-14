@@ -87,7 +87,7 @@ return new class extends Migration
 
         if ($driver === 'pgsql') {
             DB::unprepared(<<<'SQL'
-CREATE FUNCTION rb_check_diagnostic_run_tenant() RETURNS trigger LANGUAGE plpgsql AS $
+CREATE FUNCTION rb_check_diagnostic_run_tenant() RETURNS trigger LANGUAGE plpgsql AS $rb$
 DECLARE expected_tenant uuid;
 BEGIN
     SELECT tenant_id INTO expected_tenant FROM whmcs_integrations WHERE id = NEW.integration_id;
@@ -96,8 +96,8 @@ BEGIN
     END IF;
     RETURN NEW;
 END;
-$;
-CREATE FUNCTION rb_check_diagnostic_finding_tenant() RETURNS trigger LANGUAGE plpgsql AS $
+$rb$;
+CREATE FUNCTION rb_check_diagnostic_finding_tenant() RETURNS trigger LANGUAGE plpgsql AS $rb$
 DECLARE expected_tenant uuid;
 BEGIN
     SELECT tenant_id INTO expected_tenant FROM diagnostic_runs WHERE id = NEW.diagnostic_run_id;
@@ -106,8 +106,8 @@ BEGIN
     END IF;
     RETURN NEW;
 END;
-$;
-CREATE FUNCTION rb_check_diagnostic_recommendation_tenant() RETURNS trigger LANGUAGE plpgsql AS $
+$rb$;
+CREATE FUNCTION rb_check_diagnostic_recommendation_tenant() RETURNS trigger LANGUAGE plpgsql AS $rb$
 DECLARE expected_tenant uuid;
 BEGIN
     SELECT tenant_id INTO expected_tenant FROM diagnostic_findings WHERE id = NEW.diagnostic_finding_id;
@@ -116,7 +116,55 @@ BEGIN
     END IF;
     RETURN NEW;
 END;
-$;
+$rb$;
+CREATE FUNCTION rb_check_ai_usage_tenant() RETURNS trigger LANGUAGE plpgsql AS $rb$
+DECLARE expected_tenant uuid;
+BEGIN
+    IF NEW.diagnostic_run_id IS NOT NULL THEN
+        SELECT tenant_id INTO expected_tenant FROM diagnostic_runs WHERE id = NEW.diagnostic_run_id;
+        IF NEW.tenant_id IS DISTINCT FROM expected_tenant THEN
+            RAISE EXCEPTION 'ai_usage_tenant_mismatch' USING ERRCODE = '23514';
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$rb$;
+CREATE FUNCTION rb_check_audit_event_tenant() RETURNS trigger LANGUAGE plpgsql AS $rb$
+DECLARE expected_tenant uuid;
+BEGIN
+    IF NEW.subject_type = 'tenant' THEN
+        IF NEW.tenant_id::text IS DISTINCT FROM NEW.subject_id THEN
+            RAISE EXCEPTION 'audit_event_tenant_mismatch' USING ERRCODE = '23514';
+        END IF;
+    ELSIF NEW.subject_type = 'diagnostic_run' THEN
+        SELECT tenant_id INTO expected_tenant FROM diagnostic_runs WHERE id::text = NEW.subject_id;
+        IF NEW.tenant_id IS DISTINCT FROM expected_tenant THEN
+            RAISE EXCEPTION 'audit_event_tenant_mismatch' USING ERRCODE = '23514';
+        END IF;
+    ELSIF NEW.subject_type = 'diagnostic_finding' THEN
+        SELECT tenant_id INTO expected_tenant FROM diagnostic_findings WHERE id::text = NEW.subject_id;
+        IF NEW.tenant_id IS DISTINCT FROM expected_tenant THEN
+            RAISE EXCEPTION 'audit_event_tenant_mismatch' USING ERRCODE = '23514';
+        END IF;
+    ELSIF NEW.subject_type = 'diagnostic_recommendation' THEN
+        SELECT tenant_id INTO expected_tenant FROM diagnostic_recommendations WHERE id::text = NEW.subject_id;
+        IF NEW.tenant_id IS DISTINCT FROM expected_tenant THEN
+            RAISE EXCEPTION 'audit_event_tenant_mismatch' USING ERRCODE = '23514';
+        END IF;
+    ELSIF NEW.subject_type = 'tenant_billing_payment' THEN
+        SELECT tenant_id INTO expected_tenant FROM tenant_billing_payments WHERE id::text = NEW.subject_id;
+        IF NEW.tenant_id IS DISTINCT FROM expected_tenant THEN
+            RAISE EXCEPTION 'audit_event_tenant_mismatch' USING ERRCODE = '23514';
+        END IF;
+    ELSIF NEW.subject_type = 'tenant_billing_invoice' THEN
+        SELECT tenant_id INTO expected_tenant FROM tenant_billing_invoices WHERE id::text = NEW.subject_id;
+        IF NEW.tenant_id IS DISTINCT FROM expected_tenant THEN
+            RAISE EXCEPTION 'audit_event_tenant_mismatch' USING ERRCODE = '23514';
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$rb$;
 CREATE TRIGGER rb_diagnostic_run_tenant_guard BEFORE INSERT OR UPDATE OF integration_id, tenant_id ON diagnostic_runs FOR EACH ROW EXECUTE FUNCTION rb_check_diagnostic_run_tenant();
 CREATE TRIGGER rb_diagnostic_finding_tenant_guard BEFORE INSERT OR UPDATE OF diagnostic_run_id, tenant_id ON diagnostic_findings FOR EACH ROW EXECUTE FUNCTION rb_check_diagnostic_finding_tenant();
 CREATE TRIGGER rb_diagnostic_recommendation_tenant_guard BEFORE INSERT OR UPDATE OF diagnostic_finding_id, tenant_id ON diagnostic_recommendations FOR EACH ROW EXECUTE FUNCTION rb_check_diagnostic_recommendation_tenant();
