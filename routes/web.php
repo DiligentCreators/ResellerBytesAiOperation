@@ -7,6 +7,7 @@ use App\Http\Controllers\WhmcsAddonDownloadController;
 use App\Http\Controllers\WhmcsAddonSetupController;
 use App\Http\Controllers\WhmcsAddonSigningFingerprintController;
 use App\Http\Controllers\WhmcsIntegrationController;
+use App\Http\Controllers\TenantAuditExportController;
 use App\Http\Middleware\EnsureTwoFactorEnabled;
 use Illuminate\Support\Facades\Route;
 
@@ -14,6 +15,7 @@ Route::inertia('/', 'welcome')->name('home');
 
 Route::middleware(['auth', 'verified', EnsureTwoFactorEnabled::class])->group(function () {
     Route::get('dashboard', DashboardController::class)->name('dashboard');
+    Route::get('tenants/{tenant}/audit-events/export', TenantAuditExportController::class)->middleware('throttle:3,1')->name('tenants.audit-events.export');
     Route::get('integrations', [WhmcsIntegrationController::class, 'index'])->name('integrations.index');
     Route::get('diagnostic-runs', [DiagnosticRunController::class, 'index'])->name('diagnostic-runs.index');
     Route::get('diagnostic-runs/{diagnosticRun}', [DiagnosticRunController::class, 'show'])->name('diagnostic-runs.show');
