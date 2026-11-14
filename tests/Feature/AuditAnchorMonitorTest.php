@@ -116,6 +116,37 @@ it('does not expose raw exception messages or checkpoint contents in JSON eviden
     }
 });
 
+it('emits schema-conformant redacted failure evidence for invalid thresholds', function () {
+    $path = writeAuditAnchorMonitorFixture();
+
+    try {
+        expect(Artisan::call('audit:anchor:monitor', [
+            'checkpoint' => $path,
+            '--max-age-minutes' => 0,
+            '--json' => true,
+        ]))->toBe(1);
+
+        $evidence = json_decode(trim(Artisan::output()), true, 512, JSON_THROW_ON_ERROR);
+        $schema = json_decode(file_get_contents(base_path('docs/operations/audit-anchor-alert-evidence.schema.json')), true, 512, JSON_THROW_ON_ERROR);
+
+        expect(array_keys($evidence))->toBe($schema['required'])
+            ->and($schema['properties']['reason_code']['enum'])->toContain($evidence['reason_code'])
+            ->and($evidence)->toMatchArray([
+                'schema_version' => 1,
+                'status' => 'failed',
+                'reason_code' => 'invalid_threshold',
+                'checkpoint_sha256' => null,
+                'anchor_sequence' => null,
+                'local_sequence' => null,
+                'unanchored_tail' => null,
+                'checkpoint_age_seconds' => null,
+                'exit_code' => 1,
+            ]);
+    } finally {
+        @unlink($path);
+    }
+});
+
 it('fails closed when the checkpoint file is missing', function () {
     expect(Artisan::call('audit:anchor:monitor', ['checkpoint' => sys_get_temp_dir().'/missing-rb-anchor.json']))->toBe(1)
         ->and(Artisan::output())->toContain('checkpoint_unavailable');
