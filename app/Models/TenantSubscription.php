@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class TenantSubscription extends Model
 {
-    protected $fillable = ['tenant_id', 'plan_code', 'billing_mode', 'status', 'billing_provider', 'provider_subscription_id', 'currency', 'unit_amount_minor', 'entitlements', 'current_period_starts_at', 'current_period_ends_at', 'grace_ends_at', 'canceled_at', 'created_by_user_id'];
+    protected $fillable = ['tenant_id', 'plan_code', 'billing_mode', 'status', 'billing_provider', 'provider_account_id', 'provider_subscription_id', 'currency', 'unit_amount_minor', 'entitlements', 'current_period_starts_at', 'current_period_ends_at', 'grace_ends_at', 'canceled_at', 'created_by_user_id'];
 
     protected function casts(): array
     {
