@@ -4,6 +4,9 @@ namespace App\Providers;
 
 use App\Contracts\AuditCheckpointObjectStore;
 use App\Services\Audit\S3AuditCheckpointObjectStore;
+use App\Services\Mail\PlatformMailTransport;
+use App\Services\Mail\CentralOutboundMailer;
+use Illuminate\Support\Facades\Mail;
 use App\Services\Operations\QueueJobMetricsTracker;
 use Carbon\CarbonImmutable;
 use Illuminate\Queue\Events\JobFailed;
@@ -32,7 +35,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        Mail::extend('platform', fn () => new PlatformMailTransport(app(\\App\\Services\\Mail\\CentralOutboundMailer::class)));\n\n        $this->configureDefaults();
+        Mail::extend('platform', fn () => new PlatformMailTransport(app(\\App\\Services\\Mail\\CentralOutboundMailer::class)));\n\n        Mail::extend('platform', fn () => new PlatformMailTransport(app(CentralOutboundMailer::class)));
+
+        $this->configureDefaults();
         $this->registerQueueMetricsListeners();
     }
 
