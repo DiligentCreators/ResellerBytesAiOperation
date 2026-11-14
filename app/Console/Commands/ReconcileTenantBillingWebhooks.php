@@ -274,11 +274,11 @@ class ReconcileTenantBillingWebhooks extends Command
             if (! is_string($grace)) {
                 throw new InvalidArgumentException('billing_webhook_grace_period_invalid');
             }
-            $lifecycle->transition($event->tenant_id, $subscriptionId, 'past_due', CarbonImmutable::parse($grace));
+            $lifecycle->transition($event->tenant_id, $subscriptionId, 'past_due', CarbonImmutable::parse($grace), null, null, $event->provider, $event->provider_account_id);
         } elseif ($event->event_type === 'subscription.canceled') {
-            $lifecycle->transition($event->tenant_id, $subscriptionId, 'canceled');
+            $lifecycle->transition($event->tenant_id, $subscriptionId, 'canceled', null, null, null, $event->provider, $event->provider_account_id);
         } elseif ($event->event_type === 'subscription.expired') {
-            $lifecycle->transition($event->tenant_id, $subscriptionId, 'expired');
+            $lifecycle->transition($event->tenant_id, $subscriptionId, 'expired', null, null, null, $event->provider, $event->provider_account_id);
         } elseif ($event->event_type === 'subscription.reactivated') {
             $invoiceId = filter_var($payload['settled_invoice_id'] ?? null, FILTER_VALIDATE_INT);
             if ($invoiceId === false || $invoiceId < 1) {
