@@ -151,7 +151,7 @@ it('rejects cross-tenant invoice payment and overpayment without ledger mutation
         'issued_at' => now(),
     ]);
     $service = app(TenantBillingLedgerService::class);
-    $payment = ['collection_mode' => 'automated', 'idempotency_key' => 'wrong-tenant', 'amount_minor' => 1001, 'currency' => 'USD', 'provider' => 'approved_gateway', 'provider_payment_id' => 'PAY-WRONG', 'received_at' => now()];
+    $payment = ['collection_mode' => 'automated', 'idempotency_key' => 'wrong-tenant', 'amount_minor' => 1001, 'currency' => 'USD', 'provider' => 'approved_gateway', 'provider_account_id' => 'acct_approved_gateway_test', 'provider_payment_id' => 'PAY-WRONG', 'received_at' => now()];
 
     expect(fn () => $service->recordConfirmedPayment($tenantB->id, $invoice->id, $payment))
         ->toThrow(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
