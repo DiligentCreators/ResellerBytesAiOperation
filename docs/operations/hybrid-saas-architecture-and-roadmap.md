@@ -224,6 +224,8 @@ The release-readiness branch now adds a first account-ownership enforcement laye
 - A one-way, audited `whmcs:integration:assign-owner` command can map an unassigned legacy integration to a selected verified MFA account. It refuses reassignment once ownership exists.
 - Dashboard aggregates, integration lists, diagnostic lists/details, finding lists/details, and reanalysis actions are scoped to the authenticated integration owner. Cross-owner detail access returns 404.
 - Cross-owner regression coverage has been added for list pages, aggregate counts, details, and reanalysis. Test execution is pending the required PHP 8.5 environment.
+- Diagnostic analysis queue jobs now carry the captured owner user ID as explicit serialized context. Workers verify the integration still belongs to that owner before starting, before provider submission, before persisting findings, and when marking failures; owner changes or unassigned integrations fail closed.
+- Snapshot ingestion dispatches analysis only for owned integrations. Manual reanalysis passes the authenticated owner ID. Stale-queue recovery joins the integration owner, ignores unassigned legacy records, revalidates ownership under lock, and dispatches with the captured owner ID.
 
 This is not yet the complete shared-database tenant model approved for SaaS. Organization/workspace entities, memberships and role matrix, tenant attribution for every usage/billing/audit/notification record, queue-job tenant context/revalidation, exports/downloads, tenant-aware uniqueness/constraints, backfill verification, and PostgreSQL RLS defense-in-depth remain roadmap work. External customer onboarding must remain disabled until those gates pass.
 
