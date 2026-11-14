@@ -3,9 +3,10 @@
 use App\Models\IntegrationRequestNonce;
 use App\Models\WhmcsIntegration;
 use Illuminate\Support\Str;
+use Tests\TestCase;
 
 function signedWhmcsSnapshotRequest(
-    \\Tests\\TestCase $testCase,
+    TestCase $testCase,
     string $integrationId,
     string $secret,
     string $nonce,
@@ -78,7 +79,7 @@ it('accepts a valid signed WHMCS snapshot once and rejects nonce replay', functi
         ->where('nonce', $nonce)
         ->count())->toBe(1);
 
-    $replay = signedWhmcsSnapshotRequest($integration->id, $integration->secret, $nonce);
+    $replay = signedWhmcsSnapshotRequest($this, $integration->id, $integration->secret, $nonce);
     $replay->assertStatus(409)
         ->assertJson(['message' => 'Request already used.']);
 });
@@ -87,7 +88,7 @@ it('rejects a signed request after its WHMCS integration has been revoked', func
     $integration = createWhmcsAuthenticationFixture('revoked');
     $nonce = rtrim(strtr(base64_encode(random_bytes(24)), '+/', '-_'), '=');
 
-    signedWhmcsSnapshotRequest($integration->id, $integration->secret, $nonce)
+    signedWhmcsSnapshotRequest($this, $integration->id, $integration->secret, $nonce)
         ->assertUnauthorized();
 
     expect(IntegrationRequestNonce::query()
