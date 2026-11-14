@@ -5,6 +5,7 @@ use App\Models\AiBudgetPeriod;
 use App\Models\AiUsageAttempt;
 use App\Models\DiagnosticRun;
 use App\Models\WhmcsIntegration;
+use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Diagnostics\AiBudgetService;
 use Illuminate\Support\Facades\Artisan;
@@ -250,4 +251,36 @@ it('ignores stale queued runs belonging to unassigned legacy integrations', func
 
     Queue::assertNothingPushed();
     expect($unassignedRun->fresh()->status)->toBe('queued');
+});
+
+
+it('captures active tenant context during stale queue recovery and ignores suspended tenants', function () {
+    Queue::fake();
+
+    $activeTenant = Tenant::create([
+        'name' => 'Queue Recovery Active Tenant',
+        'slug' => 'queue-recovery-active-tenant',
+        'status' => Tenant::STATUS_ACTIVE,
+    ]);
+    $suspendedTenant = Tenant::create([
+        'name' => 'Queue Recovery Suspended Tenant',
+        'slug' => 'queue-recovery-suspended-tenant',
+        'status' => Tenant::STATUS_SUSPENDED,
+    ]);
+
+    $activeRun = createQueuedRecoveryTestRun();
+    $suspendedRun = createQueuedRecoveryTestRun();
+    $activeRun->integration->forceFill(['tenant_id' => $activeTenant->id])->save();
+    $suspendedRun->integration->forceFill(['tenant_id' => $suspendedTenant->id])->save();
+    DB::table('diagnostic_runs')->where('id', $activeRun->id)->update(['updated_at' => now()->subMinutes(30)]);
+    DB::table('diagnostic_runs')->where('id', $suspendedRun->id)->update(['updated_at' => now()->subMinutes(30)]);
+
+    expect(Artisan::call('diagnostics:recover-queued'))->toBe(0);
+
+    Queue::assertPushed(AnalyzeDiagnosticRun::class, fn (AnalyzeDiagnosticRun $job): bool =>
+        $job->diagnosticRunId === $activeRun->id && $job->tenantId === $activeTenant->id
+    );
+    Queue::assertNotPushed(AnalyzeDiagnosticRun::class, fn (AnalyzeDiagnosticRun $job): bool =>
+        $job->diagnosticRunId === $suspendedRun->id
+    );
 });
