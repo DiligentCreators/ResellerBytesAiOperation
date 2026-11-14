@@ -29,10 +29,20 @@ class TenantBillingOperationsConnection
             throw new RuntimeException('billing_operations_database_role_not_configured');
         }
 
-        DB::setDefaultConnection('pgsql_operations');
-
         try {
-            DB::connection('pgsql_operations')->getPdo();
+            $operations = DB::connection('pgsql_operations');
+            if ($operations->getDriverName() !== 'pgsql') {
+                throw new RuntimeException('billing_operations_database_driver_invalid');
+            }
+
+            $runtimeDatabase = DB::connection($default)->selectOne('select current_database() as database_name')->database_name;
+            $operationsDatabase = $operations->selectOne('select current_database() as database_name')->database_name;
+            if (! is_string($runtimeDatabase) || ! is_string($operationsDatabase)
+                || ! hash_equals($runtimeDatabase, $operationsDatabase)) {
+                throw new RuntimeException('billing_operations_database_target_mismatch');
+            }
+
+            DB::setDefaultConnection('pgsql_operations');
 
             return $callback();
         } finally {
