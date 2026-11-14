@@ -22,7 +22,8 @@ interface AuditCheckpointObjectStore
 
     /**
      * Resolve a deterministic key after a duplicate or ambiguous create response.
-     * The result must identify the provider's exact immutable version.
+     * Return null only when the provider confirms the key is absent; transport or
+     * authorization failures must throw. A result must identify the exact version ID.
      */
     public function findImmutableObject(string $objectKey): ?AuditCheckpointObjectVersion;
 
