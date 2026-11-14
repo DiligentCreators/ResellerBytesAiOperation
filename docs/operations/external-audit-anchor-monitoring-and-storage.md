@@ -83,5 +83,6 @@ Backup scheduling defaults to daily at 00:00 UTC but remains disabled until OPER
 
 The separate WHMCS/MariaDB database, uploaded local files, and external provider state are not included in this initial PostgreSQL tool. Wasabi account/billing, production credentials, backup retention approval, secret-manager access, and isolated rehearsal access remain external release gates. No production backup or restore has been executed.
 
+## Queue age tracking
 
 Queue-age telemetry is collected through Laravel queue lifecycle events across Redis and other evented backends, including dispatch delay and exception retry backoff. Only connection name, queue name, job ID, and available-at timestamp are stored; job payloads are not persisted. Existing database-queue rows have a direct fallback. Non-database backlog already present before instrumentation is deployed is not backfilled, and explicit manual releases without exception metadata are treated as immediately available.
