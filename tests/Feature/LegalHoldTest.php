@@ -8,6 +8,7 @@ use App\Models\WhmcsIntegration;
 use App\Services\Audit\AuditEventWriter;
 use App\Services\LegalHoldService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -257,7 +258,7 @@ it('rolls back diagnostic deletion when its immutable audit event cannot be appe
 });
 
 it('uses an inclusive UTC cutoff for cleanup and excludes active diagnostic runs', function () {
-    \Illuminate\Support\Carbon::setTestNow('2026-11-14 12:00:00');
+    Carbon::setTestNow('2026-11-14 12:00:00');
 
     try {
         $boundaryRun = legalHoldDiagnosticRun();
@@ -285,7 +286,7 @@ it('uses an inclusive UTC cutoff for cleanup and excludes active diagnostic runs
             ->and(DB::table('diagnostic_runs')->where('id', $activeRun->id)->exists())->toBeTrue()
             ->and(DB::table('diagnostic_runs')->where('id', $recentRun->id)->exists())->toBeTrue();
     } finally {
-        \Illuminate\Support\Carbon::setTestNow();
+        Carbon::setTestNow();
     }
 });
 
