@@ -33,7 +33,8 @@ return [
 
     'signing' => [
         'initial_operator' => env('AUDIT_SIGNING_OPERATOR', 'owner'),
-        'allow_multiple_operators' => true,
+        'allow_multiple_operators' => false,
+        'supports_future_additional_operator' => true,
     ],
 
     'database_roles' => [
