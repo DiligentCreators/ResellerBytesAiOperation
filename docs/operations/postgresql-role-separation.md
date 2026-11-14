@@ -86,7 +86,8 @@ Run after every migration deployment, as the cluster administrator, before resta
 
 ```sql
 REVOKE ALL PRIVILEGES ON TABLE migrations FROM rb_runtime, rb_readonly;
-GRANT SELECT ON ALL TABLES IN SCHEMA public TO rb_readonly;
+-- Re-grant SELECT only on each explicitly approved reporting view/table.
+-- Example: GRANT SELECT ON TABLE reporting_safe_view TO rb_readonly;
 REVOKE INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON ALL TABLES IN SCHEMA public FROM rb_readonly;
 GRANT SELECT, INSERT ON TABLE audit_events TO rb_runtime;
 REVOKE UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON TABLE audit_events FROM rb_runtime;
@@ -118,7 +119,7 @@ SELECT has_table_privilege('rb_runtime', 'audit_events', 'DELETE') AS runtime_ca
 SELECT has_table_privilege('rb_runtime', 'audit_chain_heads', 'UPDATE') AS runtime_can_advance_chain_head;
 ```
 
-Expected values: all three application logins are non-superusers; read-only can SELECT but cannot INSERT/UPDATE; only the migrator can create schema objects; runtime cannot read the migration ledger; runtime can insert but cannot update/delete audit events; runtime can update the chain head because the append transaction requires it.
+Expected values: all three application logins are non-superusers; read-only can SELECT only from explicitly granted reporting views/tables and cannot read unapproved audit tables or INSERT/UPDATE; only the migrator can create schema objects; runtime cannot read the migration ledger; runtime can insert but cannot update/delete audit events; runtime can update the chain head because the append transaction requires it.
 
 Also connect using the runtime credential and attempt UPDATE, DELETE, and TRUNCATE against a disposable audit row in a non-production test database. Each must fail. Confirm normal audit append, chain verification, diagnostic ingestion, AI settlement, and nonce cleanup still work under the runtime login.
 
