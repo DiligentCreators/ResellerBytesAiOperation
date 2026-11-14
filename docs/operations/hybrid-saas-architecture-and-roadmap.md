@@ -384,3 +384,6 @@ The tenant migration is authored on the branch but has not been executed; no ten
 
 
 - Added audited webhook dead-letter recovery: only tenant billing managers can requeue an event, only while its provider-account mapping remains active/verified, and each event is capped at three manual replays with a constrained reason code. Reconciliation/outbox/recovery commands are explicitly registered.
+
+
+- Operational recovery now covers both webhook inbox and transactional outbox dead letters. Tenant billing managers can manually requeue only dead-lettered records, with an active verified provider account required for inbox replay, audit evidence, explicit confirmation, and a three-replay ceiling.
