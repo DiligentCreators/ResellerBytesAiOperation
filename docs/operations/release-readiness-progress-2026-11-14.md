@@ -6,7 +6,7 @@
 - Pull request: [#2 — Release
   readiness](https://github.com/DiligentCreators/ResellerBytesAiOperation/pull/2)
 - Branch: `work/release-readiness-audit`
-- Latest reviewed head: `cff03dd7264138929753101d7b446f0d3a88df1f`
+- Latest reviewed head: `775a2330ad80eb32f1ae21a2ba29b5b755cd7780`
 - PR remains open and Draft. No merge, production migration, deployment, or live WHMCS
   change has been performed.
 
@@ -391,3 +391,30 @@ inferred from the repository changes.
   progress, and security-review readiness Markdown files. Those files have since been
   reflowed. No CI run was triggered for the current version-pinning code/documentation
   changes.
+
+## Static source review follow-up — 2026-11-14
+
+- Backup manifest schema is now version 2 and binds each archive to the configured
+  PostgreSQL database name, host, and port. Restore refuses a missing or mismatched
+  endpoint identity instead of relying on database name alone.
+- Backup manifest uploads now receive exact-version Object Lock metadata verification
+  and a downloaded exact-VersionId SHA-256 read-back check. Restore also resolves the
+  downloaded manifest VersionId and verifies its immutable metadata/checksum and
+  minimum configured retention before trusting its archive reference.
+- Operational alert resolution now uses metric availability explicitly. An unavailable
+  error-rate, latency, disk, or queue metric cannot silently clear an active alert; a
+  known healthy sample can resolve only the corresponding metric-backed alert. Added
+  regression coverage for the unavailable-to-healthy transition.
+- Corrected the restore rehearsal runbook so it no longer claims legal holds preserve
+  diagnostic content. It now documents hold-metadata expiry and exact database
+  endpoint matching. Corrected stale PR description statements: diagnostic retention
+  has no exceptions and live audit events are retained indefinitely; 365-day COMPLIANCE
+  retention applies to external audit-checkpoint backup objects.
+- Intermediate commits for this review batch all include [skip ci]. No workflow file or
+  repository setting was changed.
+- Exact-head CI has intentionally not been triggered. The project requires PHP 8.5,
+  while the available local CLI is PHP 8.4 and the repository checkout/dependencies are
+  not mounted; do not treat static review as test execution or CI validation.
+- PR #2 remains open and Draft. No merge, production migration, deployment, or live
+  WHMCS operation is authorized.
+
