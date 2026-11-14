@@ -279,6 +279,7 @@ class TenantSubscriptionLifecycle
             ->first();
 
         if ($invoice === null
+            || ($provider !== null && ($invoice->provider !== $provider || $invoice->provider_account_id !== $providerAccountId))
             || $invoice->currency !== $subscription->currency
             || $invoice->amount_paid_minor < $invoice->amount_due_minor) {
             throw new InvalidArgumentException('tenant_subscription_settled_invoice_invalid');
