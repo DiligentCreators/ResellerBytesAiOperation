@@ -32,17 +32,17 @@ class TenantDatabaseContext
             throw new \InvalidArgumentException('Invalid tenant database context user ID.');
         }
 
-        $connection->selectOne("select set_config('app.current_tenant_id', ?, false)", [$tenantId ?? '']);
-        $connection->selectOne("select set_config('app.current_user_id', ?, false)", [$userId === null ? '' : (string) $userId]);
-        $connection->selectOne("select set_config('app.integration_lookup_id', ?, false)", [$integrationLookupId ?? '']);
-
         try {
+            $connection->statement("select set_config('app.current_tenant_id', ?, false)", [$tenantId ?? '']);
+            $connection->statement("select set_config('app.current_user_id', ?, false)", [$userId === null ? '' : (string) $userId]);
+            $connection->statement("select set_config('app.integration_lookup_id', ?, false)", [$integrationLookupId ?? '']);
+
             return $callback();
         } finally {
             try {
-                $connection->selectOne("select set_config('app.current_tenant_id', '', false)");
-                $connection->selectOne("select set_config('app.current_user_id', '', false)");
-                $connection->selectOne("select set_config('app.integration_lookup_id', '', false)");
+                $connection->statement("select set_config('app.current_tenant_id', '', false)");
+                $connection->statement("select set_config('app.current_user_id', '', false)");
+                $connection->statement("select set_config('app.integration_lookup_id', '', false)");
             } catch (Throwable) {
                 $connection->disconnect();
             }
