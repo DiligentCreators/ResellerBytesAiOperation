@@ -101,8 +101,11 @@ it('does not expose raw exception messages or checkpoint contents in JSON eviden
         expect(Artisan::call('audit:anchor:monitor', ['checkpoint' => $path, '--json' => true]))->toBe(1);
         $output = Artisan::output();
         $evidence = json_decode(trim($output), true, 512, JSON_THROW_ON_ERROR);
+        $schema = json_decode(file_get_contents(base_path('docs/operations/audit-anchor-alert-evidence.schema.json')), true, 512, JSON_THROW_ON_ERROR);
 
-        expect($output)->not->toContain('DO_NOT_LEAK_THIS_VALUE')
+        expect(array_keys($evidence))->toBe($schema['required'])
+            ->and($schema['properties']['reason_code']['enum'])->toContain($evidence['reason_code'])
+            ->and($output)->not->toContain('DO_NOT_LEAK_THIS_VALUE')
             ->and($evidence)->toMatchArray([
                 'status' => 'failed',
                 'reason_code' => 'verification_failed',
