@@ -47,6 +47,7 @@ class AssignWhmcsIntegrationOwner extends Command
                 'event_type' => 'whmcs_integration.owner_assigned',
                 'subject_type' => 'whmcs_integration',
                 'subject_id' => $integration->id,
+                'tenant_id' => $integration->tenant_id,
                 'metadata' => ['owner_user_id' => (string) $owner->getKey()],
                 'occurred_at' => now(),
             ]);
