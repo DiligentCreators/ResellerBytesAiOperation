@@ -110,6 +110,12 @@ class Tenant extends Model
         return $this->hasMany(TenantBillingProviderAccount::class, 'tenant_id');
     }
 
+    /** @return HasMany<TenantBillingAdjustment, $this> */
+    public function billingAdjustments(): HasMany
+    {
+        return $this->hasMany(TenantBillingAdjustment::class, 'tenant_id');
+    }
+
     /** @return HasMany<AiUsageAttempt, $this> */
     public function aiUsageAttempts(): HasMany
     {
