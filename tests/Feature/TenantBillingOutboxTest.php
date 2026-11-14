@@ -996,5 +996,11 @@ it('requeues dead-lettered webhooks only with tenant authorization and a verifie
     expect(fn () => $recovery->requeueDeadLetter($tenant->id, $event->id, $user->id, 'provider_configuration_corrected'))
         ->toThrow(RuntimeException::class, 'billing_webhook_provider_account_inactive');
 
-    expect(Artisan::all())->toHaveKey('billing:webhooks:retry-dead-letter');
+    expect(Artisan::call('billing:webhooks:retry-dead-letter', [
+        'eventId' => $event->id,
+        '--tenant' => $tenant->id,
+        '--actor' => $user->id,
+        '--reason' => 'provider_configuration_corrected',
+        '--confirm' => true,
+    ]))->toBe(1);
 });
