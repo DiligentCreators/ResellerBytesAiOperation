@@ -37,7 +37,12 @@ class TenantBillingLedgerService
             throw new InvalidArgumentException('billing_manual_payment_evidence_required');
         }
         if ($payment['collection_mode'] === 'automated'
-            && (empty($payment['provider']) || empty($payment['provider_account_id']) || empty($payment['provider_payment_id']))) {
+            && (! is_string($payment['provider'] ?? null)
+                || ! preg_match('/^[a-z][a-z0-9_-]{1,39}$/', $payment['provider'])
+                || ! is_string($payment['provider_account_id'] ?? null)
+                || trim($payment['provider_account_id']) === '' || strlen($payment['provider_account_id']) > 160
+                || ! is_string($payment['provider_payment_id'] ?? null)
+                || trim($payment['provider_payment_id']) === '' || strlen($payment['provider_payment_id']) > 160)) {
             throw new InvalidArgumentException('billing_provider_payment_reference_required');
         }
 
@@ -75,8 +80,14 @@ class TenantBillingLedgerService
             if ($existing !== null) {
                 if ($existing->tenant_id !== $tenantId
                     || (int) $existing->tenant_billing_invoice_id !== $invoiceId
+                    || $existing->collection_mode !== $payment['collection_mode']
                     || $existing->amount_minor !== $payment['amount_minor']
-                    || $existing->currency !== $payment['currency']) {
+                    || $existing->currency !== $payment['currency']
+                    || $existing->provider !== ($payment['provider'] ?? null)
+                    || $existing->provider_account_id !== ($payment['provider_account_id'] ?? null)
+                    || $existing->provider_payment_id !== ($payment['provider_payment_id'] ?? null)
+                    || $existing->reference !== ($payment['reference'] ?? null)
+                    || $existing->recorded_by_user_id !== ($payment['recorded_by_user_id'] ?? null)) {
                     throw new RuntimeException('billing_payment_idempotency_conflict');
                 }
                 return $existing;
