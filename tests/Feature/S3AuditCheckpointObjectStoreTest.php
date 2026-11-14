@@ -54,3 +54,47 @@ it('rejects endpoints containing embedded credentials', function () {
     expect(fn () => app(S3AuditCheckpointObjectStore::class)->findImmutableObject('audit-anchors/testing/checkpoint.json'))
         ->toThrow(RuntimeException::class, 'audit_anchor_storage_endpoint_invalid');
 });
+
+
+it('creates and reads back an exact immutable S3 object version through the CLI adapter', function () {
+    $script = tempnam(sys_get_temp_dir(), 'rb-audit-s3-cli-');
+    $state = $script.'.object';
+    if (! is_string($script)) {
+        throw new RuntimeException('fake_s3_cli_script_failed');
+    }
+
+    $program = "#!/usr/bin/env php\n<?php\n".
+        '$state = '.var_export($state, true).";\n".
+        '$args = $argv;'."\n".
+        'function optionValue(array $args, string $name): ?string { $index = array_search($name, $args, true); return $index === false ? null : ($args[$index + 1] ?? null); }'."\n".
+        '$action = $args[2] ?? null;'."\n".
+        'if ($action === "put-object") { $body = optionValue($args, "--body"); file_put_contents($state, file_get_contents((string) $body)); echo json_encode(["VersionId" => "test-version-1"]); exit(0); }'."\n".
+        'if ($action === "head-object") { echo json_encode(["VersionId" => "test-version-1", "ObjectLockMode" => "COMPLIANCE", "ObjectLockRetainUntilDate" => "2027-11-15T00:00:00Z"]); exit(0); }'."\n".
+        'if ($action === "get-object") { $index = array_search("--version-id", $args, true); $destination = $index === false ? null : ($args[$index + 2] ?? null); file_put_contents((string) $destination, file_get_contents($state)); echo json_encode(["VersionId" => "test-version-1"]); exit(0); }'."\n".
+        'fwrite(STDERR, "unsupported fake operation"); exit(2);'."\n";
+    file_put_contents($script, $program);
+    chmod($script, 0700);
+    config(['audit.anchor.storage.aws_cli_binary' => $script]);
+
+    try {
+        $contents = '{"checkpoint":"signed-test-payload"}';
+        $created = app(S3AuditCheckpointObjectStore::class)->createImmutableIfAbsent(
+            'audit-anchors/test/checkpoint.json',
+            $contents,
+            new DateTimeImmutable('2027-11-14T00:00:00Z'),
+        );
+        $readBack = app(S3AuditCheckpointObjectStore::class)->readImmutableVersion(
+            'audit-anchors/test/checkpoint.json',
+            $created->versionId,
+        );
+
+        expect($created->versionId)->toBe('test-version-1')
+            ->and($created->retentionMode)->toBe('COMPLIANCE')
+            ->and($readBack->versionId)->toBe('test-version-1')
+            ->and($readBack->contents)->toBe($contents)
+            ->and($readBack->retentionMode)->toBe('COMPLIANCE');
+    } finally {
+        @unlink($script);
+        @unlink($state);
+    }
+});
