@@ -383,3 +383,20 @@ it('keeps tenant attribution immutable on an AI usage attempt', function () {
 
     expect($attempt->fresh()->tenant_id)->toBe($tenantA->id);
 });
+
+
+it('settles provider usage against the tenant captured at reservation even if integration mapping later changes', function () {
+    $tenantA = Tenant::create(['name' => 'Captured Billing Tenant A', 'slug' => 'captured-billing-tenant-a', 'status' => Tenant::STATUS_ACTIVE]);
+    $tenantB = Tenant::create(['name' => 'Captured Billing Tenant B', 'slug' => 'captured-billing-tenant-b', 'status' => Tenant::STATUS_ACTIVE]);
+    $run = makeBudgetDiagnosticRun(1, $tenantA);
+    $attempt = app(AiBudgetService::class)->reserve($run, 'gpt-5.6-sol', '2026-11-12.1');
+
+    $run->integration->forceFill(['tenant_id' => $tenantB->id])->save();
+    $service = app(AiBudgetService::class);
+    $service->markSubmitted($attempt);
+    $service->settle($attempt, ['input_tokens' => 1_000, 'cached_input_tokens' => 0, 'output_tokens' => 500], 'resp_captured_tenant');
+
+    expect(AiTenantBudgetPeriod::query()->where('tenant_id', $tenantA->id)->where('period_type', 'daily')->sole()->committed_micro_usd)->toBe(14_000)
+        ->and(AiTenantBudgetPeriod::query()->where('tenant_id', $tenantB->id)->count())->toBe(0)
+        ->and($attempt->fresh()->tenant_id)->toBe($tenantA->id);
+});
