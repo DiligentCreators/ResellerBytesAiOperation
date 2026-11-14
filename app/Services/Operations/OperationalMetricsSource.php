@@ -52,7 +52,7 @@ final class OperationalMetricsSource
         return [
             'error_rate_percent' => $sampleCount > 0 ? ($failedCount / $sampleCount) * 100 : null,
             'api_p95_latency_ms' => $p95Latency !== null ? (float) $p95Latency : null,
-            'last_successful_backup_at' => $this->lastSuccessfulBackupAt(),
+            'last_successful_backup_at' => $this->lastSuccessfulBackupAt($observedAt),
             'disk_usage_percent' => $this->diskUsagePercent(),
             'oldest_queue_job_age_minutes' => $this->oldestQueueJobAgeMinutes($observedAt),
         ];
@@ -69,7 +69,7 @@ final class OperationalMetricsSource
             ->delete();
     }
 
-    private function lastSuccessfulBackupAt(): ?string
+    private function lastSuccessfulBackupAt(CarbonImmutable $observedAt): ?string
     {
         $path = config('operations.metrics.backup_success_marker_path');
 
@@ -95,7 +95,7 @@ final class OperationalMetricsSource
             $createdAt = CarbonImmutable::createFromFormat('!Y-m-d\\TH:i:sP', $marker['created_at']);
             if ($createdAt === false
                 || $createdAt->toIso8601String() !== $marker['created_at']
-                || $createdAt->greaterThan(CarbonImmutable::now('UTC')->addMinutes(5))) {
+                || $createdAt->greaterThan($observedAt->addMinutes(5))) {
                 return null;
             }
 
