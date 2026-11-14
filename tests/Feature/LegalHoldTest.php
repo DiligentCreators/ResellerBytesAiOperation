@@ -254,3 +254,37 @@ it('rolls back diagnostic deletion when its immutable audit event cannot be appe
 
     expect(DB::table('diagnostic_runs')->where('id', $run->id)->exists())->toBeTrue();
 });
+
+
+it('uses an inclusive UTC cutoff for cleanup and excludes active diagnostic runs', function () {
+    \\Illuminate\\Support\\Carbon::setTestNow('2026-11-14 12:00:00');
+
+    try {
+        $boundaryRun = legalHoldDiagnosticRun();
+        $activeRun = legalHoldDiagnosticRun();
+        $recentRun = legalHoldDiagnosticRun();
+
+        DB::table('diagnostic_runs')->where('id', $boundaryRun->id)->update([
+            'received_at' => now('UTC')->subDays(365)->format('Y-m-d H:i:s'),
+        ]);
+        DB::table('diagnostic_runs')->where('id', $activeRun->id)->update([
+            'status' => 'analyzing',
+            'received_at' => now('UTC')->subDays(400)->format('Y-m-d H:i:s'),
+        ]);
+        DB::table('diagnostic_runs')->where('id', $recentRun->id)->update([
+            'received_at' => now('UTC')->subDays(365)->addSecond()->format('Y-m-d H:i:s'),
+        ]);
+
+        config(['diagnostics.retention_cleanup_enabled' => true]);
+
+        $this->artisan('diagnostics:retention:prune', ['--execute' => true])
+            ->expectsOutputToContain('Deleted 1 expired diagnostic run(s); protected 0 by active legal hold(s).')
+            ->assertSuccessful();
+
+        expect(DB::table('diagnostic_runs')->where('id', $boundaryRun->id)->exists())->toBeFalse()
+            ->and(DB::table('diagnostic_runs')->where('id', $activeRun->id)->exists())->toBeTrue()
+            ->and(DB::table('diagnostic_runs')->where('id', $recentRun->id)->exists())->toBeTrue();
+    } finally {
+        \\Illuminate\\Support\\Carbon::setTestNow();
+    }
+});
