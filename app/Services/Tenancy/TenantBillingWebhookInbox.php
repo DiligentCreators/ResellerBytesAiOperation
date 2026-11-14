@@ -37,12 +37,25 @@ class TenantBillingWebhookInbox
             throw new InvalidArgumentException('billing_webhook_input_invalid');
         }
 
+        $allowedPayloadKeys = match ($eventType) {
+            'invoice.payment_succeeded' => ['invoice_id', 'payment_id', 'amount_minor', 'currency'],
+            'subscription.past_due' => ['subscription_id', 'grace_ends_at'],
+            'subscription.canceled', 'subscription.expired' => ['subscription_id'],
+            'subscription.reactivated' => ['subscription_id', 'settled_invoice_id'],
+            default => throw new InvalidArgumentException('billing_webhook_event_type_unsupported'),
+        };
+
+        if (array_diff(array_keys($normalizedPayload), $allowedPayloadKeys) !== []
+            || array_diff($allowedPayloadKeys, array_keys($normalizedPayload)) !== []) {
+            throw new InvalidArgumentException('billing_webhook_payload_fields_invalid');
+        }
+
         $encoded = json_encode($normalizedPayload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
         if (strlen($encoded) > 65536) {
             throw new InvalidArgumentException('billing_webhook_payload_too_large');
         }
 
-        $hash = hash('sha256', $encoded);
+        $hash = hash('sha256', $this->canonicalJson($normalizedPayload));
 
         return app(TenantDatabaseContext::class)->run($tenantId, null, fn (): TenantBillingWebhookEvent => DB::transaction(function () use ($tenantId, $provider, $providerEventId, $eventType, $normalizedPayload, $receivedAt, $providerAccountId, $hash): TenantBillingWebhookEvent {
             Tenant::query()->whereKey($tenantId)->firstOrFail();
@@ -78,5 +91,13 @@ class TenantBillingWebhookInbox
                 'available_at' => now('UTC'),
             ]);
         }, 3));
+    }
+
+    /** @param array<string, mixed> $payload */
+    private function canonicalJson(array $payload): string
+    {
+        ksort($payload);
+
+        return json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
     }
 }
