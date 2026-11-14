@@ -12,6 +12,7 @@ class AuditEvent extends Model
     protected $fillable = [
         'actor_type',
         'actor_id',
+        'tenant_id',
         'event_type',
         'subject_type',
         'subject_id',
