@@ -50,6 +50,24 @@ class Tenant extends Model
         return $this->hasMany(WhmcsIntegration::class);
     }
 
+    /** @return HasMany<TenantSubscription, $this> */
+    public function subscriptions(): HasMany
+    {
+        return $this->hasMany(TenantSubscription::class);
+    }
+
+    /** @return HasMany<TenantBillingInvoice, $this> */
+    public function billingInvoices(): HasMany
+    {
+        return $this->hasMany(TenantBillingInvoice::class);
+    }
+
+    /** @return HasMany<TenantBillingPayment, $this> */
+    public function billingPayments(): HasMany
+    {
+        return $this->hasMany(TenantBillingPayment::class);
+    }
+
     /** @return HasMany<AiUsageAttempt, $this> */
     public function aiUsageAttempts(): HasMany
     {
