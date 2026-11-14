@@ -15,6 +15,7 @@ final class AlertStateService
 
     /**
      * @param  list<array{code: string, severity: string, observed: int|float|null, threshold: int|float, window_minutes?: int}>  $alerts
+     * @param  list<string>|null  $evaluatedCodes
      * @return array{active_alerts: int, notifications_sent: int, notifications_failed: int}
      */
     public function process(array $alerts, ?CarbonImmutable $observedAt = null, ?array $evaluatedCodes = null): array
@@ -171,7 +172,7 @@ final class AlertStateService
         }
 
         return [
-            'active_alerts' => count(array_unique($activeCodes)),
+            'active_alerts' => DB::table('operations_alert_states')->where('is_active', true)->count(),
             'notifications_sent' => $sent,
             'notifications_failed' => $failed,
         ];
