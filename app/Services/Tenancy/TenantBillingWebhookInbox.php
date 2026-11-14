@@ -132,6 +132,7 @@ class TenantBillingWebhookInbox
                     'subject_id' => (string) $event->id,
                     'metadata' => [
                         'provider' => $provider,
+                        'provider_account_id' => $providerAccountId,
                         'event_type' => $eventType,
                         'payload_sha256' => $hash,
                     ],
