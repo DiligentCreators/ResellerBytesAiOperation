@@ -327,7 +327,6 @@ it('propagates a recommendation hold to its finding and parent diagnostic run', 
         ->and($service->isHeld('diagnostic_run', $run->id))->toBeTrue();
 });
 
-
 it('rejects duplicate active holds for the same target without creating a second audit event', function () {
     $owner = legalHoldOwner();
     $run = legalHoldDiagnosticRun();
