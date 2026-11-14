@@ -646,3 +646,12 @@ inferred from the repository changes.
 - This is an account-ownership baseline, not completion of approved organization-level SaaS tenancy. Still required: tenant/workspace and membership model, roles/permission matrix, tenant attribution across AI usage/billing/audit/notifications, queued-job tenant context and revalidation, exports/downloads, tenant-aware uniqueness/constraints, safe existing-data mapping, and evaluation of PostgreSQL RLS. External onboarding remains disabled.
 - Legacy integration ownership requires Shahrukh's explicit mapping decision. They remain unassigned and invisible in user-scoped dashboards until assigned through the audited command.
 - All commits carry [skip ci]. No workflow/repository setting changes. Tests have not been executed; PHP 8.5 and project dependencies are required. No merge, deployment, production migration, or live WHMCS operation performed.
+
+
+## Owner-bound diagnostic queue execution — 2026-11-15
+
+- `AnalyzeDiagnosticRun` now requires a positive captured `ownerUserId` alongside the run UUID. A worker will not start analysis unless the run's integration still has that exact owner; it rechecks ownership before provider submission and before persisting results.
+- Exception and queue-failure handlers update a diagnostic run only while the integration remains owned by the captured user. Reassignment during a queued/running job therefore cannot let a stale job mutate the new owner's record.
+- Snapshot ingestion queues AI analysis only for integrations with an assigned owner. Manual reanalysis passes the authenticated user ID. Stale-queue recovery joins and locks the integration ownership record, excludes unassigned legacy integrations, and passes the captured owner into the job.
+- Added regression coverage for owner changes between enqueue and execution and for recovery ignoring unassigned integrations; updated direct job fixtures to carry owners.
+- Tests are authored but not executed. PHP 8.5 and project dependencies are unavailable in this environment. All commits retain [skip ci]; no workflow files or repository settings were changed. PR #2 remains open and Draft; no merge, deployment, migration, or live WHMCS operation was performed.
