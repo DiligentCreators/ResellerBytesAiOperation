@@ -213,3 +213,18 @@ Approved by operator on 2026-11-12:
 - Branding: ResellerBytes-branded product plus a white-label path for eligible customers.
 
 These are approved architectural decisions. Implementation, tests, provider selection, and production readiness remain separate verification steps.
+
+
+### Tenant isolation implementation checkpoint — 2026-11-15
+
+The release-readiness branch now adds a first account-ownership enforcement layer as groundwork, not as completion of the organization-level SaaS tenancy phase:
+
+- `whmcs_integrations.owner_user_id` is a nullable FK to the verified application user; existing integrations are deliberately left unassigned by migration rather than guessed or bulk-mapped.
+- New integration provisioning requires an explicit `--owner` email resolving to an existing email-verified account with confirmed TOTP MFA.
+- A one-way, audited `whmcs:integration:assign-owner` command can map an unassigned legacy integration to a selected verified MFA account. It refuses reassignment once ownership exists.
+- Dashboard aggregates, integration lists, diagnostic lists/details, finding lists/details, and reanalysis actions are scoped to the authenticated integration owner. Cross-owner detail access returns 404.
+- Cross-owner regression coverage has been added for list pages, aggregate counts, details, and reanalysis. Test execution is pending the required PHP 8.5 environment.
+
+This is not yet the complete shared-database tenant model approved for SaaS. Organization/workspace entities, memberships and role matrix, tenant attribution for every usage/billing/audit/notification record, queue-job tenant context/revalidation, exports/downloads, tenant-aware uniqueness/constraints, backfill verification, and PostgreSQL RLS defense-in-depth remain roadmap work. External customer onboarding must remain disabled until those gates pass.
+
+Existing integrations have `owner_user_id = NULL` after migration and are intentionally invisible to user-scoped dashboards until Shahrukh reviews and explicitly assigns each one. Do not infer or auto-assign their owner.
