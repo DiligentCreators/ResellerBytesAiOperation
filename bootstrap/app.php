@@ -2,6 +2,7 @@
 
 use App\Console\Commands\CheckOperationalAlerts;
 use App\Console\Commands\CollectOperationalMetrics;
+use App\Console\Commands\CreateOperationalBackup;
 use App\Console\Commands\CreateOperationsUser;
 use App\Console\Commands\CreateWhmcsIntegration;
 use App\Console\Commands\ExportAuditAnchorCheckpoint;
@@ -11,6 +12,7 @@ use App\Console\Commands\PruneExpiredDiagnosticRecords;
 use App\Console\Commands\PruneWhmcsIntegrationNonces;
 use App\Console\Commands\ReleaseLegalHold;
 use App\Console\Commands\ReportDiagnosticRetentionCandidates;
+use App\Console\Commands\RestoreOperationalBackup;
 use App\Console\Commands\RevokeWhmcsIntegration;
 use App\Console\Commands\RotateWhmcsIntegrationSecret;
 use App\Console\Commands\VerifyAuditAnchorCheckpoint;
@@ -33,6 +35,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withCommands([
         CheckOperationalAlerts::class,
+        CreateOperationalBackup::class,
         CollectOperationalMetrics::class,
         CreateOperationsUser::class,
         CreateWhmcsIntegration::class,
@@ -45,6 +48,7 @@ return Application::configure(basePath: dirname(__DIR__))
         PruneExpiredDiagnosticRecords::class,
         ReleaseLegalHold::class,
         ReportDiagnosticRetentionCandidates::class,
+        RestoreOperationalBackup::class,
         RotateWhmcsIntegrationSecret::class,
         RevokeWhmcsIntegration::class,
     ])

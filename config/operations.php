@@ -28,6 +28,20 @@ return [
         'critical_sms_webhook_url' => env('OPERATIONS_ALERT_CRITICAL_SMS_WEBHOOK_URL'),
     ],
 
+    'backups' => [
+        'enabled' => (bool) env('OPERATIONS_BACKUPS_ENABLED', false),
+        'schedule_time' => env('OPERATIONS_BACKUP_SCHEDULE_TIME', '00:00'),
+        'object_lock_retention_days' => (int) env('BACKUP_OBJECT_LOCK_RETENTION_DAYS', 0),
+        'dump_username' => env('BACKUP_DB_USERNAME', env('DB_READONLY_ROLE', 'rb_readonly')),
+        'dump_password' => env('BACKUP_DB_PASSWORD'),
+        'restore_username' => env('RESTORE_DB_USERNAME', env('DB_MIGRATION_ROLE', 'rb_migrator')),
+        'restore_password' => env('RESTORE_DB_PASSWORD'),
+        'encryption_key' => env('BACKUP_ENCRYPTION_KEY'),
+        'aws_cli_binary' => env('BACKUP_AWS_CLI_BINARY', 'aws'),
+        'pg_dump_binary' => env('BACKUP_PG_DUMP_BINARY', 'pg_dump'),
+        'pg_restore_binary' => env('BACKUP_PG_RESTORE_BINARY', 'pg_restore'),
+    ],
+
     'recovery' => [
         'rpo_hours' => (int) env('RECOVERY_POINT_OBJECTIVE_HOURS', 24),
         'rto_hours' => (int) env('RECOVERY_TIME_OBJECTIVE_HOURS', 4),

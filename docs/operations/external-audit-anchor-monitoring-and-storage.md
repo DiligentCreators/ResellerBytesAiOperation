@@ -74,3 +74,11 @@ The provider-neutral publisher has automated fake-store tests for duplicate-key 
 - Provide approved secret-manager access and access policy so alert destinations and production key references can be configured securely.
 
 No cloud resource, production signing key, credential, or production alert route was created or accessed by this implementation.
+
+## Application database backup and restore
+
+The application backup tooling is implemented in the release-readiness branch and documented in docs/operations/backup-restore-rehearsal-runbook.md. It currently covers the PostgreSQL application database only. The tool creates a custom-format pg_dump, encrypts it with authenticated libsodium secretstream, uploads it to the Wasabi S3-compatible endpoint with explicit Object Lock COMPLIANCE retention and SSE-S3 AES256, then verifies bucket versioning/Object Lock, object metadata, and a full read-back SHA-256 before atomically updating the backup success marker.
+
+Backup scheduling defaults to daily at 00:00 UTC but remains disabled until OPERATIONS_BACKUPS_ENABLED=true. The backup retention duration is intentionally a required owner decision and is not inferred from the separate 365-day audit-log retention. Dedicated read-only dump and migration restore credentials are required. Production restore requires the dedicated owner email, fresh TOTP, an approval reference, explicit interactive confirmation, a verified pre-restore backup, and an immutable approval record in the Object-Locked bucket. RPO is 24 hours and RTO is 4 hours.
+
+The separate WHMCS/MariaDB database, uploaded local files, and external provider state are not included in this initial PostgreSQL tool. Wasabi account/billing, production credentials, backup retention approval, secret-manager access, and isolated rehearsal access remain external release gates. No production backup or restore has been executed.

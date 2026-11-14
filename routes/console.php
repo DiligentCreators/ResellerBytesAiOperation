@@ -269,3 +269,9 @@ Schedule::command('operations:check-alerts')
     ->everyMinute()
     ->withoutOverlapping()
     ->when(fn (): bool => (bool) config('operations.alerts.enabled'));
+
+Schedule::command('operations:backup:create')
+    ->dailyAt((string) config('operations.backups.schedule_time', '00:00'))
+    ->timezone('UTC')
+    ->withoutOverlapping()
+    ->when(fn (): bool => (bool) config('operations.backups.enabled'));

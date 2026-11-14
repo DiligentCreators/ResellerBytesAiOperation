@@ -100,7 +100,7 @@ Approved monitoring, alert-routing, recovery, retention, signing-operator, and P
 
 - Added `app/Services/Operations/AlertThresholdPolicy.php` to evaluate the approved error-rate, API p95, backup age, disk utilization, and queue-age thresholds from normalized metric inputs.
 - Added boundary tests for strict error/latency/queue thresholds, disk warning/critical escalation, the 26-hour backup limit, and missing/invalid/future backup timestamps.
-- The evaluator does not collect metrics, schedule checks, or deliver notifications. Production metric sources and email/Slack-or-Discord/critical WhatsApp-or-SMS adapters remain unconfigured.
+- Metric collection and alert delivery are implemented in the subsequent sections. Production delivery remains gated by owner-controlled destinations, credentials, and non-production verification.
 - Exact-head run [#43581384457](https://github.com/DiligentCreators/ResellerBytesAiOperation/actions/runs/43581384457) passed all six jobs on `d8cb3620fcf36a2ffa7582aa2c74bafa1b4eb90a`; general CI reported **195 passed, 878 assertions**.
 
 ## Final exact-head CI — 2026-11-14
@@ -111,7 +111,7 @@ Approved monitoring, alert-routing, recovery, retention, signing-operator, and P
 - MySQL 8.4, MariaDB 11.4, SQL Server 2022, and WHMCS PHP 8.1 jobs passed.
 - PR #2 remains open and Draft. No merge, deployment, production migration, or live WHMCS change has been performed.
 
-## Metric-source integration — implementation in progress
+## Metric-source integration — initial implementation
 
 - Added API middleware that records response status and elapsed time into a dedicated operations_metric_samples table. It stores no request body, URL parameters, customer identifiers, or response content; telemetry write failures are logged by exception class and never fail the API request.
 - Added OperationalMetricsSource to compute rolling-window 5xx error rate and p95 latency from those samples, disk utilization from a configured filesystem path, and queue age when Laravel uses the database queue driver.
@@ -122,7 +122,7 @@ Approved monitoring, alert-routing, recovery, retention, signing-operator, and P
 - This is application-side metric collection, not an independent external monitor. Alert scheduling, notification adapters, backup/restore tooling, and security-review readiness remain subsequent roadmap steps.
 - Exact-head run #43597533823 passed all six CI jobs on `d0fcf3f246fdd37d531068cde6cdfcb913e497d6`; general CI reported **198 passed, 3 skipped, 891 assertions**. No production marker, external queue provider, backup credential, or alert destination has been configured.
 
-## Alert scheduling and notification adapters — implementation in progress
+## Alert scheduling and notification adapters — complete (production gated)
 
 - Added the operations:check-alerts command to evaluate the approved metric policy and manage active alert state.
 - Added an idempotent alert-state table with active/inactive lifecycle, delivery claim leases, first/last observation timestamps, last successful notification timestamp, and notification counts.
@@ -132,3 +132,14 @@ Approved monitoring, alert-routing, recovery, retention, signing-operator, and P
 - Added feature tests for standard/critical routing, provider acknowledgement, deduplication, retry, and alert reactivation.
 - Provider-specific WhatsApp/SMS bridge provisioning and real destination credentials remain owner-controlled. Recovery notifications are not included in this phase.
 - Validation is pending on the exact commit for this step.
+
+## Outstanding owner-controlled gates
+
+- Wasabi account creation and billing approval; bucket provisioning and actual Object Lock COMPLIANCE read-back.
+- Approve the backup Object Lock retention period in days; this value is mandatory and has no assumed default.
+- Provide production Ed25519 key custody and secure public-key references/fingerprints.
+- Provide secret-manager access and dedicated backup read-only / restore migration DB credentials, backup encryption key, and alert destination secrets.
+- Provide isolated backup rehearsal access; no production restore has been performed.
+- Approve AI provider pricing and the price card.
+- Complete the independent security review and provide release authorization.
+- Keep PR #2 Draft; do not merge or deploy without explicit separate authorization.
