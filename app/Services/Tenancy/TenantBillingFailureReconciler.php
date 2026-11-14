@@ -30,6 +30,10 @@ class TenantBillingFailureReconciler
                     ->lockForUpdate()
                     ->firstOrFail();
 
+                if ($invoice->provider !== $provider || $invoice->provider_account_id !== $providerAccountId) {
+                    throw new InvalidArgumentException('billing_invoice_provider_account_mismatch');
+                }
+
                 if ($invoice->status === 'paid' || $invoice->status === 'void') {
                     return;
                 }
