@@ -2,7 +2,9 @@
 
 use App\Models\AuditEvent;
 use App\Models\WhmcsIntegration;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
+use LogicException;
 
 test('creates an integration with a one-time encrypted secret and an audit event', function () {
     $this->artisan('whmcs:integration:create', ['name' => 'ResellerBytes Production'])
@@ -90,10 +92,38 @@ test('revokes an integration and records the action', function () {
         ->toBe(['secret_version' => 2]);
 });
 
+test('prevents deleting integrations so their audit and diagnostic history remains addressable', function () {
+    $integration = WhmcsIntegration::create([
+        'name' => 'Retained installation',
+        'status' => 'revoked',
+        'secret' => str_repeat('d', 64),
+        'secret_version' => 2,
+    ]);
+
+    expect(fn () => $integration->delete())
+        ->toThrow(LogicException::class, 'revoke the integration instead of deleting it');
+
+    expect(WhmcsIntegration::query()->whereKey($integration->id)->exists())->toBeTrue();
+});
+
 test('rejects an invalid integration name without creating a record', function () {
     $this->artisan('whmcs:integration:create', ['name' => str_repeat('x', 121)])
         ->expectsOutputToContain('The integration name must contain between 1 and 120 characters.')
         ->assertFailed();
 
     expect(WhmcsIntegration::count())->toBe(0);
+});
+
+test('prevents query-builder deletion so integration history cannot be bypassed', function () {
+    $integration = WhmcsIntegration::create([
+        'name' => 'Retained installation',
+        'status' => 'revoked',
+        'secret' => str_repeat('e', 64),
+        'secret_version' => 3,
+    ]);
+
+    expect(fn () => DB::table('whmcs_integrations')->where('id', $integration->id)->delete())
+        ->toThrow(QueryException::class, 'whmcs_integrations are retained for audit history');
+
+    expect(DB::table('whmcs_integrations')->where('id', $integration->id)->exists())->toBeTrue();
 });

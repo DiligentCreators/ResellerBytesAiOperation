@@ -2,8 +2,8 @@
 
 namespace App\Console\Commands;
 
-use App\Models\AuditEvent;
 use App\Models\WhmcsIntegration;
+use App\Services\Audit\AuditEventWriter;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 
@@ -37,7 +37,7 @@ class RevokeWhmcsIntegration extends Command
                 'secret_version' => $version,
             ])->save();
 
-            AuditEvent::create([
+            app(AuditEventWriter::class)->append([
                 'actor_type' => 'system_operator',
                 'event_type' => 'whmcs_integration.revoked',
                 'subject_type' => 'whmcs_integration',

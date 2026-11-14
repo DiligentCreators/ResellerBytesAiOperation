@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\WhmcsAddonPackageSigner;
 use FilesystemIterator;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
@@ -11,9 +12,10 @@ use ZipArchive;
 
 class WhmcsAddonDownloadController extends Controller
 {
-    public function __invoke(): BinaryFileResponse
+    public function __invoke(WhmcsAddonPackageSigner $signer): BinaryFileResponse
     {
         abort_unless(class_exists(ZipArchive::class), 503, 'The WHMCS addon package service is unavailable.');
+        abort_unless($signer->isConfigured(), 503, 'The WHMCS addon signing key is not configured.');
 
         $sourceDirectory = base_path('whmcs-addon/modules/addons/resellerbytes_ai_ops');
 
@@ -65,10 +67,21 @@ class WhmcsAddonDownloadController extends Controller
             }
 
             sort($manifest, SORT_STRING);
+
+            $version = (string) config('services.whmcs_addon.version', '1.0.0');
+            $manifestContents = implode("\n", $manifest)."\n";
+            $signedPayload = $this->canonicalSignedPayload($version, $manifest);
+            $signature = $signer->sign($signedPayload);
+            $publicKey = $signer->publicKeyBase64();
+            $fingerprint = $signer->fingerprint();
+
             if (! $archive->addFromString('INSTALLATION.txt', $this->installationInstructions())
-                || ! $archive->addFromString('VERSION.txt', (string) config('services.whmcs_addon.version', '1.0.0'))
-                || ! $archive->addFromString('SHA256SUMS.txt', implode("\n", $manifest)."\n")) {
-                throw new RuntimeException('Unable to write the addon archive manifest.');
+                || ! $archive->addFromString('VERSION.txt', $version)
+                || ! $archive->addFromString('SHA256SUMS.txt', $manifestContents)
+                || ! $archive->addFromString('SIGNATURE.ed25519', $signature."\n")
+                || ! $archive->addFromString('SIGNING-PUBLIC-KEY.txt', $publicKey."\n")
+                || ! $archive->addFromString('SIGNING-KEY-FINGERPRINT.txt', $fingerprint."\n")) {
+                throw new RuntimeException('Unable to write the addon archive manifests and signature.');
             }
 
             if (! $archive->close()) {
@@ -89,6 +102,7 @@ class WhmcsAddonDownloadController extends Controller
             [
                 'Content-Type' => 'application/zip',
                 'X-Content-Type-Options' => 'nosniff',
+                'X-Addon-Signing-Key-SHA256' => $fingerprint,
             ],
         );
 
@@ -96,6 +110,18 @@ class WhmcsAddonDownloadController extends Controller
         $download->headers->set('Cache-Control', 'private, no-store, max-age=0');
 
         return $download->deleteFileAfterSend(true);
+    }
+
+    /**
+     * @param  array<int, string>  $manifest
+     */
+    private function canonicalSignedPayload(string $version, array $manifest): string
+    {
+        return implode("\n", [
+            'resellerbytes-ai-ops-package-v1',
+            'version='.$version,
+            ...$manifest,
+        ])."\n";
     }
 
     private function installationInstructions(): string
@@ -109,6 +135,11 @@ Compatibility
 - PHP 8.1 or later
 - cURL PHP extension enabled
 
+Package authenticity
+- This archive includes an Ed25519 signature over the version and sorted SHA-256 file manifest.
+- Verify SIGNATURE.ed25519 with SIGNING-PUBLIC-KEY.txt and compare the SHA-256 public-key fingerprint with the authenticated signing-key fingerprint endpoint at /whmcs-addon/signing-key-fingerprint before installation.
+- Do not install the addon if signature verification fails or the fingerprint does not match.
+
 Important: WHMCS does not provide a built-in ZIP addon-module uploader.
 Use the 20i File Manager to upload files without an FTP client. If your
 File Manager offers an Extract action, upload and extract this ZIP into
@@ -118,16 +149,17 @@ then upload the four PHP files through File Manager while preserving paths.
 
 Installation
 1. Take and verify a restorable WHMCS files and database backup.
-2. Open your hosting control panel's File Manager.
-3. Open the WHMCS installation directory, then modules/addons.
-4. If File Manager offers Extract, upload and extract this ZIP into modules/addons. Otherwise, extract it locally and upload the four PHP files while preserving the folder structure.
-5. Confirm this exact path exists:
+2. Verify the package signature and fingerprint returned by the authenticated signing-key fingerprint endpoint.
+3. Open your hosting control panel's File Manager.
+4. Open the WHMCS installation directory, then modules/addons.
+5. If File Manager offers Extract, upload and extract this ZIP into modules/addons. Otherwise, extract the ZIP locally and upload the four PHP files while preserving paths.
+6. Confirm this exact path exists:
    modules/addons/resellerbytes_ai_ops/resellerbytes_ai_ops.php
-6. In WHMCS Admin, open Configuration > System Settings > Addon Modules.
-7. Activate "ResellerBytes AI Operations".
-8. Configure the addon and set an absolute path to the external credentials JSON file.
-9. In Access Control, allow only trusted administrator roles and save changes.
-10. Open Addons > ResellerBytes AI Operations and run diagnostics once manually.
+7. In WHMCS Admin, open Configuration > System Settings > Addon Modules.
+8. Activate "ResellerBytes AI Operations".
+9. Configure the addon and set an absolute path to the external credentials JSON file.
+10. In Access Control, allow only trusted administrator roles and save changes.
+11. Open Addons > ResellerBytes AI Operations and run diagnostics once manually.
 
 Credentials
 - Keep the JSON credentials file outside both the WHMCS installation root

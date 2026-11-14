@@ -11,6 +11,7 @@ import {
 type Props = {
     addonVersion: string;
     downloadAvailable: boolean;
+    downloadUnavailableReason: string;
     aiConfigured: boolean;
 };
 
@@ -29,6 +30,7 @@ const steps = [
 export default function WhmcsAddonSetup({
     addonVersion,
     downloadAvailable,
+    downloadUnavailableReason,
     aiConfigured,
 }: Props) {
     return (
@@ -85,9 +87,7 @@ export default function WhmcsAddonSetup({
                                     </a>
                                 ) : (
                                     <span className="text-sm text-destructive">
-                                        ZIP support is not available on this
-                                        server. Enable PHP ext-zip before
-                                        deployment.
+                                        {downloadUnavailableReason}
                                     </span>
                                 )}
                                 <Link

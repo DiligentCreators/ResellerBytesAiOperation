@@ -15,6 +15,7 @@ import ManageTwoFactor from '@/components/manage-two-factor';
 // oxfmt-ignore
 type Props = {
     passwordRules: string;
+    status?: string | null;
 } & ManagePasskeysProps &
     ManageTwoFactorProps;
 
@@ -27,6 +28,12 @@ export default function Security(props: Props) {
             <Head title="Security settings" />
 
             <h1 className="sr-only">Security settings</h1>
+
+            {props.status && (
+                <p className="text-sm font-medium text-amber-700" role="alert">
+                    {props.status}
+                </p>
+            )}
 
             <div className="space-y-6">
                 <Heading

@@ -7,7 +7,7 @@ This runbook is for the ResellerBytes AI Operations application on the existing 
 - Confirm the feature branch has passed CI, security review, and the pull request has been merged to main.
 - Confirm Forge has PHP 8.5 CLI and FPM available for the Laravel application.
 - Confirm PHP 8.5 extensions in both CLI and FPM: pdo_pgsql, redis, zip, curl, mbstring, openssl, fileinfo, tokenizer, xml, ctype, bcmath, and intl. Redis is required by FPM sessions/cache and the CLI queue worker; ZIP is required by the authenticated web download route. Restart the relevant Forge PHP-FPM service after changing extensions.
-- Confirm PostgreSQL is local/private and a dedicated least-privilege database user exists.
+- Confirm PostgreSQL is local/private and the separate `rb_migrator` and `rb_runtime` identities are provisioned and verified using [PostgreSQL role separation](postgresql-role-separation.md). The runtime identity must not own schema objects or access the migrations ledger.
 - Confirm Redis is local/private, authenticated where appropriate, persisted, monitored, and configured with noeviction.
 - Confirm the application domain and HTTPS certificate are ready.
 - Do not make changes to the WHMCS/20i server during Laravel deployment.
@@ -26,6 +26,8 @@ Required application settings:
 - DB_PORT=5432
 - DB_DATABASE=resellerbytes_ai_operation
 - DB_USERNAME and DB_PASSWORD for the dedicated PostgreSQL user
+- DB_SSLMODE=verify-full, with the PostgreSQL server CA trusted by the PHP runtime and the certificate hostname matching DB_HOST
+- Never set PostgreSQL SSL mode to `disable` in production or bypass certificate verification to work around a TLS error
 - CACHE_STORE=redis
 - SESSION_DRIVER=redis
 - SESSION_ENCRYPT=true
@@ -48,16 +50,17 @@ Set a sensible OpenAI project spend limit and monitor usage. AI analysis must ne
 
 ## 3. Deploy the Laravel application
 
-1. Deploy the reviewed main branch through Forge.
-2. Run composer install --no-dev --prefer-dist --optimize-autoloader.
-3. Run npm ci and npm run build.
-4. Confirm the production .env and APP_KEY are present. Do not regenerate an existing production key.
-5. Run php artisan migrate --force.
-6. Run php artisan optimize.
-7. Confirm /up returns healthy and the dashboard login page loads over HTTPS.
-8. Confirm public registration is unavailable.
-9. Create the first operator with php artisan ops:user:create "Operations Admin" operator@example.com. Enter a strong password at the hidden prompts. Do not pass passwords as command-line arguments.
-10. Sign in and enable two-factor authentication or a passkey.
+1. This runbook is not deployment authorization. The release-readiness PR must first be approved and merged through the project's normal review process, and the release owner must explicitly authorize deployment. Never deploy the Draft PR branch or an unreviewed commit.
+2. Deploy the exact approved release commit through Forge and record its full SHA in the change record.
+3. Run composer install --no-dev --prefer-dist --optimize-autoloader.
+4. Run npm ci and npm run build.
+5. Confirm the production .env and APP_KEY are present. Do not regenerate an existing production key.
+6. Run php artisan migrate --force using the deployment-only `rb_migrator` credential, never the runtime credential. Reconcile the runtime grants using the role-separation runbook before restarting FPM and queue workers.
+7. Run php artisan optimize.
+8. Confirm /up returns healthy and the dashboard login page loads over HTTPS.
+9. Confirm public registration is unavailable.
+10. Create the first operator with php artisan ops:user:create "Operations Admin" operator@example.com. Enter a strong password at the hidden prompts. Do not pass passwords as command-line arguments.
+11. Sign in and enroll and confirm TOTP-based two-factor authentication before accessing operational routes. A passkey may be enabled as an additional factor but does not replace confirmed TOTP.
 
 ## 4. Queue and scheduler
 

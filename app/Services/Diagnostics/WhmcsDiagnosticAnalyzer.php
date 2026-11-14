@@ -26,7 +26,7 @@ class WhmcsDiagnosticAnalyzer
     /**
      * @return array{summary: string, no_findings_reason: ?string, findings: array<int, array<string, mixed>>, response_id: ?string, usage: array<string, int>}
      */
-    public function analyze(DiagnosticRun $run): array
+    public function analyze(DiagnosticRun $run, ?callable $beforeSubmit = null, ?callable $afterResponse = null): array
     {
         $apiKey = (string) config('services.openai.key');
 
@@ -35,6 +35,19 @@ class WhmcsDiagnosticAnalyzer
         }
 
         $payload = $run->payload;
+        $userInput = json_encode([
+            'whmcs_version' => $run->payload['system']['whmcs_version'] ?? 'unknown',
+            'snapshot' => $payload,
+        ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
+        $requestBytes = strlen($this->systemInstructions()) + strlen($userInput)
+            + strlen(json_encode($this->outputSchema(), JSON_THROW_ON_ERROR));
+        if ($requestBytes > (int) config('ai_budget.max_input_bytes', 65_536)) {
+            throw new RuntimeException('budget_input_limit_exceeded');
+        }
+
+        if ($beforeSubmit !== null) {
+            $beforeSubmit();
+        }
 
         $response = Http::withToken($apiKey)
             ->acceptJson()
@@ -43,7 +56,7 @@ class WhmcsDiagnosticAnalyzer
             ->post('https://api.openai.com/v1/responses', [
                 'model' => (string) config('services.openai.model', 'gpt-5.6-sol'),
                 'store' => false,
-                'max_output_tokens' => 3000,
+                'max_output_tokens' => (int) config('ai_budget.max_output_tokens', 3_000),
                 'reasoning' => [
                     'effort' => (string) config('services.openai.reasoning_effort', 'medium'),
                 ],
@@ -76,8 +89,26 @@ class WhmcsDiagnosticAnalyzer
 
         $body = $response->json();
 
+        if (is_array($body) && $afterResponse !== null && is_array($body['usage'] ?? null)
+            && array_key_exists('input_tokens', $body['usage'])
+            && array_key_exists('output_tokens', $body['usage'])) {
+            $usage = $body['usage'];
+            $afterResponse($body, [
+                'input_tokens' => max(0, (int) ($usage['input_tokens'] ?? 0)),
+                'cached_input_tokens' => max(0, (int) ($usage['input_tokens_details']['cached_tokens'] ?? 0)),
+                'output_tokens' => max(0, (int) ($usage['output_tokens'] ?? 0)),
+                'total_tokens' => max(0, (int) ($usage['total_tokens'] ?? 0)),
+            ]);
+        }
+
         if (! is_array($body) || ($body['status'] ?? null) !== 'completed') {
             throw new RuntimeException('provider_response_incomplete');
+        }
+
+        if (! is_array($body['usage'] ?? null)
+            || ! array_key_exists('input_tokens', $body['usage'])
+            || ! array_key_exists('output_tokens', $body['usage'])) {
+            throw new RuntimeException('provider_usage_missing');
         }
 
         $outputText = $this->extractOutputText($body);

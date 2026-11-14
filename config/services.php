@@ -44,6 +44,8 @@ return [
 
     'whmcs_addon' => [
         'version' => env('WHMCS_ADDON_VERSION', '1.0.0'),
+        'signing_secret_key' => env('WHMCS_ADDON_SIGNING_SECRET_KEY'),
+        'signing_public_key' => env('WHMCS_ADDON_SIGNING_PUBLIC_KEY'),
     ],
 
 ];

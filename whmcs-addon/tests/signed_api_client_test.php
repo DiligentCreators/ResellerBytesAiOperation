@@ -19,6 +19,10 @@ namespace ResellerBytesAiOps {
 
     function curl_exec(object $handle): bool
     {
+        if (($GLOBALS['rb_mock_curl_exec_result'] ?? true) !== true) {
+            return false;
+        }
+
         $responseBody = $GLOBALS['rb_mock_response_body'] ?? '{"data":{"duplicate":false}}';
         $callback = $GLOBALS['rb_mock_curl_options'][CURLOPT_WRITEFUNCTION];
 
@@ -27,7 +31,7 @@ namespace ResellerBytesAiOps {
 
     function curl_getinfo(object $handle, int $option): int
     {
-        return 202;
+        return $GLOBALS['rb_mock_http_status'] ?? 202;
     }
 
     function curl_close(object $handle): void {}
@@ -35,7 +39,6 @@ namespace ResellerBytesAiOps {
 
 namespace {
     use ResellerBytesAiOps\SignedApiClient;
-    use RuntimeException;
 
     require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/SignedApiClient.php';
 
@@ -122,4 +125,45 @@ namespace {
             throw $exception;
         }
     }
+}
+
+namespace {
+    use ResellerBytesAiOps\SignedApiClient;
+
+    function assertSignedClientFailure(string $expectedMessage, string $label): void
+    {
+        try {
+            (new SignedApiClient)->submit([
+                'integration_id' => 'a3a5d8b4-51b1-4c27-8f61-8e6f7d4a9c10',
+                'secret' => str_repeat('b', 64),
+            ], [
+                'system' => ['whmcs_version' => '8.13.7'],
+            ]);
+        } catch (RuntimeException $exception) {
+            if ($exception->getMessage() === $expectedMessage) {
+                return;
+            }
+
+            throw new RuntimeException($label.' returned an unexpected error code.');
+        }
+
+        throw new RuntimeException($label.' was unexpectedly accepted.');
+    }
+
+    $GLOBALS['rb_mock_response_body'] = '{"data":{"duplicate":false}}';
+    $GLOBALS['rb_mock_http_status'] = 500;
+    assertSignedClientFailure('diagnostic_submission_failed', 'HTTP 500 response');
+
+    $GLOBALS['rb_mock_http_status'] = 202;
+    $GLOBALS['rb_mock_response_body'] = 'not-json';
+    assertSignedClientFailure('diagnostic_response_invalid', 'Malformed JSON response');
+
+    $GLOBALS['rb_mock_response_body'] = '';
+    assertSignedClientFailure('diagnostic_submission_failed', 'Empty API response');
+
+    $GLOBALS['rb_mock_response_body'] = '{"data":{"duplicate":false}}';
+    $GLOBALS['rb_mock_curl_exec_result'] = false;
+    assertSignedClientFailure('diagnostic_submission_failed', 'cURL transport failure');
+
+    echo "WHMCS addon signed API client failure-path tests passed.\n";
 }

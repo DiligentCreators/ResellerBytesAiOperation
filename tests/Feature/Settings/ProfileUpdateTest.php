@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\AuditEvent;
 use App\Models\User;
 
 test('profile page is displayed', function () {
@@ -91,8 +92,9 @@ test('email verification status is unchanged when the email address is unchanged
     expect($user->refresh()->email_verified_at)->not->toBeNull();
 });
 
-test('user can delete their account', function () {
+test('user can delete their account when another operator account remains', function () {
     $user = User::factory()->create();
+    User::factory()->create();
 
     $response = $this
         ->actingAs($user)
@@ -106,6 +108,25 @@ test('user can delete their account', function () {
 
     $this->assertGuest();
     expect($user->fresh())->toBeNull();
+    expect(AuditEvent::where('event_type', 'operations_user.deleted')->count())->toBe(1);
+});
+
+test('the last remaining operator cannot delete their account', function () {
+    $user = User::factory()->create();
+
+    $response = $this
+        ->actingAs($user)
+        ->from(route('profile.edit'))
+        ->delete(route('profile.destroy'), [
+            'password' => 'password',
+        ]);
+
+    $response
+        ->assertSessionHasErrors('password')
+        ->assertRedirect(route('profile.edit'));
+
+    $this->assertAuthenticatedAs($user);
+    expect($user->fresh())->not->toBeNull();
 });
 
 test('correct password must be provided to delete account', function () {

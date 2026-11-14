@@ -16,7 +16,7 @@ This checklist is mandatory before installing or running the WHMCS addon against
 
 - [ ] Public self-registration is disabled; no public account-creation route is available.
 - [ ] The first verified dashboard operator was created through php artisan ops:user:create "Operations Admin" operator@example.com; the password was entered through hidden terminal prompts.
-- [ ] Two-factor authentication or a passkey is enabled for every production operator.
+- [ ] Confirmed TOTP-based two-factor authentication is enabled for every production operator before operational access; passkeys are additional factors, not substitutes.
 - [ ] OPENAI_API_KEY is configured only in the Forge environment, never in source control or WHMCS.
 - [ ] The configured OpenAI model is available to the API project and the project has an appropriate spend limit.
 - [ ] The Redis queue worker is running and supervised; the scheduler is active.
@@ -69,3 +69,34 @@ After stopping, preserve relevant sanitized logs, revoke the integration secret,
 Do not change PHP versions, cron commands, file permissions, OPcache, WHMCS directory paths, module-debugging settings, 20i settings, ResellerClub settings, billing, customer accounts, domains, or hosting services based on an AI recommendation.
 
 The first pilot validates collection and transport only. It does not authorize repairs.
+
+## Audit, database, and retention release gates
+
+See [`legal-hold-and-diagnostic-retention-runbook.md`](legal-hold-and-diagnostic-retention-runbook.md) for Owner CLI procedures, TOTP requirements, dry-run/execute gates, and fail-closed behavior.
+
+- [ ] The exact PR head SHA has all six required CI jobs green: general CI, PostgreSQL AI-budget/audit concurrency, MySQL 8.4 retention, MariaDB 11.4 retention, SQL Server 2022 retention, and WHMCS PHP 8.1 compatibility.
+- [ ] PostgreSQL migration, runtime, and read-only reporting principals are separate; runtime has DML only and no DDL, migration-ledger read, or audit-event mutation; read-only is SELECT-only on an explicit approved view/table allowlist; migration credentials are deploy-only.
+- [ ] Runtime-role negative privilege tests prove audit UPDATE/DELETE/TRUNCATE, migration-ledger reads, schema CREATE, and integration hard DELETE are rejected; normal audit append and chain verification still work under the runtime login. The read-only role must prove SELECT only on an explicit reporting allowlist and deny unapproved sensitive-table SELECT plus all writes and DDL. PostgreSQL CI runs `tests/Postgres/RuntimeRolePrivilegesTest.php` and `tests/Postgres/ReadOnlyRolePrivilegesTest.php` under disposable roles.
+- [ ] The WHMCS integration retention trigger has passed PostgreSQL and MySQL 8.4 tests; MariaDB 11.4 and SQL Server 2022 dedicated CI jobs must also pass on the exact release SHA. The SQL Server job directly exercises the migration against an isolated SQL Server table.
+- [ ] The report-only diagnostic retention command `php artisan diagnostics:retention:report --days=365` has been run against a restored non-production copy and its candidate/dependent counts reviewed. It does not delete records and does not evaluate legal holds.
+- [x] Legal-hold authority is approved: project Owner authorizes placement and release; every action requires an append-only audit event with owner identity, UTC timestamp, affected scope, reason, and controlled evidence/case reference.
+- [x] Legal-hold schema and Owner-only CLI placement/release commands implemented; `OPERATIONS_OWNER_EMAIL` selects the sole Owner, with verified email, enrolled MFA, and fresh TOTP per action.
+- [x] Placement/release audit events are transactionally coupled to hold-state changes; audit-write failure rolls back the hold change.
+- [x] Diagnostic cleanup is bounded, dry-run by default, disabled by default, requires explicit `--execute`, and re-checks direct/descendant legal holds inside the deletion transaction.
+- [x] Each diagnostic deletion appends an immutable audit event in the same transaction; audit-write failure rolls back deletion.
+- [ ] Exact PR-head CI, production backup/restore rehearsal, and operational approval must pass before setting `DIAGNOSTICS_RETENTION_CLEANUP_ENABLED=true`.
+- [ ] The external audit anchor is provisioned in a separate security account with **365-day immutable retention**, independent Ed25519 signing key, read-only verifier, alert routing, and a successful restore/read-back drill.
+- [ ] The latest database head matches the newest external signed checkpoint; any unanchored tail and checkpoint age are documented.
+- [x] A standalone public-key-only checkpoint verifier is available at `tools/verify-audit-anchor.php`; it validates the signed envelope, expected environment, optional predecessor digest, strict UTC calendar timestamp, future-clock bound, optional maximum age, and checkpoint SHA-256 without database or private-key access. Tests cover tampering, environment/predecessor mismatch, malformed calendar dates, future timestamps, and stale checkpoints.
+- [x] `php artisan audit:anchor:monitor` fails closed for missing/invalid/stale checkpoints, database-prefix mismatch, future timestamps, and unanchored-tail threshold breaches; automated tests cover healthy, stale, missing, and excessive-tail cases.
+- [x] Provider-neutral `AuditCheckpointPublisher` verifies the signed checkpoint against the local chain, uses a deterministic environment/sequence/digest key, and reports success only after exact-version checksum and 365-day COMPLIANCE retention read-back; after a failed create response it performs lookup-only reconciliation (never retries the write) and accepts success only after exact-version read-back. Fake-store tests cover duplicate, ambiguous, unresolved, version, checksum, and retention failures.
+- [ ] Approve the checkpoint cadence, freshness/tail thresholds, external scheduler identity, and security alert destination; production scheduling and alert delivery are not enabled by this repository.
+- [ ] Implement the provider-specific conditional-create uploader only after the independent storage provider and non-production integration-test account are provisioned; require exact-version checksum and Object Lock COMPLIANCE retention read-back before reporting success.
+- [ ] A database backup has been restored in isolation and compared against the newest external checkpoint before any production migration or pilot.
+- [ ] Complete the isolated PostgreSQL backup/restore rehearsal in [`backup-restore-rehearsal-runbook.md`](backup-restore-rehearsal-runbook.md), including Object Lock read-back, runtime-role probes, audit-chain verification, and signed external checkpoint comparison.
+- [x] External immutable audit-backup retention period: **365 days**, approved by the project owner on 2026-11-14.
+- [x] Diagnostic retention exception policy approved: no discretionary extensions beyond 365 days; the separately approved, owner-authorized and audited legal hold remains the sole exception.
+- [x] Legal-hold enforcement and guarded 365-day diagnostic cleanup safeguards are implemented with automated tests. Cleanup remains disabled by default; no schedule is registered and explicit deployment approval is still required.
+- [x] Audit events are explicitly excluded from all automated cleanup under the approved indefinite-retention policy.
+
+**Pending for Shahrukh before pilot:** create and fund the separate cloud/security account; generate and custody production Ed25519 keys; provide secret-manager access; verify actual AI provider pricing and approve the price card; provide isolated backup/restore rehearsal access; arrange the independent security review; and give final release authorization. The approved thresholds, alert-routing policy, recovery objectives, retention period, operator model, and three-role PostgreSQL design are decisions already made and are not pending. Live audit events are retained indefinitely and are never automatically deleted; the separate external backup objects retain the approved 365-day Object Lock period. Do not share private keys or production database passwords in this repository or chat.
