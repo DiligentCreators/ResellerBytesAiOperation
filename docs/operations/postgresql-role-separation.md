@@ -58,7 +58,8 @@ REVOKE INSERT, DELETE, TRUNCATE, REFERENCES, TRIGGER ON TABLE audit_chain_heads 
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO rb_runtime;
 
 -- Reporting receives read-only access; do not grant sequence USAGE/UPDATE.
-GRANT SELECT ON ALL TABLES IN SCHEMA public TO rb_readonly;
+-- Reconcile only the explicitly approved reporting allowlist after migrations.
+-- Example: GRANT SELECT ON TABLE reporting_safe_view TO rb_readonly;
 REVOKE INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON ALL TABLES IN SCHEMA public FROM rb_readonly;
 DO $
 BEGIN
@@ -75,8 +76,6 @@ ALTER DEFAULT PRIVILEGES FOR ROLE rb_migrator IN SCHEMA public
     GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO rb_runtime;
 ALTER DEFAULT PRIVILEGES FOR ROLE rb_migrator IN SCHEMA public
     GRANT USAGE, SELECT ON SEQUENCES TO rb_runtime;
-ALTER DEFAULT PRIVILEGES FOR ROLE rb_migrator IN SCHEMA public
-    GRANT SELECT ON TABLES TO rb_readonly;
 ```
 
 The example assumes the Laravel migration session connects as `rb_migrator`, so newly created objects are owned by that identity. Confirm this with `SELECT current_user`, `\dt+`, and `\dp` before running migrations. If the deployment process uses a different role, adjust the `ALTER DEFAULT PRIVILEGES FOR ROLE` owner accordingly.
@@ -109,7 +108,7 @@ WHERE rolname IN ('rb_migrator', 'rb_runtime', 'rb_readonly');
 
 SELECT has_schema_privilege('rb_runtime', 'public', 'CREATE') AS runtime_can_create_schema;
 SELECT has_schema_privilege('rb_readonly', 'public', 'CREATE') AS readonly_can_create_schema;
-SELECT has_table_privilege('rb_readonly', 'audit_events', 'SELECT') AS readonly_can_read_audit;
+SELECT has_table_privilege('rb_readonly', 'reporting_safe_view', 'SELECT') AS readonly_can_read_approved_view;
 SELECT has_table_privilege('rb_readonly', 'audit_events', 'INSERT') AS readonly_can_insert_audit;
 SELECT has_table_privilege('rb_readonly', 'audit_events', 'UPDATE') AS readonly_can_update_audit;
 SELECT has_table_privilege('rb_runtime', 'migrations', 'SELECT') AS runtime_can_read_migrations;
@@ -129,7 +128,7 @@ The PostgreSQL CI job provisions a disposable `rb_runtime` login after migration
 
 The regression test proves that the runtime identity can append a hash-chained audit event and verify the chain, while migration-ledger reads, schema creation, audit UPDATE/DELETE/TRUNCATE, and WHMCS integration hard DELETE are rejected. The test also confirms that the integration row remains present after the rejected delete. Its password is generated ephemerally inside the isolated CI job and is not a repository or production secret.
 
-The production reporting login must additionally be tested with SELECT success and INSERT/UPDATE/DELETE/TRUNCATE/DDL denial against a disposable reporting schema before use. Reporting grants should be narrowed to an explicit table/view allowlist if any application table contains credentials, tokens, or customer-sensitive fields.
+The production reporting login must additionally be tested with SELECT success only on explicitly approved reporting views/tables and SELECT denial on unapproved sensitive tables, plus INSERT/UPDATE/DELETE/TRUNCATE/DDL denial, against an isolated schema before use. Never grant SELECT across the full application schema by default.
 
 This automated check is a least-privilege regression guard, not a substitute for production role provisioning, a full application smoke test under the production runtime role, or an independent security review.
 
