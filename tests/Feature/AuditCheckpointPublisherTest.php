@@ -14,6 +14,8 @@ final class FakeAuditCheckpointObjectStore implements AuditCheckpointObjectStore
 
     public ?AuditCheckpointObjectVersion $readResult = null;
 
+    public ?AuditCheckpointObjectVersion $findResult = null;
+
     public ?RuntimeException $createFailure = null;
 
     public ?RuntimeException $readFailure = null;
@@ -21,6 +23,8 @@ final class FakeAuditCheckpointObjectStore implements AuditCheckpointObjectStore
     public array $createCalls = [];
 
     public array $readCalls = [];
+
+    public array $findCalls = [];
 
     public function createImmutableIfAbsent(string $objectKey, string $contents, DateTimeImmutable $retainUntil): AuditCheckpointObjectVersion
     {
@@ -31,6 +35,13 @@ final class FakeAuditCheckpointObjectStore implements AuditCheckpointObjectStore
         }
 
         return $this->createResult ?? new AuditCheckpointObjectVersion($contents, 'version-1', 'COMPLIANCE', $retainUntil);
+    }
+
+    public function findImmutableObject(string $objectKey): ?AuditCheckpointObjectVersion
+    {
+        $this->findCalls[] = [$objectKey];
+
+        return $this->findResult;
     }
 
     public function readImmutableVersion(string $objectKey, string $versionId): AuditCheckpointObjectVersion
@@ -82,6 +93,37 @@ it('rejects an unsigned or tampered checkpoint before calling the object store',
         ->toThrow(RuntimeException::class, 'audit_anchor_signature_invalid');
 
     expect($store->createCalls)->toBeEmpty();
+});
+
+it('reconciles an ambiguous create only after deterministic lookup and exact read-back', function () {
+    $checkpoint = createPublishableAuditCheckpoint();
+    $retainUntil = new DateTimeImmutable('+366 days');
+    $store = new FakeAuditCheckpointObjectStore;
+    $store->createFailure = new RuntimeException('audit_anchor_upload_outcome_ambiguous');
+    $store->findResult = new AuditCheckpointObjectVersion($checkpoint, 'recovered-version', 'COMPLIANCE', $retainUntil);
+    $store->readResult = $store->findResult;
+    $publisher = new AuditCheckpointPublisher($store, app(AuditAnchorService::class));
+
+    $result = $publisher->publish($checkpoint);
+
+    expect($result['object_version_id'])->toBe('recovered-version')
+        ->and($result['reconciled_after_create_error'])->toBeTrue()
+        ->and($store->createCalls)->toHaveCount(1)
+        ->and($store->findCalls)->toHaveCount(1)
+        ->and($store->readCalls)->toHaveCount(1);
+});
+
+it('does not claim success when an ambiguous create cannot be resolved', function () {
+    $checkpoint = createPublishableAuditCheckpoint();
+    $store = new FakeAuditCheckpointObjectStore;
+    $store->createFailure = new RuntimeException('audit_anchor_upload_outcome_ambiguous');
+
+    expect(fn () => (new AuditCheckpointPublisher($store, app(AuditAnchorService::class)))->publish($checkpoint))
+        ->toThrow(RuntimeException::class, 'audit_anchor_upload_outcome_ambiguous');
+
+    expect($store->createCalls)->toHaveCount(1)
+        ->and($store->findCalls)->toHaveCount(1)
+        ->and($store->readCalls)->toBeEmpty();
 });
 
 it('does not report success when exact-version read-back fails', function () {
