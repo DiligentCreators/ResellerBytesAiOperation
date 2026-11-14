@@ -45,6 +45,7 @@ class TenantBillingWebhookInbox
         $allowedPayloadKeys = match ($eventType) {
             'invoice.payment_succeeded' => ['invoice_id', 'payment_id', 'amount_minor', 'currency'],
             'invoice.payment_failed' => ['invoice_id', 'failure_code'],
+            'subscription.renewed' => ['subscription_id', 'settled_invoice_id', 'period_starts_at', 'period_ends_at'],
             'subscription.past_due' => ['subscription_id', 'grace_ends_at'],
             'subscription.canceled', 'subscription.expired' => ['subscription_id'],
             'subscription.reactivated' => ['subscription_id', 'settled_invoice_id'],
@@ -193,6 +194,28 @@ class TenantBillingWebhookInbox
         $subscriptionId = filter_var($payload['subscription_id'] ?? null, FILTER_VALIDATE_INT);
         if ($subscriptionId === false || $subscriptionId < 1) {
             throw new InvalidArgumentException('billing_webhook_subscription_payload_invalid');
+        }
+
+        if ($eventType === 'subscription.renewed') {
+            $invoiceId = filter_var($payload['settled_invoice_id'] ?? null, FILTER_VALIDATE_INT);
+            if ($invoiceId === false || $invoiceId < 1
+                || ! is_string($payload['period_starts_at'] ?? null)
+                || ! is_string($payload['period_ends_at'] ?? null)) {
+                throw new InvalidArgumentException('tenant_subscription_renewal_payload_invalid');
+            }
+
+            try {
+                $periodStart = CarbonImmutable::parse($payload['period_starts_at']);
+                $periodEnd = CarbonImmutable::parse($payload['period_ends_at']);
+            } catch (\\Throwable) {
+                throw new InvalidArgumentException('tenant_subscription_renewal_payload_invalid');
+            }
+
+            if (! $periodEnd->greaterThan($periodStart)
+                || $periodStart->greaterThan(now('UTC')->addMinutes(5))
+                || $periodEnd->diffInDays($periodStart) > 366) {
+                throw new InvalidArgumentException('tenant_subscription_renewal_period_invalid');
+            }
         }
 
         if ($eventType === 'subscription.past_due') {
