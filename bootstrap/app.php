@@ -17,6 +17,7 @@ use App\Console\Commands\ReportDiagnosticRetentionCandidates;
 use App\Console\Commands\DispatchTenantBillingOutbox;
 use App\Console\Commands\ReconcileTenantBillingWebhooks;
 use App\Console\Commands\RetryTenantBillingWebhookDeadLetter;
+use App\Console\Commands\RetryTenantBillingOutboxDeadLetter;
 use App\Console\Commands\RestoreOperationalBackup;
 use App\Console\Commands\RevokeWhmcsIntegration;
 use App\Console\Commands\RotateWhmcsIntegrationSecret;
@@ -60,6 +61,7 @@ return Application::configure(basePath: dirname(__DIR__))
         DispatchTenantBillingOutbox::class,
         ReconcileTenantBillingWebhooks::class,
         RetryTenantBillingWebhookDeadLetter::class,
+        RetryTenantBillingOutboxDeadLetter::class,
         RestoreOperationalBackup::class,
         RotateWhmcsIntegrationSecret::class,
         RevokeWhmcsIntegration::class,
