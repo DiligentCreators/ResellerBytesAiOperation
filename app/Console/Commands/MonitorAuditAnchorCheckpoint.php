@@ -17,7 +17,7 @@ class MonitorAuditAnchorCheckpoint extends Command
     public function handle(AuditAnchorService $anchors): int
     {
         $path = $this->argument('checkpoint');
-        if (! is_string($path) || $path === '' || ! is_file($path) || ! is_readable($path)) {
+        if ($path === '' || ! is_file($path) || ! is_readable($path)) {
             $this->error('Audit anchor monitor: checkpoint file is unavailable.');
 
             return self::FAILURE;
