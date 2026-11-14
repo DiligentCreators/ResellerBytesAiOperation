@@ -88,6 +88,7 @@ See [`legal-hold-and-diagnostic-retention-runbook.md`](legal-hold-and-diagnostic
 - [ ] The external audit anchor is provisioned in a separate security account with **365-day immutable retention**, independent Ed25519 signing key, read-only verifier, alert routing, and a successful restore/read-back drill.
 - [ ] The latest database head matches the newest external signed checkpoint; any unanchored tail and checkpoint age are documented.
 - [ ] A database backup has been restored in isolation and compared against the newest external checkpoint before any production migration or pilot.
+- [ ] Complete the isolated PostgreSQL backup/restore rehearsal in [`backup-restore-rehearsal-runbook.md`](backup-restore-rehearsal-runbook.md), including Object Lock read-back, runtime-role probes, audit-chain verification, and signed external checkpoint comparison.
 - [x] External immutable audit-backup retention period: **365 days**, approved by the project owner on 2026-11-14.
 - [x] Diagnostic retention exception policy approved: no discretionary extensions beyond 365 days; the separately approved, owner-authorized and audited legal hold remains the sole exception.
 - [x] Legal-hold enforcement and guarded 365-day diagnostic cleanup safeguards are implemented with automated tests. Cleanup remains disabled by default; no schedule is registered and explicit deployment approval is still required.
