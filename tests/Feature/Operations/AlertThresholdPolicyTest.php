@@ -95,3 +95,36 @@ it('fails closed on an invalid or future successful-backup timestamp', function 
     expect($invalid[0]['code'])->toBe('successful_backup_timestamp_invalid')
         ->and($future[0]['code'])->toBe('successful_backup_timestamp_invalid');
 });
+
+it('marks only metrics with an observed value as safe to resolve', function () {
+    $policy = app(AlertThresholdPolicy::class);
+
+    expect($policy->evaluatedCodes([
+        'error_rate_percent' => null,
+        'api_p95_latency_ms' => null,
+        'last_successful_backup_at' => null,
+        'disk_usage_percent' => null,
+        'oldest_queue_job_age_minutes' => null,
+    ]))->toBe([
+        'successful_backup_missing',
+        'successful_backup_stale',
+        'successful_backup_timestamp_invalid',
+    ]);
+
+    expect($policy->evaluatedCodes([
+        'error_rate_percent' => 0,
+        'api_p95_latency_ms' => 0,
+        'last_successful_backup_at' => '2026-11-14T11:00:00Z',
+        'disk_usage_percent' => 20,
+        'oldest_queue_job_age_minutes' => 0,
+    ]))->toBe([
+        'error_rate_exceeded',
+        'api_p95_latency_exceeded',
+        'successful_backup_missing',
+        'successful_backup_stale',
+        'successful_backup_timestamp_invalid',
+        'disk_usage_warning',
+        'disk_usage_critical',
+        'queue_job_age_exceeded',
+    ]);
+});
