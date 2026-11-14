@@ -5,6 +5,8 @@ Scope: Ed25519 key pair used only to sign external audit-chain checkpoints
 
 ## Security properties
 
+- Shahrukh is the sole initial signing and verification operator. Keep the operator identity and authorization model extensible so a second trusted operator can be enrolled through a separately reviewed policy change; do not imply that a second operator is currently authorized.
+
 - The Ed25519 private key authorizes checkpoint signatures. Treat it as a production signing secret with restricted, logged access.
 - The public key is a verification trust root. Distribute it to independent verifiers through a separately authenticated channel and record its SHA-256 fingerprint.
 - The audit-anchor key pair must be independent of the WHMCS addon package-signing key, Laravel `APP_KEY`, WHMCS HMAC integration secrets, database credentials, and CI test keys.
@@ -84,7 +86,7 @@ Immediately import the private value into the approved secret manager under a de
 - [ ] Confirm the application environment has no fallback or auto-generation behavior for missing keys.
 - [ ] Confirm the private and public keys form a valid pair using the application's export/verify checks in a non-production environment.
 - [ ] Confirm the audit-anchor key differs from the WHMCS addon signing key and every other application secret.
-- [ ] Restrict secret read access to the named checkpoint signer operator/service; log secret access without logging secret values.
+- [ ] Restrict secret read access to Shahrukh as the sole initial checkpoint signer; log secret access without logging secret values. Any second trusted operator requires explicit enrollment and review.
 - [ ] Restrict public-key replacement and trust-root changes to the independent security owner.
 - [ ] Record key version label, public fingerprint, generation date, custody owner, secret-manager reference, and verifier deployment references. Do not record the private value.
 
