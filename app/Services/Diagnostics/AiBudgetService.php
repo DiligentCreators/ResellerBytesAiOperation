@@ -174,7 +174,12 @@ class AiBudgetService
 
             $totalTokens = $this->usageTokenCount($usage, 'total_tokens');
             if ($totalTokens === 0) {
+                if ($input > PHP_INT_MAX - $output) {
+                    throw new RuntimeException('budget_usage_invalid');
+                }
                 $totalTokens = $input + $output;
+            } elseif ($totalTokens < $input + $output) {
+                throw new RuntimeException('budget_usage_invalid');
             }
 
             $locked->forceFill([
