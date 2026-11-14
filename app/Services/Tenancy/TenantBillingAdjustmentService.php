@@ -77,6 +77,10 @@ class TenantBillingAdjustmentService
                 ->lockForUpdate()
                 ->firstOrFail();
 
+            if ($invoice->provider !== $provider || $invoice->provider_account_id !== $providerAccountId) {
+                throw new InvalidArgumentException('billing_invoice_provider_account_mismatch');
+            }
+
             if ($kind === 'dispute_won' || $kind === 'dispute_lost') {
                 $opened = TenantBillingAdjustment::query()
                     ->where('tenant_id', $tenantId)
