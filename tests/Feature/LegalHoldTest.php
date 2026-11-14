@@ -256,7 +256,6 @@ it('rolls back diagnostic deletion when its immutable audit event cannot be appe
     expect(DB::table('diagnostic_runs')->where('id', $run->id)->exists())->toBeTrue();
 });
 
-
 it('uses an inclusive UTC cutoff for cleanup and excludes active diagnostic runs', function () {
     \Illuminate\Support\Carbon::setTestNow('2026-11-14 12:00:00');
 
@@ -289,7 +288,6 @@ it('uses an inclusive UTC cutoff for cleanup and excludes active diagnostic runs
         \Illuminate\Support\Carbon::setTestNow();
     }
 });
-
 
 it('propagates a recommendation hold to its finding and parent diagnostic run', function () {
     $owner = legalHoldOwner();
