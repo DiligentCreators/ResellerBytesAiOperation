@@ -34,6 +34,7 @@ function createBillingOutboxInvoice(Tenant $tenant, int $amount = 4900, ?string 
         'status' => 'active',
         'billing_provider' => $providerAccountId === null ? null : 'approved_gateway',
         'provider_account_id' => $providerAccountId,
+        'provider_subscription_id' => $providerAccountId === null ? null : 'provider-subscription-'.$tenant->slug,
         'currency' => 'USD',
         'unit_amount_minor' => $amount,
         'entitlements' => ['diagnostics.analysis' => true],
