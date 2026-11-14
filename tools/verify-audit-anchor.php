@@ -58,13 +58,46 @@ if (($payload['anchor_version'] ?? null) !== 1
     fail('checkpoint payload fields are invalid or environment does not match');
 }
 
-$expectedPrevious = $argv[2] ?? null;
-if ($expectedPrevious !== null) {
-    if (preg_match('/\A[a-f0-9]{64}\z/', $expectedPrevious) !== 1
-        || ! is_string($previous)
-        || ! hash_equals($expectedPrevious, $previous)) {
-        fail('previous checkpoint digest does not match');
+$expectedPrevious = null;
+$maxAgeMinutes = null;
+foreach (array_slice($argv, 2) as $argument) {
+    if (str_starts_with($argument, '--max-age-minutes=')) {
+        if ($maxAgeMinutes !== null) {
+            fail('maximum age option was supplied more than once');
+        }
+
+        $rawMaxAge = substr($argument, strlen('--max-age-minutes='));
+        if (preg_match('/\A[1-9][0-9]*\z/', $rawMaxAge) !== 1 || filter_var($rawMaxAge, FILTER_VALIDATE_INT) === false) {
+            fail('maximum age must be a positive integer number of minutes');
+        }
+        $maxAgeMinutes = (int) $rawMaxAge;
+
+        continue;
     }
+
+    if ($expectedPrevious !== null || preg_match('/\A[a-f0-9]{64}\z/', $argument) !== 1) {
+        fail('optional arguments must be one prior checkpoint SHA-256 and/or --max-age-minutes=N');
+    }
+    $expectedPrevious = $argument;
+}
+if ($expectedPrevious !== null && (! is_string($previous) || ! hash_equals($expectedPrevious, $previous))) {
+    fail('previous checkpoint digest does not match');
+}
+
+$checkpointTime = DateTimeImmutable::createFromFormat('!Y-m-d\TH:i:s.u\Z', $payload['created_at'], new DateTimeZone('UTC'));
+$dateErrors = DateTimeImmutable::getLastErrors();
+if ($checkpointTime === false
+    || ($dateErrors !== false && ($dateErrors['warning_count'] > 0 || $dateErrors['error_count'] > 0))
+    || $checkpointTime->format('Y-m-d\TH:i:s.u\Z') !== $payload['created_at']) {
+    fail('checkpoint timestamp is not a valid canonical UTC timestamp');
+}
+$now = new DateTimeImmutable('now', new DateTimeZone('UTC'));
+$ageSeconds = $now->getTimestamp() - $checkpointTime->getTimestamp();
+if ($ageSeconds < -300) {
+    fail('checkpoint timestamp is too far in the future');
+}
+if ($maxAgeMinutes !== null && $ageSeconds > $maxAgeMinutes * 60) {
+    fail('checkpoint exceeds the configured maximum age');
 }
 
 $signature = base64_decode($envelope['signature'], true);
