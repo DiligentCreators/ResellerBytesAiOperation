@@ -220,3 +220,73 @@ it('atomically assigns a legacy integration and its diagnostic descendants to a 
         'tenant' => $tenant->id,
     ]))->toBe(1);
 });
+
+
+it('enforces subscription integration and diagnostic-period quotas from the entitlement snapshot', function () {
+    $tenant = Tenant::create([
+        'name' => 'Quota Workspace',
+        'slug' => 'quota-workspace',
+        'status' => Tenant::STATUS_ACTIVE,
+    ]);
+    \App\Models\TenantSubscription::create([
+        'tenant_id' => $tenant->id,
+        'plan_code' => 'quota-test-plan',
+        'billing_mode' => 'manual',
+        'status' => 'active',
+        'currency' => 'USD',
+        'unit_amount_minor' => 0,
+        'entitlements' => [
+            'limits' => [
+                'integrations' => 1,
+                'diagnostics_per_period' => 1,
+            ],
+        ],
+        'current_period_starts_at' => now()->subDay(),
+        'current_period_ends_at' => now()->addMonth(),
+    ]);
+
+    $limits = app(\App\Services\Tenancy\TenantResourceLimitService::class);
+    $limits->requireIntegrationCapacity($tenant->id);
+
+    \App\Models\WhmcsIntegration::create([
+        'tenant_id' => $tenant->id,
+        'name' => 'Quota Integration',
+        'status' => 'active',
+        'secret' => 'quota-integration-secret',
+    ]);
+
+    expect(fn () => $limits->requireIntegrationCapacity($tenant->id))
+        ->toThrow(\Illuminate\Auth\Access\AuthorizationException::class);
+
+    $run = \App\Models\DiagnosticRun::create([
+        'integration_id' => $tenant->integrations()->firstOrFail()->id,
+        'tenant_id' => $tenant->id,
+        'snapshot_uuid' => (string) Str::uuid(),
+        'schema_version' => '1.0',
+        'addon_version' => '1.0.0',
+        'status' => 'received',
+        'collected_at' => now(),
+        'received_at' => now(),
+        'payload' => ['source' => 'quota-test'],
+        'payload_sha256' => hash('sha256', 'quota-test'),
+    ]);
+
+    // The current diagnostic is included in the period count and remains eligible.
+    $limits->requireDiagnosticCapacity($tenant->id);
+
+    \App\Models\DiagnosticRun::create([
+        'integration_id' => $run->integration_id,
+        'tenant_id' => $tenant->id,
+        'snapshot_uuid' => (string) Str::uuid(),
+        'schema_version' => '1.0',
+        'addon_version' => '1.0.0',
+        'status' => 'received',
+        'collected_at' => now(),
+        'received_at' => now(),
+        'payload' => ['source' => 'quota-test-overage'],
+        'payload_sha256' => hash('sha256', 'quota-test-overage'),
+    ]);
+
+    expect(fn () => $limits->requireDiagnosticCapacity($tenant->id))
+        ->toThrow(\Illuminate\Auth\Access\AuthorizationException::class);
+});
