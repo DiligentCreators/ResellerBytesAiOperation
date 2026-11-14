@@ -175,7 +175,9 @@ jobs:
           GRANT SELECT, UPDATE ON TABLE audit_chain_heads TO rb_runtime;
           REVOKE INSERT, DELETE, TRUNCATE, REFERENCES, TRIGGER ON TABLE audit_chain_heads FROM rb_runtime;
           GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO rb_runtime;
-          GRANT SELECT ON ALL TABLES IN SCHEMA public TO rb_readonly;
+          CREATE TABLE readonly_role_probe (id integer PRIMARY KEY);
+          INSERT INTO readonly_role_probe (id) VALUES (1);
+          GRANT SELECT ON TABLE readonly_role_probe TO rb_readonly;
           REVOKE ALL PRIVILEGES ON TABLE migrations FROM rb_readonly;
           SQL
           DB_USERNAME=rb_runtime DB_PASSWORD="$RB_RUNTIME_TEST_PASSWORD" php tests/Postgres/RuntimeRolePrivilegesTest.php
