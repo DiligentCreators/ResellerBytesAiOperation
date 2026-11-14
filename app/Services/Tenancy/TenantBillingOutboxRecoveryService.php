@@ -45,7 +45,7 @@ class TenantBillingOutboxRecoveryService
                 'manual_replay_count' => $message->manual_replay_count + 1,
                 'available_at' => now('UTC'),
                 'locked_at' => null,
-                'dead_lettered_at' => null,
+                'failed_at' => null,
                 'last_error_code' => null,
             ])->save();
 
