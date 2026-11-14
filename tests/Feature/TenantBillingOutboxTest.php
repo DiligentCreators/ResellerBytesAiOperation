@@ -25,13 +25,15 @@ function createBillingOutboxTenant(string $slug): Tenant
     ]);
 }
 
-function createBillingOutboxInvoice(Tenant $tenant, int $amount = 4900): TenantBillingInvoice
+function createBillingOutboxInvoice(Tenant $tenant, int $amount = 4900, ?string $providerAccountId = null): TenantBillingInvoice
 {
     $subscription = TenantSubscription::create([
         'tenant_id' => $tenant->id,
         'plan_code' => 'outbox-test',
         'billing_mode' => 'automated',
         'status' => 'active',
+        'billing_provider' => $providerAccountId === null ? null : 'approved_gateway',
+        'provider_account_id' => $providerAccountId,
         'currency' => 'USD',
         'unit_amount_minor' => $amount,
         'entitlements' => ['diagnostics.analysis' => true],
@@ -150,7 +152,7 @@ it('rejects unrecognized webhook payload fields before persistence', function ()
 
 it('reconciles a verified payment exactly once and atomically creates its outbound event', function () {
     $tenant = createBillingOutboxTenant('billing-webhook-reconcile');
-    $invoice = createBillingOutboxInvoice($tenant, 4900);
+    $invoice = createBillingOutboxInvoice($tenant, 4900, 'acct_reconcile_001');
     $event = app(TenantBillingWebhookInbox::class)->acceptVerifiedEvent(
         $tenant->id,
         'approved_gateway',
@@ -483,7 +485,7 @@ it('keeps provider account tenant and external identity immutable', function () 
 
 it('marks an invoice and subscription past due after a verified payment failure', function () {
     $tenant = createBillingOutboxTenant('billing-payment-failure');
-    $invoice = createBillingOutboxInvoice($tenant, 4900);
+    $invoice = createBillingOutboxInvoice($tenant, 4900, 'acct_payment_failure');
     $event = app(TenantBillingWebhookInbox::class)->acceptVerifiedEvent(
         $tenant->id,
         'approved_gateway',
@@ -509,7 +511,7 @@ it('marks an invoice and subscription past due after a verified payment failure'
 
 it('renews a subscription only against a fully settled tenant invoice', function () {
     $tenant = createBillingOutboxTenant('billing-subscription-renewal');
-    $invoice = createBillingOutboxInvoice($tenant, 4900);
+    $invoice = createBillingOutboxInvoice($tenant, 4900, 'acct_subscription_renewal');
     $subscription = $invoice->subscription;
 
     app(TenantBillingLedgerService::class)->recordConfirmedPayment($tenant->id, $invoice->id, [
@@ -572,7 +574,7 @@ it('renews a subscription only against a fully settled tenant invoice', function
 
 it('records refunds idempotently and reduces the invoice net paid balance', function () {
     $tenant = createBillingOutboxTenant('billing-refund-ledger');
-    $invoice = createBillingOutboxInvoice($tenant, 4900);
+    $invoice = createBillingOutboxInvoice($tenant, 4900, 'acct_refund_001');
     app(TenantBillingLedgerService::class)->recordConfirmedPayment($tenant->id, $invoice->id, [
         'collection_mode' => 'automated',
         'idempotency_key' => 'refund-test-payment-1',
@@ -609,7 +611,7 @@ it('records refunds idempotently and reduces the invoice net paid balance', func
 
 it('records dispute opening and applies a lost dispute once without changing a won dispute balance', function () {
     $tenant = createBillingOutboxTenant('billing-dispute-ledger');
-    $invoice = createBillingOutboxInvoice($tenant, 4900);
+    $invoice = createBillingOutboxInvoice($tenant, 4900, 'acct_dispute_001');
     app(TenantBillingLedgerService::class)->recordConfirmedPayment($tenant->id, $invoice->id, [
         'collection_mode' => 'automated',
         'idempotency_key' => 'dispute-test-payment-1',
@@ -659,7 +661,7 @@ it('records dispute opening and applies a lost dispute once without changing a w
 
 it('keeps billing adjustments append-only after insertion', function () {
     $tenant = createBillingOutboxTenant('billing-adjustment-immutable');
-    $invoice = createBillingOutboxInvoice($tenant, 4900);
+    $invoice = createBillingOutboxInvoice($tenant, 4900, 'acct_adjustment_immutable');
     $payment = app(TenantBillingLedgerService::class)->recordConfirmedPayment($tenant->id, $invoice->id, [
         'collection_mode' => 'automated',
         'idempotency_key' => 'immutable-adjustment-payment',
@@ -697,7 +699,7 @@ it('keeps provider adapters disabled until a provider is explicitly configured',
 
 it('rejects payment idempotency-key reuse with a different provider account', function () {
     $tenant = createBillingOutboxTenant('billing-payment-account-idempotency');
-    $invoice = createBillingOutboxInvoice($tenant, 4900);
+    $invoice = createBillingOutboxInvoice($tenant, 4900, 'acct_original_001');
     $service = app(TenantBillingLedgerService::class);
     $payment = [
         'collection_mode' => 'automated',
@@ -719,7 +721,7 @@ it('rejects payment idempotency-key reuse with a different provider account', fu
 
 it('does not allow a refund from another provider account to mutate a payment', function () {
     $tenant = createBillingOutboxTenant('billing-refund-account-binding');
-    $invoice = createBillingOutboxInvoice($tenant, 4900);
+    $invoice = createBillingOutboxInvoice($tenant, 4900, 'acct_payment_owner_001');
     app(TenantBillingLedgerService::class)->recordConfirmedPayment($tenant->id, $invoice->id, [
         'collection_mode' => 'automated',
         'idempotency_key' => 'refund-account-bound-payment',
@@ -751,7 +753,7 @@ it('does not allow a refund from another provider account to mutate a payment', 
 it('enforces tenant ownership on billing adjustment payment foreign keys', function () {
     $tenantA = createBillingOutboxTenant('billing-adjustment-fk-a');
     $tenantB = createBillingOutboxTenant('billing-adjustment-fk-b');
-    $invoice = createBillingOutboxInvoice($tenantA, 4900);
+    $invoice = createBillingOutboxInvoice($tenantA, 4900, 'acct_adjustment_fk');
     $payment = app(TenantBillingLedgerService::class)->recordConfirmedPayment($tenantA->id, $invoice->id, [
         'collection_mode' => 'automated',
         'idempotency_key' => 'adjustment-fk-payment',
@@ -800,7 +802,7 @@ it('resolves a provider adapter only through the explicit billing provider regis
 
 it('rejects a renewal notification when its provider account did not settle the invoice', function () {
     $tenant = createBillingOutboxTenant('billing-renewal-account-mismatch');
-    $invoice = createBillingOutboxInvoice($tenant, 4900);
+    $invoice = createBillingOutboxInvoice($tenant, 4900, 'acct_real_settlement');
     $subscription = $invoice->subscription;
 
     app(TenantBillingLedgerService::class)->recordConfirmedPayment($tenant->id, $invoice->id, [
