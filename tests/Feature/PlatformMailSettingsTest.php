@@ -148,6 +148,20 @@ class PlatformMailSettingsTest extends TestCase
             && $request['To'] === 'recipient@example.test');
     }
 
+
+    public function test_send_test_email_action_reports_log_preview_without_sending(): void
+    {
+        config(['operations.owner_email' => 'owner@example.test', 'platform_mail.driver' => 'log']);
+        $user = User::factory()->create(['email' => 'owner@example.test']);
+        Http::fake();
+
+        $this->actingAs($user)->post('/platform/mail-settings/test', [
+            'recipient' => 'recipient@example.test',
+        ])->assertRedirect()->assertSessionHas('status', 'Log driver is active; a redacted preview was recorded and no email was sent.');
+
+        Http::assertNothingSent();
+    }
+
     public function test_log_driver_never_contacts_external_transport(): void
     {
         PlatformMailSettings::query()->create(['id' => 1, 'driver' => 'log', 'configuration' => []]);
