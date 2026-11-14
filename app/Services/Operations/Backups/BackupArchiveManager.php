@@ -144,7 +144,10 @@ final class BackupArchiveManager
 
         try {
             $manifestKey = 'backups/manifests/'.$backupId.'.json';
-            $this->downloadObject($settings, $manifestKey, $manifestPath);
+            $manifestVersionId = $this->downloadObject($settings, $manifestKey, $manifestPath);
+            if (! is_string($manifestVersionId) || trim($manifestVersionId) === '') {
+                throw new RuntimeException('Wasabi did not return a version ID for the backup manifest.'); 
+            }
             $manifestContents = file_get_contents($manifestPath);
             if (! is_string($manifestContents)) {
                 throw new RuntimeException('Unable to read backup manifest.');
@@ -170,6 +173,26 @@ final class BackupArchiveManager
                 || (int) $manifest['database_port'] < 1
                 || (int) $manifest['database_port'] > 65535) {
                 throw new RuntimeException('Backup manifest is invalid or unsupported.');
+            }
+
+            $manifestHash = hash_file('sha256', $manifestPath);
+            if (! is_string($manifestHash)) {
+                throw new RuntimeException('Unable to calculate downloaded backup manifest checksum.');
+            }
+            $this->verifyLockedObject(
+                $settings,
+                $manifestKey,
+                $manifestHash,
+                (int) filesize($manifestPath),
+                $manifest['retention_until'],
+                $manifestVersionId,
+            );
+
+            $createdAt = CarbonImmutable::parse($manifest['created_at'])->utc();
+            $expectedRetention = $createdAt->addDays($settings['retention_days']);
+            $manifestRetention = CarbonImmutable::parse($manifest['retention_until'])->utc();
+            if ($manifestRetention->lessThan($expectedRetention->subMinute())) {
+                throw new RuntimeException('Backup manifest retention is shorter than the configured immutable retention period.');
             }
 
             $this->verifyLockedObject(
@@ -456,7 +479,7 @@ final class BackupArchiveManager
         string $key,
         string $path,
         ?string $versionId = null,
-    ): void {
+    ): ?string {
         $arguments = [
             's3api', 'get-object',
             '--bucket', $settings['bucket'],
@@ -469,7 +492,10 @@ final class BackupArchiveManager
         }
 
         $arguments[] = $path;
-        $this->runAws($settings, $arguments);
+        $response = json_decode($this->runAws($settings, $arguments), true, 512, JSON_THROW_ON_ERROR);
+        $versionId = is_array($response) ? ($response['VersionId'] ?? null) : null;
+
+        return is_string($versionId) && trim($versionId) !== '' ? $versionId : null;
     }
 
     /**
@@ -538,6 +564,11 @@ final class BackupArchiveManager
             || ($connection['driver'] ?? null) !== 'pgsql'
             || ! is_string($connection['database'] ?? null)
             || trim($connection['database']) === ''
+            || ! is_string($connection['host'] ?? null)
+            || trim($connection['host']) === ''
+            || ! is_numeric($connection['port'] ?? null)
+            || (int) $connection['port'] < 1
+            || (int) $connection['port'] > 65535
             || isset($connection['url'])) {
             throw new RuntimeException('Backup tooling currently supports an explicit PostgreSQL connection only.');
         }
