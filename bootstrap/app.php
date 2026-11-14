@@ -3,6 +3,7 @@
 use App\Console\Commands\CreateOperationsUser;
 use App\Console\Commands\CreateWhmcsIntegration;
 use App\Console\Commands\ExportAuditAnchorCheckpoint;
+use App\Console\Commands\MonitorAuditAnchorCheckpoint;
 use App\Console\Commands\PlaceLegalHold;
 use App\Console\Commands\PruneExpiredDiagnosticRecords;
 use App\Console\Commands\PruneWhmcsIntegrationNonces;
