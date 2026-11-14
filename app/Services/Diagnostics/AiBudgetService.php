@@ -136,17 +136,22 @@ class AiBudgetService
                 throw new RuntimeException('budget_attempt_not_settleable');
             }
 
-            $input = max(0, (int) ($usage['input_tokens'] ?? 0));
-            $cached = max(0, (int) ($usage['cached_input_tokens'] ?? 0));
-            $output = max(0, (int) ($usage['output_tokens'] ?? 0));
+            $input = $this->usageTokenCount($usage, 'input_tokens');
+            $cached = $this->usageTokenCount($usage, 'cached_input_tokens');
+            $output = $this->usageTokenCount($usage, 'output_tokens');
             if ($cached > $input) {
                 throw new RuntimeException('budget_usage_invalid');
             }
 
             $billableInput = $input - $cached;
-            $costNumerator = ($billableInput * $locked->input_tenths_micro_usd_per_token)
-                + ($cached * $locked->cached_input_tenths_micro_usd_per_token)
-                + ($output * $locked->output_tenths_micro_usd_per_token);
+            $costNumerator = $this->safeCostAdd(
+                $this->safeCostMultiply($billableInput, (int) $locked->input_tenths_micro_usd_per_token),
+                $this->safeCostMultiply($cached, (int) $locked->cached_input_tenths_micro_usd_per_token),
+                $this->safeCostMultiply($output, (int) $locked->output_tenths_micro_usd_per_token),
+            );
+            if ($costNumerator > PHP_INT_MAX - 9) {
+                throw new RuntimeException('budget_usage_invalid');
+            }
             $cost = intdiv($costNumerator + 9, 10);
 
             $periods = $this->periodKeysForAttempt($locked);
@@ -296,6 +301,44 @@ class AiBudgetService
 
             $locked->forceFill(['status' => 'released', 'failure_code' => $failureCode])->save();
         }, 3);
+    }
+
+    /**
+     * Provider usage is untrusted input. Accept only non-negative integer token counts;
+     * malformed values must leave the submitted reservation held for reconciliation.
+     *
+     * @param  array<string, mixed>  $usage
+     */
+    private function usageTokenCount(array $usage, string $key): int
+    {
+        $value = $usage[$key] ?? 0;
+        if (! is_int($value) || $value < 0) {
+            throw new RuntimeException('budget_usage_invalid');
+        }
+
+        return $value;
+    }
+
+    private function safeCostMultiply(int $tokens, int $rate): int
+    {
+        if ($rate < 0 || ($rate !== 0 && $tokens > intdiv(PHP_INT_MAX, $rate))) {
+            throw new RuntimeException('budget_usage_invalid');
+        }
+
+        return $tokens * $rate;
+    }
+
+    private function safeCostAdd(int ...$values): int
+    {
+        $total = 0;
+        foreach ($values as $value) {
+            if ($value > PHP_INT_MAX - $total) {
+                throw new RuntimeException('budget_usage_invalid');
+            }
+            $total += $value;
+        }
+
+        return $total;
     }
 
     /**
