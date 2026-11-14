@@ -7,6 +7,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Audit\AuditEventWriter;
 use App\Services\Tenancy\TenantRoleAuthorization;
+use App\Services\Tenancy\TenantDatabaseContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -40,7 +41,8 @@ class TenantAuditExportController extends Controller
 
         $filename = 'tenant-audit-'.$tenant->slug.'-'.now()->utc()->format('Ymd-His').'.csv';
 
-        return response()->streamDownload(function () use ($tenant, $from, $to): void {
+        return response()->streamDownload(function () use ($tenant, $from, $to, $user): void {
+            app(TenantDatabaseContext::class)->run($tenant->id, (int) $user->getKey(), function () use ($tenant, $from, $to): void {
             $output = fopen('php://output', 'wb');
             if ($output === false) {
                 return;
@@ -72,6 +74,7 @@ class TenantAuditExportController extends Controller
                 });
 
             fclose($output);
+            });
         }, $filename, [
             'Content-Type' => 'text/csv; charset=UTF-8',
             'X-Content-Type-Options' => 'nosniff',
