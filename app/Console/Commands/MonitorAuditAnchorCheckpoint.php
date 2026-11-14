@@ -1,11 +1,11 @@
 <?php
 
-namespace App\\Console\\Commands;
+namespace App\Console\Commands;
 
-use App\\Services\\Audit\\AuditAnchorService;
+use App\Services\Audit\AuditAnchorService;
 use DateTimeImmutable;
 use DateTimeZone;
-use Illuminate\\Console\\Command;
+use Illuminate\Console\Command;
 use Throwable;
 
 class MonitorAuditAnchorCheckpoint extends Command
@@ -79,7 +79,7 @@ class MonitorAuditAnchorCheckpoint extends Command
             $payload = is_array($envelope) ? ($envelope['payload'] ?? null) : null;
             $createdAt = is_array($payload) ? ($payload['created_at'] ?? null) : null;
             $environment = is_array($payload) ? ($payload['environment'] ?? null) : null;
-            if (! is_string($createdAt) || preg_match('/\\A\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{6}Z\\z/', $createdAt) !== 1) {
+            if (! is_string($createdAt) || preg_match('/\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z\z/', $createdAt) !== 1) {
                 return $finish('invalid_timestamp');
             }
 
@@ -95,7 +95,7 @@ class MonitorAuditAnchorCheckpoint extends Command
                     'local_sequence' => $verification['local_sequence'],
                     'unanchored_tail' => $verification['unanchored_tail'],
                     'checkpoint_age_seconds' => $ageSeconds,
-                    'environment' => is_string($environment) && preg_match('/\\A[a-zA-Z0-9._-]+\\z/', $environment) === 1 ? $environment : null,
+                    'environment' => is_string($environment) && preg_match('/\A[a-zA-Z0-9._-]+\z/', $environment) === 1 ? $environment : null,
                 ]);
             }
             if ($verification['unanchored_tail'] > $maxUnanchoredTail) {
@@ -105,7 +105,7 @@ class MonitorAuditAnchorCheckpoint extends Command
                     'local_sequence' => $verification['local_sequence'],
                     'unanchored_tail' => $verification['unanchored_tail'],
                     'checkpoint_age_seconds' => $ageSeconds,
-                    'environment' => is_string($environment) && preg_match('/\\A[a-zA-Z0-9._-]+\\z/', $environment) === 1 ? $environment : null,
+                    'environment' => is_string($environment) && preg_match('/\A[a-zA-Z0-9._-]+\z/', $environment) === 1 ? $environment : null,
                 ]);
             }
 
@@ -115,7 +115,7 @@ class MonitorAuditAnchorCheckpoint extends Command
                 'local_sequence' => $verification['local_sequence'],
                 'unanchored_tail' => $verification['unanchored_tail'],
                 'checkpoint_age_seconds' => $ageSeconds,
-                'environment' => is_string($environment) && preg_match('/\\A[a-zA-Z0-9._-]+\\z/', $environment) === 1 ? $environment : null,
+                'environment' => is_string($environment) && preg_match('/\A[a-zA-Z0-9._-]+\z/', $environment) === 1 ? $environment : null,
             ]);
         } catch (Throwable) {
             // Do not forward exception messages: database/provider exceptions may contain
