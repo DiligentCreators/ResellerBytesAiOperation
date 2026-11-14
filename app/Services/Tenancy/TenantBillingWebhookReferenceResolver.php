@@ -74,7 +74,7 @@ class TenantBillingWebhookReferenceResolver
                         ->first();
 
                     if ($invoice === null) {
-                        throw new RuntimeException('billing_provider_invoice_unmapped');
+                        throw new InvalidArgumentException('billing_provider_invoice_unmapped');
                     }
 
                     unset($payload['provider_invoice_id']);
