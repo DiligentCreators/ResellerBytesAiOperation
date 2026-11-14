@@ -76,8 +76,11 @@ it('emits a redacted JSON evidence record for a healthy checkpoint', function ()
     try {
         expect(Artisan::call('audit:anchor:monitor', ['checkpoint' => $path, '--json' => true]))->toBe(0);
         $evidence = json_decode(trim(Artisan::output()), true, 512, JSON_THROW_ON_ERROR);
+        $schema = json_decode(file_get_contents(base_path('docs/operations/audit-anchor-alert-evidence.schema.json')), true, 512, JSON_THROW_ON_ERROR);
 
-        expect($evidence)->toMatchArray([
+        expect(array_keys($evidence))->toBe($schema['required'])
+            ->and($schema['properties']['reason_code']['enum'])->toContain($evidence['reason_code'])
+            ->and($evidence)->toMatchArray([
             'schema_version' => 1,
             'status' => 'healthy',
             'reason_code' => 'healthy',
