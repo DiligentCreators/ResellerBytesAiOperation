@@ -17,7 +17,7 @@ final class AlertStateService
      * @param  list<array{code: string, severity: string, observed: int|float|null, threshold: int|float, window_minutes?: int}>  $alerts
      * @return array{active_alerts: int, notifications_sent: int, notifications_failed: int}
      */
-    public function process(array $alerts, ?CarbonImmutable $observedAt = null): array
+    public function process(array $alerts, ?CarbonImmutable $observedAt = null, ?array $evaluatedCodes = null): array
     {
         $observedAt = ($observedAt ?? CarbonImmutable::now())->utc();
         $repeatMinutes = max(1, (int) config('operations.alerts.repeat_interval_minutes', 15));
@@ -138,19 +138,36 @@ final class AlertStateService
         }
 
         $activeQuery = DB::table('operations_alert_states')->where('is_active', true);
-        if ($activeCodes === []) {
-            $activeQuery->update([
-                'is_active' => false,
-                'delivery_claimed_at' => null,
-                'updated_at' => $observedAt,
-            ]);
-        } else {
-            $activeQuery->whereNotIn('code', array_values(array_unique($activeCodes)))
-                ->update([
+        if ($evaluatedCodes === null) {
+            // Backward-compatible behavior for direct callers without metric provenance.
+            if ($activeCodes === []) {
+                $activeQuery->update([
                     'is_active' => false,
                     'delivery_claimed_at' => null,
                     'updated_at' => $observedAt,
                 ]);
+            } else {
+                $activeQuery->whereNotIn('code', array_values(array_unique($activeCodes)))
+                    ->update([
+                        'is_active' => false,
+                        'delivery_claimed_at' => null,
+                        'updated_at' => $observedAt,
+                    ]);
+            }
+        } else {
+            $resolvedCodes = array_values(array_diff(
+                array_unique($evaluatedCodes),
+                array_unique($activeCodes),
+            ));
+
+            if ($resolvedCodes !== []) {
+                $activeQuery->whereIn('code', $resolvedCodes)
+                    ->update([
+                        'is_active' => false,
+                        'delivery_claimed_at' => null,
+                        'updated_at' => $observedAt,
+                    ]);
+            }
         }
 
         return [
