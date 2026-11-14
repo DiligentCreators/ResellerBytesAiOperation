@@ -11,7 +11,7 @@ use Tests\TestCase;
 
 class PlatformMailSettingsTest extends TestCase
 {
-    use RefreshDatabase;
+    use RefreshDatabase;\n\n    protected function setUp(): void\n    {\n        parent::setUp();\n        $this->withoutMiddleware(EnsureTwoFactorEnabled::class);\n    }
 
     public function test_only_designated_platform_owner_can_view_mail_settings(): void
     {
