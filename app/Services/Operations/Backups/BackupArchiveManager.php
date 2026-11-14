@@ -146,6 +146,7 @@ final class BackupArchiveManager
                 || ($manifest['backup_id'] ?? null) !== $backupId
                 || ($manifest['database_driver'] ?? null) !== 'pgsql'
                 || ($manifest['object_lock_mode'] ?? null) !== 'COMPLIANCE'
+                || ($manifest['manifest_key'] ?? null) !== $manifestKey
                 || ! is_string($manifest['object_key'] ?? null)
                 || ! str_starts_with($manifest['object_key'], 'backups/')
                 || ! is_string($manifest['encrypted_sha256'] ?? null)

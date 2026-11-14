@@ -160,7 +160,7 @@ The command emits a verified backup UUID and manifest metadata. The daily schedu
 
 ## 8. Automated restore verification and execution
 
-A restore command without --execute is verification-only. It downloads the manifest and encrypted archive, validates the backup object's COMPLIANCE lock mode, retain-until date, size and checksum metadata, validates SHA-256 checksums, authenticates/decrypts the archive, and runs pg_restore --list without changing the database:
+A restore command without --execute is verification-only. It downloads the manifest and encrypted archive, validates both the manifest and backup object's COMPLIANCE lock mode, retain-until date, size and checksum metadata, validates SHA-256 checksums, authenticates/decrypts the archive, and runs pg_restore --list without changing the database:
 
 ```sh
 php artisan operations:backup:restore BACKUP_UUID

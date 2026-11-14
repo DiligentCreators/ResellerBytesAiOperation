@@ -43,3 +43,19 @@ it('refuses to restore a backup into a database with a different identity', func
         'dump_path' => '/tmp/not-opened.dump',
     ]))->toThrow(RuntimeException::class, 'database identity does not match');
 });
+
+
+it('rejects a restore manifest whose database name differs from the configured target', function () {
+    config([
+        'database.default' => 'pgsql',
+        'database.connections.pgsql.database' => 'resellerbytes_rehearsal',
+    ]);
+
+    expect(fn () => app(BackupArchiveManager::class)->assertRestoreTargetMatches([
+        'database_name' => 'resellerbytes_production',
+    ]))->toThrow(RuntimeException::class);
+
+    expect(fn () => app(BackupArchiveManager::class)->assertRestoreTargetMatches([
+        'database_name' => 'resellerbytes_rehearsal',
+    ]))->not->toThrow(RuntimeException::class);
+});

@@ -114,12 +114,12 @@ Approved monitoring, alert-routing, recovery, retention, signing-operator, and P
 ## Metric-source integration — initial implementation
 
 - Added API middleware that records response status and elapsed time into a dedicated operations_metric_samples table. It stores no request body, URL parameters, customer identifiers, or response content; telemetry write failures are logged by exception class and never fail the API request.
-- Added OperationalMetricsSource to compute rolling-window 5xx error rate and p95 latency from those samples, disk utilization from a configured filesystem path, and queue age when Laravel uses the database queue driver.
+- Added OperationalMetricsSource to compute rolling-window 5xx error rate and p95 latency from those samples, disk utilization from a configured filesystem path, and queue age from queue lifecycle tracking plus the database queue fallback.
 - Successful-backup age is sourced from the modification time of an operator-provisioned marker file. The backup agent must update that marker atomically only after a backup has completed and passed its verification checks. A missing marker remains a missing-backup signal.
 - Added php artisan operations:metrics to emit a versioned, redacted JSON snapshot and prune telemetry samples older than 24 hours. It is not scheduled and does not send alerts in this step.
 - Added portable migration and feature tests for rolling-window aggregation, p95, API status capture without payload persistence, backup marker timestamps, and telemetry pruning.
 - Queue age is now tracked through Laravel queue lifecycle events across Redis and other evented queue backends: dispatch delay is respected, processing/failure clears the sample, and exception retries are re-enqueued using their backoff. The database queue also has a direct fallback for pre-existing jobs. Only jobs enqueued after instrumentation is deployed are tracked on non-database backends; explicit manual releases without an exception are conservatively treated as immediately available.
-- This is application-side metric collection, not an independent external monitor. Alert scheduling, notification adapters, backup/restore tooling, and security-review readiness remain subsequent roadmap steps.
+- This is application-side metric collection, not an independent external monitor. Alert scheduling and backup/restore tooling are implemented; security-review readiness remains the next roadmap step.
 - Exact-head run #43597533823 passed all six CI jobs on `d0fcf3f246fdd37d531068cde6cdfcb913e497d6`; general CI reported **198 passed, 3 skipped, 891 assertions**. No production marker, external queue provider, backup credential, or alert destination has been configured.
 
 ## Alert scheduling and notification adapters — complete (production gated)
@@ -153,7 +153,6 @@ Approved monitoring, alert-routing, recovery, retention, signing-operator, and P
 - Non-database backlog already present before this instrumentation is deployed is not backfilled. Explicit manual releases without exception metadata are tracked as immediately available.
 - Validation is pending on the exact queue-tracking commit.
 
-
 ## Backup/restore tooling and rehearsal runbook — implementation complete, external rehearsal pending
 
 - Implemented PostgreSQL custom-format dumps using the dedicated read-only backup role and restore using the dedicated migration role; runtime database credentials are not reused for either operation.
@@ -167,4 +166,4 @@ Approved monitoring, alert-routing, recovery, retention, signing-operator, and P
 - Daily scheduling exists but remains disabled unless OPERATIONS_BACKUPS_ENABLED=true. Do not enable until Wasabi account/billing, bucket configuration, approved backup retention days, secret-manager access, encryption key, dedicated DB credentials, marker path, and isolated rehearsal access are available.
 - Scope limitation: this tool backs up the PostgreSQL application database only; WHMCS/MariaDB, uploaded files, and external provider state require separately designed backup coverage. The 5 GiB single-PutObject limit is a hard fail-closed boundary.
 - No backup or restore was executed against a real database or Wasabi bucket. Production restore remains explicitly gated by Shahrukh's incident-specific approval.
-- Local PHP project tests have not yet been executed in this environment: the repository requires PHP 8.5, while the available CLI is PHP 8.4 and the repository checkout/dependencies are not mounted here. GitHub Actions are intentionally not being triggered during intermediate commits per Shahrukh's CI-cost instruction.
+- The base backup/restore implementation passed exact-head run #43599455622 (206 passed, 3 skipped, 921 assertions); subsequent queue-tracking and restore-target identity changes are pending their own exact-head CI run.

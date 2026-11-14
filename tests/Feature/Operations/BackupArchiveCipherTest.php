@@ -71,3 +71,23 @@ it('rejects a backup archive when the decryption key is incorrect', function () 
     @unlink($encrypted);
     @unlink($decrypted);
 });
+
+
+it('rejects a backup archive encrypted with a different key', function () {
+    $source = tempnam(sys_get_temp_dir(), 'rb-backup-source-');
+    $encrypted = tempnam(sys_get_temp_dir(), 'rb-backup-encrypted-');
+    $decrypted = tempnam(sys_get_temp_dir(), 'rb-backup-decrypted-');
+    $key = random_bytes(SODIUM_CRYPTO_SECRETSTREAM_XCHACHA20POLY1305_KEYBYTES);
+    $wrongKey = random_bytes(SODIUM_CRYPTO_SECRETSTREAM_XCHACHA20POLY1305_KEYBYTES);
+
+    file_put_contents($source, 'backup key separation check');
+    $cipher = app(BackupArchiveCipher::class);
+    $cipher->encryptFile($source, $encrypted, $key);
+
+    expect(fn () => $cipher->decryptFile($encrypted, $decrypted, $wrongKey))
+        ->toThrow(RuntimeException::class);
+
+    @unlink($source);
+    @unlink($encrypted);
+    @unlink($decrypted);
+});
