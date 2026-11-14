@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Jobs\AnalyzeDiagnosticRun;
 use App\Models\DiagnosticRun;
 use App\Services\Audit\AuditEventWriter;
+use App\Services\Tenancy\TenantRecordQuery;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -18,8 +19,7 @@ class DiagnosticRunController extends Controller
 {
     public function index(): Response
     {
-        $runs = DiagnosticRun::query()
-            ->whereHas('integration', fn ($query) => $query->where('owner_user_id', Auth::id()))
+        $runs = app(TenantRecordQuery::class)->runs(Auth::user())
             ->with('integration:id,name')
             ->withCount('findings')
             ->latest('received_at')
@@ -48,7 +48,7 @@ class DiagnosticRunController extends Controller
         $queued = DB::transaction(function () use ($diagnosticRun, &$expired): bool {
             $run = DiagnosticRun::query()
                 ->whereKey($diagnosticRun->id)
-                ->whereHas('integration', fn ($query) => $query->where('owner_user_id', Auth::id()))
+                ->whereHas('integration', fn ($query) => $query->whereNull('tenant_id')->where('owner_user_id', Auth::id()))
                 ->lockForUpdate()
                 ->firstOrFail();
 
@@ -90,7 +90,7 @@ class DiagnosticRunController extends Controller
         } catch (Throwable $exception) {
             DiagnosticRun::query()
                 ->whereKey($diagnosticRun->id)
-                ->whereHas('integration', fn ($query) => $query->where('owner_user_id', Auth::id()))
+                ->whereHas('integration', fn ($query) => $query->whereNull('tenant_id')->where('owner_user_id', Auth::id()))
                 ->where('status', 'queued')
                 ->update([
                     'status' => 'analysis_failed',
@@ -146,7 +146,7 @@ class DiagnosticRunController extends Controller
 
     private function authorizeRun(DiagnosticRun $run): void
     {
-        if (! $run->integration()->where('owner_user_id', Auth::id())->exists()) {
+        if (! app(TenantRecordQuery::class)->runs(Auth::user())->whereKey($run->id)->exists()) {
             throw new NotFoundHttpException();
         }
     }
