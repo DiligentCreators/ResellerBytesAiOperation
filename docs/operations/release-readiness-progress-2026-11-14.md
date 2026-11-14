@@ -625,3 +625,13 @@ inferred from the repository changes.
 - Static review of the destructive restore path found the immutable approval-evidence writer did not check the byte count returned by file_put_contents or explicitly restrict the temporary record file to owner-only permissions.
 - It now requires the complete JSON payload to be written under an exclusive file lock and applies mode 0600 before hashing and uploading the evidence. A short/failed write or permission failure aborts before the restore proceeds.
 - This is a fail-closed integrity hardening; no production restore or live storage operation was performed.
+
+
+## Queue and retention completion-boundary review — 2026-11-14
+
+- Static review confirmed queue recovery already uses bounded batches, stale-worker leases, and AI-ledger reconciliation: pre-submit reservations are released, submitted-but-unresolved attempts become ambiguous, and settled attempts are not charged again.
+- Found a remaining retention race: a provider call could begin before the 365-day cutoff, return after expiry, and still persist analysis output because the final persistence transaction did not recheck the retention boundary.
+- Added a row-locked completion-time retention check. Expired runs are marked with the safe `diagnostic_retention_expired` code and provider output/findings are not persisted. Added a regression test that advances the source record past expiry after provider usage settlement and verifies the result is discarded.
+- Tenant-isolation review also identified a release blocker: integration records have no owner/tenant foreign key, and dashboard, integration, diagnostic-run, and finding queries are global across authenticated users. Ownership cannot be safely assigned to existing integrations until the authorized owner account and tenant model are provisioned; this is tracked for architectural implementation rather than silently exposing or guessing ownership.
+- All engineering commits in this continuation use [skip ci]. No workflow file or repository setting was changed. Tests remain unexecuted here; PHP 8.5 and the mounted project/dependencies are required. Exact-head CI remains deferred until the single final non-skip-ci commit.
+- PR #2 remains open and Draft. No merge, deployment, production migration, or live WHMCS operation was performed.
