@@ -86,6 +86,12 @@ class TenantBillingLedgerService
                 }
             }
 
+            if ($payment['collection_mode'] === 'automated'
+                && ($invoice->provider !== $payment['provider']
+                    || $invoice->provider_account_id !== $payment['provider_account_id'])) {
+                throw new RuntimeException('billing_invoice_provider_account_mismatch');
+            }
+
             if ($invoice->tenant_subscription_id !== null) {
                 $subscription = $invoice->subscription()
                     ->where('tenant_id', $tenantId)
