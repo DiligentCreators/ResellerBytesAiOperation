@@ -77,6 +77,20 @@ it('enforces the previous checkpoint digest when the verifier supplies one', fun
     expect($anchors->verifyCheckpoint($checkpoint, $previous)['anchor_sequence'])->toBe(1);
 });
 
+
+it('requires an expected predecessor when verifying a chained checkpoint', function () {
+    appendAuditAnchorFixtureEvent(app(AuditEventWriter::class), 'test.anchor.required-previous');
+
+    $anchors = app(AuditAnchorService::class);
+    $previous = str_repeat('c', 64);
+    $checkpoint = $anchors->createCheckpoint($previous);
+
+    expect(fn () => $anchors->verifyCheckpoint($checkpoint))
+        ->toThrow(RuntimeException::class, 'audit_anchor_expected_previous_required');
+
+    expect($anchors->verifyCheckpoint($checkpoint, $previous)['anchor_sequence'])->toBe(1);
+});
+
 it('exposes the checkpoint export artisan command', function () {
     appendAuditAnchorFixtureEvent(app(AuditEventWriter::class), 'test.anchor.command');
 
