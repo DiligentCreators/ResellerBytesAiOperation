@@ -104,6 +104,12 @@ class Tenant extends Model
         return $this->hasMany(TenantBillingWebhookEvent::class, 'tenant_id');
     }
 
+    /** @return HasMany<TenantBillingProviderAccount, $this> */
+    public function billingProviderAccounts(): HasMany
+    {
+        return $this->hasMany(TenantBillingProviderAccount::class, 'tenant_id');
+    }
+
     /** @return HasMany<AiUsageAttempt, $this> */
     public function aiUsageAttempts(): HasMany
     {
