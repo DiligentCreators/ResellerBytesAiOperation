@@ -36,10 +36,10 @@ class DispatchTenantBillingOutbox extends Command
             );
         } catch (Throwable $exception) {
             Log::error('Billing outbox dispatch could not start.', [
-                'reason_code' => 'billing_operations_database_role_not_configured',
+                'reason_code' => 'billing_operations_connection_unavailable',
                 'exception_class' => $exception::class,
             ]);
-            $this->error('Billing outbox dispatch requires the separately provisioned PostgreSQL operations connection.');
+            $this->error('Billing outbox dispatch requires a valid, separately provisioned PostgreSQL operations connection to the same database.');
 
             return self::FAILURE;
         }
