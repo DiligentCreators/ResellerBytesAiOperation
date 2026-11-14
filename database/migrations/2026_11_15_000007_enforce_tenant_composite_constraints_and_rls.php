@@ -219,30 +219,36 @@ SQL);
     {
         $driver = DB::connection()->getDriverName();
 
-        foreach ([
-            'rb_diagnostic_run_tenant_guard_insert',
-            'rb_diagnostic_run_tenant_guard_update',
-            'rb_diagnostic_finding_tenant_guard_insert',
-            'rb_diagnostic_finding_tenant_guard_update',
-            'rb_diagnostic_recommendation_tenant_guard_insert',
-            'rb_diagnostic_recommendation_tenant_guard_update',
-            'rb_diagnostic_run_tenant_guard',
-            'rb_diagnostic_finding_tenant_guard',
-            'rb_diagnostic_recommendation_tenant_guard',
-            'rb_ai_usage_tenant_guard',
-            'rb_ai_usage_tenant_guard_insert',
-            'rb_ai_usage_tenant_guard_update',
-            'rb_audit_event_tenant_guard',
-        ] as $trigger) {
-            DB::unprepared("DROP TRIGGER IF EXISTS {$trigger}");
-        }
-
         if ($driver === 'pgsql') {
+            foreach ([
+                'rb_diagnostic_run_tenant_guard' => 'diagnostic_runs',
+                'rb_diagnostic_finding_tenant_guard' => 'diagnostic_findings',
+                'rb_diagnostic_recommendation_tenant_guard' => 'diagnostic_recommendations',
+                'rb_ai_usage_tenant_guard' => 'ai_usage_attempts',
+                'rb_audit_event_tenant_guard' => 'audit_events',
+            ] as $trigger => $table) {
+                DB::unprepared("DROP TRIGGER IF EXISTS {$trigger} ON {$table}");
+            }
+
             DB::unprepared('DROP FUNCTION IF EXISTS rb_check_diagnostic_run_tenant()');
             DB::unprepared('DROP FUNCTION IF EXISTS rb_check_diagnostic_finding_tenant()');
             DB::unprepared('DROP FUNCTION IF EXISTS rb_check_diagnostic_recommendation_tenant()');
             DB::unprepared('DROP FUNCTION IF EXISTS rb_check_ai_usage_tenant()');
             DB::unprepared('DROP FUNCTION IF EXISTS rb_check_audit_event_tenant()');
+        } elseif ($driver === 'sqlite') {
+            foreach ([
+                'rb_diagnostic_run_tenant_guard_insert',
+                'rb_diagnostic_run_tenant_guard_update',
+                'rb_diagnostic_finding_tenant_guard_insert',
+                'rb_diagnostic_finding_tenant_guard_update',
+                'rb_diagnostic_recommendation_tenant_guard_insert',
+                'rb_diagnostic_recommendation_tenant_guard_update',
+                'rb_ai_usage_tenant_guard_insert',
+                'rb_ai_usage_tenant_guard_update',
+                'rb_audit_event_tenant_guard',
+            ] as $trigger) {
+                DB::unprepared("DROP TRIGGER IF EXISTS {$trigger}");
+            }
         }
     }
 
