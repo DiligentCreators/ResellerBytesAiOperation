@@ -11,15 +11,16 @@ use InvalidArgumentException;
 
 class TenantBillingFailureReconciler
 {
-    public function recordInvoicePaymentFailure(string $tenantId, int $invoiceId, string $provider, string $providerEventId, string $failureCode): void
+    public function recordInvoicePaymentFailure(string $tenantId, int $invoiceId, string $provider, string $providerAccountId, string $providerEventId, string $failureCode): void
     {
         if (! preg_match('/^[a-zA-Z0-9_.-]{1,80}$/', $failureCode)
             || ! preg_match('/^[a-z][a-z0-9_-]{1,39}$/', $provider)
+            || trim($providerAccountId) === '' || strlen($providerAccountId) > 160
             || trim($providerEventId) === '' || strlen($providerEventId) > 180) {
             throw new InvalidArgumentException('billing_payment_failure_input_invalid');
         }
 
-        app(TenantDatabaseContext::class)->run($tenantId, null, function () use ($tenantId, $invoiceId, $provider, $providerEventId, $failureCode): void {
+        app(TenantDatabaseContext::class)->run($tenantId, null, function () use ($tenantId, $invoiceId, $provider, $providerAccountId, $providerEventId, $failureCode): void {
             DB::transaction(function () use ($tenantId, $invoiceId, $provider, $providerEventId, $failureCode): void {
                 Tenant::query()->whereKey($tenantId)->lockForUpdate()->firstOrFail();
 
@@ -63,7 +64,8 @@ class TenantBillingFailureReconciler
                     'subject_type' => 'tenant_billing_invoice',
                     'subject_id' => (string) $invoice->id,
                     'metadata' => [
-                        'provider_event_id' => $providerEventId,
+                        'provider_account_id' => $providerAccountId,
+                    'provider_event_id' => $providerEventId,
                         'failure_code' => $failureCode,
                         'previous_invoice_status' => $previousStatus,
                         'new_invoice_status' => $invoice->fresh()->status,
@@ -73,7 +75,7 @@ class TenantBillingFailureReconciler
 
                 app(TenantBillingOutbox::class)->enqueue(
                     $tenantId,
-                    'billing.payment.failed:'.hash('sha256', $provider.':'.$providerEventId),
+                    'billing.payment.failed:'.hash('sha256', $provider.':'.$providerAccountId.':'.$providerEventId),
                     'billing.payment.failed',
                     'tenant_billing_invoice',
                     $invoice->id,
