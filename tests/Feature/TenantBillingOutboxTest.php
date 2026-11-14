@@ -221,7 +221,7 @@ it('does not accept the same provider account event under a different tenant', f
         $payload,
         now('UTC'),
         'acct_shared',
-    ))->toThrow(QueryException::class);
+    ))->toThrow(RuntimeException::class, 'billing_webhook_idempotency_conflict');
 });
 
 it('retries transient webhook reconciliation failures with a bounded delay', function () {
