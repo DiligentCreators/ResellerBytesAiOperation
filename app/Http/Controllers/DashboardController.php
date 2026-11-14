@@ -6,6 +6,7 @@ use App\Models\DiagnosticFinding;
 use App\Models\DiagnosticRun;
 use App\Models\WhmcsIntegration;
 use App\Support\WhmcsAddonPackageSigner;
+use App\Services\Tenancy\TenantRecordQuery;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -14,10 +15,10 @@ class DashboardController extends Controller
 {
     public function __invoke(WhmcsAddonPackageSigner $signer): Response
     {
-        $ownerId = Auth::id();
+        $user = Auth::user();
+        $tenantRecords = app(TenantRecordQuery::class);
 
-        $latestRuns = DiagnosticRun::query()
-            ->whereHas('integration', fn ($query) => $query->where('owner_user_id', $ownerId))
+        $latestRuns = $tenantRecords->runs($user)
             ->with('integration:id,name')
             ->withCount('findings')
             ->latest('received_at')
@@ -38,11 +39,10 @@ class DashboardController extends Controller
 
         return Inertia::render('dashboard', [
             'stats' => [
-                'active_integrations' => WhmcsIntegration::query()->where('owner_user_id', $ownerId)->where('status', 'active')->count(),
-                'total_runs' => DiagnosticRun::query()->whereHas('integration', fn ($query) => $query->where('owner_user_id', $ownerId))->count(),
-                'open_findings' => DiagnosticFinding::query()->whereHas('diagnosticRun.integration', fn ($query) => $query->where('owner_user_id', $ownerId))->where('status', 'open')->count(),
-                'critical_findings' => DiagnosticFinding::query()
-                    ->whereHas('diagnosticRun.integration', fn ($query) => $query->where('owner_user_id', $ownerId))
+                'active_integrations' => $tenantRecords->integrations($user)->where('status', 'active')->count(),
+                'total_runs' => $tenantRecords->runs($user)->count(),
+                'open_findings' => $tenantRecords->findings($user)->where('status', 'open')->count(),
+                'critical_findings' => $tenantRecords->findings($user)
                     ->where('status', 'open')
                     ->where('severity', 'critical')
                     ->count(),
