@@ -76,6 +76,7 @@ class TenantBillingFailureReconciler
                     'subject_type' => 'tenant_billing_invoice',
                     'subject_id' => (string) $invoice->id,
                     'metadata' => [
+                        'provider' => $provider,
                         'provider_account_id' => $providerAccountId,
                         'provider_event_id' => $providerEventId,
                         'failure_code' => $failureCode,
