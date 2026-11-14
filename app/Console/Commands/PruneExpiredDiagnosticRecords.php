@@ -35,7 +35,6 @@ class PruneExpiredDiagnosticRecords extends Command
         $cutoffTimestamp = $cutoff->copy()->utc()->format('Y-m-d H:i:s');
         $ids = DB::table('diagnostic_runs')
             ->where('received_at', '<=', $cutoffTimestamp)
-            ->whereNotIn('status', ['received', 'queued', 'analyzing'])
             ->orderBy('received_at')
             ->limit($limit)
             ->pluck('id');
@@ -56,7 +55,7 @@ class PruneExpiredDiagnosticRecords extends Command
                     ->where('received_at', '<=', $cutoffTimestamp)
                     ->lockForUpdate()
                     ->first();
-                if ($run === null || in_array($run->status, ['received', 'queued', 'analyzing'], true)) {
+                if ($run === null) {
                     return 'skipped';
                 }
 
