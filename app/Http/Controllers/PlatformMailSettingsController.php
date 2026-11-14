@@ -58,7 +58,7 @@ class PlatformMailSettingsController extends Controller
             'smtp_host' => $config['host'] ?? '',
             'smtp_port' => $config['port'] ?? 587,
             'smtp_encryption' => $config['encryption'] ?? 'tls',
-            'smtp_username' => $config['username'] ?? '',
+            'smtp_username_set' => ! empty($config['username']),
             'smtp_password_set' => ! empty($config['password']),
             'postmark_token_set' => ! empty($config['server_token']),
             'postmark_message_stream' => $config['message_stream'] ?? 'outbound',
@@ -78,6 +78,7 @@ class PlatformMailSettingsController extends Controller
             'smtp_username' => ['nullable', 'string', 'max:255'],
             'smtp_password' => ['nullable', 'string', 'max:4096'],
             'clear_smtp_password' => ['sometimes', 'boolean'],
+            'clear_smtp_username' => ['sometimes', 'boolean'],
             'postmark_server_token' => ['nullable', 'string', 'max:4096'],
             'clear_postmark_token' => ['sometimes', 'boolean'],
             'postmark_message_stream' => ['required_if:driver,postmark', 'nullable', 'string', 'max:255'],
@@ -94,6 +95,9 @@ class PlatformMailSettingsController extends Controller
         if ($clearSmtpPassword) {
             unset($config['password']);
         }
+        if (filter_var($data['clear_smtp_username'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
+            unset($config['username']);
+        }
         if ($clearPostmarkToken) {
             unset($config['server_token']);
         }
@@ -103,7 +107,7 @@ class PlatformMailSettingsController extends Controller
                 'host' => $data['smtp_host'],
                 'port' => (int) $data['smtp_port'],
                 'encryption' => $data['smtp_encryption'],
-                'username' => $data['smtp_username'] ?? '',
+                'username' => (($data['smtp_username'] ?? '') !== '') ? $data['smtp_username'] : ($config['username'] ?? config('platform_mail.smtp.username') ?? ''),
             ]);
 
             if (($data['smtp_password'] ?? '') !== '') {
