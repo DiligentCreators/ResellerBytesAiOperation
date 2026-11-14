@@ -336,3 +336,9 @@ A green CI run is necessary but does not close these release gates or authorize 
 - Payment idempotency now compares collection mode, tenant, invoice, amount, currency, provider, provider account, provider payment ID, and manual evidence fields. Reusing a key with changed identity fails closed.
 - Added a composite payment/tenant unique key and composite foreign key from adjustment records so a refund/dispute cannot reference a payment belonging to another tenant at the database boundary.
 - Added regression coverage for account-bound payment idempotency, cross-account refund rejection, and cross-tenant adjustment foreign-key rejection.
+
+
+### Provider-account settlement proof for renewals/reactivation — 2026-11-15
+
+- Hardened subscription renewal and webhook reactivation so the settled invoice must be covered by confirmed payment ledger entries from the exact provider and provider account that delivered the signed event. A different account belonging to the same tenant cannot reactivate/renew against an unrelated payment.
+- Added regression coverage proving a renewal from a mismatched provider account is dead-lettered without changing subscription status or period.
