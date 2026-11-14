@@ -49,4 +49,22 @@ class Tenant extends Model
     {
         return $this->hasMany(WhmcsIntegration::class);
     }
+
+    /** @return HasMany<AiUsageAttempt, $this> */
+    public function aiUsageAttempts(): HasMany
+    {
+        return $this->hasMany(AiUsageAttempt::class);
+    }
+
+    /** @return HasMany<AiTenantBudgetPeriod, $this> */
+    public function aiBudgetPeriods(): HasMany
+    {
+        return $this->hasMany(AiTenantBudgetPeriod::class);
+    }
+
+    /** @return HasMany<AuditEvent, $this> */
+    public function auditEvents(): HasMany
+    {
+        return $this->hasMany(AuditEvent::class);
+    }
 }
