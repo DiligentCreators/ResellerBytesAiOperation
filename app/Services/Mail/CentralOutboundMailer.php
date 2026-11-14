@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use RuntimeException;
+use Symfony\Component\Mime\Address;
 
 class CentralOutboundMailer
 {
