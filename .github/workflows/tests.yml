@@ -158,14 +158,16 @@ jobs:
           DB_PASSWORD: postgres
         run: |
           RB_RUNTIME_TEST_PASSWORD="$(openssl rand -hex 24)"
-          export RB_RUNTIME_TEST_PASSWORD
-          cleanup_runtime_role() {
-            PGPASSWORD=postgres psql -h 127.0.0.1 -U postgres -d testing -v ON_ERROR_STOP=1 -c "DROP OWNED BY rb_runtime; DROP ROLE rb_runtime;" >/dev/null 2>&1 || true
+          RB_READONLY_TEST_PASSWORD="$(openssl rand -hex 24)"
+          export RB_RUNTIME_TEST_PASSWORD RB_READONLY_TEST_PASSWORD
+          cleanup_test_roles() {
+            PGPASSWORD=postgres psql -h 127.0.0.1 -U postgres -d testing -v ON_ERROR_STOP=1 -c "DROP OWNED BY rb_runtime; DROP OWNED BY rb_readonly; DROP ROLE rb_runtime; DROP ROLE rb_readonly;" >/dev/null 2>&1 || true
           }
-          trap cleanup_runtime_role EXIT
+          trap cleanup_test_roles EXIT
           PGPASSWORD=postgres psql -h 127.0.0.1 -U postgres -d testing -v ON_ERROR_STOP=1 <<SQL
           CREATE ROLE rb_runtime LOGIN PASSWORD '${RB_RUNTIME_TEST_PASSWORD}';
-          GRANT USAGE ON SCHEMA public TO rb_runtime;
+          CREATE ROLE rb_readonly LOGIN PASSWORD '${RB_READONLY_TEST_PASSWORD}';
+          GRANT USAGE ON SCHEMA public TO rb_runtime, rb_readonly;
           GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO rb_runtime;
           REVOKE ALL PRIVILEGES ON TABLE migrations FROM rb_runtime;
           GRANT SELECT, INSERT ON TABLE audit_events TO rb_runtime;
@@ -173,8 +175,11 @@ jobs:
           GRANT SELECT, UPDATE ON TABLE audit_chain_heads TO rb_runtime;
           REVOKE INSERT, DELETE, TRUNCATE, REFERENCES, TRIGGER ON TABLE audit_chain_heads FROM rb_runtime;
           GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO rb_runtime;
+          GRANT SELECT ON ALL TABLES IN SCHEMA public TO rb_readonly;
+          REVOKE ALL PRIVILEGES ON TABLE migrations FROM rb_readonly;
           SQL
           DB_USERNAME=rb_runtime DB_PASSWORD="$RB_RUNTIME_TEST_PASSWORD" php tests/Postgres/RuntimeRolePrivilegesTest.php
+          DB_USERNAME=rb_readonly DB_PASSWORD="$RB_READONLY_TEST_PASSWORD" php tests/Postgres/ReadOnlyRolePrivilegesTest.php
 
   mysql-integration-retention:
     runs-on: ubuntu-latest
