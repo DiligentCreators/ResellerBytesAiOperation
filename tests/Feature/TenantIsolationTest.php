@@ -184,3 +184,23 @@ it('allows only tenant operators and above with an active entitlement to request
     Queue::assertPushed(AnalyzeDiagnosticRun::class, fn (AnalyzeDiagnosticRun $job): bool => $job->tenantId === $tenant->id && $job->ownerUserId === $operator->id);
     expect($run->fresh()->status)->toBe('queued');
 });
+
+
+it('restricts tenant audit exports to owner and admin and streams only tenant events', function () {
+    $tenant = Tenant::create(['name' => 'Audit Export Workspace', 'slug' => 'audit-export-workspace', 'status' => Tenant::STATUS_ACTIVE]);
+    $viewer = User::factory()->withTwoFactor()->create(['email_verified_at' => now()]);
+    $tenant->memberships()->create(['user_id' => $viewer->id, 'role' => TenantMembership::ROLE_VIEWER, 'status' => TenantMembership::STATUS_ACTIVE, 'accepted_at' => now()]);
+
+    $this->actingAs($viewer)->get('/tenants/'.$tenant->id.'/audit-events/export')->assertForbidden();
+
+    $admin = User::factory()->withTwoFactor()->create(['email_verified_at' => now()]);
+    $tenant->memberships()->create(['user_id' => $admin->id, 'role' => TenantMembership::ROLE_ADMIN, 'status' => TenantMembership::STATUS_ACTIVE, 'accepted_at' => now()]);
+    $this->mock(\\App\\Services\\Audit\\AuditEventWriter::class)
+        ->shouldReceive('append')->once()->with(\\Mockery::on(fn (array $event): bool => $event['tenant_id'] === $tenant->id && $event['event_type'] === 'tenant.audit_export.requested'));
+
+    $response = $this->actingAs($admin)->get('/tenants/'.$tenant->id.'/audit-events/export');
+    $response->assertOk();
+    expect($response->headers->get('Content-Type'))->toContain('text/csv')
+        ->and($response->headers->get('Cache-Control'))->toContain('no-store')
+        ->and($response->headers->get('X-Content-Type-Options'))->toBe('nosniff');
+});
