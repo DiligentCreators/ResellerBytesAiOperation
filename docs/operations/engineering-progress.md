@@ -328,3 +328,11 @@ A green CI run is necessary but does not close these release gates or authorize 
 - Added append-only tenant_billing_adjustments with tenant RLS, immutable update/delete database guards, and tenant-bound audit trigger. Refunds and lost disputes reduce invoice net paid; open/won disputes do not reduce paid balance. Combined refund/lost-dispute totals are capped at the original payment amount.
 - Underpaid subscriptions after refunds/lost disputes are moved into the same grace-period workflow. Added feature coverage for refund idempotency, dispute lifecycle, payment failures, renewal and immutable adjustment records.
 - No actual provider, payment credentials, provider-account mapping, checkout, charge initiation or public webhook endpoint is active. Test execution remains blocked by PHP 8.5/dependency availability.
+
+
+### Provider-account payment binding and idempotency hardening — 2026-11-15
+
+- Automated payment ledger rows now persist the originating provider account ID. Payment success, refunds and disputes must match provider + account + payment ID; an event from a different account cannot mutate a payment even when the tenant/provider match.
+- Payment idempotency now compares collection mode, tenant, invoice, amount, currency, provider, provider account, provider payment ID, and manual evidence fields. Reusing a key with changed identity fails closed.
+- Added a composite payment/tenant unique key and composite foreign key from adjustment records so a refund/dispute cannot reference a payment belonging to another tenant at the database boundary.
+- Added regression coverage for account-bound payment idempotency, cross-account refund rejection, and cross-tenant adjustment foreign-key rejection.
