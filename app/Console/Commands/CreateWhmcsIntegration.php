@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\DB;
 
 class CreateWhmcsIntegration extends Command
 {
-    protected $signature = 'whmcs:integration:create {name : A recognizable name for this WHMCS installation} {--owner= : Verified MFA-enabled owner account email}';
+    protected $signature = 'whmcs:integration:create {name : A recognizable name for this WHMCS installation} {--owner= : Verified MFA-enabled owner account email} {--tenant= : Optional active tenant UUID for tenant-scoped provisioning}';
 
     protected $description = 'Create an owned WHMCS integration and display its secret once';
 
@@ -44,7 +44,7 @@ class CreateWhmcsIntegration extends Command
             return self::FAILURE;
         }
 
-        $secret = bin2hex(random_bytes(32));
+        $tenantId = trim((string) $this->option('tenant'));\n        if ($tenantId !== '' && ! \\Illuminate\\Support\\Str::isUuid($tenantId)) {\n            $this->error('The --tenant value must be a valid tenant UUID.');\n\n            return self::FAILURE;\n        }\n\n        $secret = bin2hex(random_bytes(32));
 
         $integration = DB::transaction(function () use ($name, $secret, $owner): WhmcsIntegration {
             $integration = WhmcsIntegration::create([
@@ -72,7 +72,7 @@ class CreateWhmcsIntegration extends Command
 
         $this->info('WHMCS integration created.');
         $this->line('Integration ID: '.$integration->id);
-        $this->line('Owner: '.$owner->email);
+        $this->line('Owner: '.$owner->email);\n        if ($tenantId !== '') {\n            $this->line('Tenant ID: '.$tenantId);\n        }
         $this->warn('Integration secret (shown once):');
         $this->line($secret);
         $this->comment('Copy the secret to a secure password manager. It cannot be displayed again.');
