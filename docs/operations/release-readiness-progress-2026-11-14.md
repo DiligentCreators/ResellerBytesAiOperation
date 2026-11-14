@@ -111,7 +111,6 @@ Approved monitoring, alert-routing, recovery, retention, signing-operator, and P
 - MySQL 8.4, MariaDB 11.4, SQL Server 2022, and WHMCS PHP 8.1 jobs passed.
 - PR #2 remains open and Draft. No merge, deployment, production migration, or live WHMCS change has been performed.
 
-
 ## Metric-source integration — implementation in progress
 
 - Added API middleware that records response status and elapsed time into a dedicated operations_metric_samples table. It stores no request body, URL parameters, customer identifiers, or response content; telemetry write failures are logged by exception class and never fail the API request.
