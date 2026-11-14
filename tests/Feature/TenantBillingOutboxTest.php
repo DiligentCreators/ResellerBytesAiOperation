@@ -12,7 +12,6 @@ use App\\Services\\Tenancy\\TenantBillingWebhookInbox;
 use Illuminate\\Support\\Facades\\Artisan;
 use Illuminate\\Support\\Facades\\DB;
 use Illuminate\\Support\\Facades\\Event;
-use Illuminate\\Database\\QueryException;
 use InvalidArgumentException;
 use RuntimeException;
 
