@@ -22,10 +22,9 @@ class TenantNotificationController extends Controller
             ->where('tenant_id', $tenant->id)
             ->where('user_id', $user->getKey())
             ->latest('id')
-            ->paginate(50)
-            ->withQueryString();
+            ->paginate(50);
 
-        return Inertia::render('tenant-notifications/index', [
+        return response()->json([
             'tenant' => ['id' => $tenant->id, 'name' => $tenant->name],
             'notifications' => $notifications,
         ]);
@@ -44,6 +43,6 @@ class TenantNotificationController extends Controller
             ->whereNull('read_at')
             ->update(['read_at' => now()]);
 
-        return back();
+        return response()->json(['updated' => true]);
     }
 }
