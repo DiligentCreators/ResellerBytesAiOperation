@@ -5,7 +5,6 @@ namespace App\\Services\\Tenancy;
 use App\\Models\\TenantBillingInvoice;
 use App\\Models\\TenantSubscription;
 use InvalidArgumentException;
-use RuntimeException;
 
 class TenantBillingWebhookReferenceResolver
 {
@@ -33,7 +32,7 @@ class TenantBillingWebhookReferenceResolver
                     ->first();
 
                 if ($invoice === null) {
-                    throw new RuntimeException('billing_provider_invoice_unmapped');
+                    throw new InvalidArgumentException('billing_provider_invoice_unmapped');
                 }
 
                 unset($payload['provider_invoice_id']);
@@ -54,7 +53,7 @@ class TenantBillingWebhookReferenceResolver
                     ->first();
 
                 if ($subscription === null) {
-                    throw new RuntimeException('billing_provider_subscription_unmapped');
+                    throw new InvalidArgumentException('billing_provider_subscription_unmapped');
                 }
 
                 unset($payload['provider_subscription_id']);
