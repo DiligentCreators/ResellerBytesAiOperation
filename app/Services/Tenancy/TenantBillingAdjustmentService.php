@@ -169,7 +169,7 @@ class TenantBillingAdjustmentService
                     'paid_at' => null,
                 ])->save();
 
-                if ($invoice->tenant_subscription_id !== null) {
+                if ($invoice->status !== 'void' && $invoice->tenant_subscription_id !== null) {
                     $subscription = $invoice->subscription()
                         ->where('tenant_id', $tenantId)
                         ->lockForUpdate()
