@@ -325,3 +325,43 @@ it('propagates a recommendation hold to its finding and parent diagnostic run', 
         ->and($service->isHeld('diagnostic_finding', $finding->id))->toBeTrue()
         ->and($service->isHeld('diagnostic_run', $run->id))->toBeTrue();
 });
+
+
+it('rejects duplicate active holds for the same target without creating a second audit event', function () {
+    $owner = legalHoldOwner();
+    $run = legalHoldDiagnosticRun();
+    $service = app(LegalHoldService::class);
+
+    $first = $service->place(
+        $owner,
+        'diagnostic_run',
+        $run->id,
+        'Preserve records for a formal legal matter',
+        'CASE-2026-0046',
+    );
+
+    expect(fn () => $service->place(
+        $owner,
+        'diagnostic_run',
+        $run->id,
+        'Preserve records for a second formal legal matter',
+        'CASE-2026-0047',
+    ))->toThrow(\\Illuminate\\Validation\\ValidationException::class);
+
+    expect(DB::table('legal_holds')->where('subject_type', 'diagnostic_run')->where('subject_id', $run->id)->where('status', 'active')->count())->toBe(1)
+        ->and(DB::table('audit_events')->where('event_type', 'legal_hold.placed')->count())->toBe(1);
+
+    $service->release($owner, $first->id, 'Formal matter closed and release approved', 'CASE-2026-0046-CLOSE');
+
+    $second = $service->place(
+        $owner,
+        'diagnostic_run',
+        $run->id,
+        'Preserve records for a subsequent formal legal matter',
+        'CASE-2026-0048',
+    );
+
+    expect($second->status)->toBe('active')
+        ->and(DB::table('legal_holds')->where('subject_type', 'diagnostic_run')->where('subject_id', $run->id)->where('status', 'active')->count())->toBe(1)
+        ->and(DB::table('audit_events')->where('event_type', 'legal_hold.placed')->count())->toBe(2);
+});
