@@ -93,6 +93,7 @@ class AnalyzeDiagnosticRun implements ShouldQueue
         try {
             if ($this->tenantId !== null) {
                 app(TenantEntitlementService::class)->requireFeature($this->tenantId, 'diagnostics.analysis');
+                app(TenantResourceLimitService::class)->requireDiagnosticCapacity($this->tenantId);
             }
 
             $model = (string) config('services.openai.model', 'gpt-5.6-sol');
