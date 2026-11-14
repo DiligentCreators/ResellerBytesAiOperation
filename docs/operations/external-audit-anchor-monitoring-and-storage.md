@@ -1,8 +1,9 @@
 # External audit-anchor verification, monitoring, and immutable storage
 
-Status: independent signature verifier, local freshness/tail monitor, redacted JSON
-alert-evidence output, provider-neutral publisher orchestration, and storage contract
-tests implemented; provider adapter and production alert delivery are not provisioned.
+Status: Ed25519 signer/verifier, local freshness/tail monitor, redacted JSON alert
+evidence, provider-neutral publisher, S3-compatible conditional Object Lock adapter,
+manual publish command, and fake-store tests implemented. Production storage and
+credentials remain unprovisioned.
 
 ## Verification boundaries
 
@@ -125,53 +126,67 @@ receipts in an isolated environment before enabling it.
 
 ## Immutable object upload contract
 
-No cloud provider, bucket, account, or credential is configured by this repository. The
-application now has an `AuditCheckpointObjectStore` contract and
-`AuditCheckpointPublisher` orchestration. The publisher first verifies the signed
-checkpoint against the local audit-chain prefix, derives a deterministic
-environment/sequence/digest key, requests conditional immutable creation, then reads
-back the exact returned version and requires matching bytes, version ID, COMPLIANCE
-mode, and at least 365 days of retention. Duplicate keys, missing/mismatched versions,
-checksum mismatch, insufficient retention, and unresolved ambiguous create outcomes fail
-closed. If create returns an error, the publisher never retries the write: it performs a
-deterministic-key lookup, then reads back the exact returned version and validates bytes
-and COMPLIANCE retention before allowing an idempotent success. An absent object or
-failed lookup/read-back remains a failure. No provider adapter is wired or configured;
-do not describe a local export or fake-store test as an immutable external anchor.
+The application includes an `AuditCheckpointObjectStore` contract, publisher orchestration,
+and an AWS CLI-backed S3-compatible adapter. The adapter requires a separately named
+audit-anchor bucket, endpoint, region, and AWS credentials from the configured S3
+credential source. It never falls back to the operational-backup bucket. The publish
+command is manual and does not schedule itself:
 
-When the owner provisions the independent security account and selects the storage
-provider, implement the upload adapter with these mandatory properties:
+```sh
+php artisan audit:anchor:export > /secure/path/audit-checkpoint.json
+sha256sum /secure/path/audit-checkpoint.json
+php artisan audit:anchor:publish /secure/path/audit-checkpoint.json
+```
 
-1. Derive a deterministic object key from the environment and checkpoint
-   sequence/digest; never include customer or event data in the key.
-2. Use a conditional create operation (for S3-compatible storage, `If-None-Match: *`) so
-   an existing key cannot be overwritten. A conflict is not success.
-3. Upload the exact signed bytes and capture the provider's immutable object version
-   identifier and checksum.
-4. Require Object Lock in COMPLIANCE mode for the approved 365-day retention period.
-   Governance mode or a mutable bucket policy is not equivalent.
-5. Read the object back by exact version ID, compare its SHA-256 digest to the locally
-   exported bytes, and independently read back retention mode and retain-until
-   timestamp.
-6. Record the object key, version ID, checkpoint digest, chain sequence, environment,
-   retention mode, retain-until UTC timestamp, and read-back result in a separate
-   evidence record.
-7. Never report success until checksum, version, and retention read-back all match the
-   expected values.
-8. If the upload response is ambiguous, do not retry the write. Query the deterministic
-   key, resolve its exact version ID, read that exact version back, and reconcile the
-   exact bytes and retention metadata. An idempotent success is allowed only when every
-   check passes; raise an alert if lookup or read-back remains ambiguous.
-9. A duplicate object key, missing version ID, retention mismatch, failed read-back, or
-   unsupported conditional-create capability must fail closed.
+For every checkpoint after the first, export and publish must both receive the exact
+SHA-256 digest of the previously retained checkpoint:
 
-The provider-neutral publisher has automated fake-store tests for duplicate-key
-rejection, missing version ID, version mismatch, checksum mismatch, retention-mode
-mismatch, too-short retention, ambiguous create reconciliation, and unresolved create
-outcomes. The real provider adapter must additionally test concurrent create races,
-failed network read-back, actual provider version IDs, and Object Lock metadata against
-disposable non-production storage or a provider emulator. Production Object Lock
-configuration and actual retention read-back remain owner-controlled release gates.
+```sh
+php artisan audit:anchor:export --previous=PREVIOUS_CHECKPOINT_SHA256 > /secure/path/audit-checkpoint.json
+php artisan audit:anchor:publish /secure/path/audit-checkpoint.json --expected-previous=PREVIOUS_CHECKPOINT_SHA256
+```
+
+The publisher verifies the detached signature and local chain prefix, requires the
+expected predecessor when the signed payload declares one, derives a deterministic
+environment/sequence/digest key, and requests conditional creation with
+`If-None-Match: *`. The S3 adapter requests Object Lock COMPLIANCE retention, captures
+the exact VersionId, and reads that version back. The publisher compares exact bytes,
+version ID, retention mode, and retain-until timestamp before reporting success. The
+retention deadline is derived from the signed checkpoint creation time plus 365 days,
+so retrying the same checkpoint uses the same immutable deadline. Expired checkpoints
+cannot be newly published.
+
+If create returns an error, the publisher never retries the write: it looks up the
+deterministic key, resolves its exact version, reads that version back, and validates
+the bytes and retention metadata. A confirmed absent key re-throws the create failure;
+authorization/transport ambiguity and failed read-back remain failures. The adapter
+suppresses raw AWS CLI diagnostics and fails closed when configuration, version IDs,
+Object Lock metadata, or conditional-create support is missing.
+
+The provider-neutral publisher has fake-store tests for duplicate-key rejection,
+missing version ID, version mismatch, checksum mismatch, retention-mode mismatch,
+too-short retention, ambiguous create reconciliation, unresolved create outcomes,
+required predecessor digest, and deterministic retention deadline. The real S3 adapter
+still requires a disposable non-production bucket or provider emulator test for
+conditional-create races, actual VersionIds, 404 versus authorization behavior,
+COMPLIANCE metadata, and exact-version download. Do not mark production anchoring active
+until those tests and remote read-back evidence are complete.
+
+Required environment configuration:
+
+- `AUDIT_ANCHOR_BUCKET`: dedicated Object Lock bucket; do not reuse the backup bucket.
+- `AUDIT_ANCHOR_ENDPOINT`, `AUDIT_ANCHOR_REGION`, and
+  `AUDIT_ANCHOR_AWS_CLI_BINARY`: S3-compatible endpoint and client configuration.
+- `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`: least-privilege credentials
+  supplied through the deployment secret manager, never repository files.
+- `AUDIT_ANCHOR_PRIVATE_KEY` and `AUDIT_ANCHOR_PUBLIC_KEY`: independent Ed25519
+  keys provisioned outside the application environment.
+
+The adapter does not create buckets, enable versioning/Object Lock, configure IAM, or
+create credentials. No upload is attempted unless the explicit audit bucket, endpoint,
+region, credentials, and signing keys are configured. Production Object Lock setup,
+provider compatibility, key custody, and isolated rehearsal remain owner-controlled
+release gates.
 
 ## Recovery and chain continuity
 
