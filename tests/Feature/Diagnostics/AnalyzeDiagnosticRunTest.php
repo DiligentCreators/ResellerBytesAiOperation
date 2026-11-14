@@ -163,6 +163,58 @@ it('releases a pre-submit reservation if the diagnostic crosses its retention cu
     }
 });
 
+it('does not persist provider results when a diagnostic expires during analysis', function () {
+    $integration = WhmcsIntegration::create([
+        'name' => 'Retention completion boundary test',
+        'status' => 'active',
+        'secret' => bin2hex(random_bytes(32)),
+        'secret_version' => 1,
+    ]);
+
+    $run = DiagnosticRun::create([
+        'integration_id' => $integration->id,
+        'snapshot_uuid' => (string) Str::uuid(),
+        'schema_version' => '1.0',
+        'addon_version' => '1.0.0',
+        'status' => 'received',
+        'collected_at' => now(),
+        'received_at' => now(),
+        'payload' => ['system' => ['whmcs_version' => '8.13.7']],
+        'payload_sha256' => str_repeat('7', 64),
+    ]);
+
+    $analyzer = Mockery::mock(WhmcsDiagnosticAnalyzer::class);
+    $analyzer->shouldReceive('analyze')->once()->andReturnUsing(function ($model, $beforeSubmit, $afterResponse) use ($run) {
+        $beforeSubmit();
+        $afterResponse(['id' => 'resp_expired_during_analysis'], [
+            'input_tokens' => 100,
+            'cached_input_tokens' => 0,
+            'output_tokens' => 30,
+            'total_tokens' => 130,
+        ]);
+
+        $run->forceFill(['received_at' => now('UTC')->subDays(365)])->save();
+
+        return [
+            'summary' => 'Provider returned a result after the retention deadline.',
+            'no_findings_reason' => 'No result may be retained after expiry.',
+            'findings' => [],
+            'response_id' => 'resp_expired_during_analysis',
+            'usage' => ['input_tokens' => 100, 'output_tokens' => 30, 'total_tokens' => 130],
+        ];
+    });
+
+    (new AnalyzeDiagnosticRun($run->id))->handle($analyzer, app(AiBudgetService::class));
+
+    $attempt = AiUsageAttempt::query()->where('diagnostic_run_id', $run->id)->sole();
+
+    expect($run->fresh()->status)->toBe('analysis_failed')
+        ->and($run->fresh()->analysis_error_code)->toBe('diagnostic_retention_expired')
+        ->and($run->fresh()->analysis_summary)->toBeNull()
+        ->and(DiagnosticFinding::query()->where('diagnostic_run_id', $run->id)->count())->toBe(0)
+        ->and($attempt->status)->toBe('settled');
+});
+
 it('marks a failed analysis attempt without modifying the source diagnostic payload', function () {
     $integration = WhmcsIntegration::create([
         'name' => 'Analysis failure test',
