@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Contracts\AuditCheckpointObjectStore;
+use App\Services\Audit\S3AuditCheckpointObjectStore;
 use App\Services\Operations\QueueJobMetricsTracker;
 use Carbon\CarbonImmutable;
 use Illuminate\Queue\Events\JobFailed;
