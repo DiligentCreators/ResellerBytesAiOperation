@@ -509,3 +509,21 @@ inferred from the repository changes.
   commit. Production bucket, credentials, keys, provider rehearsal, and independent
   security review remain Shahrukh-controlled gates.
 
+## Checkpoint publisher registration and final source-review notes
+
+- Verified Laravel's explicit command registry and corrected it to include
+  `PublishAuditAnchorCheckpoint`; added a command-level test for registration and
+  fail-closed behavior when the dedicated audit bucket is not configured.
+- The S3 adapter now rejects credential-bearing endpoint URLs and malformed metadata
+  responses. Publisher output includes environment, object VersionId, retention mode,
+  retain-until UTC, sequence, digest, and ambiguous-create reconciliation status.
+- Publisher rejects signed checkpoint timestamps more than five minutes in the future.
+  The central verifier rejects impossible calendar timestamps. Regression coverage was
+  added for both timestamp paths and predecessor enforcement.
+- Latest code/test head: `2f73e1428f90c32f24fff4cdef2673fa21e8bbe4`. Intermediate commits
+  continue to include [skip ci]. No workflow files or repository settings were changed;
+  no CI run has been triggered.
+- Still pending: PHP 8.5 full test suite, one final CI run after all engineering work,
+  actual non-production S3/Wasabi conditional-create and Object Lock rehearsal, production
+  key/credential provisioning, independent security review, and release approval.
+
