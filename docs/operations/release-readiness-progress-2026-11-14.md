@@ -51,3 +51,26 @@ This run does not verify the later SQL Server/MariaDB additions in this branch.
 2. Continue release checklist, security review preparation, and negative privilege/test coverage without enabling destructive retention.
 3. Keep these items in the operator decision queue: Object Lock/cloud account, 365-day retention approval, signing keys and production DB roles, legal-hold policy, and backup/restore rehearsal access.
 4. Keep PR #2 Draft. Do not merge, deploy, or run production migrations.
+
+
+## Shahrukh-approved operational decisions — 2026-11-14
+
+The following decisions are approved and are now implementation requirements, not owner-pending decisions:
+
+- Monitoring: error rate greater than 2% over 5 minutes; API p95 latency greater than 1.5 seconds; no successful backup for 26 hours; disk at 80% warning and 90% critical; queue jobs older than 15 minutes alert.
+- Routing: owner email plus one Slack or Discord channel; critical notifications additionally through WhatsApp/SMS. All destinations and credentials are runtime environment/secret-manager configuration; no real endpoints or tokens belong in Git.
+- Recovery: RPO 24 hours, RTO 4 hours; every production restore requires Shahrukh's explicit approval.
+- External audit retention: 365 days with Object Lock COMPLIANCE mode.
+- Signing and verifier operations: Shahrukh is the sole initial operator; operator identity model must permit a second trusted operator later.
+- PostgreSQL: separate runtime (read/write, no DDL), deploy-only migration (DDL), and read-only reporting (SELECT only on an explicit approved allowlist) roles.
+
+The config and runbooks record these approved values. Alert delivery, provider adapters, storage provisioning, actual PostgreSQL production roles, and production recovery remain unprovisioned until their external dependencies are supplied.
+
+## Latest branch validation and implementation batch
+
+- Exact commit `e55c0e99b0523bacd062e54474f9e189ddfcae8b` passed all six required CI jobs in run [#43578328332](https://github.com/DiligentCreators/ResellerBytesAiOperation/actions/runs/43578328332).
+- Applied approved monitoring thresholds, notification destination configuration, recovery objectives/approval gate, 365-day COMPLIANCE audit retention, and initial single-operator configuration to `config/operations.php` and `.env.example`.
+- Updated monitoring and backup/restore runbooks with the approved policy.
+- Expanded PostgreSQL role guidance to three distinct application identities. Reporting access is explicitly allowlisted rather than broad schema-wide SELECT.
+- Added a PostgreSQL CI regression script for the read-only reporting identity; exact-head CI for this new batch is pending.
+- PR #2 remains open and Draft. No merge, deploy, production migration, or live WHMCS change has occurred.
