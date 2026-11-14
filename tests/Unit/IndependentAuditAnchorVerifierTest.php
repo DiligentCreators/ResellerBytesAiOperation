@@ -30,12 +30,13 @@ function createIndependentAuditAnchorFixture(?string $previous = null): array
 
 function runIndependentAuditAnchorVerifier(string $checkpoint, string $publicKey, string $environment = 'testing', ?string $previous = null): Process
 {
-    $command = [PHP_BINARY, base_path('tools/verify-audit-anchor.php'), $checkpoint];
+    $root = dirname(__DIR__, 2);
+    $command = [PHP_BINARY, $root.'/tools/verify-audit-anchor.php', $checkpoint];
     if ($previous !== null) {
         $command[] = $previous;
     }
 
-    $process = new Process($command, base_path(), [
+    $process = new Process($command, $root, [
         'AUDIT_ANCHOR_PUBLIC_KEY' => $publicKey,
         'AUDIT_ANCHOR_EXPECTED_ENVIRONMENT' => $environment,
     ]);
