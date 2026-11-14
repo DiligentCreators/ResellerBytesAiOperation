@@ -381,3 +381,6 @@ The tenant migration is authored on the branch but has not been executed; no ten
 
 
 - Added tenant-authorized, audited provider-account registration and deactivation. Registration records a verification attestation only after external provider account ownership has been verified; provider secrets remain outside the database and no self-service/public route is enabled.
+
+
+- Added audited webhook dead-letter recovery: only tenant billing managers can requeue an event, only while its provider-account mapping remains active/verified, and each event is capped at three manual replays with a constrained reason code. Reconciliation/outbox/recovery commands are explicitly registered.
