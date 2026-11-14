@@ -24,7 +24,7 @@ class TenantNotificationService
             throw new InvalidArgumentException('tenant_notification_payload_invalid');
         }
 
-        return DB::transaction(function () use ($tenantId, $userId, $eventType, $payload, $notificationKey): TenantNotification {
+        return app(TenantDatabaseContext::class)->run($tenantId, $userId, fn (): TenantNotification => DB::transaction(function () use ($tenantId, $userId, $eventType, $payload, $notificationKey): TenantNotification {
             $tenant = Tenant::query()->whereKey($tenantId)->where('status', Tenant::STATUS_ACTIVE)->lockForUpdate()->first();
             if ($tenant === null) {
                 throw (new ModelNotFoundException())->setModel(Tenant::class, [$tenantId]);
@@ -55,6 +55,6 @@ class TenantNotificationService
                 'payload' => $payload,
                 'created_at' => now(),
             ]);
-        }, 3);
+        }, 3));
     }
 }
