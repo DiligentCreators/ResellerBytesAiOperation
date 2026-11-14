@@ -66,7 +66,7 @@ PGSERVICE="$RESTORE_PGSERVICE" pg_restore \
   "$BACKUP_FILE"
 ```
 
-Before running, the operator must confirm that the application's `DB_HOST`, `DB_PORT`, and `DB_DATABASE` configuration point only to the isolated recovery PostgreSQL target. The restore command uses that same configured host/port/database and substitutes only the dedicated `RESTORE_DB_USERNAME` and `RESTORE_DB_PASSWORD`; it rejects a backup manifest whose database name does not match the configured target. The operator must also confirm that `RECOVERY_ADMIN_SERVICE` and `RESTORE_PGSERVICE` point only to the recovery host. The service file and password file are operator-managed runtime inputs and must not be committed.
+Before running, the operator must confirm that the application's `DB_HOST`, `DB_PORT`, and `DB_DATABASE` configuration point only to the isolated recovery PostgreSQL target. The restore command uses that same configured host/port/database and substitutes only the dedicated `RESTORE_DB_USERNAME` and `RESTORE_DB_PASSWORD`; it rejects a backup manifest unless the database name, host, and port all match the configured target exactly. The operator must also confirm that `RECOVERY_ADMIN_SERVICE` and `RESTORE_PGSERVICE` point only to the recovery host. The service file and password file are operator-managed runtime inputs and must not be committed.
 
 If the backup format or restore procedure requires a different invocation, record the exact reviewed command in the rehearsal record with all secrets redacted. Do not improvise against a production endpoint.
 
@@ -104,7 +104,7 @@ A restored database may legitimately contain events newer than the last external
 - [ ] Confirm migration history and schema objects are present; do not run migrations merely to make the restored schema match.
 - [ ] Confirm audit append works under the runtime role and audit UPDATE/DELETE/TRUNCATE are rejected.
 - [ ] Confirm the WHMCS integration hard-delete guard rejects deletion.
-- [ ] Confirm legal holds remain active and diagnostic retention reports preserve held records.
+- [ ] Confirm active legal-hold metadata is expired with immutable audit evidence when its diagnostic target reaches 365 days; the retention report does not exclude held records, and no hold preserves diagnostic content beyond the cutoff.
 - [ ] Confirm the 365-day diagnostic-retention policy, no-discretionary-exception rule, and indefinite audit-event retention are represented correctly.
 - [ ] Confirm diagnostic cleanup remains disabled and no cleanup schedule is active.
 - [ ] Confirm AI usage reservations/ledger relationships are consistent; do not issue real provider requests or settle charges during the rehearsal.
