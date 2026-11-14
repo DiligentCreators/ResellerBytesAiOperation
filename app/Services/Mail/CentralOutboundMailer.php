@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use RuntimeException;
 use Symfony\Component\Mime\Address;
+use Throwable;
 
 class CentralOutboundMailer
 {
@@ -58,24 +59,29 @@ class CentralOutboundMailer
             }
 
             $encryption = $config['encryption'] ?? 'tls';
-            $mailer = Mail::build([
-                'transport' => 'smtp',
-                'scheme' => $encryption === 'ssl' ? 'smtps' : null,
-                'host' => $config['host'],
-                'port' => (int) $config['port'],
-                'username' => ($config['username'] ?? '') !== '' ? $config['username'] : null,
-                'password' => ($config['password'] ?? '') !== '' ? $config['password'] : null,
-                'timeout' => 10,
-                'local_domain' => parse_url((string) config('app.url'), PHP_URL_HOST) ?: 'localhost',
-            ]);
 
-            if ($encryption === 'none') {
-                $mailer->getSymfonyTransport()->setAutoTls(false);
+            try {
+                $mailer = Mail::build([
+                    'transport' => 'smtp',
+                    'scheme' => $encryption === 'ssl' ? 'smtps' : null,
+                    'host' => $config['host'],
+                    'port' => (int) $config['port'],
+                    'username' => ($config['username'] ?? '') !== '' ? $config['username'] : null,
+                    'password' => ($config['password'] ?? '') !== '' ? $config['password'] : null,
+                    'timeout' => 10,
+                    'local_domain' => parse_url((string) config('app.url'), PHP_URL_HOST) ?: 'localhost',
+                ]);
+
+                if ($encryption === 'none') {
+                    $mailer->getSymfonyTransport()->setAutoTls(false);
+                }
+
+                $mailer->html($html, function ($message) use ($to, $subject, $from, $name, $text): void {
+                    $message->to($to)->from($from, $name)->subject($subject)->text($text);
+                });
+            } catch (Throwable) {
+                throw new RuntimeException('platform_mail_smtp_delivery_failed');
             }
-
-            $mailer->html($html, function ($message) use ($to, $subject, $from, $name, $text): void {
-                $message->to($to)->from($from, $name)->subject($subject)->text($text);
-            });
 
             return;
         }
@@ -88,19 +94,23 @@ class CentralOutboundMailer
                 throw new RuntimeException('platform_mail_postmark_configuration_invalid');
             }
 
-            Http::acceptJson()
-                ->withHeaders(['X-Postmark-Server-Token' => $token])
-                ->connectTimeout(3)
-                ->timeout(10)
-                ->withOptions(['allow_redirects' => false])
-                ->post('https://api.postmarkapp.com/email', [
-                    'From' => (new Address($from, $name))->toString(),
-                    'To' => $to,
-                    'Subject' => $subject,
-                    'HtmlBody' => $html,
-                    'TextBody' => $text,
-                    'MessageStream' => $stream,
-                ])->throw();
+            try {
+                Http::acceptJson()
+                    ->withHeaders(['X-Postmark-Server-Token' => $token])
+                    ->connectTimeout(3)
+                    ->timeout(10)
+                    ->withOptions(['allow_redirects' => false])
+                    ->post('https://api.postmarkapp.com/email', [
+                        'From' => (new Address($from, $name))->toString(),
+                        'To' => $to,
+                        'Subject' => $subject,
+                        'HtmlBody' => $html,
+                        'TextBody' => $text,
+                        'MessageStream' => $stream,
+                    ])->throw();
+            } catch (Throwable) {
+                throw new RuntimeException('platform_mail_postmark_delivery_failed');
+            }
 
             return;
         }
