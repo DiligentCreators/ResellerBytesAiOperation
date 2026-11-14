@@ -41,7 +41,22 @@ final class S3AuditCheckpointObjectStore implements AuditCheckpointObjectStore
                 throw new RuntimeException('audit_anchor_object_version_missing');
             }
 
-            return $this->readImmutableVersion($objectKey, $versionId);
+            $head = $this->head($settings, $objectKey, $versionId);
+            $headVersion = $head['VersionId'] ?? null;
+            $retentionMode = $head['ObjectLockMode'] ?? null;
+            $retainUntil = $head['ObjectLockRetainUntilDate'] ?? null;
+            if (! is_string($headVersion) || ! hash_equals($versionId, $headVersion)
+                || ! is_string($retentionMode)
+                || ! is_string($retainUntil)) {
+                throw new RuntimeException('audit_anchor_object_create_metadata_incomplete');
+            }
+
+            return new AuditCheckpointObjectVersion(
+                '',
+                $versionId,
+                $retentionMode,
+                new DateTimeImmutable($retainUntil),
+            );
         } finally {
             $this->removeTemporaryFile($path);
         }
