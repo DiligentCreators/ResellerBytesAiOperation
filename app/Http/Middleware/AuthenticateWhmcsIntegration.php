@@ -106,6 +106,7 @@ class AuthenticateWhmcsIntegration
 
                 return $next($request);
             },
+            $integration->id,
         );
     }
 }
