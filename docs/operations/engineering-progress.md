@@ -298,3 +298,12 @@ A green CI run is necessary but does not close these release gates or authorize 
 - No payment provider was selected, no public webhook route or charge initiation was enabled, and no provider credentials were added. Provider-specific signature verification/account mapping, independent review, operations-role provisioning, and production activation remain pending.
 - PHP 8.5 and project dependencies are unavailable in this execution environment (PHP 8.4 only), so migration and test execution remain blocked. All commits in this milestone use [skip ci]; workflow files and repository settings were not changed. Exact-head CI remains deferred until all engineering work is complete.
 - PR #2 remains open and Draft. No merge, deployment, production migration, or live WHMCS operation was performed.
+
+
+### Billing event immutability and replay-race hardening — 2026-11-15
+
+- Added database triggers on SQLite and PostgreSQL that prevent changes to tenant identity, provider/event identity, aggregate identity, payload, and payload digest after outbox/inbox insertion while allowing only delivery/retry state changes.
+- Added a dedicated audit trigger so webhook receipt audit events must reference the exact tenant of the webhook inbox row.
+- Hardened concurrent webhook duplicate delivery: a unique-key race now reloads and accepts the winning identical event; a different payload or provider-account/tenant binding fails closed.
+- Added regression coverage for immutable outbox/webhook payloads, mutable retry state, cross-tenant audit-subject rejection, provider-account replay binding, transient retries, and dead-letter exhaustion. Tests remain authored but unexecuted.
+- Latest billing milestone commit at this checkpoint: d8221a8559931c85e14b0240531ce8829f46b8f7. All intermediate commits continue to carry [skip ci]; no workflow files or repository settings were changed.
