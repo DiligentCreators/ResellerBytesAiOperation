@@ -4,6 +4,7 @@ namespace App\Services\Tenancy;
 
 use App\Models\TenantBillingInvoice;
 use App\Models\TenantBillingPayment;
+use App\Models\TenantMembership;
 use App\Models\User;
 use App\Services\Audit\AuditEventWriter;
 use Illuminate\Support\Facades\DB;
@@ -39,17 +40,26 @@ class TenantBillingLedgerService
             throw new InvalidArgumentException('billing_provider_payment_reference_required');
         }
 
-        if ($payment['collection_mode'] === 'manual') {
-            $actor = User::query()->findOrFail($payment['recorded_by_user_id']);
-            app(TenantRoleAuthorization::class)->require($actor, $tenantId, 'billing.manage');
-        }
-
         return DB::transaction(function () use ($tenantId, $invoiceId, $payment): TenantBillingPayment {
             $invoice = TenantBillingInvoice::query()
                 ->whereKey($invoiceId)
                 ->where('tenant_id', $tenantId)
                 ->lockForUpdate()
                 ->firstOrFail();
+
+            if ($payment['collection_mode'] === 'manual') {
+                $actor = User::query()->findOrFail($payment['recorded_by_user_id']);
+                $membership = TenantMembership::query()
+                    ->where('tenant_id', $tenantId)
+                    ->where('user_id', $actor->getKey())
+                    ->where('status', TenantMembership::STATUS_ACTIVE)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                if (! app(TenantRoleAuthorization::class)->allows($membership, 'billing.manage')) {
+                    throw new \\Illuminate\\Auth\\Access\\AuthorizationException('The active tenant role does not grant billing management.');
+                }
+            }
 
             if ($invoice->tenant_subscription_id !== null
                 && ! $invoice->subscription()->where('tenant_id', $tenantId)->exists()) {
