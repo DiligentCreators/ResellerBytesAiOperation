@@ -318,3 +318,13 @@ A green CI run is necessary but does not close these release gates or authorize 
 - Added subscription renewal reconciliation: requires a fully settled invoice and contiguous period extension, updates the active subscription period, and appends audit/outbox records atomically. Duplicate invoice/period renewals are idempotent.
 - Added regression tests for adapter mismatch, stale signature, provider-account mapping, immutable mapping, payment failure, and settled subscription renewal. Not executed due to PHP 8.5/dependency environment limitation.
 - All commits in this continuation include [skip ci]. No workflow file or repository setting was modified. Provider selection, provider credentials, provider-account verification/mapping, operations-role provisioning, independent security review, and production activation remain pending.
+
+
+### Refund, dispute and renewal ledger expansion — 2026-11-15
+
+- Added invoice.payment_failed, subscription.renewed, payment.refunded, payment.dispute_opened, payment.dispute_won and payment.dispute_lost normalized event handling.
+- Failed payment marks an unpaid invoice past_due and moves eligible active/trialing subscriptions into the provisional seven-day grace period (configurable 1–30 days).
+- Subscription renewal requires a fully settled invoice for the same tenant/subscription, matching currency, confirmed ledger payment totals, and contiguous period boundaries. Duplicate renewal invoice/period notifications are idempotent.
+- Added append-only tenant_billing_adjustments with tenant RLS, immutable update/delete database guards, and tenant-bound audit trigger. Refunds and lost disputes reduce invoice net paid; open/won disputes do not reduce paid balance. Combined refund/lost-dispute totals are capped at the original payment amount.
+- Underpaid subscriptions after refunds/lost disputes are moved into the same grace-period workflow. Added feature coverage for refund idempotency, dispute lifecycle, payment failures, renewal and immutable adjustment records.
+- No actual provider, payment credentials, provider-account mapping, checkout, charge initiation or public webhook endpoint is active. Test execution remains blocked by PHP 8.5/dependency availability.
