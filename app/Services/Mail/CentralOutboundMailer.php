@@ -93,7 +93,7 @@ class CentralOutboundMailer
                 ->timeout(10)
                 ->withOptions(['allow_redirects' => false])
                 ->post('https://api.postmarkapp.com/email', [
-                    'From' => $name.' <'.$from.'>',
+                    'From' => (new Address($from, $name))->toString(),
                     'To' => $to,
                     'Subject' => $subject,
                     'HtmlBody' => $html,
