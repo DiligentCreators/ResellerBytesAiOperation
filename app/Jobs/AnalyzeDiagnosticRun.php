@@ -209,6 +209,7 @@ class AnalyzeDiagnosticRun implements ShouldQueue
 
                 foreach ($findingData['recommendations'] as $recommendation) {
                     $finding->recommendations()->create([
+                        'tenant_id' => $lockedRun->tenant_id,
                         'recommendation' => $recommendation['recommendation'],
                         'rationale' => $recommendation['rationale'],
                         'risk_level' => $recommendation['risk_level'],
