@@ -83,12 +83,11 @@ class WhmcsDiagnosticAnalyzer
                 ],
             ]);
 
-        if (! $response->successful()) {
-            throw new RuntimeException('provider_request_failed');
-        }
-
         $body = $response->json();
 
+        // A provider may report billable usage alongside an unsuccessful response.
+        // Settle confirmed usage before surfacing the request failure; responses
+        // without authoritative usage remain ambiguous in the caller.
         if (is_array($body) && $afterResponse !== null && is_array($body['usage'] ?? null)
             && array_key_exists('input_tokens', $body['usage'])
             && array_key_exists('output_tokens', $body['usage'])) {
@@ -99,6 +98,10 @@ class WhmcsDiagnosticAnalyzer
                 'output_tokens' => max(0, (int) ($usage['output_tokens'] ?? 0)),
                 'total_tokens' => max(0, (int) ($usage['total_tokens'] ?? 0)),
             ]);
+        }
+
+        if (! $response->successful()) {
+            throw new RuntimeException('provider_request_failed');
         }
 
         if (! is_array($body) || ($body['status'] ?? null) !== 'completed') {
