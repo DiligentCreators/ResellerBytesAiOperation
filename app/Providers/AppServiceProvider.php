@@ -32,7 +32,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        $this->configureDefaults();
+        Mail::extend('platform', fn () => new PlatformMailTransport(app(\\App\\Services\\Mail\\CentralOutboundMailer::class)));\n\n        $this->configureDefaults();
         $this->registerQueueMetricsListeners();
     }
 
