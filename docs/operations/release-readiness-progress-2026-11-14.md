@@ -561,3 +561,13 @@ inferred from the repository changes.
 - The signed-request feature tests cover valid HMAC ingestion, replay rejection, revoked integration rejection, and invalid signatures. All test helpers are wired to the Laravel test case; execution remains pending.
 - Latest head at this checkpoint: `63a0bbca7c438e571da7cb898a2fa02b121b8966`. Every intermediate commit uses [skip ci]; no workflow files or repository settings changed.
 
+
+
+## Confirmed AI usage settlement on provider error responses — 2026-11-14
+
+- Updated the provider-response boundary to inspect authoritative usage metadata before classifying a non-2xx HTTP response as a request failure. When input/output token usage is present, the existing transactional ledger settlement callback runs first; the diagnostic still fails and does not persist findings from the unsuccessful response.
+- Responses without confirmed usage do not settle and continue through the existing submitted-to-ambiguous fail-closed path, preserving the reservation and preventing an automatic duplicate attempt.
+- Added an HTTP-faked regression test proving a 500 response carrying usage invokes settlement with input, cached-input, output, and total token counts before raising the safe `provider_request_failed` code. Existing timeout coverage continues to exercise ambiguous reservation handling.
+- Tests are committed but not executed in this environment: PHP 8.5 and the repository checkout/dependencies are unavailable. No live provider call or credential use occurred.
+- Every commit in this follow-up includes [skip ci]. No workflow file or repository setting was changed. Exact-head CI remains deferred until all roadmap engineering work is complete.
+- Latest branch head at this checkpoint: `3ef0056bb0c0cf39fb8d691fb48b6fa9578a659e`. PR #2 remains open and Draft; no merge, deployment, production migration, or live WHMCS operation is authorized.
