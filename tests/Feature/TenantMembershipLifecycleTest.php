@@ -117,3 +117,19 @@ it('requires a verified existing account and a non-owner invitation role', funct
         TenantMembership::ROLE_OWNER,
     ))->toThrow(ValidationException::class);
 });
+
+
+it('reissues a revoked membership using its existing unique tenant-user row', function () {
+    [$tenant, $owner, $admin, $invitee] = membershipLifecycleFixture();
+    $lifecycle = app(TenantMembershipLifecycle::class);
+    $first = $lifecycle->invite($admin, $tenant->id, $invitee->email, TenantMembership::ROLE_VIEWER);
+    $lifecycle->accept($invitee, $tenant->id);
+    $lifecycle->revoke($admin, $tenant->id, $first->id);
+
+    $second = $lifecycle->invite($admin, $tenant->id, $invitee->email, TenantMembership::ROLE_OPERATOR);
+
+    expect($second->id)->toBe($first->id)
+        ->and($second->status)->toBe(TenantMembership::STATUS_INVITED)
+        ->and($second->role)->toBe(TenantMembership::ROLE_OPERATOR)
+        ->and($tenant->memberships()->where('user_id', $invitee->id)->count())->toBe(1);
+});
