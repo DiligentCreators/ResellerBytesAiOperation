@@ -42,7 +42,7 @@ it('allows a verified operator with confirmed two-factor authentication to queue
         ->post('/diagnostic-runs/'.$run->id.'/reanalyze')
         ->assertRedirect();
 
-    Queue::assertPushed(AnalyzeDiagnosticRun::class, fn (AnalyzeDiagnosticRun $job) => $job->diagnosticRunId === $run->id);
+    Queue::assertPushed(AnalyzeDiagnosticRun::class, fn (AnalyzeDiagnosticRun $job) => $job->diagnosticRunId === $run->id && $job->ownerUserId === (int) $run->integration->owner_user_id);
     expect($run->fresh()->status)->toBe('queued');
     expect(AuditEvent::where('event_type', 'diagnostic_run.analysis_requested')->count())->toBe(1);
 });
