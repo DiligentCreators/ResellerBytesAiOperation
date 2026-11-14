@@ -55,7 +55,7 @@ class MonitorAuditAnchorCheckpoint extends Command
         };
 
         $path = $this->argument('checkpoint');
-        if (! is_string($path) || $path === '' || ! is_file($path) || ! is_readable($path)) {
+        if ($path === '' || ! is_file($path) || ! is_readable($path)) {
             return $finish('checkpoint_unavailable');
         }
 
