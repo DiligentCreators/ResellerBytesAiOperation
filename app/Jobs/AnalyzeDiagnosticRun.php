@@ -7,6 +7,7 @@ use App\Models\DiagnosticRun;
 use App\Services\Diagnostics\AiBudgetService;
 use App\Services\Diagnostics\WhmcsDiagnosticAnalyzer;
 use Illuminate\Bus\Queueable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -30,7 +31,7 @@ class AnalyzeDiagnosticRun implements ShouldQueue
     /** @var array<int, int> */
     public array $backoff = [60, 300, 900];
 
-    public function __construct(public string $diagnosticRunId, public int $ownerUserId)
+    public function __construct(public string $diagnosticRunId, public int $ownerUserId, public ?string $tenantId = null)
     {
         if ($this->ownerUserId < 1) {
             throw new \InvalidArgumentException('A positive diagnostic owner user ID is required.');
@@ -40,9 +41,7 @@ class AnalyzeDiagnosticRun implements ShouldQueue
     public function handle(WhmcsDiagnosticAnalyzer $analyzer, AiBudgetService $budget): void
     {
         $run = DB::transaction(function (): ?DiagnosticRun {
-            $run = DiagnosticRun::query()
-                ->whereKey($this->diagnosticRunId)
-                ->whereHas('integration', fn ($query) => $query->where('owner_user_id', $this->ownerUserId))
+            $run = $this->authorizedRunQuery($this->diagnosticRunId)
                 ->with('integration')
                 ->lockForUpdate()
                 ->first();
@@ -95,7 +94,7 @@ class AnalyzeDiagnosticRun implements ShouldQueue
                             ->first();
 
                         if ($currentRun === null
-                            || ! $currentRun->integration()->where('owner_user_id', $this->ownerUserId)->exists()
+                            || ! $this->authorizedRunQuery($currentRun->id)->exists()
                             || $currentRun->received_at === null
                             || $currentRun->received_at->lessThanOrEqualTo(now('UTC')->subDays(365))) {
                             throw new RuntimeException('diagnostic_retention_expired');
@@ -123,9 +122,7 @@ class AnalyzeDiagnosticRun implements ShouldQueue
                 }
             }
 
-            DiagnosticRun::query()
-                ->whereKey($run->id)
-                ->whereHas('integration', fn ($query) => $query->where('owner_user_id', $this->ownerUserId))
+            $this->authorizedRunQuery($run->id)
                 ->where('status', '!=', 'analyzed')
                 ->update([
                     'status' => 'analysis_failed',
@@ -137,9 +134,7 @@ class AnalyzeDiagnosticRun implements ShouldQueue
         }
 
         DB::transaction(function () use ($run, $result): void {
-            $lockedRun = DiagnosticRun::query()
-                ->whereKey($run->id)
-                ->whereHas('integration', fn ($query) => $query->where('owner_user_id', $this->ownerUserId))
+            $lockedRun = $this->authorizedRunQuery($run->id)
                 ->lockForUpdate()
                 ->first();
 
@@ -221,15 +216,34 @@ class AnalyzeDiagnosticRun implements ShouldQueue
 
     public function failed(?Throwable $exception): void
     {
-        DiagnosticRun::query()
-            ->whereKey($this->diagnosticRunId)
-            ->whereHas('integration', fn ($query) => $query->where('owner_user_id', $this->ownerUserId))
+        $this->authorizedRunQuery($this->diagnosticRunId)
             ->where('status', '!=', 'analyzed')
             ->update([
                 'status' => 'analysis_failed',
                 'analysis_error_code' => $this->safeErrorCode($exception),
                 'updated_at' => now(),
             ]);
+    }
+
+
+    /**
+     * Revalidate the integration owner and immutable tenant context captured
+     * at dispatch. Tenant-owned jobs stop when their tenant is inactive.
+     *
+     * @return Builder<DiagnosticRun>
+     */
+    private function authorizedRunQuery(string $runId): Builder
+    {
+        return DiagnosticRun::query()
+            ->whereKey($runId)
+            ->whereHas('integration', function (Builder $integration): void {
+                $integration->where('owner_user_id', $this->ownerUserId)
+                    ->where('tenant_id', $this->tenantId);
+
+                if ($this->tenantId !== null) {
+                    $integration->whereHas('tenant', fn (Builder $tenant) => $tenant->where('status', 'active'));
+                }
+            });
     }
 
     private function safeErrorCode(?Throwable $exception): string
