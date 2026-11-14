@@ -653,3 +653,34 @@ it('records dispute opening and applies a lost dispute once without changing a w
         ->and($invoice->fresh()->amount_paid_minor)->toBe(3400)
         ->and(\\App\\Models\\TenantBillingAdjustment::query()->where('tenant_id', $tenant->id)->where('kind', 'dispute_lost')->count())->toBe(1);
 });
+
+it('keeps billing adjustments append-only after insertion', function () {
+    $tenant = createBillingOutboxTenant('billing-adjustment-immutable');
+    $invoice = createBillingOutboxInvoice($tenant, 4900);
+    $payment = app(TenantBillingLedgerService::class)->recordConfirmedPayment($tenant->id, $invoice->id, [
+        'collection_mode' => 'automated',
+        'idempotency_key' => 'immutable-adjustment-payment',
+        'amount_minor' => 4900,
+        'currency' => 'USD',
+        'provider' => 'approved_gateway',
+        'provider_payment_id' => 'pay_immutable_adjustment',
+        'received_at' => now('UTC'),
+    ]);
+    $adjustment = app(\\App\\Services\\Tenancy\\TenantBillingAdjustmentService::class)->recordProviderAdjustment(
+        $tenant->id,
+        'approved_gateway',
+        'evt_adjustment_immutable',
+        'pay_immutable_adjustment',
+        'refund_immutable',
+        'refund',
+        100,
+        'USD',
+        now('UTC'),
+    );
+
+    expect($adjustment->tenant_billing_payment_id)->toBe($payment->id)
+        ->and(fn () => DB::table('tenant_billing_adjustments')->where('id', $adjustment->id)->update(['amount_minor' => 200]))
+        ->toThrow(\\Illuminate\\Database\\QueryException::class)
+        ->and(fn () => DB::table('tenant_billing_adjustments')->where('id', $adjustment->id)->delete())
+        ->toThrow(\\Illuminate\\Database\\QueryException::class);
+});
