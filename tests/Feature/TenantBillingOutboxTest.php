@@ -686,6 +686,12 @@ it('keeps billing adjustments append-only after insertion', function () {
     );
 
     expect($adjustment->tenant_billing_payment_id)->toBe($payment->id)
+        ->and(fn () => DB::table('tenant_billing_payments')->where('id', $payment->id)->update(['amount_minor' => 200]))
+        ->toThrow(\\Illuminate\\Database\\QueryException::class)
+        ->and(fn () => DB::table('tenant_billing_payments')->where('id', $payment->id)->delete())
+        ->toThrow(\\Illuminate\\Database\\QueryException::class)
+        ->and(fn () => DB::table('tenant_subscriptions')->where('id', $invoice->tenant_subscription_id)->update(['provider_account_id' => 'acct_rebound']))
+        ->toThrow(\\Illuminate\\Database\\QueryException::class)
         ->and(fn () => DB::table('tenant_billing_adjustments')->where('id', $adjustment->id)->update(['amount_minor' => 200]))
         ->toThrow(\\Illuminate\\Database\\QueryException::class)
         ->and(fn () => DB::table('tenant_billing_adjustments')->where('id', $adjustment->id)->delete())
