@@ -20,6 +20,8 @@ final class FakeAuditCheckpointObjectStore implements AuditCheckpointObjectStore
 
     public ?RuntimeException $readFailure = null;
 
+    public ?RuntimeException $findFailure = null;
+
     public array $createCalls = [];
 
     public array $readCalls = [];
@@ -40,6 +42,10 @@ final class FakeAuditCheckpointObjectStore implements AuditCheckpointObjectStore
     public function findImmutableObject(string $objectKey): ?AuditCheckpointObjectVersion
     {
         $this->findCalls[] = [$objectKey];
+
+        if ($this->findFailure !== null) {
+            throw $this->findFailure;
+        }
 
         return $this->findResult;
     }
@@ -120,6 +126,20 @@ it('does not claim success when an ambiguous create cannot be resolved', functio
 
     expect(fn () => (new AuditCheckpointPublisher($store, app(AuditAnchorService::class)))->publish($checkpoint))
         ->toThrow(RuntimeException::class, 'audit_anchor_upload_outcome_ambiguous');
+
+    expect($store->createCalls)->toHaveCount(1)
+        ->and($store->findCalls)->toHaveCount(1)
+        ->and($store->readCalls)->toBeEmpty();
+});
+
+it('fails closed when lookup cannot resolve an ambiguous create outcome', function () {
+    $checkpoint = createPublishableAuditCheckpoint();
+    $store = new FakeAuditCheckpointObjectStore;
+    $store->createFailure = new RuntimeException('audit_anchor_upload_outcome_ambiguous');
+    $store->findFailure = new RuntimeException('audit_anchor_lookup_unavailable');
+
+    expect(fn () => (new AuditCheckpointPublisher($store, app(AuditAnchorService::class)))->publish($checkpoint))
+        ->toThrow(RuntimeException::class, 'audit_anchor_publish_outcome_ambiguous');
 
     expect($store->createCalls)->toHaveCount(1)
         ->and($store->findCalls)->toHaveCount(1)
