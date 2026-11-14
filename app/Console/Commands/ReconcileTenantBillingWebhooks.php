@@ -213,6 +213,7 @@ class ReconcileTenantBillingWebhooks extends Command
                 $event->tenant_id,
                 $invoiceId,
                 $event->provider,
+                $event->provider_account_id,
                 $event->provider_event_id,
                 $failureCode,
             );
@@ -233,7 +234,7 @@ class ReconcileTenantBillingWebhooks extends Command
 
             app(TenantBillingLedgerService::class)->recordConfirmedPayment($event->tenant_id, $invoiceId, [
                 'collection_mode' => 'automated',
-                'idempotency_key' => 'webhook:'.hash('sha256', $event->provider.':'.$event->provider_event_id),
+                'idempotency_key' => 'webhook:'.hash('sha256', $event->provider.':'.$event->provider_account_id.':'.$event->provider_event_id),
                 'amount_minor' => $amount,
                 'currency' => $currency,
                 'provider' => $event->provider,
