@@ -243,13 +243,12 @@ class AnalyzeDiagnosticRun implements ShouldQueue
                     ->pluck('user_id');
 
                 foreach ($recipientIds as $recipientId) {
-                    TenantNotification::query()->firstOrCreate([
+                    DB::table('tenant_notifications')->insertOrIgnore([
                         'tenant_id' => $this->tenantId,
                         'user_id' => $recipientId,
                         'event_type' => 'diagnostics.run.completed',
                         'notification_key' => 'diagnostic-run:'.$lockedRun->id.':analyzed',
-                    ], [
-                        'payload' => ['run_id' => $lockedRun->id, 'status' => 'analyzed'],
+                        'payload' => json_encode(['run_id' => $lockedRun->id, 'status' => 'analyzed'], JSON_THROW_ON_ERROR),
                         'created_at' => now(),
                     ]);
                 }
