@@ -7,7 +7,6 @@ use App\Models\TenantMembership;
 use App\Models\User;
 use App\Services\Audit\AuditEventWriter;
 use Illuminate\Auth\Access\AuthorizationException;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -33,14 +32,24 @@ class TenantMembershipLifecycle
                 throw ValidationException::withMessages(['email' => 'This account already has an active, pending, or suspended membership.']);
             }
 
-            $membership = TenantMembership::query()->create([
-                'tenant_id' => $tenant->id,
-                'user_id' => $target->getKey(),
-                'role' => $role,
-                'status' => TenantMembership::STATUS_INVITED,
-                'invited_by_user_id' => $actor->getKey(),
-                'accepted_at' => null,
-            ]);
+            if ($existing) {
+                $existing->forceFill([
+                    'role' => $role,
+                    'status' => TenantMembership::STATUS_INVITED,
+                    'invited_by_user_id' => $actor->getKey(),
+                    'accepted_at' => null,
+                ])->save();
+                $membership = $existing->refresh();
+            } else {
+                $membership = TenantMembership::query()->create([
+                    'tenant_id' => $tenant->id,
+                    'user_id' => $target->getKey(),
+                    'role' => $role,
+                    'status' => TenantMembership::STATUS_INVITED,
+                    'invited_by_user_id' => $actor->getKey(),
+                    'accepted_at' => null,
+                ]);
+            }
 
             $this->audit($actor, $tenantId, 'tenant.membership.invited', $membership, ['target_user_id' => $target->getKey(), 'role' => $role], $ip);
             return $membership;
