@@ -266,6 +266,8 @@ class ReconcileTenantBillingWebhooks extends Command
                 $invoiceId,
                 CarbonImmutable::parse($periodStart),
                 CarbonImmutable::parse($periodEnd),
+                $event->provider,
+                $event->provider_account_id,
             );
         } elseif ($event->event_type === 'subscription.past_due') {
             $grace = $payload['grace_ends_at'] ?? null;
@@ -282,7 +284,7 @@ class ReconcileTenantBillingWebhooks extends Command
             if ($invoiceId === false || $invoiceId < 1) {
                 throw new InvalidArgumentException('billing_webhook_settled_invoice_required');
             }
-            $lifecycle->transition($event->tenant_id, $subscriptionId, 'active', null, null, $invoiceId);
+            $lifecycle->transition($event->tenant_id, $subscriptionId, 'active', null, null, $invoiceId, $event->provider, $event->provider_account_id);
         } else {
             throw new InvalidArgumentException('billing_webhook_event_type_unsupported');
         }
