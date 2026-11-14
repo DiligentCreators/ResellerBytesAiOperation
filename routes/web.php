@@ -28,6 +28,9 @@ Route::middleware(['auth', 'verified', EnsureTwoFactorEnabled::class])->group(fu
     Route::post('tenants/{tenant}/memberships', [TenantMembershipController::class, 'invite'])
         ->middleware('throttle:10,1')
         ->name('tenants.memberships.invite');
+    Route::get('tenants/{tenantId}/membership/invitation/{membershipId}', [TenantMembershipController::class, 'showInvitation'])
+        ->middleware(['signed', 'throttle:20,1'])
+        ->name('tenants.memberships.invitation.show');
     Route::post('tenants/{tenantId}/membership/accept', [TenantMembershipController::class, 'accept'])
         ->middleware('throttle:10,1')
         ->name('tenants.memberships.accept');

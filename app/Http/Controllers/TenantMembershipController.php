@@ -9,6 +9,7 @@ use App\Services\Tenancy\TenantMembershipLifecycle;
 use App\Services\Tenancy\TenantRoleAuthorization;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Validation\Rule;
 
 class TenantMembershipController extends Controller
@@ -34,16 +35,29 @@ class TenantMembershipController extends Controller
         $user = $request->user();
         $membership = $lifecycle->invite($user, $tenant->id, $data['email'], $data['role'], $request->ip());
 
-        return response()->json(['membership' => $membership->load('user:id,name,email')], 201);
+        return response()->json(['membership' => $membership->load('user:id,name,email'), 'email_delivery' => 'queued'], 201);
     }
 
-    public function accept(Request $request, string $tenantId, TenantMembershipLifecycle $lifecycle): JsonResponse
+    public function showInvitation(Request $request, string $tenantId, string $membershipId, TenantMembershipLifecycle $lifecycle): Response
+    {
+        /** @var User $user */
+        $user = $request->user();
+        $membership = $lifecycle->invitationFor($user, $tenantId, $membershipId);
+
+        return response()->view('tenants.membership-invitation', ['membership' => $membership->load('user')]);
+    }
+
+    public function accept(Request $request, string $tenantId, TenantMembershipLifecycle $lifecycle): JsonResponse|\Illuminate\Http\RedirectResponse
     {
         /** @var User $user */
         $user = $request->user();
         $membership = $lifecycle->accept($user, $tenantId, $request->ip());
 
-        return response()->json(['membership' => $membership]);
+        if ($request->expectsJson()) {
+            return response()->json(['membership' => $membership]);
+        }
+
+        return redirect()->route('dashboard')->with('status', 'Workspace invitation accepted.');
     }
 
     public function updateRole(Request $request, Tenant $tenant, TenantMembership $membership, TenantMembershipLifecycle $lifecycle): JsonResponse
