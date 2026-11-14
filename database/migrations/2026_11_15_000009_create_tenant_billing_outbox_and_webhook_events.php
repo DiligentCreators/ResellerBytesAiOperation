@@ -19,6 +19,7 @@ return new class extends Migration
             $table->jsonb('payload');
             $table->string('status', 20)->default('pending');
             $table->unsignedInteger('attempts')->default(0);
+            $table->unsignedTinyInteger('manual_replay_count')->default(0);
             $table->timestampTz('available_at');
             $table->timestampTz('locked_at')->nullable();
             $table->timestampTz('delivered_at')->nullable();
@@ -80,6 +81,18 @@ BEGIN
     RETURN NEW;
 END;
 $rb$;
+CREATE FUNCTION rb_check_billing_outbox_audit_tenant() RETURNS trigger LANGUAGE plpgsql AS $rb$
+DECLARE expected_tenant uuid;
+BEGIN
+    IF NEW.subject_type = 'tenant_billing_outbox_message' THEN
+        SELECT tenant_id INTO expected_tenant FROM tenant_billing_outbox WHERE id::text = NEW.subject_id;
+        IF NEW.tenant_id IS DISTINCT FROM expected_tenant THEN
+            RAISE EXCEPTION 'audit_event_tenant_mismatch' USING ERRCODE = '23514';
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$rb$;
 CREATE FUNCTION rb_guard_tenant_billing_webhook_immutable() RETURNS trigger LANGUAGE plpgsql AS $rb$
 BEGIN
     IF NEW.tenant_id IS DISTINCT FROM OLD.tenant_id
@@ -110,6 +123,7 @@ END;
 $rb$;
 CREATE TRIGGER rb_tenant_billing_outbox_immutable BEFORE UPDATE ON tenant_billing_outbox FOR EACH ROW EXECUTE FUNCTION rb_guard_tenant_billing_outbox_immutable();
 CREATE TRIGGER rb_tenant_billing_webhook_immutable BEFORE UPDATE ON tenant_billing_webhook_events FOR EACH ROW EXECUTE FUNCTION rb_guard_tenant_billing_webhook_immutable();
+CREATE TRIGGER rb_billing_outbox_audit_tenant_guard BEFORE INSERT ON audit_events FOR EACH ROW EXECUTE FUNCTION rb_check_billing_outbox_audit_tenant();
 CREATE TRIGGER rb_billing_webhook_audit_tenant_guard BEFORE INSERT ON audit_events FOR EACH ROW EXECUTE FUNCTION rb_check_billing_webhook_audit_tenant();
 SQL);
         } elseif ($driver === 'sqlite') {
@@ -122,6 +136,10 @@ WHEN NEW.tenant_id IS NOT OLD.tenant_id
  OR NEW.aggregate_id IS NOT OLD.aggregate_id
  OR NEW.payload IS NOT OLD.payload
 BEGIN SELECT RAISE(ABORT, 'tenant_billing_outbox_immutable_fields'); END;
+CREATE TRIGGER rb_billing_outbox_audit_tenant_guard BEFORE INSERT ON audit_events
+WHEN NEW.subject_type = 'tenant_billing_outbox_message'
+ AND NEW.tenant_id IS NOT (SELECT tenant_id FROM tenant_billing_outbox WHERE id = CAST(NEW.subject_id AS INTEGER))
+BEGIN SELECT RAISE(ABORT, 'audit_event_tenant_mismatch'); END;
 CREATE TRIGGER rb_tenant_billing_webhook_immutable BEFORE UPDATE ON tenant_billing_webhook_events
 WHEN NEW.tenant_id IS NOT OLD.tenant_id
  OR NEW.provider IS NOT OLD.provider
@@ -147,6 +165,8 @@ SQL);
         if ($driver === 'pgsql') {
             DB::unprepared('DROP TRIGGER IF EXISTS rb_tenant_billing_outbox_immutable ON tenant_billing_outbox');
             DB::unprepared('DROP TRIGGER IF EXISTS rb_tenant_billing_webhook_immutable ON tenant_billing_webhook_events');
+            DB::unprepared('DROP TRIGGER IF EXISTS rb_billing_outbox_audit_tenant_guard ON audit_events');
+            DB::unprepared('DROP FUNCTION IF EXISTS rb_check_billing_outbox_audit_tenant()');
             DB::unprepared('DROP TRIGGER IF EXISTS rb_billing_webhook_audit_tenant_guard ON audit_events');
             DB::unprepared('DROP FUNCTION IF EXISTS rb_guard_tenant_billing_outbox_immutable()');
             DB::unprepared('DROP FUNCTION IF EXISTS rb_guard_tenant_billing_webhook_immutable()');
@@ -154,6 +174,7 @@ SQL);
         } elseif ($driver === 'sqlite') {
             DB::unprepared('DROP TRIGGER IF EXISTS rb_tenant_billing_outbox_immutable');
             DB::unprepared('DROP TRIGGER IF EXISTS rb_tenant_billing_webhook_immutable');
+            DB::unprepared('DROP TRIGGER IF EXISTS rb_billing_outbox_audit_tenant_guard');
             DB::unprepared('DROP TRIGGER IF EXISTS rb_billing_webhook_audit_tenant_guard');
         }
 
