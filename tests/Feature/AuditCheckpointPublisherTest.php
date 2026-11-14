@@ -281,3 +281,22 @@ it('registers the publish command and fails closed before storage access without
         @unlink($path);
     }
 });
+
+it('rejects a correctly signed checkpoint dated too far in the future', function () {
+    $checkpoint = createPublishableAuditCheckpoint();
+    $envelope = json_decode($checkpoint, true, 512, JSON_THROW_ON_ERROR);
+    $envelope['payload']['created_at'] = (new DateTimeImmutable('+1 day'))->format('Y-m-d\\TH:i:s.u\\Z');
+    $secretKey = base64_decode((string) config('audit.anchor.private_key'), true);
+    $message = "resellerbytes.audit-anchor.v1\n".json_encode(
+        $envelope['payload'],
+        JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRESERVE_ZERO_FRACTION,
+    );
+    $envelope['signature'] = base64_encode(sodium_crypto_sign_detached($message, $secretKey));
+    $futureCheckpoint = json_encode($envelope, JSON_THROW_ON_ERROR);
+    $store = new FakeAuditCheckpointObjectStore;
+
+    expect(fn () => (new AuditCheckpointPublisher($store, app(AuditAnchorService::class)))->publish($futureCheckpoint))
+        ->toThrow(RuntimeException::class, 'audit_anchor_publish_timestamp_in_future');
+
+    expect($store->createCalls)->toBeEmpty();
+});
