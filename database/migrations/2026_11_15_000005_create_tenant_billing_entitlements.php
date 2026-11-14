@@ -15,6 +15,7 @@ return new class extends Migration
             $table->string('billing_mode', 16);
             $table->string('status', 20)->index();
             $table->string('billing_provider', 40)->nullable();
+            $table->string('provider_account_id', 160)->nullable();
             $table->string('provider_subscription_id', 160)->nullable()->unique();
             $table->string('currency', 3);
             $table->unsignedBigInteger('unit_amount_minor');
