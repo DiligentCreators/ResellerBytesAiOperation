@@ -75,7 +75,8 @@ return new class extends Migration
             DB::unprepared(<<<'SQL'
 CREATE FUNCTION rb_guard_tenant_subscription_provider_identity() RETURNS trigger LANGUAGE plpgsql AS $rb$
 BEGIN
-    IF (OLD.billing_provider IS NOT NULL AND NEW.billing_provider IS DISTINCT FROM OLD.billing_provider)
+    IF NEW.tenant_id IS DISTINCT FROM OLD.tenant_id
+        OR (OLD.billing_provider IS NOT NULL AND NEW.billing_provider IS DISTINCT FROM OLD.billing_provider)
         OR (OLD.provider_account_id IS NOT NULL AND NEW.provider_account_id IS DISTINCT FROM OLD.provider_account_id)
         OR (OLD.provider_subscription_id IS NOT NULL AND NEW.provider_subscription_id IS DISTINCT FROM OLD.provider_subscription_id) THEN
         RAISE EXCEPTION 'tenant_subscription_provider_identity_immutable' USING ERRCODE = '23514';
@@ -85,7 +86,9 @@ END;
 $rb$;
 CREATE FUNCTION rb_guard_tenant_billing_invoice_provider_identity() RETURNS trigger LANGUAGE plpgsql AS $rb$
 BEGIN
-    IF (OLD.provider IS NOT NULL AND NEW.provider IS DISTINCT FROM OLD.provider)
+    IF NEW.tenant_id IS DISTINCT FROM OLD.tenant_id
+        OR (OLD.tenant_subscription_id IS NOT NULL AND NEW.tenant_subscription_id IS DISTINCT FROM OLD.tenant_subscription_id)
+        OR (OLD.provider IS NOT NULL AND NEW.provider IS DISTINCT FROM OLD.provider)
         OR (OLD.provider_account_id IS NOT NULL AND NEW.provider_account_id IS DISTINCT FROM OLD.provider_account_id)
         OR (OLD.provider_invoice_id IS NOT NULL AND NEW.provider_invoice_id IS DISTINCT FROM OLD.provider_invoice_id) THEN
         RAISE EXCEPTION 'tenant_billing_invoice_provider_identity_immutable' USING ERRCODE = '23514';
@@ -118,12 +121,15 @@ SQL);
         } elseif ($driver === 'sqlite') {
             DB::unprepared(<<<'SQL'
 CREATE TRIGGER rb_tenant_subscription_provider_identity BEFORE UPDATE ON tenant_subscriptions
-WHEN (OLD.billing_provider IS NOT NULL AND NEW.billing_provider IS NOT OLD.billing_provider)
+WHEN NEW.tenant_id IS NOT OLD.tenant_id
+ OR (OLD.billing_provider IS NOT NULL AND NEW.billing_provider IS NOT OLD.billing_provider)
  OR (OLD.provider_account_id IS NOT NULL AND NEW.provider_account_id IS NOT OLD.provider_account_id)
  OR (OLD.provider_subscription_id IS NOT NULL AND NEW.provider_subscription_id IS NOT OLD.provider_subscription_id)
 BEGIN SELECT RAISE(ABORT, 'tenant_subscription_provider_identity_immutable'); END;
 CREATE TRIGGER rb_tenant_billing_invoice_provider_identity BEFORE UPDATE ON tenant_billing_invoices
-WHEN (OLD.provider IS NOT NULL AND NEW.provider IS NOT OLD.provider)
+WHEN NEW.tenant_id IS NOT OLD.tenant_id
+ OR (OLD.tenant_subscription_id IS NOT NULL AND NEW.tenant_subscription_id IS NOT OLD.tenant_subscription_id)
+ OR (OLD.provider IS NOT NULL AND NEW.provider IS NOT OLD.provider)
  OR (OLD.provider_account_id IS NOT NULL AND NEW.provider_account_id IS NOT OLD.provider_account_id)
  OR (OLD.provider_invoice_id IS NOT NULL AND NEW.provider_invoice_id IS NOT OLD.provider_invoice_id)
 BEGIN SELECT RAISE(ABORT, 'tenant_billing_invoice_provider_identity_immutable'); END;
