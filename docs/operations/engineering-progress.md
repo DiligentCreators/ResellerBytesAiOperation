@@ -367,3 +367,6 @@ A green CI run is necessary but does not close these release gates or authorize 
 - The gateway maps provider invoice/subscription references to local IDs through a tenant-scoped resolver only after signature and account verification. Unknown references fail as permanent rejections; adapters cannot inject local IDs.
 - Automated payment writes verify the invoice and subscription provider/account binding. Payment failures, refunds, disputes, renewals and reactivation all require the same provider account context.
 - Provider account identity is included in webhook receipt audit metadata. No public webhook route or provider-specific adapter has been activated.
+
+
+- Added tenant-authorized provider account registration/deactivation service with immutable identity, active/verified gating, and audit-chain evidence. The registration method records an operator attestation only after external account ownership verification; it does not handle provider secrets or perform provider-side verification itself.
