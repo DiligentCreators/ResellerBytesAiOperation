@@ -64,7 +64,7 @@ it('fails when the local audit chain has an unanchored tail above threshold', fu
 
     try {
         expect(Artisan::call('audit:anchor:monitor', ['checkpoint' => $path, '--max-unanchored-tail' => 0]))->toBe(1)
-            ->and(Artisan::output())->toContain('audit_anchor_unanchored_tail_exceeded');
+            ->and(Artisan::output())->toContain('unanchored_tail_exceeded');
     } finally {
         @unlink($path);
     }
@@ -112,5 +112,5 @@ it('does not expose raw exception messages or checkpoint contents in JSON eviden
 
 it('fails closed when the checkpoint file is missing', function () {
     expect(Artisan::call('audit:anchor:monitor', ['checkpoint' => sys_get_temp_dir().'/missing-rb-anchor.json']))->toBe(1)
-        ->and(Artisan::output())->toContain('checkpoint file is unavailable');
+        ->and(Artisan::output())->toContain('checkpoint_unavailable');
 });
