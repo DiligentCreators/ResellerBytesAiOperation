@@ -301,3 +301,10 @@ The tenant migration is authored on the branch but has not been executed; no ten
 - Past-due transitions require a future grace deadline; recovery clears grace, cancellation records canceled_at, and each actual state change appends tenant-attributed audit evidence in the same database transaction. Repeated identical transitions are no-ops and do not duplicate audit events.
 - Tests cover grace-period entitlement behavior, role denial, terminal-state protection, invalid grace, audit evidence and idempotent no-op behavior. Tests are authored but not executed in this environment.
 - No plan catalogue, price, currency/tax policy, payment provider, webhook endpoint, outbound delivery, subscription activation or production entitlement has been configured. Provider-signed event ingestion and transactional outbox delivery remain separate work and require provider selection, endpoint/security policy and key custody before activation.
+
+
+### Subscription lifecycle payment-gate hardening — 2026-11-15
+
+- Tightened recovery from past-due/suspended: the lifecycle service now requires a same-tenant, same-subscription invoice marked fully paid and independently checks succeeded payment-ledger totals before restoring active status. A manually edited paid flag alone cannot reactivate entitlements.
+- Expiry is rejected before the paid period ends or while a past-due grace period remains open. Cancellation/expiry remain terminal; state changes are audited transactionally.
+- Added regression cases for missing settlement evidence and a forged paid invoice without a confirmed payment record. Tests are authored but not executed.

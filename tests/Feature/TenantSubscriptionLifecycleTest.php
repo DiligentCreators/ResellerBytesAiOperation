@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Services\Tenancy\TenantEntitlementService;
 use App\Services\Tenancy\TenantSubscriptionLifecycle;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Support\Str;
 use InvalidArgumentException;
 
 function subscriptionLifecycleFixture(string $role = TenantMembership::ROLE_BILLING): array
