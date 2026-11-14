@@ -195,8 +195,8 @@ it('restricts tenant audit exports to owner and admin and streams only tenant ev
 
     $admin = User::factory()->withTwoFactor()->create(['email_verified_at' => now()]);
     $tenant->memberships()->create(['user_id' => $admin->id, 'role' => TenantMembership::ROLE_ADMIN, 'status' => TenantMembership::STATUS_ACTIVE, 'accepted_at' => now()]);
-    $this->mock(\\App\\Services\\Audit\\AuditEventWriter::class)
-        ->shouldReceive('append')->once()->with(\\Mockery::on(fn (array $event): bool => $event['tenant_id'] === $tenant->id && $event['event_type'] === 'tenant.audit_export.requested'));
+    $this->mock(\App\Services\Audit\AuditEventWriter::class)
+        ->shouldReceive('append')->once()->with(\Mockery::on(fn (array $event): bool => $event['tenant_id'] === $tenant->id && $event['event_type'] === 'tenant.audit_export.requested'));
 
     $response = $this->actingAs($admin)->get('/tenants/'.$tenant->id.'/audit-events/export');
     $response->assertOk();
