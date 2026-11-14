@@ -5,13 +5,18 @@ namespace App\Http\Controllers;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Tenancy\TenantBrandingSettings;
+use App\Services\Tenancy\TenantRoleAuthorization;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class TenantSettingsController extends Controller
 {
-    public function show(Request $request, Tenant $tenant): JsonResponse
+    public function show(Request $request, Tenant $tenant, TenantRoleAuthorization $authorization): JsonResponse
     {
+        /** @var User $user */
+        $user = $request->user();
+        $authorization->require($user, $tenant->id, 'tenant.read');
+
         return response()->json([
             'tenant' => ['id' => $tenant->id, 'name' => $tenant->name],
             'branding' => $tenant->settings['branding'] ?? [],
