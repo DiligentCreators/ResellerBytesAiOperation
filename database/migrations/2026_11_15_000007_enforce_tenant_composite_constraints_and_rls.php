@@ -82,7 +82,6 @@ return new class extends Migration
     private function enablePostgresRls(): void
     {
         $tenantTables = [
-            'tenant_memberships',
             'diagnostic_runs',
             'diagnostic_findings',
             'diagnostic_recommendations',
