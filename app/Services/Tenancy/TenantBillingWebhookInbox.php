@@ -7,6 +7,7 @@ use App\\Models\\TenantBillingWebhookEvent;
 use App\\Services\\Audit\\AuditEventWriter;
 use Carbon\\CarbonImmutable;
 use DateTimeInterface;
+use Illuminate\\Database\\QueryException;
 use Illuminate\\Support\\Facades\\DB;
 use InvalidArgumentException;
 use RuntimeException;
@@ -76,57 +77,74 @@ class TenantBillingWebhookInbox
 
         $hash = hash('sha256', $this->canonicalJson($normalizedPayload));
 
-        return app(TenantDatabaseContext::class)->run($tenantId, null, fn (): TenantBillingWebhookEvent => DB::transaction(function () use ($tenantId, $provider, $providerEventId, $eventType, $normalizedPayload, $receivedAt, $providerAccountId, $hash): TenantBillingWebhookEvent {
-            Tenant::query()->whereKey($tenantId)->firstOrFail();
+        try {
+            return app(TenantDatabaseContext::class)->run($tenantId, null, fn (): TenantBillingWebhookEvent => DB::transaction(function () use ($tenantId, $provider, $providerEventId, $eventType, $normalizedPayload, $receivedAt, $providerAccountId, $hash): TenantBillingWebhookEvent {
+                Tenant::query()->whereKey($tenantId)->firstOrFail();
 
-            $existing = TenantBillingWebhookEvent::query()
+                $existing = TenantBillingWebhookEvent::query()
+                    ->where('tenant_id', $tenantId)
+                    ->where('provider', $provider)
+                    ->where('provider_event_id', $providerEventId)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($existing !== null) {
+                    if (! hash_equals($existing->payload_sha256, $hash)
+                        || $existing->event_type !== $eventType
+                        || $existing->provider_account_id !== $providerAccountId) {
+                        throw new RuntimeException('billing_webhook_idempotency_conflict');
+                    }
+
+                    return $existing;
+                }
+
+                $event = TenantBillingWebhookEvent::query()->create([
+                    'tenant_id' => $tenantId,
+                    'provider' => $provider,
+                    'provider_account_id' => $providerAccountId,
+                    'provider_event_id' => $providerEventId,
+                    'event_type' => $eventType,
+                    'payload_sha256' => $hash,
+                    'payload' => $normalizedPayload,
+                    'status' => 'pending',
+                    'attempts' => 0,
+                    'received_at' => $receivedAt,
+                    'available_at' => now('UTC'),
+                ]);
+
+                app(AuditEventWriter::class)->append([
+                    'actor_type' => 'system',
+                    'actor_id' => null,
+                    'tenant_id' => $tenantId,
+                    'event_type' => 'tenant_billing.webhook_received',
+                    'subject_type' => 'tenant_billing_webhook_event',
+                    'subject_id' => (string) $event->id,
+                    'metadata' => [
+                        'provider' => $provider,
+                        'event_type' => $eventType,
+                        'payload_sha256' => $hash,
+                    ],
+                    'occurred_at' => $event->received_at,
+                ]);
+
+                return $event;
+            }, 3));
+        } catch (QueryException $exception) {
+            $existing = app(TenantDatabaseContext::class)->run($tenantId, null, fn (): ?TenantBillingWebhookEvent => TenantBillingWebhookEvent::query()
                 ->where('tenant_id', $tenantId)
                 ->where('provider', $provider)
                 ->where('provider_event_id', $providerEventId)
-                ->lockForUpdate()
-                ->first();
+                ->first());
 
-            if ($existing !== null) {
-                if (! hash_equals($existing->payload_sha256, $hash)
-                    || $existing->event_type !== $eventType
-                    || $existing->provider_account_id !== $providerAccountId) {
-                    throw new RuntimeException('billing_webhook_idempotency_conflict');
-                }
-
+            if ($existing !== null
+                && hash_equals($existing->payload_sha256, $hash)
+                && $existing->event_type === $eventType
+                && $existing->provider_account_id === $providerAccountId) {
                 return $existing;
             }
 
-            $event = TenantBillingWebhookEvent::query()->create([
-                'tenant_id' => $tenantId,
-                'provider' => $provider,
-                'provider_account_id' => $providerAccountId,
-                'provider_event_id' => $providerEventId,
-                'event_type' => $eventType,
-                'payload_sha256' => $hash,
-                'payload' => $normalizedPayload,
-                'status' => 'pending',
-                'attempts' => 0,
-                'received_at' => $receivedAt,
-                'available_at' => now('UTC'),
-            ]);
-
-            app(AuditEventWriter::class)->append([
-                'actor_type' => 'system',
-                'actor_id' => null,
-                'tenant_id' => $tenantId,
-                'event_type' => 'tenant_billing.webhook_received',
-                'subject_type' => 'tenant_billing_webhook_event',
-                'subject_id' => (string) $event->id,
-                'metadata' => [
-                    'provider' => $provider,
-                    'event_type' => $eventType,
-                    'payload_sha256' => $hash,
-                ],
-                'occurred_at' => $event->received_at,
-            ]);
-
-            return $event;
-        }, 3));
+            throw new RuntimeException('billing_webhook_idempotency_conflict', previous: $exception);
+        }
     }
 
     /** @param array<string, mixed> $payload */
