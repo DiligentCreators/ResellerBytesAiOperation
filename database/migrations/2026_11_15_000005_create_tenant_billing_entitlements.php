@@ -51,6 +51,7 @@ return new class extends Migration
             $table->string('collection_mode', 16);
             $table->string('idempotency_key', 120)->unique();
             $table->string('provider', 40)->nullable();
+            $table->string('provider_account_id', 160)->nullable();
             $table->string('provider_payment_id', 160)->nullable()->unique();
             $table->string('status', 20)->index();
             $table->char('currency', 3);
