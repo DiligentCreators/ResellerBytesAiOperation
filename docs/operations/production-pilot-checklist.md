@@ -87,6 +87,10 @@ See [`legal-hold-and-diagnostic-retention-runbook.md`](legal-hold-and-diagnostic
 - [ ] Exact PR-head CI, production backup/restore rehearsal, and operational approval must pass before setting `DIAGNOSTICS_RETENTION_CLEANUP_ENABLED=true`.
 - [ ] The external audit anchor is provisioned in a separate security account with **365-day immutable retention**, independent Ed25519 signing key, read-only verifier, alert routing, and a successful restore/read-back drill.
 - [ ] The latest database head matches the newest external signed checkpoint; any unanchored tail and checkpoint age are documented.
+- [x] A standalone public-key-only checkpoint verifier is available at `tools/verify-audit-anchor.php`; it validates the signed envelope, expected environment, optional predecessor digest, and checkpoint SHA-256 without database or private-key access.
+- [x] `php artisan audit:anchor:monitor` fails closed for missing/invalid/stale checkpoints, database-prefix mismatch, future timestamps, and unanchored-tail threshold breaches; automated tests cover healthy, stale, missing, and excessive-tail cases.
+- [ ] Approve the checkpoint cadence, freshness/tail thresholds, external scheduler identity, and security alert destination; production scheduling and alert delivery are not enabled by this repository.
+- [ ] Implement the provider-specific conditional-create uploader only after the independent storage provider and non-production integration-test account are provisioned; require exact-version checksum and Object Lock COMPLIANCE retention read-back before reporting success.
 - [ ] A database backup has been restored in isolation and compared against the newest external checkpoint before any production migration or pilot.
 - [ ] Complete the isolated PostgreSQL backup/restore rehearsal in [`backup-restore-rehearsal-runbook.md`](backup-restore-rehearsal-runbook.md), including Object Lock read-back, runtime-role probes, audit-chain verification, and signed external checkpoint comparison.
 - [x] External immutable audit-backup retention period: **365 days**, approved by the project owner on 2026-11-14.
