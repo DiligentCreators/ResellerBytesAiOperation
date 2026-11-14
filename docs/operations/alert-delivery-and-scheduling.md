@@ -38,7 +38,7 @@ Slack receives a JSON body with a text field. Discord receives a JSON body with 
 - severity and stable alert code
 - message and UTC observation timestamp
 
-A webhook is counted as delivered only when the HTTPS request completes and the provider returns a 2xx response. Redirects, non-2xx responses, invalid/non-HTTPS URLs, timeouts, and transport exceptions are failures. Response bodies and webhook URLs are not logged. The receiving bridge is responsible for mapping this contract to the selected WhatsApp/SMS vendor and preserving delivery receipts.
+A webhook is counted as delivered only when the HTTPS request completes and the provider returns a 2xx response. Redirects are not followed; non-2xx responses, invalid/non-HTTPS URLs, timeouts, and transport exceptions are failures. This prevents a configured HTTPS webhook from redirecting the delivery client to a second destination. Response bodies and webhook URLs are not logged. The receiving bridge is responsible for mapping this contract to the selected WhatsApp/SMS vendor and preserving delivery receipts.
 
 ## Operational boundaries
 
