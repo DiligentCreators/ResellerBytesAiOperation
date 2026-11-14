@@ -919,3 +919,32 @@ it('resolves provider invoice and subscription references only within the verifi
     expect($mappedSubscription['subscription_id'])->toBe($subscription->id)
         ->and($mappedSubscription)->not->toHaveKey('provider_subscription_id');
 });
+
+it('registers and deactivates provider accounts with tenant authorization and audit evidence', function () {
+    $tenant = createBillingOutboxTenant('billing-provider-account-service');
+    $user = \\App\\Models\\User::factory()->create();
+    $tenant->memberships()->create([
+        'user_id' => $user->id,
+        'role' => \\App\\Models\\TenantMembership::ROLE_BILLING,
+        'status' => \\App\\Models\\TenantMembership::STATUS_ACTIVE,
+        'accepted_at' => now('UTC'),
+    ]);
+
+    $service = app(\\App\\Services\\Tenancy\\TenantBillingProviderAccountService::class);
+    $mapping = $service->registerVerifiedAccount($tenant->id, 'approved_gateway', 'acct_verified_service', $user->id);
+
+    expect($mapping->status)->toBe('active')
+        ->and($mapping->verified_at)->not->toBeNull()
+        ->and(app(\\App\\Services\\Tenancy\\TenantBillingProviderAccountResolver::class)->resolve('approved_gateway', 'acct_verified_service'))->toBe($tenant->id);
+
+    $deactivated = $service->deactivateAccount($tenant->id, $mapping->id, $user->id);
+    expect($deactivated->status)->toBe('inactive')
+        ->and(fn () => app(\\App\\Services\\Tenancy\\TenantBillingProviderAccountResolver::class)->resolve('approved_gateway', 'acct_verified_service'))
+        ->toThrow(RuntimeException::class, 'billing_provider_account_unmapped');
+
+    expect(DB::table('audit_events')
+        ->where('tenant_id', $tenant->id)
+        ->where('subject_type', 'tenant_billing_provider_account')
+        ->where('subject_id', (string) $mapping->id)
+        ->count())->toBe(2);
+});
