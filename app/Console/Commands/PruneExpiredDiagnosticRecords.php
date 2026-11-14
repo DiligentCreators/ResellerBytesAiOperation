@@ -68,6 +68,7 @@ class PruneExpiredDiagnosticRecords extends Command
                     'event_type' => 'diagnostics.retention.deleted',
                     'subject_type' => 'diagnostic_run',
                     'subject_id' => (string) $id,
+                    'tenant_id' => $run->tenant_id,
                     'metadata' => [
                         'retention_days' => 365,
                         'received_at' => $run->received_at,
