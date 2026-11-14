@@ -19,16 +19,38 @@ it('fails closed before database or network operations when Wasabi configuration
         ->toThrow(RuntimeException::class);
 });
 
-it('refuses to restore a backup into a database with a different identity', function () {
+it('refuses to restore a backup unless database name host and port all match', function () {
     $connectionName = (string) config('database.default');
     $targetDatabase = (string) config('database.connections.'.$connectionName.'.database');
+
+    // Keep this identity-only test independent from a live PostgreSQL connection.
+    config([
+        'database.connections.'.$connectionName.'.host' => 'recovery-db.internal',
+        'database.connections.'.$connectionName.'.port' => 5432,
+    ]);
+
     $backups = app(BackupArchiveManager::class);
+    $matchingIdentity = [
+        'database_name' => $targetDatabase,
+        'database_host' => 'recovery-db.internal',
+        'database_port' => 5432,
+    ];
 
     expect(fn () => $backups->assertRestoreTargetMatches([
+        ...$matchingIdentity,
         'database_name' => 'different_database',
     ]))->toThrow(RuntimeException::class, 'database identity does not match');
 
     expect(fn () => $backups->assertRestoreTargetMatches([
-        'database_name' => $targetDatabase,
-    ]))->not->toThrow(RuntimeException::class);
+        ...$matchingIdentity,
+        'database_host' => 'other-db.internal',
+    ]))->toThrow(RuntimeException::class, 'database identity does not match');
+
+    expect(fn () => $backups->assertRestoreTargetMatches([
+        ...$matchingIdentity,
+        'database_port' => 5433,
+    ]))->toThrow(RuntimeException::class, 'database identity does not match');
+
+    expect(fn () => $backups->assertRestoreTargetMatches($matchingIdentity))
+        ->not->toThrow(RuntimeException::class);
 });
