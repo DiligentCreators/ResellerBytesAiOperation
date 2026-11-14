@@ -1004,3 +1004,41 @@ it('requeues dead-lettered webhooks only with tenant authorization and a verifie
         '--confirm' => true,
     ]))->toBe(1);
 });
+
+it('requeues dead-lettered outbox messages with tenant authorization and bounded replay audit', function () {
+    $tenant = createBillingOutboxTenant('billing-outbox-recovery');
+    $user = \\App\\Models\\User::factory()->create();
+    $tenant->memberships()->create([
+        'user_id' => $user->id,
+        'role' => \\App\\Models\\TenantMembership::ROLE_BILLING,
+        'status' => \\App\\Models\\TenantMembership::STATUS_ACTIVE,
+        'accepted_at' => now('UTC'),
+    ]);
+    $message = DB::transaction(fn () => app(TenantBillingOutbox::class)->enqueue(
+        $tenant->id,
+        'outbox-recovery-key',
+        'billing.invoice.issued',
+        'billing_invoice',
+        808,
+        ['invoice_id' => 808],
+    ));
+    $message->forceFill([
+        'status' => 'dead_lettered',
+        'attempts' => 12,
+        'dead_lettered_at' => now('UTC'),
+        'last_error_code' => 'billing_outbox_publish_failed',
+    ])->save();
+
+    $recovery = app(\\App\\Services\\Tenancy\\TenantBillingOutboxRecoveryService::class);
+    $requeued = $recovery->requeueDeadLetter($tenant->id, $message->id, $user->id, 'consumer_configuration_corrected');
+
+    expect($requeued->status)->toBe('pending')
+        ->and($requeued->attempts)->toBe(0)
+        ->and($requeued->manual_replay_count)->toBe(1)
+        ->and($requeued->dead_lettered_at)->toBeNull()
+        ->and(DB::table('audit_events')->where('tenant_id', $tenant->id)->where('event_type', 'tenant_billing.outbox_dead_letter_requeued')->count())->toBe(1);
+
+    $requeued->forceFill(['status' => 'dead_lettered', 'manual_replay_count' => 3, 'dead_lettered_at' => now('UTC')])->save();
+    expect(fn () => $recovery->requeueDeadLetter($tenant->id, $message->id, $user->id, 'consumer_configuration_corrected'))
+        ->toThrow(RuntimeException::class, 'billing_outbox_manual_replay_limit_reached');
+});
