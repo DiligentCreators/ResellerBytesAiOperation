@@ -34,7 +34,7 @@ return new class extends Migration
             $table->id();
             $table->foreignUuid('tenant_id')->constrained('tenants')->restrictOnDelete();
             $table->string('provider', 40);
-            $table->string('provider_account_id', 160)->nullable();
+            $table->string('provider_account_id', 160);
             $table->string('provider_event_id', 180);
             $table->string('event_type', 120);
             $table->char('payload_sha256', 64);
@@ -49,6 +49,7 @@ return new class extends Migration
             $table->string('last_error_code', 120)->nullable();
             $table->timestampsTz();
             $table->unique(['tenant_id', 'provider', 'provider_event_id'], 'tenant_billing_webhook_idempotency_unique');
+            $table->unique(['provider', 'provider_account_id', 'provider_event_id'], 'tenant_billing_webhook_provider_event_unique');
             $table->unique(['id', 'tenant_id'], 'tenant_billing_webhook_id_tenant_unique');
             $table->index(['tenant_id', 'status', 'available_at'], 'tenant_billing_webhook_dispatch_idx');
         });
