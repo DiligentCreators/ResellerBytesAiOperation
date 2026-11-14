@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Models\Tenant;
 use App\Models\TenantMembership;
 use App\Models\TenantSubscription;
+use App\Services\Tenancy\TenantNotificationService;
 use App\Jobs\AnalyzeDiagnosticRun;
 use Illuminate\Support\Facades\Queue;
 use App\Models\WhmcsIntegration;
@@ -234,9 +235,9 @@ it('does not publish notifications for suspended or non-member tenant users', fu
     $tenant = Tenant::create(['name' => 'No Notification Workspace', 'slug' => 'no-notification-workspace', 'status' => Tenant::STATUS_ACTIVE]);
     $outsider = User::factory()->create();
     expect(fn () => app(TenantNotificationService::class)->publish($tenant->id, $outsider->id, 'tenant.notice.created', ['message' => 'test']))
-        ->toThrow(\\Illuminate\\Database\\Eloquent\\ModelNotFoundException::class);
+        ->toThrow(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
 
     $tenant->forceFill(['status' => Tenant::STATUS_SUSPENDED])->save();
     expect(fn () => app(TenantNotificationService::class)->publish($tenant->id, $outsider->id, 'tenant.notice.created', ['message' => 'test']))
-        ->toThrow(\\Illuminate\\Database\\Eloquent\\ModelNotFoundException::class);
+        ->toThrow(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
 });
