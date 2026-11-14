@@ -1,9 +1,10 @@
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import {
     Activity,
     BookOpen,
     Download,
     LayoutDashboard,
+    Mail,
     Server,
     ShieldAlert,
 } from 'lucide-react';
@@ -60,6 +61,11 @@ const footerNavItems: NavItem[] = [
 ];
 
 export function AppSidebar() {
+    const { auth } = usePage().props as { auth: { is_platform_admin?: boolean } };
+    const navItems = auth.is_platform_admin
+        ? [...mainNavItems, { title: 'Mail Settings', href: '/platform/mail-settings', icon: Mail }]
+        : mainNavItems;
+
     return (
         <Sidebar collapsible="icon" variant="inset">
             <SidebarHeader>
@@ -75,7 +81,7 @@ export function AppSidebar() {
             </SidebarHeader>
 
             <SidebarContent>
-                <NavMain items={mainNavItems} />
+                <NavMain items={navItems} />
             </SidebarContent>
 
             <SidebarFooter>
