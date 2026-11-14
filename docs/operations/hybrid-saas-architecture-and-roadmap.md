@@ -230,3 +230,9 @@ The release-readiness branch now adds a first account-ownership enforcement laye
 This is not yet the complete shared-database tenant model approved for SaaS. Organization/workspace entities, memberships and role matrix, tenant attribution for every usage/billing/audit/notification record, queue-job tenant context/revalidation, exports/downloads, tenant-aware uniqueness/constraints, backfill verification, and PostgreSQL RLS defense-in-depth remain roadmap work. External customer onboarding must remain disabled until those gates pass.
 
 Existing integrations have `owner_user_id = NULL` after migration and are intentionally invisible to user-scoped dashboards until Shahrukh reviews and explicitly assigns each one. Do not infer or auto-assign their owner.
+
+### Tenant schema and backfill design checkpoint — 2026-11-15
+
+A detailed shared-database tenant schema and safe backfill design is recorded in `docs/architecture/tenant-schema-and-backfill-design.md`. It defines organization/workspace tenants, explicit user memberships and roles, tenant attribution for integrations/diagnostics/AI usage/budget/audit/legal holds, global operational telemetry boundaries, tenant-aware job execution, PostgreSQL RLS defense-in-depth, isolation test matrix, and expand/backfill/verify/contract rollout.
+
+No tenant migration or data backfill is applied yet. This is intentional: the first tenant slug and explicit mapping of existing integrations require Shahrukh's approval. The design preserves the existing global audit hash chain and indefinite audit retention, 365-day diagnostic retention with no exceptions, and current platform-wide AI budget cap while introducing a future tenant-level cap. Existing unassigned records remain quarantined; external onboarding and payment collection stay disabled.
