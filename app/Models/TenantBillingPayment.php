@@ -16,4 +16,7 @@ class TenantBillingPayment extends Model
 
     /** @return BelongsTo<TenantBillingInvoice, $this> */
     public function invoice(): BelongsTo { return $this->belongsTo(TenantBillingInvoice::class, 'tenant_billing_invoice_id'); }
+
+    /** @return HasMany<TenantBillingAdjustment, $this> */
+    public function adjustments(): HasMany { return $this->hasMany(TenantBillingAdjustment::class, 'tenant_billing_payment_id'); }
 }
