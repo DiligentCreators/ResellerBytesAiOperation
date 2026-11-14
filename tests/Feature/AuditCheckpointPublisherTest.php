@@ -71,6 +71,31 @@ function createPublishableAuditCheckpoint(): string
     return app(AuditAnchorService::class)->createCheckpoint();
 }
 
+it('rejects an unsigned or tampered checkpoint before calling the object store', function () {
+    $checkpoint = createPublishableAuditCheckpoint();
+    $envelope = json_decode($checkpoint, true, 512, JSON_THROW_ON_ERROR);
+    $envelope['payload']['chain_sequence'] = 999;
+    $tampered = json_encode($envelope, JSON_THROW_ON_ERROR);
+    $store = new FakeAuditCheckpointObjectStore;
+
+    expect(fn () => (new AuditCheckpointPublisher($store, app(AuditAnchorService::class)))->publish($tampered))
+        ->toThrow(RuntimeException::class, 'audit_anchor_signature_invalid');
+
+    expect($store->createCalls)->toBeEmpty();
+});
+
+it('does not report success when exact-version read-back fails', function () {
+    $checkpoint = createPublishableAuditCheckpoint();
+    $store = new FakeAuditCheckpointObjectStore;
+    $store->readFailure = new RuntimeException('audit_anchor_readback_unavailable');
+
+    expect(fn () => (new AuditCheckpointPublisher($store, app(AuditAnchorService::class)))->publish($checkpoint))
+        ->toThrow(RuntimeException::class, 'audit_anchor_readback_unavailable');
+
+    expect($store->createCalls)->toHaveCount(1)
+        ->and($store->readCalls)->toHaveCount(1);
+});
+
 it('publishes only after exact-version checksum and compliance retention read-back', function () {
     $checkpoint = createPublishableAuditCheckpoint();
     $store = new FakeAuditCheckpointObjectStore;
