@@ -128,7 +128,7 @@ it('uses active tenant membership instead of historical integration ownership fo
     ]);
     $run = DiagnosticRun::create([
         'integration_id' => $integration->id,
-        'snapshot_uuid' => (string) Illuminate\\Support\\Str::uuid(),
+        'snapshot_uuid' => (string) Illuminate\Support\Str::uuid(),
         'schema_version' => '1.0',
         'addon_version' => '1.0.0',
         'status' => 'received',
