@@ -1,6 +1,6 @@
 # External audit-anchor verification, monitoring, and immutable storage
 
-Status: independent signature verifier, local freshness/tail monitor, provider-neutral publisher orchestration, and storage contract tests implemented; provider adapter and production alert delivery are not provisioned.
+Status: independent signature verifier, local freshness/tail monitor, redacted JSON alert-evidence output, provider-neutral publisher orchestration, and storage contract tests implemented; provider adapter and production alert delivery are not provisioned.
 
 ## Verification boundaries
 
@@ -11,14 +11,14 @@ Two checks serve different trust boundaries:
 
 The standalone verifier intentionally does not claim to validate the database chain prefix. It now strictly validates calendar timestamps, rejects timestamps more than five minutes in the future, and optionally enforces a maximum age without database access. Run it from a separate security account or verifier host with only the public key. Run the application monitor from the application trust boundary. A successful standalone signature/freshness check is not proof that the checkpoint matches the current database.
 
-The standalone verifier and application monitor return non-zero exit codes for invalid signatures, environment or predecessor mismatch, malformed timestamps, future timestamps, and (when configured) stale checkpoints. The application monitor additionally fails for missing/unreadable checkpoints, database-chain mismatch, invalid thresholds, or an excessive unanchored tail. Its output contains checkpoint digest and sequence metrics, not event payloads.
+The standalone verifier and application monitor return non-zero exit codes for invalid signatures, environment or predecessor mismatch, malformed timestamps, future timestamps, and (when configured) stale checkpoints. The application monitor additionally fails for missing/unreadable checkpoints, database-chain mismatch, invalid thresholds, or an excessive unanchored tail. Its normal output contains checkpoint digest and sequence metrics, not event payloads. Use `--json` for one machine-readable evidence record with schema version, healthy/failed status, an allowlisted reason code, UTC observation time, validated environment (when available), checkpoint digest/sequence metrics (when verified), age, and exit code. The command deliberately suppresses raw exception messages in both output modes; malformed checkpoint bytes, SQL/provider exception text, credentials, and customer-controlled payloads are never copied into the evidence record. The evidence record is suitable for an external alerting agent to capture, but this change does not configure delivery, storage, or a production schedule.
 
 ## Monitoring and alert routing
 
 - [ ] Select and approve a checkpoint cadence and maximum acceptable unanchored window.
 - [ ] Run the monitor from an external scheduler/monitoring agent at a cadence shorter than the approved freshness threshold.
 - [ ] Alert on every non-zero exit, missing checkpoint, stale checkpoint, signature failure, chain mismatch, or unanchored-tail threshold breach.
-- [ ] Send alerts to the approved security/on-call route; include environment, command exit status, checkpoint digest when available, and UTC observation time only.
+- [ ] Capture `php artisan audit:anchor:monitor /secure/path/checkpoint.json --max-age-minutes=N --max-unanchored-tail=N --json` stdout as the structured alert evidence; send only the allowlisted fields to the approved security/on-call route.
 - [ ] Do not include private keys, checkpoint signing secrets, audit event metadata, customer data, database connection strings, or raw exception traces in notifications.
 - [ ] Treat an alert as an incident until the last known-good external checkpoint and local chain prefix are independently verified.
 - [ ] Preserve alert delivery receipts and incident disposition in the external audit evidence store.
@@ -55,6 +55,6 @@ The provider-neutral publisher has automated fake-store tests for duplicate-key 
 - Select and provision the independent cloud/security account, storage provider, bucket, and 365-day Object Lock COMPLIANCE retention.
 - Approve the signer and read-only verifier identities, public-key distribution, secret-manager access, and monitoring/alert destination.
 - Provide isolated non-production storage access for adapter integration tests and read-back rehearsal.
-- Approve checkpoint cadence, maximum unanchored window, and operational alert thresholds.
+- Approve checkpoint cadence, maximum unanchored window, operational alert thresholds, alert destination, and evidence-retention location.
 
 No cloud resource, production signing key, credential, or production alert route was created or accessed by this implementation.
