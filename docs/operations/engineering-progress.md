@@ -359,3 +359,11 @@ A green CI run is necessary but does not close these release gates or authorize 
 - Added TenantBillingWebhookReferenceResolver. After signature verification and provider-account-to-tenant mapping, it resolves provider invoice/subscription IDs to local invoice/subscription IDs within the exact tenant/provider/account. Adapters cannot choose internal IDs or tenant IDs.
 - Automated payment ledger, payment failure, refunds/disputes and settled subscription reactivation/renewal now require invoice, subscription, payment and provider account identities to match.
 - Added account-scoped resolver tests for invoice and subscription references, including rejection of an invoice reference from a different provider account. Tests remain unexecuted pending PHP 8.5 and dependencies.
+
+
+### Provider-side reference resolution completion — 2026-11-15
+
+- Provider invoice identifiers are now persisted on invoices with tenant/provider/account uniqueness and immutable identity triggers. Provider subscription identifiers are bound to provider accounts and immutable once set.
+- The gateway maps provider invoice/subscription references to local IDs through a tenant-scoped resolver only after signature and account verification. Unknown references fail as permanent rejections; adapters cannot inject local IDs.
+- Automated payment writes verify the invoice and subscription provider/account binding. Payment failures, refunds, disputes, renewals and reactivation all require the same provider account context.
+- Provider account identity is included in webhook receipt audit metadata. No public webhook route or provider-specific adapter has been activated.
