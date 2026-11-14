@@ -5,7 +5,6 @@ use App\Models\AuditEvent;
 use App\Models\DiagnosticRun;
 use App\Models\User;
 use App\Models\WhmcsIntegration;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 
@@ -53,7 +52,7 @@ it('does not allow analysis to be queued when the AI provider is not configured'
     Queue::fake();
 
     $user = User::factory()->withTwoFactor()->create(['email_verified_at' => now()]);
-    $run = createReanalysisTestRun();
+    $run = createReanalysisTestRun($user);
 
     $this->actingAs($user)
         ->post('/diagnostic-runs/'.$run->id.'/reanalyze')
@@ -67,7 +66,7 @@ it('blocks diagnostic reanalysis until two-factor authentication is confirmed', 
     Queue::fake();
 
     $user = User::factory()->create();
-    $run = createReanalysisTestRun();
+    $run = createReanalysisTestRun($user);
 
     $this->actingAs($user)
         ->post('/diagnostic-runs/'.$run->id.'/reanalyze')
