@@ -906,7 +906,7 @@ it('resolves provider invoice and subscription references only within the verifi
         'acct_other_reference_scope',
         'invoice.payment_failed',
         ['provider_invoice_id' => $invoice->provider_invoice_id, 'failure_code' => 'card_declined'],
-    ))->toThrow(RuntimeException::class, 'billing_provider_invoice_unmapped');
+    ))->toThrow(InvalidArgumentException::class, 'billing_provider_invoice_unmapped');
 
     $subscription = $invoice->subscription;
     $mappedSubscription = app(\\App\\Services\\Tenancy\\TenantBillingWebhookReferenceResolver::class)->resolve(
