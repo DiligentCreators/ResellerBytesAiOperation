@@ -28,9 +28,6 @@ return new class extends Migration
             $membership = "EXISTS (SELECT 1 FROM tenant_memberships AS rls_membership WHERE rls_membership.tenant_id = tenant_billing_provider_accounts.tenant_id AND rls_membership.user_id = NULLIF(current_setting('app.current_user_id', true), '')::bigint AND rls_membership.status = 'active')";
             $scope = "(tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid OR {$membership})";
             DB::statement("CREATE POLICY tenant_isolation_policy ON tenant_billing_provider_accounts USING ({$scope}) WITH CHECK ({$scope})");
-            $membership = "EXISTS (SELECT 1 FROM tenant_memberships AS rls_membership WHERE rls_membership.tenant_id = tenant_billing_provider_accounts.tenant_id AND rls_membership.user_id = NULLIF(current_setting('app.current_user_id', true), '')::bigint AND rls_membership.status = 'active')";
-            $scope = "(tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid OR {$membership})";
-            DB::statement("CREATE POLICY tenant_isolation_policy ON tenant_billing_provider_accounts USING ({$scope}) WITH CHECK ({$scope})");
             DB::unprepared(<<<'SQL'
 CREATE FUNCTION rb_guard_tenant_billing_provider_account_identity() RETURNS trigger LANGUAGE plpgsql AS $rb$
 BEGIN
