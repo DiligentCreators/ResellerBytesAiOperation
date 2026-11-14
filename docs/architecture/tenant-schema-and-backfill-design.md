@@ -1,7 +1,7 @@
 # Shared-database tenant schema and backfill design
 
-Status: implementation design checkpoint, 2026-11-15  
-Scope: approved hybrid SaaS target (shared application, shared PostgreSQL database, tenant-scoped billing and branding). This document is a schema and migration plan; it does not enable customer onboarding or perform a data backfill.
+Status: design plus additive schema foundation authored, 2026-11-15  
+Scope: approved hybrid SaaS target (shared application, shared PostgreSQL database, tenant-scoped billing and branding). The additive tenant and membership migration is authored on the release-readiness branch but has not been executed against any database. No tenant records are provisioned, no data is backfilled, and customer onboarding remains disabled.
 
 ## 1. Design invariants
 
@@ -85,7 +85,16 @@ Rollback is expand/contract aware: do not drop legacy owner attribution or tenan
 - Export/download tokens, notification recipients and webhook destinations cannot cross tenant boundaries.
 - RLS rejects queries without tenant context and prevents tenant context leakage across pooled connections.
 
-## 6. Explicit blockers and non-goals
+## 6. Initial schema foundation now authored
+
+- Added `tenants` with UUID identity, unique slug, lifecycle status, creator attribution, and non-secret settings JSON.
+- Added `tenant_memberships` with UUID identity, restrictive tenant/user/inviter foreign keys, one membership row per tenant/user, explicit role and membership status, acceptance timestamp, and lookup indexes.
+- Added nullable `whmcs_integrations.tenant_id` with restrictive FK and tenant/status index. Existing records remain null; migration contains no implicit tenant assignment or data backfill.
+- Added `Tenant` and `TenantMembership` models, user/integration relationships, closed role/status constants, and a fail-closed `TenantAccess` resolver requiring an active tenant and active membership before granting role access.
+- Added tests for explicit membership, outsider denial, role restrictions, suspended/revoked memberships, and unassigned legacy integrations. These tests are authored but have not been run.
+- This is an additive schema/model foundation only. Tenant-scoped application queries across every domain table, audit attribution/hash versioning, tenant-aware billing, job serialization/revalidation, RLS, and operational backfill verification remain incomplete.
+
+## 7. Explicit blockers and non-goals
 
 - The first tenant identity/slug and mapping of each legacy integration require Shahrukh's explicit approval.
 - Payment provider, pricing and production credentials remain separate operator approvals.
