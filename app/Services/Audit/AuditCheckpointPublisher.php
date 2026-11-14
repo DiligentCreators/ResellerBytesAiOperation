@@ -12,7 +12,10 @@ final class AuditCheckpointPublisher
 {
     private const RETENTION_DAYS = 365;
 
-    public function __construct(private readonly AuditCheckpointObjectStore $store) {}
+    public function __construct(
+        private readonly AuditCheckpointObjectStore $store,
+        private readonly AuditAnchorService $anchors,
+    ) {}
 
     /**
      * @return array{object_key: string, object_version_id: string, checkpoint_sha256: string, chain_sequence: int, retain_until: string}
@@ -21,22 +24,20 @@ final class AuditCheckpointPublisher
      */
     public function publish(string $checkpointBytes): array
     {
+        $verified = $this->anchors->verifyCheckpoint($checkpointBytes);
         $envelope = json_decode($checkpointBytes, true, 512, JSON_THROW_ON_ERROR);
         $payload = is_array($envelope) ? ($envelope['payload'] ?? null) : null;
-        if (! is_array($payload)
-            || ($payload['environment'] ?? null) !== app()->environment()
-            || ! is_int($payload['chain_sequence'] ?? null)
-            || $payload['chain_sequence'] < 0) {
+        if (! is_array($payload) || ! is_string($payload['environment'] ?? null)) {
             throw new RuntimeException('audit_anchor_publish_invalid_checkpoint');
         }
 
-        $environment = (string) $payload['environment'];
+        $environment = $payload['environment'];
         if (preg_match('/\A[a-zA-Z0-9._-]+\z/', $environment) !== 1) {
             throw new RuntimeException('audit_anchor_publish_invalid_environment');
         }
 
-        $digest = hash('sha256', $checkpointBytes);
-        $sequence = $payload['chain_sequence'];
+        $digest = $verified['checkpoint_sha256'];
+        $sequence = $verified['anchor_sequence'];
         $objectKey = sprintf('audit-anchors/%s/sequence-%020d/%s.json', $environment, $sequence, $digest);
         $retainUntil = (new DateTimeImmutable('now', new DateTimeZone('UTC')))->modify('+'.self::RETENTION_DAYS.' days');
 
