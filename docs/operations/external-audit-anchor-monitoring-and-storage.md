@@ -61,11 +61,11 @@ The provider-neutral publisher has automated fake-store tests for duplicate-key 
 - If a checkpoint is missing or continuity fails, stop checkpoint advancement, preserve evidence, and investigate. Do not create a new chain root to conceal a gap.
 - After restoring a database backup, verify the restored chain against the latest externally retained checkpoint and document any legitimate unanchored tail created after that checkpoint.
 
-## Shahrukh ke liye pending
+## Pending for Shahrukh
 
-- Create and fund the independent cloud/security account, select the storage provider, provision the bucket, and provide actual 365-day Object Lock COMPLIANCE configuration/read-back evidence.
-- Generate and custody the production Ed25519 keys; Shahrukh is the sole signing/verifier operator initially. Keep the operator model extensible for a second trusted operator. Provide secret-manager access and configure the approved alert destinations.
-- Provide isolated non-production storage access for adapter integration tests and read-back rehearsal.
-- Choose checkpoint cadence and maximum unanchored window, and provision the external alert evidence-retention location. Monitoring thresholds and alert routing policy are already approved.
+- Create and fund the independent cloud/security account and approve its billing; then provision the 365-day Object Lock COMPLIANCE bucket and provide actual configuration/read-back evidence.
+- Generate and retain custody of the production Ed25519 signing/anchor keys. Shahrukh is the sole initial signing/verifier operator; keep future second-operator enrollment possible. Provide only non-secret public-key references/fingerprints through the approved secure channel.
+- Provide approved secret-manager access and access policy so alert destinations and production key references can be configured securely.
+
 
 No cloud resource, production signing key, credential, or production alert route was created or accessed by this implementation.
