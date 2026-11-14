@@ -9,7 +9,7 @@ class TenantNotification extends Model
 {
     public $timestamps = false;
 
-    protected $fillable = ['tenant_id', 'user_id', 'event_type', 'payload', 'read_at', 'created_at'];
+    protected $fillable = ['tenant_id', 'user_id', 'event_type', 'notification_key', 'payload', 'read_at', 'created_at'];
 
     protected function casts(): array
     {
