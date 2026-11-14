@@ -885,3 +885,37 @@ it('does not extend the platform grace deadline on repeated provider past-due ev
         ->and($second->fresh()->status)->toBe('processed')
         ->and($subscription->fresh()->grace_ends_at->toIso8601String())->toBe($graceDeadline);
 });
+
+it('resolves provider invoice and subscription references only within the verified account', function () {
+    $tenant = createBillingOutboxTenant('billing-provider-reference-scope');
+    $invoice = createBillingOutboxInvoice($tenant, 4900, 'acct_reference_scope');
+
+    $mapped = app(\\App\\Services\\Tenancy\\TenantBillingWebhookReferenceResolver::class)->resolve(
+        $tenant->id,
+        'approved_gateway',
+        'acct_reference_scope',
+        'invoice.payment_failed',
+        ['provider_invoice_id' => $invoice->provider_invoice_id, 'failure_code' => 'card_declined'],
+    );
+    expect($mapped['invoice_id'])->toBe($invoice->id)
+        ->and($mapped)->not->toHaveKey('provider_invoice_id');
+
+    expect(fn () => app(\\App\\Services\\Tenancy\\TenantBillingWebhookReferenceResolver::class)->resolve(
+        $tenant->id,
+        'approved_gateway',
+        'acct_other_reference_scope',
+        'invoice.payment_failed',
+        ['provider_invoice_id' => $invoice->provider_invoice_id, 'failure_code' => 'card_declined'],
+    ))->toThrow(RuntimeException::class, 'billing_provider_invoice_unmapped');
+
+    $subscription = $invoice->subscription;
+    $mappedSubscription = app(\\App\\Services\\Tenancy\\TenantBillingWebhookReferenceResolver::class)->resolve(
+        $tenant->id,
+        'approved_gateway',
+        'acct_reference_scope',
+        'subscription.past_due',
+        ['provider_subscription_id' => $subscription->provider_subscription_id],
+    );
+    expect($mappedSubscription['subscription_id'])->toBe($subscription->id)
+        ->and($mappedSubscription)->not->toHaveKey('provider_subscription_id');
+});
