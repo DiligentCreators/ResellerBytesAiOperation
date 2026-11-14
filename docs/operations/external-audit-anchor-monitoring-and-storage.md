@@ -177,13 +177,15 @@ Required environment configuration:
 - `AUDIT_ANCHOR_BUCKET`: dedicated Object Lock bucket; do not reuse the backup bucket.
 - `AUDIT_ANCHOR_ENDPOINT`, `AUDIT_ANCHOR_REGION`, and
   `AUDIT_ANCHOR_AWS_CLI_BINARY`: S3-compatible endpoint and client configuration.
-- `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`: least-privilege credentials
-  supplied through the deployment secret manager, never repository files.
+- `AUDIT_ANCHOR_AWS_ACCESS_KEY_ID` and `AUDIT_ANCHOR_AWS_SECRET_ACCESS_KEY`:
+  dedicated least-privilege credentials from the deployment secret manager. They are
+  intentionally separate from the backup bucket credentials and never stored in Git.
 - `AUDIT_ANCHOR_PRIVATE_KEY` and `AUDIT_ANCHOR_PUBLIC_KEY`: independent Ed25519
   keys provisioned outside the application environment.
 
-The adapter does not create buckets, enable versioning/Object Lock, configure IAM, or
-create credentials. No upload is attempted unless the explicit audit bucket, endpoint,
+The adapter requires HTTPS, dedicated credentials, and a bucket distinct from the
+configured backup bucket. It does not create buckets, enable versioning/Object Lock,
+configure IAM, or create credentials. No upload is attempted unless the explicit audit bucket, endpoint,
 region, credentials, and signing keys are configured. Production Object Lock setup,
 provider compatibility, key custody, and isolated rehearsal remain owner-controlled
 release gates.
