@@ -21,7 +21,13 @@ interface AuditCheckpointObjectStore
     ): AuditCheckpointObjectVersion;
 
     /**
-     * Read back the exact immutable object version returned by create.
+     * Resolve a deterministic key after a duplicate or ambiguous create response.
+     * The result must identify the provider's exact immutable version.
+     */
+    public function findImmutableObject(string $objectKey): ?AuditCheckpointObjectVersion;
+
+    /**
+     * Read back the exact immutable object version returned by create or lookup.
      */
     public function readImmutableVersion(string $objectKey, string $versionId): AuditCheckpointObjectVersion;
 }
