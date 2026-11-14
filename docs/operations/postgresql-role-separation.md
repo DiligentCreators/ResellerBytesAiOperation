@@ -102,6 +102,14 @@ Expected values: both logins are non-superusers; only the migrator can create sc
 
 Also connect using the runtime credential and attempt UPDATE, DELETE, and TRUNCATE against a disposable audit row in a non-production test database. Each must fail. Confirm normal audit append, chain verification, diagnostic ingestion, AI settlement, and nonce cleanup still work under the runtime login.
 
+## Automated runtime-role regression test
+
+The PostgreSQL CI job provisions a disposable `rb_runtime` login after migrations, grants the documented application DML baseline, then applies the migration-ledger and audit-table restrictions. It runs `tests/Postgres/RuntimeRolePrivilegesTest.php` using that login rather than the PostgreSQL administrator.
+
+The regression test proves that the runtime identity can append a hash-chained audit event and verify the chain, while migration-ledger reads, schema creation, audit UPDATE/DELETE/TRUNCATE, and WHMCS integration hard DELETE are rejected. The test also confirms that the integration row remains present after the rejected delete. Its password is generated ephemerally inside the isolated CI job and is not a repository or production secret.
+
+This automated check is a least-privilege regression guard, not a substitute for production role provisioning, a full application smoke test under the production runtime role, or an independent security review.
+
 ## Security boundary and limitations
 
 - PostgreSQL table grants and triggers constrain the runtime login; a cluster superuser or object owner can still alter privileges, disable triggers, or rewrite data. Independent external audit anchoring remains required.
