@@ -95,12 +95,24 @@ return new class extends Migration
             'tenant_notifications',
         ];
 
+        $membership = "EXISTS (SELECT 1 FROM tenant_memberships AS rls_membership WHERE rls_membership.tenant_id = tenants.id AND rls_membership.user_id = NULLIF(current_setting('app.current_user_id', true), '')::bigint AND rls_membership.status = 'active')";
         DB::statement('ALTER TABLE tenants ENABLE ROW LEVEL SECURITY');
-        DB::statement("CREATE POLICY tenant_isolation_policy ON tenants USING (id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid) WITH CHECK (id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid)");
+        DB::statement("CREATE POLICY tenant_isolation_policy ON tenants USING (id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid OR {$membership}) WITH CHECK (id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid OR {$membership})");
+
+        DB::statement('ALTER TABLE whmcs_integrations ENABLE ROW LEVEL SECURITY');
+        $integrationMembership = "EXISTS (SELECT 1 FROM tenant_memberships AS rls_membership WHERE rls_membership.tenant_id = whmcs_integrations.tenant_id AND rls_membership.user_id = NULLIF(current_setting('app.current_user_id', true), '')::bigint AND rls_membership.status = 'active')";
+        $integrationScope = "(tenant_id IS NULL OR tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid OR {$integrationMembership})";
+        DB::statement("CREATE POLICY tenant_integration_select ON whmcs_integrations FOR SELECT USING ({$integrationScope} OR id = NULLIF(current_setting('app.integration_lookup_id', true), '')::uuid)");
+        DB::statement("CREATE POLICY tenant_integration_write ON whmcs_integrations FOR ALL USING ({$integrationScope}) WITH CHECK ({$integrationScope})");
+
+        DB::statement('ALTER TABLE tenant_memberships ENABLE ROW LEVEL SECURITY');
+        DB::statement("CREATE POLICY tenant_isolation_policy ON tenant_memberships USING (tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid OR user_id = NULLIF(current_setting('app.current_user_id', true), '')::bigint) WITH CHECK (tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid OR user_id = NULLIF(current_setting('app.current_user_id', true), '')::bigint)");
 
         foreach ($tenantTables as $table) {
             DB::statement("ALTER TABLE {$table} ENABLE ROW LEVEL SECURITY");
-            DB::statement("CREATE POLICY tenant_isolation_policy ON {$table} USING (tenant_id IS NULL OR tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid) WITH CHECK (tenant_id IS NULL OR tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid)");
+            $membership = "EXISTS (SELECT 1 FROM tenant_memberships AS rls_membership WHERE rls_membership.tenant_id = {$table}.tenant_id AND rls_membership.user_id = NULLIF(current_setting('app.current_user_id', true), '')::bigint AND rls_membership.status = 'active')";
+            $scope = "(tenant_id IS NULL OR tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid OR {$membership})";
+            DB::statement("CREATE POLICY tenant_isolation_policy ON {$table} USING ({$scope}) WITH CHECK ({$scope})");
         }
     }
 
@@ -108,12 +120,17 @@ return new class extends Migration
     {
         if (DB::connection()->getDriverName() === 'pgsql') {
             foreach ([
-                'tenant_notifications', 'tenant_billing_payments', 'tenant_billing_invoices',
+                'tenant_notifications', 'tenant_billing_payments', 'whmcs_integrations', 'tenant_billing_invoices',
                 'tenant_subscriptions', 'audit_events', 'ai_tenant_budget_periods',
                 'ai_usage_attempts', 'diagnostic_recommendations', 'diagnostic_findings',
                 'diagnostic_runs', 'tenant_memberships',
             ] as $table) {
-                DB::statement("DROP POLICY IF EXISTS tenant_isolation_policy ON {$table}");
+                if ($table === 'whmcs_integrations') {
+                    DB::statement('DROP POLICY IF EXISTS tenant_integration_select ON whmcs_integrations');
+                    DB::statement('DROP POLICY IF EXISTS tenant_integration_write ON whmcs_integrations');
+                } else {
+                    DB::statement("DROP POLICY IF EXISTS tenant_isolation_policy ON {$table}");
+                }
                 DB::statement("ALTER TABLE {$table} DISABLE ROW LEVEL SECURITY");
             }
             DB::statement('DROP POLICY IF EXISTS tenant_isolation_policy ON tenants');
