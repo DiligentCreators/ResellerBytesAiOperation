@@ -1,8 +1,8 @@
 <?php
 
-use App\\Models\\IntegrationRequestNonce;
-use App\\Models\\WhmcsIntegration;
-use Illuminate\\Support\\Str;
+use App\Models\IntegrationRequestNonce;
+use App\Models\WhmcsIntegration;
+use Illuminate\Support\Str;
 
 function signedWhmcsSnapshotRequest(
     string $integrationId,
@@ -14,7 +14,7 @@ function signedWhmcsSnapshotRequest(
         'snapshot_uuid' => (string) Str::uuid(),
         'schema_version' => '1.0',
         'addon_version' => '1.0.0',
-        'collected_at' => now()->utc()->format('Y-m-d\\TH:i:s\\Z'),
+        'collected_at' => now()->utc()->format('Y-m-d\TH:i:s\Z'),
         'payload' => [
             'system' => [
                 'whmcs_version' => '8.13.7',
@@ -35,7 +35,7 @@ function signedWhmcsSnapshotRequest(
     $body = json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
     $timestamp = (string) now()->timestamp;
     $path = '/api/v1/whmcs/diagnostic-snapshots';
-    $canonical = implode("\\n", [
+    $canonical = implode("\n", [
         'POST',
         $path,
         $timestamp,
