@@ -7,6 +7,7 @@ namespace App\Services\Operations;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Throwable;
 
 final class OperationalMetricsSource
@@ -100,7 +101,7 @@ final class OperationalMetricsSource
             }
 
             return $createdAt->toIso8601String();
-        } catch (\\Throwable) {
+        } catch (Throwable) {
             return null;
         }
     }
