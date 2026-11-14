@@ -96,7 +96,7 @@ class AuthenticateWhmcsIntegration
 
         return app(TenantDatabaseContext::class)->run(
             $integration->tenant_id,
-            null,
+            $integration->owner_user_id === null ? null : (int) $integration->owner_user_id,
             fn (): Response => $next($request),
         );
     }
