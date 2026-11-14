@@ -204,3 +204,39 @@ it('restricts tenant audit exports to owner and admin and streams only tenant ev
         ->and($response->headers->get('Cache-Control'))->toContain('no-store')
         ->and($response->headers->get('X-Content-Type-Options'))->toBe('nosniff');
 });
+
+
+it('keeps tenant notification inbox entries private to the intended active member', function () {
+    $tenant = Tenant::create(['name' => 'Notification Workspace', 'slug' => 'notification-workspace', 'status' => Tenant::STATUS_ACTIVE]);
+    $recipient = User::factory()->withTwoFactor()->create(['email_verified_at' => now()]);
+    $other = User::factory()->withTwoFactor()->create(['email_verified_at' => now()]);
+    foreach ([$recipient, $other] as $user) {
+        $tenant->memberships()->create(['user_id' => $user->id, 'role' => TenantMembership::ROLE_VIEWER, 'status' => TenantMembership::STATUS_ACTIVE, 'accepted_at' => now()]);
+    }
+
+    $notification = app(TenantNotificationService::class)->publish($tenant->id, $recipient->id, 'diagnostics.run.completed', ['run_id' => 42, 'status' => 'completed']);
+
+    $this->actingAs($recipient)->get('/tenants/'.$tenant->id.'/notifications')
+        ->assertOk()->assertJsonPath('notifications.total', 1)
+        ->assertJsonPath('notifications.data.0.id', $notification->id);
+    $this->actingAs($other)->get('/tenants/'.$tenant->id.'/notifications')
+        ->assertOk()->assertJsonPath('notifications.total', 0);
+    $this->actingAs($other)->post('/tenants/'.$tenant->id.'/notifications/'.$notification->id.'/read')
+        ->assertOk();
+    expect($notification->fresh()->read_at)->toBeNull();
+
+    $this->actingAs($recipient)->post('/tenants/'.$tenant->id.'/notifications/'.$notification->id.'/read')
+        ->assertOk()->assertJsonPath('updated', true);
+    expect($notification->fresh()->read_at)->not->toBeNull();
+});
+
+it('does not publish notifications for suspended or non-member tenant users', function () {
+    $tenant = Tenant::create(['name' => 'No Notification Workspace', 'slug' => 'no-notification-workspace', 'status' => Tenant::STATUS_ACTIVE]);
+    $outsider = User::factory()->create();
+    expect(fn () => app(TenantNotificationService::class)->publish($tenant->id, $outsider->id, 'tenant.notice.created', ['message' => 'test']))
+        ->toThrow(\\Illuminate\\Database\\Eloquent\\ModelNotFoundException::class);
+
+    $tenant->forceFill(['status' => Tenant::STATUS_SUSPENDED])->save();
+    expect(fn () => app(TenantNotificationService::class)->publish($tenant->id, $outsider->id, 'tenant.notice.created', ['message' => 'test']))
+        ->toThrow(\\Illuminate\\Database\\Eloquent\\ModelNotFoundException::class);
+});
