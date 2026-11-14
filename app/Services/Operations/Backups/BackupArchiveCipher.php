@@ -94,10 +94,6 @@ final class BackupArchiveCipher
 
             $header = substr($prefix, strlen(self::MAGIC));
             $state = sodium_crypto_secretstream_xchacha20poly1305_init_pull($header, $key);
-            if ($state === false) {
-                throw new RuntimeException('Backup archive header authentication failed.');
-            }
-
             $finalSeen = false;
 
             while (! feof($input)) {
@@ -193,7 +189,8 @@ final class BackupArchiveCipher
         $data = '';
 
         while (strlen($data) < $length) {
-            $chunk = fread($stream, $length - strlen($data));
+            $remaining = max(1, $length - strlen($data));
+            $chunk = fread($stream, $remaining);
 
             if ($chunk === false || $chunk === '') {
                 throw new RuntimeException('Encrypted backup archive is truncated.');
