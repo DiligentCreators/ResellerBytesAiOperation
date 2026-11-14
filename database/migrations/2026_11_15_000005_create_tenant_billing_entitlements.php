@@ -49,6 +49,7 @@ return new class extends Migration
             $table->foreignUuid('tenant_id')->constrained('tenants')->restrictOnDelete();
             $table->foreignId('tenant_billing_invoice_id')->constrained('tenant_billing_invoices')->restrictOnDelete();
             $table->string('collection_mode', 16);
+            $table->string('idempotency_key', 120)->unique();
             $table->string('provider', 40)->nullable();
             $table->string('provider_payment_id', 160)->nullable()->unique();
             $table->string('status', 20)->index();
