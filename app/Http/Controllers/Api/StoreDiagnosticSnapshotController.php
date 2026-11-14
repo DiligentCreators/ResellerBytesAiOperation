@@ -73,11 +73,11 @@ class StoreDiagnosticSnapshotController extends Controller
             return $this->idempotentResponse($existing, $payloadHash);
         }
 
-        if (filled(config('services.openai.key'))) {
+        if ($integration->owner_user_id !== null && filled(config('services.openai.key'))) {
             $run->forceFill(['status' => 'queued'])->save();
 
             try {
-                AnalyzeDiagnosticRun::dispatch($run->id)->afterCommit();
+                AnalyzeDiagnosticRun::dispatch($run->id, (int) $integration->owner_user_id)->afterCommit();
             } catch (Throwable $exception) {
                 $run->forceFill(['status' => 'received'])->save();
 
