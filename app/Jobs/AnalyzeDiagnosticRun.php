@@ -5,7 +5,6 @@ namespace App\Jobs;
 use App\Models\DiagnosticFinding;
 use App\Models\DiagnosticRun;
 use App\Models\TenantMembership;
-use App\Models\TenantNotification;
 use App\Jobs\Middleware\SetTenantDatabaseContext;
 use App\Services\Diagnostics\AiBudgetService;
 use App\Services\Diagnostics\WhmcsDiagnosticAnalyzer;
