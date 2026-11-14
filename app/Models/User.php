@@ -7,6 +7,7 @@ use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -41,6 +42,25 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
     public function whmcsIntegrations(): HasMany
     {
         return $this->hasMany(WhmcsIntegration::class, 'owner_user_id');
+    }
+
+
+    /**
+     * @return BelongsToMany<Tenant, $this>
+     */
+    public function tenants(): BelongsToMany
+    {
+        return $this->belongsToMany(Tenant::class, 'tenant_memberships')
+            ->withPivot(['id', 'role', 'status', 'invited_by_user_id', 'accepted_at'])
+            ->withTimestamps();
+    }
+
+    /**
+     * @return HasMany<TenantMembership, $this>
+     */
+    public function tenantMemberships(): HasMany
+    {
+        return $this->hasMany(TenantMembership::class);
     }
 
     /**
