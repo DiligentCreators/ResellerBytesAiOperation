@@ -16,7 +16,9 @@ class TenantNotificationService
      */
     public function publish(string $tenantId, int $userId, string $eventType, array $payload): TenantNotification
     {
-        if (preg_match('/^[a-z][a-z0-9_.-]{2,119}$/', $eventType) !== 1
+        $scalarPayload = count(array_filter($payload, static fn (mixed $value): bool => is_scalar($value) || $value === null)) === count($payload);
+        if (! $scalarPayload
+            || preg_match('/^[a-z][a-z0-9_.-]{2,119}$/', $eventType) !== 1
             || strlen(json_encode($payload, JSON_THROW_ON_ERROR)) > 8192) {
             throw new InvalidArgumentException('tenant_notification_payload_invalid');
         }
