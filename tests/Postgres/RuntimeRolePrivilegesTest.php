@@ -41,7 +41,7 @@ $event = app(AuditEventWriter::class)->append([
     'occurred_at' => now(),
 ]);
 
-if (!$event->exists) {
+if (! $event->exists) {
     throw new RuntimeException('runtime_role_could_not_append_audit_event');
 }
 
