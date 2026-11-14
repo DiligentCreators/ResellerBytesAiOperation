@@ -97,7 +97,7 @@ final class AlertStateService
 
             try {
                 $delivery = app(AlertNotificationDispatcher::class)->dispatch($alert, $observedAt);
-                if (($delivery['success'] ?? false) === true) {
+                if ($delivery['success'] === true) {
                     DB::table('operations_alert_states')
                         ->where('code', $code)
                         ->update([
@@ -116,7 +116,7 @@ final class AlertStateService
                         ]);
                     Log::warning('Operational alert delivery was incomplete.', [
                         'alert_code' => $code,
-                        'deliveries' => $delivery['deliveries'] ?? [],
+                        'deliveries' => $delivery['deliveries'],
                     ]);
                     $failed++;
                 }

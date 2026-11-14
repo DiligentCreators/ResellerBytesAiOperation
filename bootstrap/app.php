@@ -1,5 +1,6 @@
 <?php
 
+use App\Console\Commands\CheckOperationalAlerts;
 use App\Console\Commands\CollectOperationalMetrics;
 use App\Console\Commands\CreateOperationsUser;
 use App\Console\Commands\CreateWhmcsIntegration;

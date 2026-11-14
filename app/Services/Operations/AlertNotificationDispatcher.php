@@ -40,16 +40,14 @@ final class AlertNotificationDispatcher
 
         $slackUrl = config('operations.alerts.slack_webhook_url');
         $discordUrl = config('operations.alerts.discord_webhook_url');
-        $teamRoutes = array_filter([
-            'slack' => is_string($slackUrl) && trim($slackUrl) !== '' ? trim($slackUrl) : null,
-            'discord' => is_string($discordUrl) && trim($discordUrl) !== '' ? trim($discordUrl) : null,
-        ]);
+        $hasSlack = is_string($slackUrl) && trim($slackUrl) !== '';
+        $hasDiscord = is_string($discordUrl) && trim($discordUrl) !== '';
 
-        if (count($teamRoutes) !== 1) {
-            $deliveries['team_channel'] = count($teamRoutes) === 0 ? 'missing' : 'failed';
+        if ($hasSlack === $hasDiscord) {
+            $deliveries['team_channel'] = $hasSlack ? 'failed' : 'missing';
         } else {
-            $channel = (string) array_key_first($teamRoutes);
-            $url = (string) $teamRoutes[$channel];
+            $channel = $hasSlack ? 'slack' : 'discord';
+            $url = $hasSlack ? trim((string) $slackUrl) : trim((string) $discordUrl);
             $payload = $channel === 'slack'
                 ? ['text' => $message]
                 : ['content' => $message];
