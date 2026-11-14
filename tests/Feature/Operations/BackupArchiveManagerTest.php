@@ -19,7 +19,6 @@ it('fails closed before database or network operations when Wasabi configuration
         ->toThrow(RuntimeException::class);
 });
 
-
 it('refuses to restore a backup into a database with a different identity', function () {
     config([
         'database.default' => 'pgsql',
@@ -43,7 +42,6 @@ it('refuses to restore a backup into a database with a different identity', func
         'dump_path' => '/tmp/not-opened.dump',
     ]))->toThrow(RuntimeException::class, 'database identity does not match');
 });
-
 
 it('rejects a restore manifest whose database name differs from the configured target', function () {
     config([

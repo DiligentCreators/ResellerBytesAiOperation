@@ -47,7 +47,6 @@ it('rejects a tampered backup archive', function () {
     @unlink($decrypted);
 });
 
-
 it('rejects a backup archive when the decryption key is incorrect', function () {
     $source = tempnam(sys_get_temp_dir(), 'rb-backup-source-');
     $encrypted = tempnam(sys_get_temp_dir(), 'rb-backup-encrypted-');
@@ -71,7 +70,6 @@ it('rejects a backup archive when the decryption key is incorrect', function () 
     @unlink($encrypted);
     @unlink($decrypted);
 });
-
 
 it('rejects a backup archive encrypted with a different key', function () {
     $source = tempnam(sys_get_temp_dir(), 'rb-backup-source-');
