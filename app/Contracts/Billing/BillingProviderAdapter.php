@@ -6,6 +6,8 @@ use App\\Data\\Billing\\VerifiedBillingWebhook;
 
 interface BillingProviderAdapter
 {
+    public function provider(): string;
+
     /**
      * Verify the provider signature against the exact raw request body and
      * normalize the event. Implementations must reject invalid signatures and
