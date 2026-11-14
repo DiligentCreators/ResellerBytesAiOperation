@@ -81,3 +81,32 @@ it('retries failed delivery and re-notifies after an alert resolves and returns'
     expect($reactivated['notifications_sent'])->toBe(1)
         ->and((bool) DB::table('operations_alert_states')->where('code', $alert['code'])->value('is_active'))->toBeTrue();
 });
+
+it('does not resolve an alert when its metric is unavailable but resolves it on a known healthy sample', function () {
+    $dispatcher = Mockery::mock(AlertNotificationDispatcher::class);
+    $dispatcher->shouldReceive('dispatch')
+        ->once()
+        ->andReturn(['success' => true, 'deliveries' => ['email' => 'delivered', 'team_channel' => 'delivered']]);
+    app()->instance(AlertNotificationDispatcher::class, $dispatcher);
+
+    $alert = [
+        'code' => 'error_rate_exceeded',
+        'severity' => 'alert',
+        'observed' => 2.5,
+        'threshold' => 2,
+        'window_minutes' => 5,
+    ];
+    $start = CarbonImmutable::parse('2026-11-14T12:00:00Z');
+    $service = app(AlertStateService::class);
+
+    $service->process([$alert], $start, ['error_rate_exceeded']);
+    $service->process([], $start->addMinute(), []);
+
+    expect((bool) DB::table('operations_alert_states')->where('code', $alert['code'])->value('is_active'))
+        ->toBeTrue();
+
+    $service->process([], $start->addMinutes(2), ['error_rate_exceeded']);
+
+    expect((bool) DB::table('operations_alert_states')->where('code', $alert['code'])->value('is_active'))
+        ->toBeFalse();
+});
