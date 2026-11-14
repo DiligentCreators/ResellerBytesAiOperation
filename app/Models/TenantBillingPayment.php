@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class TenantBillingPayment extends Model
 {
-    protected $fillable = ['tenant_id', 'tenant_billing_invoice_id', 'collection_mode', 'provider', 'provider_payment_id', 'status', 'currency', 'amount_minor', 'reference', 'recorded_by_user_id', 'received_at'];
+    protected $fillable = ['tenant_id', 'tenant_billing_invoice_id', 'collection_mode', 'idempotency_key', 'provider', 'provider_payment_id', 'status', 'currency', 'amount_minor', 'reference', 'recorded_by_user_id', 'received_at'];
 
     protected function casts(): array { return ['amount_minor' => 'integer', 'received_at' => 'immutable_datetime']; }
 
