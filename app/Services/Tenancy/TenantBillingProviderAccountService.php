@@ -14,6 +14,7 @@ use RuntimeException;
 
 class TenantBillingProviderAccountService
 {
+    // Call only after provider-side account ownership has been independently verified; this records the attestation, it does not verify credentials.
     public function registerVerifiedAccount(string $tenantId, string $provider, string $providerAccountId, int $actorUserId): TenantBillingProviderAccount
     {
         if (! preg_match('/^[a-z][a-z0-9_-]{1,39}$/', $provider)
