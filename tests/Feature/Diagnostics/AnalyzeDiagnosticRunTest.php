@@ -487,7 +487,7 @@ it('settles confirmed provider usage before surfacing an unsuccessful HTTP respo
 });
 
 
-it('does not analyze or mutate a run after its captured tenant assignment changes', function () {
+it('prevents tenant reassignment after diagnostic history exists', function () {
     $owner = User::factory()->create();
     $tenant = Tenant::create([
         'name' => 'Captured Tenant Context',
@@ -520,18 +520,12 @@ it('does not analyze or mutate a run after its captured tenant assignment change
         'payload_sha256' => str_repeat('e', 64),
     ]);
 
-    $job = new AnalyzeDiagnosticRun($run->id, $owner->id, $tenant->id);
-    $integration->forceFill(['tenant_id' => $replacementTenant->id])->save();
-    $analyzer = Mockery::mock(WhmcsDiagnosticAnalyzer::class);
-    $analyzer->shouldNotReceive('analyze');
-    $budget = Mockery::mock(AiBudgetService::class);
-    $budget->shouldNotReceive('reserve');
+    expect(fn () => $integration->forceFill(['tenant_id' => $replacementTenant->id])->save())
+        ->toThrow(\\Illuminate\\Database\\QueryException::class);
 
-    $job->handle($analyzer, $budget);
-    $job->failed(new RuntimeException('provider_request_failed'));
-
-    expect($run->fresh()->status)->toBe('queued')
-        ->and($run->fresh()->analysis_attempts)->toBe(0);
+    expect($integration->fresh()->tenant_id)->toBe($tenant->id)
+        ->and($run->fresh()->tenant_id)->toBe($tenant->id)
+        ->and($run->fresh()->status)->toBe('queued');
 });
 
 it('does not start tenant analysis while the captured tenant is suspended', function () {
