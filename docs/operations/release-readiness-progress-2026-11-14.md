@@ -619,3 +619,9 @@ inferred from the repository changes.
 - Webhook requests now refuse redirects and treat 3xx responses as failed delivery, preserving the existing retry behavior and avoiding forwarding payloads to redirect targets.
 - Added a regression test asserting that a redirect is not followed and the alert is not marked delivered; updated the operational delivery contract.
 - Tests remain unexecuted in this environment. Commit messages continue to include [skip ci]; no workflow or repository settings were changed.
+
+## Restore approval evidence write integrity — 2026-11-14
+
+- Static review of the destructive restore path found the immutable approval-evidence writer did not check the byte count returned by file_put_contents or explicitly restrict the temporary record file to owner-only permissions.
+- It now requires the complete JSON payload to be written under an exclusive file lock and applies mode 0600 before hashing and uploading the evidence. A short/failed write or permission failure aborts before the restore proceeds.
+- This is a fail-closed integrity hardening; no production restore or live storage operation was performed.
