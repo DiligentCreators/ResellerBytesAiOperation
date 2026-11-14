@@ -31,6 +31,7 @@ return Application::configure(basePath: dirname(__DIR__))
         CreateOperationsUser::class,
         CreateWhmcsIntegration::class,
         ExportAuditAnchorCheckpoint::class,
+        MonitorAuditAnchorCheckpoint::class,
         VerifyAuditIntegrity::class,
         VerifyAuditAnchorCheckpoint::class,
         PruneWhmcsIntegrationNonces::class,
