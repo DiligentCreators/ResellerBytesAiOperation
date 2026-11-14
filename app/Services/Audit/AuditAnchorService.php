@@ -84,8 +84,13 @@ final class AuditAnchorService
             throw new RuntimeException('audit_anchor_signature_invalid');
         }
 
+        $payloadPrevious = $payload['previous_checkpoint_sha256'] ?? null;
+        if ($payloadPrevious !== null && $expectedPreviousCheckpointSha256 === null) {
+            throw new RuntimeException('audit_anchor_expected_previous_required');
+        }
+
         if ($expectedPreviousCheckpointSha256 !== null
-            && ! hash_equals($expectedPreviousCheckpointSha256, (string) ($payload['previous_checkpoint_sha256'] ?? ''))) {
+            && ! hash_equals($expectedPreviousCheckpointSha256, (string) ($payloadPrevious ?? ''))) {
             throw new RuntimeException('audit_anchor_previous_checkpoint_mismatch');
         }
 
