@@ -56,11 +56,12 @@ class PruneExpiredDiagnosticRecords extends Command
             }
 
             $result = DB::transaction(function () use ($id, $cutoffTimestamp, $holds, $audit): string {
-                $run = DB::table('diagnostic_runs')->where('id', $id)->lockForUpdate()->first();
-                if ($run === null
-                    || in_array($run->status, ['received', 'queued', 'analyzing'], true)
-                    || $run->received_at === null
-                    || $run->received_at > $cutoffTimestamp) {
+                $run = DB::table('diagnostic_runs')
+                    ->where('id', $id)
+                    ->where('received_at', '<=', $cutoffTimestamp)
+                    ->lockForUpdate()
+                    ->first();
+                if ($run === null || in_array($run->status, ['received', 'queued', 'analyzing'], true)) {
                     return 'skipped';
                 }
 
