@@ -366,3 +366,6 @@ The tenant migration is authored on the branch but has not been executed; no ten
 - Refunds and lost disputes reduce invoice net paid balance. Open disputes do not change entitlements; won disputes do not reverse payment. Cumulative refunds and lost disputes cannot exceed the original payment amount. A dispute must have a matching opening event and can be resolved only once.
 - When a refund or lost dispute leaves a subscription invoice underpaid, eligible active/trialing subscriptions move into the configured grace period. Adjustment, invoice balance, audit, subscription transition and outbox events share a transaction.
 - Added feature tests for refund idempotency, dispute open/won/lost outcomes, balance reconciliation, and append-only adjustment records. Tests remain unexecuted pending PHP 8.5 and dependencies.
+
+
+- Follow-up integrity decision: automated payment rows store the provider account ID. Refund/dispute reconciliation must match provider + account + provider payment ID. A composite tenant/payment foreign key prevents cross-tenant adjustment references at the database layer. Payment idempotency now compares all material payment identity and manual evidence fields.
