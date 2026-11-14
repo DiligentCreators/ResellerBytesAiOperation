@@ -179,11 +179,16 @@ class TenantSubscriptionLifecycle
                     throw new InvalidArgumentException('tenant_subscription_renewal_status_invalid');
                 }
 
+                $this->requireSettledInvoice($tenantId, $subscription, $invoiceId);
+
+                if ($periodStart->equalTo($subscription->current_period_starts_at)
+                    && $periodEnd->equalTo($subscription->current_period_ends_at)) {
+                    return $subscription;
+                }
+
                 if (! $periodStart->equalTo($subscription->current_period_ends_at)) {
                     throw new InvalidArgumentException('tenant_subscription_renewal_period_gap');
                 }
-
-                $this->requireSettledInvoice($tenantId, $subscription, $invoiceId);
 
                 $previousStatus = $subscription->status;
                 $subscription->forceFill([
