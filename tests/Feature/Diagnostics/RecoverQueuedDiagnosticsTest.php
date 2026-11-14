@@ -12,10 +12,10 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 
-function createQueuedRecoveryTestRun(): DiagnosticRun
+function createQueuedRecoveryTestRun(bool $owned = true): DiagnosticRun
 {
     $integration = WhmcsIntegration::create([
-        'owner_user_id' => User::factory()->create()->id,
+        'owner_user_id' => $owned ? User::factory()->create()->id : null,
         'name' => 'Queue recovery test '.Str::uuid(),
         'status' => 'active',
         'secret' => bin2hex(random_bytes(32)),
@@ -237,4 +237,17 @@ it('does not re-dispatch diagnostic runs that have reached the absolute retentio
         fn (AnalyzeDiagnosticRun $job): bool => $job->diagnosticRunId === $expiredRun->id,
     );
     expect($expiredRun->fresh()->status)->toBe('queued');
+});
+
+
+it('ignores stale queued runs belonging to unassigned legacy integrations', function () {
+    Queue::fake();
+
+    $unassignedRun = createQueuedRecoveryTestRun(owned: false);
+    DB::table('diagnostic_runs')->where('id', $unassignedRun->id)->update(['updated_at' => now()->subMinutes(30)]);
+
+    expect(Artisan::call('diagnostics:recover-queued'))->toBe(0);
+
+    Queue::assertNothingPushed();
+    expect($unassignedRun->fresh()->status)->toBe('queued');
 });
