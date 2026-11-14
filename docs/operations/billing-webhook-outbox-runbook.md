@@ -23,6 +23,14 @@ tenant_billing_outbox stores tenant-scoped events in the same database transacti
 
 The event bus is an internal extension point. It is not an outbound HTTP webhook transport. A future transport must add destination ownership verification, allowlisting/SSRF controls, signed payloads, secret custody, delivery receipts, and independent security review before activation.
 
+## Provider-neutral verification and account routing
+
+- BillingProviderAdapter defines the provider boundary. Each implementation identifies its provider and must verify the exact raw request body against provider-specific signature headers before returning a normalized VerifiedBillingWebhook value object. No generic HMAC assumption is made because providers use different signing schemes.
+- TenantBillingWebhookGateway rejects provider/adapter mismatches, caps raw request bodies at 256 KiB, enforces a five-minute signature timestamp window, resolves the provider account through trusted server-side mapping, and only then calls the inbox.
+- tenant_billing_provider_accounts binds one provider account to exactly one tenant with a global unique key. A mapping is routable only when status=active and verified_at is present. Tenant/provider/account identity is immutable; the table has PostgreSQL RLS and the global resolver runs under the dedicated operations connection.
+- Provider account mapping is deliberately not self-service and no HTTP route is exposed. An operator must verify account ownership and approve the tenant mapping before activation. No credentials or signing secrets are stored in this registry.
+- The inbox records server receipt time separately from the provider event occurrence timestamp. Signature timestamp replay checks are independent from provider event time; event IDs remain the durable duplicate-delivery key.
+
 ## Verified webhook inbox
 
 tenant_billing_webhook_events stores a provider-account-scoped, normalized event envelope:
@@ -60,10 +68,11 @@ Both commands are scheduled every minute with overlap protection. Before enablin
 Before any provider is activated:
 
 1. Select and approve the provider, pricing, merchant-account ownership model, webhook signature contract, and event mapping.
-2. Implement a provider adapter that verifies signatures against the raw request body and resolves a provider account to a tenant from trusted server-side configuration—not from a caller-supplied tenant ID.
-3. Add replay-window validation, provider event timestamp validation, secret rotation, rate limits, and negative tests.
-4. Rehearse duplicate delivery, changed-payload replay, cross-tenant account mapping, concurrent delivery, worker crash after side effect, transient DB failure, dead-letter handling, and settled-invoice reactivation.
-5. Provision the separate PostgreSQL operations role and secret-manager access; test the runtime and operations privilege boundaries.
-6. Complete independent security review and obtain explicit release authorization before any production activation.
+2. Implement the selected provider adapter against BillingProviderAdapter; verify signatures against the exact raw request body and normalize only supported events.
+3. Verify provider account ownership and create an approved active tenant mapping; never resolve a tenant from caller-supplied data.
+4. Add provider-specific secret rotation, rate limits, and provider contract negative tests. The common gateway already enforces the five-minute signature timestamp window and records provider event time.
+5. Rehearse duplicate delivery, changed-payload replay, cross-tenant account mapping, concurrent delivery, worker crash after side effect, transient DB failure, dead-letter handling, and settled-invoice reactivation.
+6. Provision the separate PostgreSQL operations role and secret-manager access; test the runtime and operations privilege boundaries.
+7. Complete independent security review and obtain explicit release authorization before any production activation.
 
 No production charge, webhook endpoint, database migration, or deployment is authorized by this runbook.
