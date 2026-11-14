@@ -7,6 +7,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Audit\AuditEventWriter;
 use App\Services\Tenancy\TenantRoleAuthorization;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -22,8 +23,8 @@ class TenantAuditExportController extends Controller
             'from' => ['nullable', 'date', 'before_or_equal:to'],
             'to' => ['nullable', 'date', 'after_or_equal:from'],
         ]);
-        $from = isset($filters['from']) ? now()->parse($filters['from'])->utc() : null;
-        $to = isset($filters['to']) ? now()->parse($filters['to'])->utc() : null;
+        $from = isset($filters['from']) ? CarbonImmutable::parse($filters['from'])->utc() : null;
+        $to = isset($filters['to']) ? CarbonImmutable::parse($filters['to'])->utc() : null;
 
         $audit->append([
             'actor_type' => 'user',
