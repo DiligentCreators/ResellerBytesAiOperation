@@ -123,6 +123,43 @@ final class AlertThresholdPolicy
     }
 
     /**
+     * Return alert codes whose state can be safely resolved from this snapshot.
+     * Missing metrics are deliberately omitted so telemetry gaps cannot clear an
+     * alert that has not been disproved by an observed healthy value.
+     *
+     * @param  array<string, mixed>  $metrics
+     * @return list<string>
+     */
+    public function evaluatedCodes(array $metrics): array
+    {
+        $codes = [];
+
+        if ($this->numericMetric($metrics, 'error_rate_percent') !== null) {
+            $codes[] = 'error_rate_exceeded';
+        }
+
+        if ($this->numericMetric($metrics, 'api_p95_latency_ms') !== null) {
+            $codes[] = 'api_p95_latency_exceeded';
+        }
+
+        // Backup absence, malformed timestamps and staleness are themselves evaluated states.
+        $codes[] = 'successful_backup_missing';
+        $codes[] = 'successful_backup_stale';
+        $codes[] = 'successful_backup_timestamp_invalid';
+
+        if ($this->numericMetric($metrics, 'disk_usage_percent') !== null) {
+            $codes[] = 'disk_usage_warning';
+            $codes[] = 'disk_usage_critical';
+        }
+
+        if ($this->numericMetric($metrics, 'oldest_queue_job_age_minutes') !== null) {
+            $codes[] = 'queue_job_age_exceeded';
+        }
+
+        return $codes;
+    }
+
+    /**
      * @param  array<string, mixed>  $metrics
      */
     private function numericMetric(array $metrics, string $key): ?float
