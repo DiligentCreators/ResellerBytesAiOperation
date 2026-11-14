@@ -131,7 +131,12 @@ Artisan::command('diagnostics:recover-queued {--stale-minutes=15} {--limit=100}'
     $retentionCutoff = now('UTC')->subDays(365)->format('Y-m-d H:i:s');
     $runIds = DB::table('diagnostic_runs')
         ->join('whmcs_integrations', 'whmcs_integrations.id', '=', 'diagnostic_runs.integration_id')
+        ->leftJoin('tenants', 'tenants.id', '=', 'whmcs_integrations.tenant_id')
         ->whereNotNull('whmcs_integrations.owner_user_id')
+        ->where(function ($query) {
+            $query->whereNull('whmcs_integrations.tenant_id')
+                ->orWhere('tenants.status', 'active');
+        })
         ->where('diagnostic_runs.received_at', '>', $retentionCutoff)
         ->where(function ($query) use ($cutoff) {
             $query
@@ -161,9 +166,14 @@ Artisan::command('diagnostics:recover-queued {--stale-minutes=15} {--limit=100}'
         $recoveryState = DB::transaction(function () use ($runId, $cutoff, $budget): string {
             $run = DB::table('diagnostic_runs')
                 ->join('whmcs_integrations', 'whmcs_integrations.id', '=', 'diagnostic_runs.integration_id')
+                ->leftJoin('tenants', 'tenants.id', '=', 'whmcs_integrations.tenant_id')
                 ->where('diagnostic_runs.id', $runId)
                 ->whereNotNull('whmcs_integrations.owner_user_id')
-                ->select('diagnostic_runs.*', 'whmcs_integrations.owner_user_id')
+                ->where(function ($query) {
+                    $query->whereNull('whmcs_integrations.tenant_id')
+                        ->orWhere('tenants.status', 'active');
+                })
+                ->select('diagnostic_runs.*', 'whmcs_integrations.owner_user_id', 'whmcs_integrations.tenant_id')
                 ->lockForUpdate()
                 ->first();
 
@@ -235,7 +245,7 @@ Artisan::command('diagnostics:recover-queued {--stale-minutes=15} {--limit=100}'
                     'updated_at' => now(),
                 ]);
 
-            return 'claimed:'.(int) $run->owner_user_id;
+            return 'claimed:'.(int) $run->owner_user_id.':'.($run->tenant_id ?? '-');
         }, 3);
 
         if ($recoveryState === 'held') {
@@ -248,13 +258,15 @@ Artisan::command('diagnostics:recover-queued {--stale-minutes=15} {--limit=100}'
             continue;
         }
 
-        $ownerUserId = (int) substr($recoveryState, strlen('claimed:'));
+        $claim = explode(':', substr($recoveryState, strlen('claimed:')), 2);
+        $ownerUserId = (int) ($claim[0] ?? 0);
+        $tenantId = isset($claim[1]) && $claim[1] !== '-' ? $claim[1] : null;
         if ($ownerUserId < 1) {
             continue;
         }
 
         try {
-            AnalyzeDiagnosticRun::dispatch((string) $runId, $ownerUserId);
+            AnalyzeDiagnosticRun::dispatch((string) $runId, $ownerUserId, $tenantId);
             $dispatched++;
         } catch (Throwable $exception) {
             Log::warning('Queued diagnostic analysis recovery dispatch failed.', [
