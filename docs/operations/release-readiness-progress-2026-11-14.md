@@ -703,3 +703,16 @@ inferred from the repository changes.
 - Both migrations are authored only; no database migration was executed. No tenant data or historical ledger backfill was performed.
 - Remaining roadmap: tenant-aware billing/entitlements; role-specific writes and manual reanalysis; tenant-scoped exports/downloads/webhooks/notifications; complete audit-event tenant attribution across all tenant workflows; composite constraints and PostgreSQL RLS; operational migration/backfill rehearsal and full test/CI verification.
 - All commits include [skip ci]. PR #2 remains open and Draft. No workflow/repository setting changes, merge, CI run, or deployment.
+
+
+## Tenant subscriptions, entitlements, role gates and billing ledger — 2026-11-15
+
+- Added migration `2026_11_15_000005_create_tenant_billing_entitlements.php` for tenant subscription snapshots, invoices and payments. Subscription records include plan code, manual/automated billing mode, provider references, currency/price snapshot, paid period and grace/cancellation timestamps.
+- Added `TenantEntitlementService`: tenant operations fail closed without an active tenant subscription and requested feature/limit. Tenant AI analysis requires `diagnostics.analysis` before budget reservation/provider submission; tenant manual reanalysis requires `diagnostics.reanalyze`.
+- Added capability policy: owner/admin can manage integrations and memberships; owner/admin/operator can request reanalysis; viewer is read-only; billing role can read/manage billing; tenant closure is owner-only.
+- Manual tenant reanalysis now rechecks active membership role and subscription entitlement inside the request transaction, emits tenant-attributed audit events, and dispatches with the authenticated actor ID and immutable tenant UUID. Legacy unassigned integrations remain owner-only.
+- Added idempotent confirmed-payment ledger for manual and automated payment records. It validates tenant/invoice/subscription alignment, currency, invoice amount and overpayment, uses a unique idempotency key, and atomically updates invoice totals. Manual entries require a locked active billing-capable membership. Payment records emit tenant-attributed audit events. No charges are initiated and no unverified callback is trusted.
+- Added tests for active/expired/grace subscriptions, missing feature/limit, role capability matrix, reanalysis authorization, AI entitlement denial before reservation, payment idempotency, cross-tenant invoice access and overpayment prevention. Tests authored only, not run.
+- Migration is authored only; no migration executed and no subscription, invoice, payment, or plan records provisioned. Provider selection, pricing, signed webhook integration, external registration and payment collection remain disabled pending Shahrukh approval.
+- Remaining: plan catalogue/pricing approval and subscription provisioning lifecycle; signed provider webhook verification and reconciliation; entitlement limits across all resources; role-gated integration/member/settings write endpoints; tenant exports/downloads/webhooks/notifications; full audit attribution; composite tenant constraints and PostgreSQL RLS; migration/backfill rehearsal and full test/CI verification.
+- All commits retain [skip ci]. PR #2 remains open and Draft; no workflow/settings changes, CI run, merge or deployment.
