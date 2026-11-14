@@ -101,4 +101,12 @@ Approved monitoring, alert-routing, recovery, retention, signing-operator, and P
 - Added `app/Services/Operations/AlertThresholdPolicy.php` to evaluate the approved error-rate, API p95, backup age, disk utilization, and queue-age thresholds from normalized metric inputs.
 - Added boundary tests for strict error/latency/queue thresholds, disk warning/critical escalation, the 26-hour backup limit, and missing/invalid/future backup timestamps.
 - The evaluator does not collect metrics, schedule checks, or deliver notifications. Production metric sources and email/Slack-or-Discord/critical WhatsApp-or-SMS adapters remain unconfigured.
-- CI for this new evaluator and the final documentation update is pending on the newest exact branch head.
+- Exact-head run [#43581384457](https://github.com/DiligentCreators/ResellerBytesAiOperation/actions/runs/43581384457) passed all six jobs on `d8cb3620fcf36a2ffa7582aa2c74bafa1b4eb90a`; general CI reported **195 passed, 878 assertions**.
+
+## Final exact-head CI — 2026-11-14
+
+- Exact PR head `d8cb3620fcf36a2ffa7582aa2c74bafa1b4eb90a` passed all six jobs in [run #43581384457](https://github.com/DiligentCreators/ResellerBytesAiOperation/actions/runs/43581384457).
+- General CI: **195 passed, 878 assertions**.
+- PostgreSQL runtime and read-only reporting role checks passed, including explicit reporting allowlist enforcement.
+- MySQL 8.4, MariaDB 11.4, SQL Server 2022, and WHMCS PHP 8.1 jobs passed.
+- PR #2 remains open and Draft. No merge, deployment, production migration, or live WHMCS change has been performed.
