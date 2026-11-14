@@ -49,17 +49,17 @@ export PGPASSFILE="$RECOVERY_PGPASS_FILE"
 chmod 600 "$PGPASSFILE"
 
 # RESTORE_PGSERVICE names a service in PGSERVICEFILE; it contains no password.
-createdb --maintenance-db="$RECOVERY_ADMIN_SERVICE" "$RESTORE_DATABASE"
+PGSERVICE="$RECOVERY_ADMIN_SERVICE" createdb "$RESTORE_DATABASE"
 
 pg_restore \
   --exit-on-error \
   --no-owner \
   --no-acl \
-  --dbname="$RESTORE_PGSERVICE" \
+  --dbname="$RESTORE_DATABASE" \
   "$BACKUP_FILE"
 ```
 
-Before running, the operator must confirm that `RESTORE_DATABASE` is the isolated recovery database and that the service points only to the recovery host. The service file and password file are operator-managed runtime inputs and must not be committed.
+Before running, the operator must confirm that `RESTORE_DATABASE` is the isolated recovery database and that `RECOVERY_ADMIN_SERVICE` and `RESTORE_PGSERVICE` point only to the recovery host. The service file and password file are operator-managed runtime inputs and must not be committed.
 
 If the backup format or restore procedure requires a different invocation, record the exact reviewed command in the rehearsal record with all secrets redacted. Do not improvise against a production endpoint.
 
