@@ -53,10 +53,6 @@ END;
 $rb$;
 CREATE TRIGGER rb_tenant_billing_provider_account_identity BEFORE UPDATE ON tenant_billing_provider_accounts FOR EACH ROW EXECUTE FUNCTION rb_guard_tenant_billing_provider_account_identity();
 CREATE TRIGGER rb_billing_provider_account_audit_tenant_guard BEFORE INSERT ON audit_events FOR EACH ROW EXECUTE FUNCTION rb_check_billing_provider_account_audit_tenant();
-CREATE TRIGGER rb_billing_provider_account_audit_tenant_guard BEFORE INSERT ON audit_events
-WHEN NEW.subject_type = 'tenant_billing_provider_account'
- AND NEW.tenant_id IS NOT (SELECT tenant_id FROM tenant_billing_provider_accounts WHERE id = CAST(NEW.subject_id AS INTEGER))
-BEGIN SELECT RAISE(ABORT, 'audit_event_tenant_mismatch'); END;
 SQL);
         } elseif ($driver === 'sqlite') {
             DB::unprepared(<<<'SQL'
@@ -65,6 +61,10 @@ WHEN NEW.tenant_id IS NOT OLD.tenant_id
  OR NEW.provider IS NOT OLD.provider
  OR NEW.provider_account_id IS NOT OLD.provider_account_id
 BEGIN SELECT RAISE(ABORT, 'tenant_billing_provider_account_identity_immutable'); END;
+CREATE TRIGGER rb_billing_provider_account_audit_tenant_guard BEFORE INSERT ON audit_events
+WHEN NEW.subject_type = 'tenant_billing_provider_account'
+ AND NEW.tenant_id IS NOT (SELECT tenant_id FROM tenant_billing_provider_accounts WHERE id = CAST(NEW.subject_id AS INTEGER))
+BEGIN SELECT RAISE(ABORT, 'audit_event_tenant_mismatch'); END;
 SQL);
         }
     }
