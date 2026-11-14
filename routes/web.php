@@ -8,6 +8,7 @@ use App\Http\Controllers\WhmcsAddonSetupController;
 use App\Http\Controllers\WhmcsAddonSigningFingerprintController;
 use App\Http\Controllers\WhmcsIntegrationController;
 use App\Http\Controllers\TenantAuditExportController;
+use App\Http\Controllers\TenantNotificationController;
 use App\Http\Middleware\EnsureTwoFactorEnabled;
 use Illuminate\Support\Facades\Route;
 
