@@ -56,6 +56,10 @@ class TenantBillingFailureReconciler
                             (int) $subscription->id,
                             'past_due',
                             CarbonImmutable::now('UTC')->addDays($graceDays),
+                            null,
+                            null,
+                            $provider,
+                            $providerAccountId,
                         );
                     }
                 }
