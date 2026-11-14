@@ -19,6 +19,8 @@ return [
     ],
 
     'alerts' => [
+        'enabled' => (bool) env('OPERATIONS_ALERTS_ENABLED', false),
+        'repeat_interval_minutes' => (int) env('OPERATIONS_ALERT_REPEAT_INTERVAL_MINUTES', 15),
         'email' => env('OPERATIONS_ALERT_EMAIL'),
         'slack_webhook_url' => env('OPERATIONS_ALERT_SLACK_WEBHOOK_URL'),
         'discord_webhook_url' => env('OPERATIONS_ALERT_DISCORD_WEBHOOK_URL'),

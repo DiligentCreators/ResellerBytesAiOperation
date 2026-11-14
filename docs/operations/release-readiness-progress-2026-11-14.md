@@ -120,4 +120,16 @@ Approved monitoring, alert-routing, recovery, retention, signing-operator, and P
 - Added portable migration and feature tests for rolling-window aggregation, p95, API status capture without payload persistence, backup marker timestamps, and telemetry pruning.
 - Queue-age collection currently supports Laravel's database queue driver. Redis/SQS/Beanstalkd queue-age adapters remain a known follow-up and must not be represented as measured when unavailable.
 - This is application-side metric collection, not an independent external monitor. Alert scheduling, notification adapters, backup/restore tooling, and security-review readiness remain subsequent roadmap steps.
-- Validation is pending on the exact commit produced by this change. No production marker, external queue provider, backup credential, or alert destination has been configured.
+- Exact-head run #43597533823 passed all six CI jobs on `d0fcf3f246fdd37d531068cde6cdfcb913e497d6`; general CI reported **198 passed, 3 skipped, 891 assertions**. No production marker, external queue provider, backup credential, or alert destination has been configured.
+
+
+## Alert scheduling and notification adapters — implementation in progress
+
+- Added the operations:check-alerts command to evaluate the approved metric policy and manage active alert state.
+- Added an idempotent alert-state table with active/inactive lifecycle, delivery claim leases, first/last observation timestamps, last successful notification timestamp, and notification counts.
+- Added email, Slack, and Discord delivery adapters. Critical alerts additionally use configured WhatsApp/SMS HTTPS webhook bridges; each configured critical route must acknowledge with a 2xx response.
+- Delivery requires a valid owner email and exactly one configured primary team channel. Critical alerts additionally require at least one WhatsApp/SMS route. Missing routes and non-2xx provider responses remain failures and are retried.
+- Added 15-minute default repeat suppression, retry after incomplete delivery, and one-minute scheduler evaluation with withoutOverlapping. The schedule is disabled by default and requires OPERATIONS_ALERTS_ENABLED=true after secret-manager configuration and non-production delivery tests.
+- Added feature tests for standard/critical routing, provider acknowledgement, deduplication, retry, and alert reactivation.
+- Provider-specific WhatsApp/SMS bridge provisioning and real destination credentials remain owner-controlled. Recovery notifications are not included in this phase.
+- Validation is pending on the exact commit for this step.

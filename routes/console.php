@@ -264,3 +264,9 @@ Schedule::command('whmcs:nonces:prune')
 Schedule::command('diagnostics:recover-queued')
     ->everyFiveMinutes()
     ->withoutOverlapping();
+
+
+Schedule::command('operations:check-alerts')
+    ->everyMinute()
+    ->withoutOverlapping()
+    ->when(fn (): bool => (bool) config('operations.alerts.enabled'));

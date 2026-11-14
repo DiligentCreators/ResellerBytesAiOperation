@@ -34,7 +34,7 @@ Route standard alerts to the configured owner email and one configured team chan
 - [ ] Treat an alert as an incident until the last known-good external checkpoint and local chain prefix are independently verified.
 - [ ] Preserve alert delivery receipts and incident disposition in the external audit evidence store.
 
-The approved alert thresholds and destination policy are recorded in `config/operations.php` and `.env.example`. A scheduler, provider-specific notification adapters, and production delivery credentials are not provisioned by this repository; do not claim alerts are live until a non-production delivery test and production configuration evidence exist. Checkpoint cadence and maximum unanchored window remain explicit operational configuration decisions.
+The approved alert thresholds and destination policy are recorded in `config/operations.php` and `.env.example`. The application now includes the operations:check-alerts command, an alert-state/deduplication store, email and Slack/Discord delivery, and provider-neutral critical WhatsApp/SMS HTTPS webhook adapters. Laravel Scheduler evaluates every minute with withoutOverlapping, but the schedule is disabled by default and requires OPERATIONS_ALERTS_ENABLED=true after the owner email, exactly one team route, at least one critical route, secret-manager configuration, and non-production delivery tests are complete. A webhook counts as delivered only on a 2xx acknowledgement. Provider-specific WhatsApp/SMS bridge provisioning and production credentials remain external owner-controlled gates; do not claim alerts are live until delivery evidence exists. Checkpoint cadence and maximum unanchored window remain explicit operational configuration decisions.
 
 ## Threshold evaluation
 
