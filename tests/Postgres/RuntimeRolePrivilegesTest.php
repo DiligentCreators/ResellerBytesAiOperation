@@ -23,7 +23,7 @@ function expectPrivilegeDenied(string $label, Closure $operation): void
     try {
         $operation();
     } catch (QueryException) {
-        fwrite(STDOUT, $label.": denied as expected".PHP_EOL);
+        fwrite(STDOUT, $label.': denied as expected'.PHP_EOL);
 
         return;
     }
@@ -41,7 +41,7 @@ $event = app(AuditEventWriter::class)->append([
     'occurred_at' => now(),
 ]);
 
-if (! $event->exists) {
+if (!$event->exists) {
     throw new RuntimeException('runtime_role_could_not_append_audit_event');
 }
 
