@@ -480,3 +480,91 @@ it('keeps provider account tenant and external identity immutable', function () 
         ->update(['tenant_id' => createBillingOutboxTenant('billing-provider-account-other')->id]))
         ->toThrow(\\Illuminate\\Database\\QueryException::class);
 });
+
+it('marks an invoice and subscription past due after a verified payment failure', function () {
+    $tenant = createBillingOutboxTenant('billing-payment-failure');
+    $invoice = createBillingOutboxInvoice($tenant, 4900);
+    $event = app(TenantBillingWebhookInbox::class)->acceptVerifiedEvent(
+        $tenant->id,
+        'approved_gateway',
+        'evt_payment_failed_001',
+        'invoice.payment_failed',
+        ['invoice_id' => $invoice->id, 'failure_code' => 'card_declined'],
+        now('UTC'),
+        'acct_payment_failure',
+    );
+
+    expect(Artisan::call('billing:webhooks:reconcile', ['--limit' => 10]))->toBe(0);
+
+    $event->refresh();
+    expect($event->status)->toBe('processed')
+        ->and($invoice->fresh()->status)->toBe('past_due')
+        ->and($invoice->subscription->fresh()->status)->toBe('past_due')
+        ->and($invoice->subscription->fresh()->grace_ends_at->isFuture())->toBeTrue()
+        ->and(TenantBillingOutboxMessage::query()
+            ->where('tenant_id', $tenant->id)
+            ->where('event_type', 'billing.payment.failed')
+            ->exists())->toBeTrue();
+});
+
+it('renews a subscription only against a fully settled tenant invoice', function () {
+    $tenant = createBillingOutboxTenant('billing-subscription-renewal');
+    $invoice = createBillingOutboxInvoice($tenant, 4900);
+    $subscription = $invoice->subscription;
+
+    app(TenantBillingLedgerService::class)->recordConfirmedPayment($tenant->id, $invoice->id, [
+        'collection_mode' => 'automated',
+        'idempotency_key' => 'renewal-payment-ledger-1',
+        'amount_minor' => 4900,
+        'currency' => 'USD',
+        'provider' => 'approved_gateway',
+        'provider_payment_id' => 'pay_renewal_001',
+        'received_at' => now('UTC'),
+    ]);
+
+    $periodStart = $subscription->current_period_ends_at->startOfSecond();
+    $periodEnd = $periodStart->addMonth();
+    $payload = [
+        'subscription_id' => $subscription->id,
+        'settled_invoice_id' => $invoice->id,
+        'period_starts_at' => $periodStart->format('Y-m-d\\TH:i:s.uP'),
+        'period_ends_at' => $periodEnd->format('Y-m-d\\TH:i:s.uP'),
+    ];
+    $event = app(TenantBillingWebhookInbox::class)->acceptVerifiedEvent(
+        $tenant->id,
+        'approved_gateway',
+        'evt_subscription_renewed_001',
+        'subscription.renewed',
+        $payload,
+        now('UTC'),
+        'acct_subscription_renewal',
+    );
+
+    expect(Artisan::call('billing:webhooks:reconcile', ['--limit' => 10]))->toBe(0);
+
+    $subscription->refresh();
+    expect($event->fresh()->status)->toBe('processed')
+        ->and($subscription->status)->toBe('active')
+        ->and($subscription->current_period_starts_at->startOfSecond()->equalTo($periodStart))->toBeTrue()
+        ->and($subscription->current_period_ends_at->startOfSecond()->equalTo($periodEnd->startOfSecond()))->toBeTrue()
+        ->and(TenantBillingOutboxMessage::query()
+            ->where('tenant_id', $tenant->id)
+            ->where('event_type', 'billing.subscription.renewed')
+            ->exists())->toBeTrue();
+
+    $duplicate = app(TenantBillingWebhookInbox::class)->acceptVerifiedEvent(
+        $tenant->id,
+        'approved_gateway',
+        'evt_subscription_renewed_002',
+        'subscription.renewed',
+        $payload,
+        now('UTC'),
+        'acct_subscription_renewal',
+    );
+    expect(Artisan::call('billing:webhooks:reconcile', ['--limit' => 10]))->toBe(0)
+        ->and($duplicate->fresh()->status)->toBe('processed')
+        ->and(TenantBillingOutboxMessage::query()
+            ->where('tenant_id', $tenant->id)
+            ->where('event_type', 'billing.subscription.renewed')
+            ->count())->toBe(1);
+});
