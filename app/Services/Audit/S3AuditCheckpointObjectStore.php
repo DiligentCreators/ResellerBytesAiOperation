@@ -165,8 +165,15 @@ final class S3AuditCheckpointObjectStore implements AuditCheckpointObjectStore
             throw new RuntimeException('audit_anchor_storage_bucket_invalid');
         }
 
+        $endpointParts = parse_url($settings['endpoint']);
         if (filter_var($settings['endpoint'], FILTER_VALIDATE_URL) === false
-            || strtolower((string) parse_url($settings['endpoint'], PHP_URL_SCHEME)) !== 'https') {
+            || ! is_array($endpointParts)
+            || strtolower((string) ($endpointParts['scheme'] ?? '')) !== 'https'
+            || ! is_string($endpointParts['host'] ?? null)
+            || isset($endpointParts['user'])
+            || isset($endpointParts['pass'])
+            || isset($endpointParts['query'])
+            || isset($endpointParts['fragment'])) {
             throw new RuntimeException('audit_anchor_storage_endpoint_invalid');
         }
 
