@@ -579,3 +579,10 @@ inferred from the repository changes.
 - This complements the existing fail-closed configuration tests for dedicated bucket separation, HTTPS, credentials, and unsafe object keys. It does not prove Wasabi service compatibility; the non-production Wasabi Object Lock rehearsal remains an owner/infrastructure gate.
 - The test is committed but not executed locally because the required PHP 8.5 runtime and mounted repository/dependencies are unavailable. CI remains deferred until the final one-shot non-skip-ci commit.
 - All commits continue to include [skip ci]; no workflow file or repository setting was changed. PR #2 remains open and Draft, with no merge, deployment, production migration, or live storage operation authorized.
+
+
+## Operational metric sample lifecycle scheduling — 2026-11-14
+
+- Found that `operations:metrics` already pruned samples older than one day but was not registered with the scheduler. Added a non-overlapping hourly schedule so the operational metric table has a bounded retention lifecycle; alert evaluation continues to take its own current snapshot each minute.
+- Added a scheduler regression test that asserts the metric maintenance command is registered. No alert destination, schedule enablement gate, production endpoint, or repository workflow was changed; the metric maintenance task is safe housekeeping and does not send notifications.
+- Tests remain committed but unexecuted pending the required PHP 8.5 environment and exact-head CI. All commits in this batch include [skip ci].
