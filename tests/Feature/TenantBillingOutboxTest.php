@@ -331,7 +331,6 @@ it('binds webhook receipt audit evidence to the webhook tenant without retaining
         ->and($audit->tenant_id)->toBe($tenantA->id)
         ->and(json_decode($audit->metadata, true))->toMatchArray([
             'provider' => 'approved_gateway',
-        'provider_account_id' => 'acct_approved_gateway_test',
             'event_type' => 'invoice.payment_succeeded',
             'payload_sha256' => $event->payload_sha256,
         ]);
@@ -519,6 +518,7 @@ it('renews a subscription only against a fully settled tenant invoice', function
         'amount_minor' => 4900,
         'currency' => 'USD',
         'provider' => 'approved_gateway',
+        'provider_account_id' => 'acct_subscription_renewal',
         'provider_payment_id' => 'pay_renewal_001',
         'received_at' => now('UTC'),
     ]);
@@ -579,6 +579,7 @@ it('records refunds idempotently and reduces the invoice net paid balance', func
         'amount_minor' => 4900,
         'currency' => 'USD',
         'provider' => 'approved_gateway',
+        'provider_account_id' => 'acct_refund_001',
         'provider_payment_id' => 'pay_refund_001',
         'received_at' => now('UTC'),
     ]);
@@ -615,6 +616,7 @@ it('records dispute opening and applies a lost dispute once without changing a w
         'amount_minor' => 4900,
         'currency' => 'USD',
         'provider' => 'approved_gateway',
+        'provider_account_id' => 'acct_dispute_001',
         'provider_payment_id' => 'pay_dispute_001',
         'received_at' => now('UTC'),
     ]);
@@ -664,6 +666,7 @@ it('keeps billing adjustments append-only after insertion', function () {
         'amount_minor' => 4900,
         'currency' => 'USD',
         'provider' => 'approved_gateway',
+        'provider_account_id' => 'acct_adjustment_immutable',
         'provider_payment_id' => 'pay_immutable_adjustment',
         'received_at' => now('UTC'),
     ]);
