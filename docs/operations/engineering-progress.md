@@ -307,3 +307,14 @@ A green CI run is necessary but does not close these release gates or authorize 
 - Hardened concurrent webhook duplicate delivery: a unique-key race now reloads and accepts the winning identical event; a different payload or provider-account/tenant binding fails closed.
 - Added regression coverage for immutable outbox/webhook payloads, mutable retry state, cross-tenant audit-subject rejection, provider-account replay binding, transient retries, and dead-letter exhaustion. Tests remain authored but unexecuted.
 - Latest billing milestone commit at this checkpoint: d8221a8559931c85e14b0240531ce8829f46b8f7. All intermediate commits continue to carry [skip ci]; no workflow files or repository settings were changed.
+
+
+### Provider-neutral adapter and billing lifecycle expansion — 2026-11-15
+
+- Added provider-neutral adapter contract, verified webhook DTO, internal gateway, strict adapter/provider binding, raw-body size ceiling (256 KiB), five-minute signature timestamp tolerance, and trusted account-to-tenant resolution.
+- Added provider-account registry with globally unique provider/account mapping, active + verified gating, PostgreSQL RLS, immutable tenant/provider/account identity, and a dedicated operations-role lookup. No account mapping or secret is configured.
+- Persisted provider occurrence time separately from server receipt time and included it in immutable webhook replay identity.
+- Added payment-failure reconciliation: unpaid invoice transitions to past_due; eligible active/trialing subscription enters a provisional configurable grace period (default seven days, clamped 1–30 days); audit and outbox records are atomic.
+- Added subscription renewal reconciliation: requires a fully settled invoice and contiguous period extension, updates the active subscription period, and appends audit/outbox records atomically. Duplicate invoice/period renewals are idempotent.
+- Added regression tests for adapter mismatch, stale signature, provider-account mapping, immutable mapping, payment failure, and settled subscription renewal. Not executed due to PHP 8.5/dependency environment limitation.
+- All commits in this continuation include [skip ci]. No workflow file or repository setting was modified. Provider selection, provider credentials, provider-account verification/mapping, operations-role provisioning, independent security review, and production activation remain pending.
