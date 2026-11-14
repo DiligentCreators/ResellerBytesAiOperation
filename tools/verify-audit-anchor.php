@@ -92,4 +92,5 @@ echo json_encode([
     'chain_sequence' => $payload['chain_sequence'],
     'chain_head_hash' => $payload['chain_head_hash'],
     'checkpoint_sha256' => hash('sha256', $bytes),
+    'age_seconds' => max(0, $ageSeconds),
 ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES).PHP_EOL;
