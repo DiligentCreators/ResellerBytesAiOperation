@@ -13,10 +13,11 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 
-function createQueuedRecoveryTestRun(bool $owned = true): DiagnosticRun
+function createQueuedRecoveryTestRun(bool $owned = true, ?string $tenantId = null): DiagnosticRun
 {
     $integration = WhmcsIntegration::create([
         'owner_user_id' => $owned ? User::factory()->create()->id : null,
+        'tenant_id' => $tenantId,
         'name' => 'Queue recovery test '.Str::uuid(),
         'status' => 'active',
         'secret' => bin2hex(random_bytes(32)),
@@ -25,6 +26,7 @@ function createQueuedRecoveryTestRun(bool $owned = true): DiagnosticRun
 
     return DiagnosticRun::create([
         'integration_id' => $integration->id,
+        'tenant_id' => $tenantId,
         'snapshot_uuid' => (string) Str::uuid(),
         'schema_version' => '1.0',
         'addon_version' => '1.0.0',
@@ -268,10 +270,8 @@ it('captures active tenant context during stale queue recovery and ignores suspe
         'status' => Tenant::STATUS_SUSPENDED,
     ]);
 
-    $activeRun = createQueuedRecoveryTestRun();
-    $suspendedRun = createQueuedRecoveryTestRun();
-    $activeRun->integration->forceFill(['tenant_id' => $activeTenant->id])->save();
-    $suspendedRun->integration->forceFill(['tenant_id' => $suspendedTenant->id])->save();
+    $activeRun = createQueuedRecoveryTestRun(true, $activeTenant->id);
+    $suspendedRun = createQueuedRecoveryTestRun(true, $suspendedTenant->id);
     DB::table('diagnostic_runs')->where('id', $activeRun->id)->update(['updated_at' => now()->subMinutes(30)]);
     DB::table('diagnostic_runs')->where('id', $suspendedRun->id)->update(['updated_at' => now()->subMinutes(30)]);
 
