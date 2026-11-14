@@ -131,7 +131,7 @@ Approved monitoring, alert-routing, recovery, retention, signing-operator, and P
 - Added 15-minute default repeat suppression, retry after incomplete delivery, and one-minute scheduler evaluation with withoutOverlapping. The schedule is disabled by default and requires OPERATIONS_ALERTS_ENABLED=true after secret-manager configuration and non-production delivery tests.
 - Added feature tests for standard/critical routing, provider acknowledgement, deduplication, retry, and alert reactivation.
 - Provider-specific WhatsApp/SMS bridge provisioning and real destination credentials remain owner-controlled. Recovery notifications are not included in this phase.
-- Validation is pending on the exact commit for this step.
+- Exact-head run #43598332919 passed all six CI jobs on `703772cc8def8f45d394ef53fc80ca582c3dae68`; general CI reported **203 passed, 3 skipped, 915 assertions**.
 
 ## Outstanding owner-controlled gates
 
