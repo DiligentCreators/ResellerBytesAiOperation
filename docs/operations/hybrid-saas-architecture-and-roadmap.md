@@ -369,3 +369,6 @@ The tenant migration is authored on the branch but has not been executed; no ten
 
 
 - Follow-up integrity decision: automated payment rows store the provider account ID. Refund/dispute reconciliation must match provider + account + provider payment ID. A composite tenant/payment foreign key prevents cross-tenant adjustment references at the database layer. Payment idempotency now compares all material payment identity and manual evidence fields.
+
+
+- Final account-boundary hardening: subscriptions are bound to a provider account at creation and the provider identity fields cannot be changed after binding. Automated payments, payment failures, subscription lifecycle webhooks, renewals, refunds and disputes all verify that same provider/account relationship. Confirmed payment rows are append-only; financial reversals are represented only by append-only adjustments. Providers cannot supply grace-period duration.
