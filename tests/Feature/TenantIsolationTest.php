@@ -3,6 +3,8 @@
 use App\Models\DiagnosticFinding;
 use App\Models\DiagnosticRun;
 use App\Models\User;
+use App\Models\Tenant;
+use App\Models\TenantMembership;
 use App\Models\WhmcsIntegration;
 use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -102,4 +104,47 @@ it('does not allow a different owner to trigger reanalysis', function () {
         ->assertNotFound();
 
     expect($run->fresh()->status)->toBe('received');
+});
+
+
+it('serves tenant-assigned integrations and nested diagnostics only to active tenant members', function () {
+    $historicalOwner = User::factory()->withTwoFactor()->create(['email_verified_at' => now()]);
+    [$integration, $run, $finding] = createForeignTenantDiagnosticRecords($historicalOwner);
+    $tenant = Tenant::create([
+        'name' => 'Controller Access Workspace',
+        'slug' => 'controller-access-workspace',
+        'status' => Tenant::STATUS_ACTIVE,
+        'created_by_user_id' => $historicalOwner->id,
+    ]);
+    $integration->forceFill(['tenant_id' => $tenant->id])->save();
+
+    $member = User::factory()->withTwoFactor()->create(['email_verified_at' => now()]);
+    $tenant->memberships()->create([
+        'user_id' => $member->id,
+        'role' => TenantMembership::ROLE_VIEWER,
+        'status' => TenantMembership::STATUS_ACTIVE,
+        'accepted_at' => now(),
+    ]);
+
+    $this->actingAs($member);
+    $this->get('/integrations')->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->component('integrations/index')->has('integrations.data', 1));
+    $this->get('/diagnostic-runs')->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->component('diagnostic-runs/index')->has('runs.data', 1));
+    $this->get('/diagnostic-runs/'.$run->id)->assertOk();
+    $this->get('/findings')->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->component('findings/index')->has('findings.data', 1));
+    $this->get('/findings/'.$finding->id)->assertOk();
+    $this->get('/dashboard')->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->component('dashboard')
+        ->where('stats.active_integrations', 1)
+        ->where('stats.total_runs', 1)
+        ->where('stats.open_findings', 1)
+        ->where('stats.critical_findings', 1));
+
+    $this->actingAs($historicalOwner);
+    $this->get('/integrations')->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->component('integrations/index')->has('integrations.data', 0));
+    $this->get('/diagnostic-runs/'.$run->id)->assertNotFound();
+    $this->get('/findings/'.$finding->id)->assertNotFound();
 });
