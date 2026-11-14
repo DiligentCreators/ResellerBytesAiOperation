@@ -3,6 +3,8 @@
 return [
     'daily_limit_micro_usd' => (int) env('AI_DAILY_BUDGET_MICRO_USD', 5_000_000),
     'monthly_limit_micro_usd' => (int) env('AI_MONTHLY_BUDGET_MICRO_USD', 50_000_000),
+    'tenant_daily_limit_micro_usd' => (int) env('AI_TENANT_DAILY_BUDGET_MICRO_USD', env('AI_DAILY_BUDGET_MICRO_USD', 5_000_000)),
+    'tenant_monthly_limit_micro_usd' => (int) env('AI_TENANT_MONTHLY_BUDGET_MICRO_USD', env('AI_MONTHLY_BUDGET_MICRO_USD', 50_000_000)),
     'max_input_bytes' => (int) env('AI_MAX_INPUT_BYTES', 65_536),
     'max_output_tokens' => (int) env('AI_MAX_OUTPUT_TOKENS', 3_000),
     'price_cards' => [
