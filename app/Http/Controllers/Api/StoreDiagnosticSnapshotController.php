@@ -77,7 +77,7 @@ class StoreDiagnosticSnapshotController extends Controller
             $run->forceFill(['status' => 'queued'])->save();
 
             try {
-                AnalyzeDiagnosticRun::dispatch($run->id, (int) $integration->owner_user_id)->afterCommit();
+                AnalyzeDiagnosticRun::dispatch($run->id, (int) $integration->owner_user_id, $integration->tenant_id)->afterCommit();
             } catch (Throwable $exception) {
                 $run->forceFill(['status' => 'received'])->save();
 
