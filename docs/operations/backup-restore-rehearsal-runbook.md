@@ -2,7 +2,14 @@
 
 Status: procedure prepared; no production backup has been accessed or restored
 Scope: isolated PostgreSQL recovery rehearsal for ResellerBytes AI Operations
-Owner: project Owner / designated database operator
+Owner: Shahrukh / designated database operator
+
+## Approved recovery objectives
+
+- Recovery point objective (RPO): 24 hours maximum data-loss window.
+- Recovery time objective (RTO): 4 hours maximum from declared recovery start to validated service readiness.
+- The 26-hour no-successful-backup monitoring threshold is an alert threshold, not permission to exceed the 24-hour RPO. Investigate and escalate before the RPO is breached.
+- Any production restore requires Shahrukh's explicit approval before the restore begins. This runbook does not grant standing authorization; record approval in the change/recovery evidence. Rehearsals remain isolated and do not require production restore.
 
 ## Safety rules
 
@@ -102,7 +109,7 @@ A restored database may legitimately contain events newer than the last external
 - [ ] Confirm diagnostic cleanup remains disabled and no cleanup schedule is active.
 - [ ] Confirm AI usage reservations/ledger relationships are consistent; do not issue real provider requests or settle charges during the rehearsal.
 - [ ] Confirm the restored dashboard/API can start in a network-isolated, side-effect-disabled mode.
-- [ ] Record measured restore duration, backup age/recovery point, validation duration, and any data-loss window.
+- [ ] Record measured restore duration against the 4-hour RTO, backup age against the 24-hour RPO, validation duration, and any data-loss window. A rehearsal exceeding either objective is a failed objective even if the database starts.
 - [ ] Destroy temporary restore credentials and securely dispose of temporary decrypted artifacts according to the approved recovery policy after evidence has been retained.
 
 ## 6. Evidence and exit criteria
@@ -123,8 +130,8 @@ Any failed check, unverifiable checkpoint, missing backup object lock, privilege
 ## Shahrukh ke liye pending
 
 - Provision the separate cloud/security account and backup bucket with the approved 365-day Object Lock retention; provide object-version and retention read-back evidence.
-- Arrange approved backup read access and an isolated recovery PostgreSQL environment.
+- Arrange approved backup read access and an isolated recovery PostgreSQL environment for rehearsal. Any future production restore still requires explicit approval at the time of the incident.
 - Provision independent Ed25519 signing/anchor key custody and supply the trusted public verification key through the approved secure channel.
-- Approve the named recovery operators, secret-manager access policy, and rehearsal window.
+- Provide secret-manager access and approve the isolated rehearsal window. Production restore approval remains event-specific and must be explicit.
 
 No production backup, password, secret, or private key is requested in chat or stored in this repository.
