@@ -41,11 +41,18 @@ class DiagnosticRunController extends Controller
     {
         abort_unless(filled(config('services.openai.key')), 503, 'AI analysis is not configured.');
 
-        $queued = DB::transaction(function () use ($diagnosticRun): bool {
+        $expired = false;
+        $queued = DB::transaction(function () use ($diagnosticRun, &$expired): bool {
             $run = DiagnosticRun::query()
                 ->whereKey($diagnosticRun->id)
                 ->lockForUpdate()
                 ->firstOrFail();
+
+            if ($run->received_at === null || $run->received_at->lessThanOrEqualTo(now('UTC')->subDays(365))) {
+                $expired = true;
+
+                return false;
+            }
 
             if (! in_array($run->status, ['received', 'analysis_failed'], true)) {
                 return false;
@@ -68,7 +75,9 @@ class DiagnosticRunController extends Controller
 
         if (! $queued) {
             return back()->withErrors([
-                'analysis' => 'This diagnostic run is already being analyzed, queued, or has completed analysis.',
+                'analysis' => $expired
+                    ? 'This diagnostic run has reached the 365-day retention deadline and cannot be reanalyzed.'
+                    : 'This diagnostic run is already being analyzed, queued, or has completed analysis.',
             ]);
         }
 
