@@ -21,23 +21,23 @@ if ($runtime->getDriverName() !== 'pgsql' || $operations->getDriverName() !== 'p
 
 $tenantA = (string) env('BILLING_RLS_TENANT_A', '');
 $tenantB = (string) env('BILLING_RLS_TENANT_B', '');
-$paymentId = filter_var(env('BILLING_RLS_PAYMENT_A'), FILTER_VALIDATE_INT);
+$adjustmentId = filter_var(env('BILLING_RLS_ADJUSTMENT_A'), FILTER_VALIDATE_INT);
 
-if (! Str::isUuid($tenantA) || ! Str::isUuid($tenantB) || $tenantA === $tenantB || $paymentId === false || $paymentId < 1) {
-    throw new RuntimeException('billing_rls_rehearsal_requires_two_tenant_uuids_and_payment_fixture_id');
+if (! Str::isUuid($tenantA) || ! Str::isUuid($tenantB) || $tenantA === $tenantB || $adjustmentId === false || $adjustmentId < 1) {
+    throw new RuntimeException('billing_rls_rehearsal_requires_two_tenant_uuids_and_adjustment_fixture_id');
 }
 
-$payment = $operations->table('tenant_billing_payments')
-    ->where('id', $paymentId)
+$adjustment = $operations->table('tenant_billing_adjustments')
+    ->where('id', $adjustmentId)
     ->where('tenant_id', $tenantA)
     ->first();
 
-if ($payment === null || ! is_string($payment->provider) || ! is_string($payment->provider_account_id)) {
-    throw new RuntimeException('billing_rls_rehearsal_payment_fixture_invalid');
+if ($adjustment === null || ! is_string($adjustment->provider) || ! is_string($adjustment->provider_account_id)) {
+    throw new RuntimeException('billing_rls_rehearsal_adjustment_fixture_invalid');
 }
 
 $role = $runtime->selectOne('SELECT rolbypassrls, rolsuper FROM pg_roles WHERE rolname = current_user');
-if ($role === null || $role->rolbypassrls || $role->rolsuper) {
+if ($role === null || filter_var($role->rolbypassrls, FILTER_VALIDATE_BOOLEAN) || filter_var($role->rolsuper, FILTER_VALIDATE_BOOLEAN)) {
     throw new RuntimeException('billing_rls_runtime_role_must_not_bypass_rls_or_be_superuser');
 }
 
@@ -56,8 +56,8 @@ foreach ($tables as $table) {
 }
 
 $token = (string) Str::uuid();
-$provider = $payment->provider;
-$account = $payment->provider_account_id;
+$provider = $adjustment->provider;
+$account = $adjustment->provider_account_id;
 $now = now('UTC');
 
 $mapping = $operations->table('tenant_billing_provider_accounts')
@@ -116,20 +116,6 @@ $webhookId = $operations->table('tenant_billing_webhook_events')->insertGetId([
     'updated_at' => $now,
 ]);
 
-$adjustmentId = $operations->table('tenant_billing_adjustments')->insertGetId([
-    'tenant_id' => $tenantA,
-    'tenant_billing_payment_id' => $paymentId,
-    'provider' => $provider,
-    'provider_account_id' => $account,
-    'provider_adjustment_id' => 'rls-'.$token,
-    'kind' => 'dispute_opened',
-    'idempotency_key' => 'rls-adjustment-'.$token,
-    'amount_minor' => 1,
-    'currency' => $payment->currency,
-    'occurred_at' => $now,
-    'created_at' => $now,
-    'updated_at' => $now,
-]);
 
 try {
     $runtime->statement("SELECT set_config('app.current_tenant_id', ?, false)", [$tenantA]);
@@ -148,9 +134,9 @@ try {
             throw new RuntimeException('billing_rls_tenant_visibility_failed: '.$table);
         }
 
-        $updated = $runtime->table($table)->where('id', $ownId)->update(['updated_at' => $now]);
-        if ($updated !== 1) {
-            throw new RuntimeException('billing_rls_own_tenant_update_failed: '.$table);
+        $foreignUpdated = $runtime->table($table)->where('tenant_id', $tenantB)->update(['updated_at' => $now]);
+        if ($foreignUpdated !== 0) {
+            throw new RuntimeException('billing_rls_cross_tenant_update_not_denied: '.$table);
         }
 
         $counts[$table] = ['own_tenant' => $own, 'foreign_tenant' => $foreign];
@@ -184,9 +170,9 @@ try {
         'tables' => $counts,
         'cross_tenant_insert' => 'denied',
         'provider_account_mapping_id' => $mappingId,
+        'adjustment_fixture_id' => $adjustmentId,
     ], JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR).PHP_EOL);
 } finally {
-    $operations->table('tenant_billing_adjustments')->where('id', $adjustmentId)->delete();
     $operations->table('tenant_billing_webhook_events')->where('id', $webhookId)->delete();
     $operations->table('tenant_billing_outbox')->where('id', $outboxId)->delete();
     if ($createdMapping) {
