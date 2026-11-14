@@ -1,7 +1,7 @@
 <?php
 
-use App\\Models\\WhmcsIntegration;
-use Illuminate\\Support\\Facades\\DB;
+use App\Models\WhmcsIntegration;
+use Illuminate\Support\Facades\DB;
 
 it('prunes only expired WHMCS request nonces and preserves active replay guards', function () {
     $integration = WhmcsIntegration::query()->create([
