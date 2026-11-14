@@ -60,7 +60,7 @@ $tables = [
 
 foreach ($tables as $table) {
     $row = $runtime->selectOne('SELECT relrowsecurity, pg_get_userbyid(relowner) AS owner FROM pg_class WHERE oid = to_regclass(?)', [$table]);
-    if ($row === null || ! $row->relrowsecurity || $row->owner === $runtime->selectOne('SELECT current_user AS name')->name) {
+    if ($row === null || ! filter_var($row->relrowsecurity, FILTER_VALIDATE_BOOLEAN) || $row->owner === $runtime->selectOne('SELECT current_user AS name')->name) {
         throw new RuntimeException('billing_rls_table_policy_or_owner_boundary_invalid: '.$table);
     }
 }
