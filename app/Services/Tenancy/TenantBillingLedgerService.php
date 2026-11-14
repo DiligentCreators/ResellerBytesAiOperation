@@ -149,6 +149,9 @@ class TenantBillingLedgerService
                 'metadata' => [
                     'invoice_id' => $invoice->id,
                     'collection_mode' => $record->collection_mode,
+                    'provider' => $record->provider,
+                    'provider_account_id' => $record->provider_account_id,
+                    'provider_payment_id' => $record->provider_payment_id,
                     'amount_minor' => $record->amount_minor,
                     'currency' => $record->currency,
                     'invoice_status' => $invoice->status,
