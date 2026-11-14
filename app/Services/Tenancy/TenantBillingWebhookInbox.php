@@ -31,7 +31,7 @@ class TenantBillingWebhookInbox
         string $eventType,
         array $normalizedPayload,
         mixed $receivedAt,
-        ?string $providerAccountId = null,
+        string $providerAccountId,
     ): TenantBillingWebhookEvent {
         if (! preg_match('/^[a-z][a-z0-9_-]{1,39}$/', $provider)
             || trim($providerEventId) === ''
@@ -130,6 +130,11 @@ class TenantBillingWebhookInbox
                 return $event;
             }, 3));
         } catch (QueryException $exception) {
+            $sqlState = $exception->errorInfo[0] ?? null;
+            if (! in_array($sqlState, ['23000', '23505'], true)) {
+                throw $exception;
+            }
+
             $existing = app(TenantDatabaseContext::class)->run($tenantId, null, fn (): ?TenantBillingWebhookEvent => TenantBillingWebhookEvent::query()
                 ->where('tenant_id', $tenantId)
                 ->where('provider', $provider)
