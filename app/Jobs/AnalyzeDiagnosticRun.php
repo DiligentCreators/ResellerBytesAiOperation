@@ -4,6 +4,8 @@ namespace App\Jobs;
 
 use App\Models\DiagnosticFinding;
 use App\Models\DiagnosticRun;
+use App\Models\TenantMembership;
+use App\Models\TenantNotification;
 use App\Services\Diagnostics\AiBudgetService;
 use App\Services\Diagnostics\WhmcsDiagnosticAnalyzer;
 use App\Services\Tenancy\TenantEntitlementService;
@@ -219,6 +221,31 @@ class AnalyzeDiagnosticRun implements ShouldQueue
                 'analysis_error_code' => null,
                 'analysis_usage' => $result['usage'],
             ])->save();
+
+            if ($this->tenantId !== null) {
+                $recipientIds = TenantMembership::query()
+                    ->where('tenant_id', $this->tenantId)
+                    ->where('status', TenantMembership::STATUS_ACTIVE)
+                    ->whereIn('role', [
+                        TenantMembership::ROLE_OWNER,
+                        TenantMembership::ROLE_ADMIN,
+                        TenantMembership::ROLE_OPERATOR,
+                        TenantMembership::ROLE_VIEWER,
+                    ])
+                    ->pluck('user_id');
+
+                foreach ($recipientIds as $recipientId) {
+                    TenantNotification::query()->firstOrCreate([
+                        'tenant_id' => $this->tenantId,
+                        'user_id' => $recipientId,
+                        'event_type' => 'diagnostics.run.completed',
+                        'notification_key' => 'diagnostic-run:'.$lockedRun->id.':analyzed',
+                    ], [
+                        'payload' => ['run_id' => $lockedRun->id, 'status' => 'analyzed'],
+                        'created_at' => now(),
+                    ]);
+                }
+            }
         });
     }
 
