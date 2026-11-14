@@ -66,7 +66,7 @@ PGSERVICE="$RESTORE_PGSERVICE" pg_restore \
   "$BACKUP_FILE"
 ```
 
-Before running, the operator must confirm that `RESTORE_DATABASE` is the isolated recovery database and that `RECOVERY_ADMIN_SERVICE` and `RESTORE_PGSERVICE` point only to the recovery host. The service file and password file are operator-managed runtime inputs and must not be committed.
+Before running, the operator must confirm that the application's `DB_HOST`, `DB_PORT`, and `DB_DATABASE` configuration point only to the isolated recovery PostgreSQL target. The restore command uses that same configured host/port/database and substitutes only the dedicated `RESTORE_DB_USERNAME` and `RESTORE_DB_PASSWORD`; it rejects a backup manifest whose database name does not match the configured target. The operator must also confirm that `RECOVERY_ADMIN_SERVICE` and `RESTORE_PGSERVICE` point only to the recovery host. The service file and password file are operator-managed runtime inputs and must not be committed.
 
 If the backup format or restore procedure requires a different invocation, record the exact reviewed command in the rehearsal record with all secrets redacted. Do not improvise against a production endpoint.
 
@@ -160,7 +160,7 @@ The command emits a verified backup UUID and manifest metadata. The daily schedu
 
 ## 8. Automated restore verification and execution
 
-A restore command without --execute is verification-only. It downloads the manifest and encrypted archive, validates SHA-256 checksums, authenticates/decrypts the archive, and runs pg_restore --list without changing the database:
+A restore command without --execute is verification-only. It downloads the manifest and encrypted archive, validates the backup object's COMPLIANCE lock mode, retain-until date, size and checksum metadata, validates SHA-256 checksums, authenticates/decrypts the archive, and runs pg_restore --list without changing the database:
 
 ```sh
 php artisan operations:backup:restore BACKUP_UUID

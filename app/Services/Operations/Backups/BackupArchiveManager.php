@@ -149,10 +149,19 @@ final class BackupArchiveManager
                 || ! is_string($manifest['object_key'] ?? null)
                 || ! str_starts_with($manifest['object_key'], 'backups/')
                 || ! is_string($manifest['encrypted_sha256'] ?? null)
-                || ! is_string($manifest['plaintext_sha256'] ?? null)) {
+                || ! is_string($manifest['plaintext_sha256'] ?? null)
+                || ! is_numeric($manifest['encrypted_bytes'] ?? null)
+                || ! is_string($manifest['retention_until'] ?? null)) {
                 throw new RuntimeException('Backup manifest is invalid or unsupported.');
             }
 
+            $this->verifyLockedObject(
+                $settings,
+                $manifest['object_key'],
+                $manifest['encrypted_sha256'],
+                (int) $manifest['encrypted_bytes'],
+                $manifest['retention_until'],
+            );
             $this->downloadObject($settings, $manifest['object_key'], $encryptedPath);
             $encryptedHash = hash_file('sha256', $encryptedPath);
             if (! is_string($encryptedHash) || ! hash_equals($manifest['encrypted_sha256'], $encryptedHash)) {
@@ -189,6 +198,15 @@ final class BackupArchiveManager
     public function restore(array $artifact): void
     {
         $connection = $this->postgresConnection(true);
+        $manifest = $artifact['manifest'] ?? null;
+
+        if (! is_array($manifest)
+            || ($manifest['database_driver'] ?? null) !== 'pgsql'
+            || ! is_string($manifest['database_name'] ?? null)
+            || ! hash_equals((string) $connection['database'], $manifest['database_name'])) {
+            throw new RuntimeException('Backup database identity does not match the configured restore target.');
+        }
+
         $dumpPath = $artifact['dump_path'] ?? null;
 
         if (! is_string($dumpPath) || ! is_file($dumpPath)) {

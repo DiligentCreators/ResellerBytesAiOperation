@@ -152,3 +152,19 @@ Approved monitoring, alert-routing, recovery, retention, signing-operator, and P
 - No queue payload, job arguments, or customer data are stored; only connection name, queue name, job ID, and availability timestamp are recorded.
 - Non-database backlog already present before this instrumentation is deployed is not backfilled. Explicit manual releases without exception metadata are tracked as immediately available.
 - Validation is pending on the exact queue-tracking commit.
+
+
+## Backup/restore tooling and rehearsal runbook — implementation complete, external rehearsal pending
+
+- Implemented PostgreSQL custom-format dumps using the dedicated read-only backup role and restore using the dedicated migration role; runtime database credentials are not reused for either operation.
+- Encrypted archives use libsodium XChaCha20-Poly1305 secretstream with authenticated chunk framing and SHA-256 digests for both plaintext and ciphertext.
+- Wasabi S3-compatible upload requires HTTPS, configured credentials, bucket versioning, Object Lock enabled, and an explicit positive owner-approved retention period. Each archive and manifest upload requests per-object Object Lock COMPLIANCE retention and SSE-S3 AES256, then verifies lock mode, retain-until date, byte count, and SHA-256 metadata.
+- Backup creation performs a full object read-back checksum before atomically updating the success marker. A failed or incomplete operation does not update the marker. The current single-PutObject implementation fails closed above 5 GiB; larger databases require a multipart Object Lock adapter.
+- Added verification-only restore (operations:backup:restore UUID) that checks manifest integrity, the archive object's Object Lock metadata, encrypted and decrypted SHA-256, authenticated decryption, and pg_restore --list without changing a database.
+- Destructive restore requires --execute, an interactive confirmation, a fresh verified pre-restore backup, and an immutable approval record. Production additionally requires --approved-by matching OPERATIONS_OWNER_EMAIL, an approval reference, and fresh owner TOTP. Restore refuses a manifest database name that does not match the configured PostgreSQL target.
+- Added cipher tests for round-trip confidentiality/integrity, tamper rejection, and incorrect-key rejection; added a manager test for fail-closed Wasabi configuration and a restore-target identity mismatch test.
+- Added a detailed isolated rehearsal runbook covering Wasabi Object Lock evidence, RPO 24h / RTO 4h measurement, restore isolation, PostgreSQL role separation, audit-chain and external checkpoint verification, legal holds, retention checks, and evidence/exit criteria.
+- Daily scheduling exists but remains disabled unless OPERATIONS_BACKUPS_ENABLED=true. Do not enable until Wasabi account/billing, bucket configuration, approved backup retention days, secret-manager access, encryption key, dedicated DB credentials, marker path, and isolated rehearsal access are available.
+- Scope limitation: this tool backs up the PostgreSQL application database only; WHMCS/MariaDB, uploaded files, and external provider state require separately designed backup coverage. The 5 GiB single-PutObject limit is a hard fail-closed boundary.
+- No backup or restore was executed against a real database or Wasabi bucket. Production restore remains explicitly gated by Shahrukh's incident-specific approval.
+- Local PHP project tests have not yet been executed in this environment: the repository requires PHP 8.5, while the available CLI is PHP 8.4 and the repository checkout/dependencies are not mounted here. GitHub Actions are intentionally not being triggered during intermediate commits per Shahrukh's CI-cost instruction.

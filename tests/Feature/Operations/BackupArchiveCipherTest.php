@@ -46,3 +46,28 @@ it('rejects a tampered backup archive', function () {
     @unlink($encrypted);
     @unlink($decrypted);
 });
+
+
+it('rejects a backup archive when the decryption key is incorrect', function () {
+    $source = tempnam(sys_get_temp_dir(), 'rb-backup-source-');
+    $encrypted = tempnam(sys_get_temp_dir(), 'rb-backup-encrypted-');
+    $decrypted = tempnam(sys_get_temp_dir(), 'rb-backup-decrypted-');
+
+    file_put_contents($source, 'backup data must remain confidential');
+    $cipher = app(BackupArchiveCipher::class);
+    $cipher->encryptFile(
+        $source,
+        $encrypted,
+        random_bytes(SODIUM_CRYPTO_SECRETSTREAM_XCHACHA20POLY1305_KEYBYTES),
+    );
+
+    expect(fn () => $cipher->decryptFile(
+        $encrypted,
+        $decrypted,
+        random_bytes(SODIUM_CRYPTO_SECRETSTREAM_XCHACHA20POLY1305_KEYBYTES),
+    ))->toThrow(RuntimeException::class);
+
+    @unlink($source);
+    @unlink($encrypted);
+    @unlink($decrypted);
+});
