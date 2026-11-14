@@ -122,7 +122,6 @@ Approved monitoring, alert-routing, recovery, retention, signing-operator, and P
 - This is application-side metric collection, not an independent external monitor. Alert scheduling, notification adapters, backup/restore tooling, and security-review readiness remain subsequent roadmap steps.
 - Exact-head run #43597533823 passed all six CI jobs on `d0fcf3f246fdd37d531068cde6cdfcb913e497d6`; general CI reported **198 passed, 3 skipped, 891 assertions**. No production marker, external queue provider, backup credential, or alert destination has been configured.
 
-
 ## Alert scheduling and notification adapters — implementation in progress
 
 - Added the operations:check-alerts command to evaluate the approved metric policy and manage active alert state.
