@@ -129,6 +129,19 @@ class AnalyzeDiagnosticRun implements ShouldQueue
                 ->lockForUpdate()
                 ->firstOrFail();
 
+            // The provider response may arrive after the absolute retention deadline.
+            // Recheck under the same row lock used for persistence so expired content
+            // cannot be reintroduced by a long-running worker.
+            if ($lockedRun->received_at === null
+                || $lockedRun->received_at->lessThanOrEqualTo(now('UTC')->subDays(365))) {
+                $lockedRun->forceFill([
+                    'status' => 'analysis_failed',
+                    'analysis_error_code' => 'diagnostic_retention_expired',
+                ])->save();
+
+                return;
+            }
+
             $lockedRun->findings()->delete();
             $createdFingerprints = [];
 
