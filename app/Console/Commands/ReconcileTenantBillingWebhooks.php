@@ -178,6 +178,7 @@ class ReconcileTenantBillingWebhooks extends Command
             app(TenantBillingFailureReconciler::class)->recordInvoicePaymentFailure(
                 $event->tenant_id,
                 $invoiceId,
+                $event->provider,
                 $event->provider_event_id,
                 $failureCode,
             );
