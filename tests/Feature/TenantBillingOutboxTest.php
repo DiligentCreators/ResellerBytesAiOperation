@@ -700,6 +700,8 @@ it('keeps billing adjustments append-only after insertion', function () {
         ->toThrow(\\Illuminate\\Database\\QueryException::class)
         ->and(fn () => DB::table('tenant_subscriptions')->where('id', $invoice->tenant_subscription_id)->update(['provider_account_id' => 'acct_rebound']))
         ->toThrow(\\Illuminate\\Database\\QueryException::class)
+        ->and(fn () => DB::table('tenant_billing_invoices')->where('id', $invoice->id)->update(['provider_invoice_id' => 'provider-invoice-rebound']))
+        ->toThrow(\\Illuminate\\Database\\QueryException::class)
         ->and(fn () => DB::table('tenant_billing_adjustments')->where('id', $adjustment->id)->update(['amount_minor' => 200]))
         ->toThrow(\\Illuminate\\Database\\QueryException::class)
         ->and(fn () => DB::table('tenant_billing_adjustments')->where('id', $adjustment->id)->delete())
