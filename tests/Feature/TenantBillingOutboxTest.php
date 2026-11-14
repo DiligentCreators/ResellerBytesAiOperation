@@ -1,14 +1,18 @@
 <?php
 
+use App\\Events\\TenantBillingOutboxPublished;
 use App\\Models\\Tenant;
 use App\\Models\\TenantBillingInvoice;
 use App\\Models\\TenantBillingOutboxMessage;
 use App\\Models\\TenantBillingWebhookEvent;
 use App\\Models\\TenantSubscription;
 use App\\Services\\Tenancy\\TenantBillingOutbox;
+use App\\Services\\Tenancy\\TenantBillingLedgerService;
 use App\\Services\\Tenancy\\TenantBillingWebhookInbox;
 use Illuminate\\Support\\Facades\\Artisan;
 use Illuminate\\Support\\Facades\\DB;
+use Illuminate\\Support\\Facades\\Event;
+use Illuminate\\Database\\QueryException;
 use InvalidArgumentException;
 use RuntimeException;
 
@@ -181,6 +185,7 @@ it('reconciles a verified payment exactly once and atomically creates its outbou
 });
 
 it('dispatches outbox records and records delivery state', function () {
+    Event::fake();
     $tenant = createBillingOutboxTenant('billing-outbox-dispatch');
     $message = DB::transaction(fn () => app(TenantBillingOutbox::class)->enqueue(
         $tenant->id,
@@ -193,7 +198,76 @@ it('dispatches outbox records and records delivery state', function () {
 
     expect(Artisan::call('billing:outbox:dispatch', ['--limit' => 10]))->toBe(0);
 
+    Event::assertDispatched(TenantBillingOutboxPublished::class, fn (TenantBillingOutboxPublished $event): bool => $event->outboxId === $message->id && $event->tenantId === $tenant->id);
+
     expect($message->fresh()->status)->toBe('delivered')
         ->and($message->fresh()->attempts)->toBe(1)
         ->and($message->fresh()->delivered_at)->not->toBeNull();
+});
+
+it('does not accept the same provider account event under a different tenant', function () {
+    $tenantA = createBillingOutboxTenant('billing-webhook-account-a');
+    $tenantB = createBillingOutboxTenant('billing-webhook-account-b');
+    $payload = ['invoice_id' => 1, 'payment_id' => 'pay_account_bound', 'amount_minor' => 100, 'currency' => 'USD'];
+    $inbox = app(TenantBillingWebhookInbox::class);
+
+    $inbox->acceptVerifiedEvent($tenantA->id, 'approved_gateway', 'evt_account_bound', 'invoice.payment_succeeded', $payload, now('UTC'), 'acct_shared');
+
+    expect(fn () => $inbox->acceptVerifiedEvent(
+        $tenantB->id,
+        'approved_gateway',
+        'evt_account_bound',
+        'invoice.payment_succeeded',
+        $payload,
+        now('UTC'),
+        'acct_shared',
+    ))->toThrow(QueryException::class);
+});
+
+it('retries transient webhook reconciliation failures with a bounded delay', function () {
+    $tenant = createBillingOutboxTenant('billing-webhook-retry');
+    $event = app(TenantBillingWebhookInbox::class)->acceptVerifiedEvent(
+        $tenant->id,
+        'approved_gateway',
+        'evt_retry_001',
+        'invoice.payment_succeeded',
+        ['invoice_id' => 9001, 'payment_id' => 'pay_retry_001', 'amount_minor' => 100, 'currency' => 'USD'],
+        now('UTC'),
+        'acct_retry_001',
+    );
+
+    $ledger = Mockery::mock(TenantBillingLedgerService::class);
+    $ledger->shouldReceive('recordConfirmedPayment')->once()->andThrow(new RuntimeException('provider-secret-must-not-be-logged'));
+    app()->instance(TenantBillingLedgerService::class, $ledger);
+
+    expect(Artisan::call('billing:webhooks:reconcile', ['--limit' => 10]))->toBe(0);
+
+    expect($event->fresh()->status)->toBe('pending')
+        ->and($event->fresh()->attempts)->toBe(1)
+        ->and($event->fresh()->available_at->isFuture())->toBeTrue()
+        ->and($event->fresh()->last_error_code)->toBe('billing_webhook_processing_failed');
+});
+
+it('dead-letters webhook events after the maximum retry attempt', function () {
+    $tenant = createBillingOutboxTenant('billing-webhook-dead-letter');
+    $event = app(TenantBillingWebhookInbox::class)->acceptVerifiedEvent(
+        $tenant->id,
+        'approved_gateway',
+        'evt_dead_letter_001',
+        'invoice.payment_succeeded',
+        ['invoice_id' => 9002, 'payment_id' => 'pay_dead_letter_001', 'amount_minor' => 100, 'currency' => 'USD'],
+        now('UTC'),
+        'acct_dead_letter_001',
+    );
+    $event->forceFill(['attempts' => 11])->save();
+
+    $ledger = Mockery::mock(TenantBillingLedgerService::class);
+    $ledger->shouldReceive('recordConfirmedPayment')->once()->andThrow(new RuntimeException('transient failure'));
+    app()->instance(TenantBillingLedgerService::class, $ledger);
+
+    expect(Artisan::call('billing:webhooks:reconcile', ['--limit' => 10]))->toBe(0);
+
+    expect($event->fresh()->status)->toBe('dead_lettered')
+        ->and($event->fresh()->attempts)->toBe(12)
+        ->and($event->fresh()->dead_lettered_at)->not->toBeNull();
 });
