@@ -747,3 +747,34 @@ it('does not allow a refund from another provider account to mutate a payment', 
     expect($invoice->fresh()->amount_paid_minor)->toBe(4900)
         ->and(\\App\\Models\\TenantBillingAdjustment::query()->where('tenant_id', $tenant->id)->count())->toBe(0);
 });
+
+it('enforces tenant ownership on billing adjustment payment foreign keys', function () {
+    $tenantA = createBillingOutboxTenant('billing-adjustment-fk-a');
+    $tenantB = createBillingOutboxTenant('billing-adjustment-fk-b');
+    $invoice = createBillingOutboxInvoice($tenantA, 4900);
+    $payment = app(TenantBillingLedgerService::class)->recordConfirmedPayment($tenantA->id, $invoice->id, [
+        'collection_mode' => 'automated',
+        'idempotency_key' => 'adjustment-fk-payment',
+        'amount_minor' => 4900,
+        'currency' => 'USD',
+        'provider' => 'approved_gateway',
+        'provider_account_id' => 'acct_adjustment_fk',
+        'provider_payment_id' => 'pay_adjustment_fk',
+        'received_at' => now('UTC'),
+    ]);
+
+    expect(fn () => DB::table('tenant_billing_adjustments')->insert([
+        'tenant_id' => $tenantB->id,
+        'tenant_billing_payment_id' => $payment->id,
+        'provider' => 'approved_gateway',
+        'provider_account_id' => 'acct_adjustment_fk',
+        'provider_adjustment_id' => 'refund_cross_tenant_fk',
+        'kind' => 'refund',
+        'idempotency_key' => 'billing.adjustment:cross-tenant-fk',
+        'amount_minor' => 100,
+        'currency' => 'USD',
+        'occurred_at' => now('UTC'),
+        'created_at' => now('UTC'),
+        'updated_at' => now('UTC'),
+    ]))->toThrow(\\Illuminate\\Database\\QueryException::class);
+});
