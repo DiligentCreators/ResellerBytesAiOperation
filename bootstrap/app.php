@@ -14,6 +14,9 @@ use App\Console\Commands\PruneExpiredDiagnosticRecords;
 use App\Console\Commands\PruneWhmcsIntegrationNonces;
 use App\Console\Commands\ReleaseLegalHold;
 use App\Console\Commands\ReportDiagnosticRetentionCandidates;
+use App\Console\Commands\DispatchTenantBillingOutbox;
+use App\Console\Commands\ReconcileTenantBillingWebhooks;
+use App\Console\Commands\RetryTenantBillingWebhookDeadLetter;
 use App\Console\Commands\RestoreOperationalBackup;
 use App\Console\Commands\RevokeWhmcsIntegration;
 use App\Console\Commands\RotateWhmcsIntegrationSecret;
@@ -54,6 +57,9 @@ return Application::configure(basePath: dirname(__DIR__))
         PruneExpiredDiagnosticRecords::class,
         ReleaseLegalHold::class,
         ReportDiagnosticRetentionCandidates::class,
+        DispatchTenantBillingOutbox::class,
+        ReconcileTenantBillingWebhooks::class,
+        RetryTenantBillingWebhookDeadLetter::class,
         DispatchTenantBillingOutbox::class,
         ReconcileTenantBillingWebhooks::class,
         RetryTenantBillingWebhookDeadLetter::class,
