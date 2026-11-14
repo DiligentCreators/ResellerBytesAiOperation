@@ -56,7 +56,7 @@ final class AuditCheckpointPublisher
             }
 
             if ($created === null) {
-                throw new RuntimeException('audit_anchor_publish_outcome_unresolved', 0, $createException);
+                throw $createException;
             }
 
             $reconciledAfterCreateError = true;
