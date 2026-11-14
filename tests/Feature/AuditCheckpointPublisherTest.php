@@ -242,3 +242,27 @@ it('does not retry or claim success after an ambiguous create response', functio
     expect($store->createCalls)->toHaveCount(1)
         ->and($store->readCalls)->toBeEmpty();
 });
+
+it('requires the exact prior checkpoint digest when publishing a chained checkpoint', function () {
+    $checkpoint = app(AuditAnchorService::class)->createCheckpoint(str_repeat('a', 64));
+    $store = new FakeAuditCheckpointObjectStore;
+    $publisher = new AuditCheckpointPublisher($store, app(AuditAnchorService::class));
+
+    expect(fn () => $publisher->publish($checkpoint))
+        ->toThrow(RuntimeException::class, 'audit_anchor_publish_expected_previous_required');
+
+    expect($store->createCalls)->toBeEmpty()
+        ->and($publisher->publish($checkpoint, str_repeat('a', 64))['chain_sequence'])->toBe(0)
+        ->and($store->createCalls)->toHaveCount(1);
+});
+
+it('derives Object Lock expiry from the signed checkpoint timestamp for idempotent retries', function () {
+    $checkpoint = createPublishableAuditCheckpoint();
+    $payload = json_decode($checkpoint, true, 512, JSON_THROW_ON_ERROR)['payload'];
+    $expectedRetention = (new DateTimeImmutable($payload['created_at']))->modify('+365 days');
+    $store = new FakeAuditCheckpointObjectStore;
+
+    (new AuditCheckpointPublisher($store, app(AuditAnchorService::class)))->publish($checkpoint);
+
+    expect($store->createCalls[0][2]->getTimestamp())->toBe($expectedRetention->getTimestamp());
+});
