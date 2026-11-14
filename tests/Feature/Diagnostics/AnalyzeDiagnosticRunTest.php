@@ -6,6 +6,7 @@ use App\Models\AiUsageAttempt;
 use App\Models\DiagnosticFinding;
 use App\Models\DiagnosticRun;
 use App\Models\WhmcsIntegration;
+use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Diagnostics\AiBudgetService;
 use App\Services\Diagnostics\WhmcsDiagnosticAnalyzer;
@@ -483,4 +484,90 @@ it('settles confirmed provider usage before surfacing an unsuccessful HTTP respo
             'total_tokens' => 130,
         ],
     ]);
+});
+
+
+it('does not analyze or mutate a run after its captured tenant assignment changes', function () {
+    $owner = User::factory()->create();
+    $tenant = Tenant::create([
+        'name' => 'Captured Tenant Context',
+        'slug' => 'captured-tenant-context',
+        'status' => Tenant::STATUS_ACTIVE,
+    ]);
+    $replacementTenant = Tenant::create([
+        'name' => 'Replacement Tenant Context',
+        'slug' => 'replacement-tenant-context',
+        'status' => Tenant::STATUS_ACTIVE,
+    ]);
+    $integration = WhmcsIntegration::create([
+        'owner_user_id' => $owner->id,
+        'tenant_id' => $tenant->id,
+        'name' => 'Tenant context reassignment test',
+        'status' => 'active',
+        'secret' => bin2hex(random_bytes(32)),
+        'secret_version' => 1,
+    ]);
+    $run = DiagnosticRun::create([
+        'integration_id' => $integration->id,
+        'snapshot_uuid' => (string) Str::uuid(),
+        'schema_version' => '1.0',
+        'addon_version' => '1.0.0',
+        'status' => 'queued',
+        'collected_at' => now(),
+        'received_at' => now(),
+        'payload' => ['system' => ['whmcs_version' => '8.13.7']],
+        'payload_sha256' => str_repeat('e', 64),
+    ]);
+
+    $job = new AnalyzeDiagnosticRun($run->id, $owner->id, $tenant->id);
+    $integration->forceFill(['tenant_id' => $replacementTenant->id])->save();
+    $analyzer = Mockery::mock(WhmcsDiagnosticAnalyzer::class);
+    $analyzer->shouldNotReceive('analyze');
+    $budget = Mockery::mock(AiBudgetService::class);
+    $budget->shouldNotReceive('reserve');
+
+    $job->handle($analyzer, $budget);
+    $job->failed(new RuntimeException('provider_request_failed'));
+
+    expect($run->fresh()->status)->toBe('queued')
+        ->and($run->fresh()->analysis_attempts)->toBe(0);
+});
+
+it('does not start tenant analysis while the captured tenant is suspended', function () {
+    $owner = User::factory()->create();
+    $tenant = Tenant::create([
+        'name' => 'Suspended Analysis Tenant',
+        'slug' => 'suspended-analysis-tenant',
+        'status' => Tenant::STATUS_ACTIVE,
+    ]);
+    $integration = WhmcsIntegration::create([
+        'owner_user_id' => $owner->id,
+        'tenant_id' => $tenant->id,
+        'name' => 'Suspended tenant analysis test',
+        'status' => 'active',
+        'secret' => bin2hex(random_bytes(32)),
+        'secret_version' => 1,
+    ]);
+    $run = DiagnosticRun::create([
+        'integration_id' => $integration->id,
+        'snapshot_uuid' => (string) Str::uuid(),
+        'schema_version' => '1.0',
+        'addon_version' => '1.0.0',
+        'status' => 'queued',
+        'collected_at' => now(),
+        'received_at' => now(),
+        'payload' => ['system' => ['whmcs_version' => '8.13.7']],
+        'payload_sha256' => str_repeat('f', 64),
+    ]);
+
+    $tenant->forceFill(['status' => Tenant::STATUS_SUSPENDED])->save();
+    $analyzer = Mockery::mock(WhmcsDiagnosticAnalyzer::class);
+    $analyzer->shouldNotReceive('analyze');
+    $budget = Mockery::mock(AiBudgetService::class);
+    $budget->shouldNotReceive('reserve');
+
+    (new AnalyzeDiagnosticRun($run->id, $owner->id, $tenant->id))->handle($analyzer, $budget);
+
+    expect($run->fresh()->status)->toBe('queued')
+        ->and($run->fresh()->analysis_attempts)->toBe(0);
 });
