@@ -346,3 +346,115 @@ it('binds webhook receipt audit evidence to the webhook tenant without retaining
         'occurred_at' => now('UTC'),
     ]))->toThrow(\\Illuminate\\Database\\QueryException::class);
 });
+
+it('verifies and maps provider webhooks through the provider-neutral gateway', function () {
+    $tenant = createBillingOutboxTenant('billing-provider-gateway');
+    DB::table('tenant_billing_provider_accounts')->insert([
+        'tenant_id' => $tenant->id,
+        'provider' => 'approved_gateway',
+        'provider_account_id' => 'acct_gateway_001',
+        'status' => 'active',
+        'verified_at' => now('UTC'),
+        'created_at' => now('UTC'),
+        'updated_at' => now('UTC'),
+    ]);
+
+    $adapter = new class implements \\App\\Contracts\\Billing\\BillingProviderAdapter {
+        public function provider(): string
+        {
+            return 'approved_gateway';
+        }
+
+        public function verifyAndNormalize(string $rawBody, array $headers): \\App\\Data\\Billing\\VerifiedBillingWebhook
+        {
+            expect($rawBody)->toBe('signed-provider-body');
+            expect($headers)->toHaveKey('x-provider-signature');
+
+            return new \\App\\Data\\Billing\\VerifiedBillingWebhook(
+                'acct_gateway_001',
+                'evt_gateway_001',
+                'invoice.payment_succeeded',
+                ['invoice_id' => 303, 'payment_id' => 'pay_gateway_001', 'amount_minor' => 303, 'currency' => 'USD'],
+                \\Carbon\\CarbonImmutable::now('UTC'),
+                \\Carbon\\CarbonImmutable::now('UTC'),
+            );
+        }
+    };
+
+    $event = app(\\App\\Services\\Tenancy\\TenantBillingWebhookGateway::class)->ingest(
+        'approved_gateway',
+        $adapter,
+        'signed-provider-body',
+        ['x-provider-signature' => 'verified-by-adapter'],
+    );
+
+    expect($event->tenant_id)->toBe($tenant->id)
+        ->and($event->provider_account_id)->toBe('acct_gateway_001')
+        ->and($event->provider_occurred_at)->not->toBeNull()
+        ->and($event->received_at->diffInSeconds(now('UTC')))->toBeLessThan(5);
+});
+
+it('rejects provider adapter mismatch and stale signature timestamps before tenant lookup', function () {
+    $adapter = new class implements \\App\\Contracts\\Billing\\BillingProviderAdapter {
+        public function provider(): string
+        {
+            return 'different_gateway';
+        }
+
+        public function verifyAndNormalize(string $rawBody, array $headers): \\App\\Data\\Billing\\VerifiedBillingWebhook
+        {
+            throw new RuntimeException('must_not_be_called');
+        }
+    };
+
+    expect(fn () => app(\\App\\Services\\Tenancy\\TenantBillingWebhookGateway::class)->ingest(
+        'approved_gateway',
+        $adapter,
+        'body',
+        [],
+    ))->toThrow(InvalidArgumentException::class, 'billing_webhook_provider_adapter_mismatch');
+
+    $staleAdapter = new class implements \\App\\Contracts\\Billing\\BillingProviderAdapter {
+        public function provider(): string
+        {
+            return 'approved_gateway';
+        }
+
+        public function verifyAndNormalize(string $rawBody, array $headers): \\App\\Data\\Billing\\VerifiedBillingWebhook
+        {
+            return new \\App\\Data\\Billing\\VerifiedBillingWebhook(
+                'unmapped_account',
+                'evt_stale_001',
+                'invoice.payment_succeeded',
+                ['invoice_id' => 1, 'payment_id' => 'pay_stale_001', 'amount_minor' => 1, 'currency' => 'USD'],
+                \\Carbon\\CarbonImmutable::now('UTC')->subMinutes(10),
+                \\Carbon\\CarbonImmutable::now('UTC')->subMinutes(10),
+            );
+        }
+    };
+
+    expect(fn () => app(\\App\\Services\\Tenancy\\TenantBillingWebhookGateway::class)->ingest(
+        'approved_gateway',
+        $staleAdapter,
+        'body',
+        [],
+    ))->toThrow(RuntimeException::class, 'billing_webhook_signature_timestamp_outside_window');
+});
+
+it('rejects inactive or unverified provider account mappings', function () {
+    $tenant = createBillingOutboxTenant('billing-provider-unverified');
+    DB::table('tenant_billing_provider_accounts')->insert([
+        'tenant_id' => $tenant->id,
+        'provider' => 'approved_gateway',
+        'provider_account_id' => 'acct_unverified_001',
+        'status' => 'active',
+        'verified_at' => null,
+        'created_at' => now('UTC'),
+        'updated_at' => now('UTC'),
+    ]);
+
+    expect(fn () => app(\\App\\Services\\Tenancy\\TenantBillingProviderAccountResolver::class)->resolve(
+        'approved_gateway',
+        'acct_unverified_001',
+    ))->toThrow(RuntimeException::class, 'billing_provider_account_unmapped');
+});
