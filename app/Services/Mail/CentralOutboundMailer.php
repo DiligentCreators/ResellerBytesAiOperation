@@ -33,7 +33,7 @@ class CentralOutboundMailer
         }
 
         $from = (string) ($config['from_address'] ?? '');
-        $name = str_replace(["\\r", "\\n", '"', '<', '>'], '', (string) ($config['from_name'] ?? ''));
+        $name = str_replace(["\r", "\n", '"', '<', '>'], '', (string) ($config['from_name'] ?? ''));
         if (! filter_var($from, FILTER_VALIDATE_EMAIL) || $name === '') {
             throw new RuntimeException('platform_mail_sender_configuration_invalid');
         }
