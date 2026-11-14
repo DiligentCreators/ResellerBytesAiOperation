@@ -41,6 +41,7 @@ return Application::configure(basePath: dirname(__DIR__))
         CreateWhmcsIntegration::class,
         ExportAuditAnchorCheckpoint::class,
         MonitorAuditAnchorCheckpoint::class,
+        PublishAuditAnchorCheckpoint::class,
         VerifyAuditIntegrity::class,
         VerifyAuditAnchorCheckpoint::class,
         PruneWhmcsIntegrationNonces::class,
