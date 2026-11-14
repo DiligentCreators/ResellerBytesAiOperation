@@ -17,14 +17,14 @@ The standalone verifier and application monitor return non-zero exit codes for i
 
 Shahrukh approved the following operational thresholds on 2026-11-14; treat these as the release baseline, not as values awaiting approval:
 
-| Signal | Trigger | Severity |
-| --- | --- | --- |
-| Error rate | > 2% over a rolling 5-minute window | Alert |
-| API latency | p95 > 1,500 ms | Alert |
-| Successful backup | No successful backup for 26 hours | Alert |
-| Disk utilization | 80% | Warning |
-| Disk utilization | 90% | Critical |
-| Queue age | Any queued job older than 15 minutes | Alert |
+| Signal           | Trigger                             | Severity |
+| ---------------- | ----------------------------------- | -------- |
+| Error rate       | > 2% over a rolling 5-minute window | Alert    |
+| API latency      | p95 > 1,500 ms                      | Alert    |
+| Successful backup | No successful backup for 26 hours | Alert    |
+| Disk utilization | 80%                                 | Warning  |
+| Disk utilization | 90%                                 | Critical |
+| Queue age        | Any queued job older than 15 minutes | Alert   |
 
 Route standard alerts to the configured owner email and one configured team channel (Slack or Discord). Critical alerts must additionally be sent through configured WhatsApp and/or SMS delivery adapters. Destinations and provider credentials are runtime environment/secret-manager configuration only; repository templates contain blank values and no real addresses, webhook URLs, phone numbers, or tokens. Delivery adapters must redact secrets and must not treat an HTTP request being queued as confirmed delivery without provider acknowledgement.
 
