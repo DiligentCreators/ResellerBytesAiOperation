@@ -32,6 +32,7 @@ class TenantBillingWebhookInbox
         array $normalizedPayload,
         mixed $receivedAt,
         string $providerAccountId,
+        ?DateTimeInterface $providerOccurredAt = null,
     ): TenantBillingWebhookEvent {
         if (! preg_match('/^[a-z][a-z0-9_-]{1,39}$/', $provider)
             || trim($providerEventId) === ''
@@ -75,10 +76,15 @@ class TenantBillingWebhookInbox
             throw new InvalidArgumentException('billing_webhook_payload_too_large');
         }
 
+        $providerOccurredAt = $providerOccurredAt === null ? null : CarbonImmutable::parse($providerOccurredAt)->utc();
+        if ($providerOccurredAt?->greaterThan(now('UTC')->addMinutes(5))) {
+            throw new InvalidArgumentException('billing_webhook_provider_timestamp_invalid');
+        }
+
         $hash = hash('sha256', $this->canonicalJson($normalizedPayload));
 
         try {
-            return app(TenantDatabaseContext::class)->run($tenantId, null, fn (): TenantBillingWebhookEvent => DB::transaction(function () use ($tenantId, $provider, $providerEventId, $eventType, $normalizedPayload, $receivedAt, $providerAccountId, $hash): TenantBillingWebhookEvent {
+            return app(TenantDatabaseContext::class)->run($tenantId, null, fn (): TenantBillingWebhookEvent => DB::transaction(function () use ($tenantId, $provider, $providerEventId, $eventType, $normalizedPayload, $receivedAt, $providerAccountId, $providerOccurredAt, $hash): TenantBillingWebhookEvent {
                 Tenant::query()->whereKey($tenantId)->firstOrFail();
 
                 $existing = TenantBillingWebhookEvent::query()
@@ -109,6 +115,7 @@ class TenantBillingWebhookInbox
                     'status' => 'pending',
                     'attempts' => 0,
                     'received_at' => $receivedAt,
+                    'provider_occurred_at' => $providerOccurredAt,
                     'available_at' => now('UTC'),
                 ]);
 
