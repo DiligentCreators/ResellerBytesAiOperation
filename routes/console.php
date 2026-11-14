@@ -308,8 +308,10 @@ Schedule::command('operations:backup:create')
 // Billing reconciliation is internal-only until a payment provider and verified webhook adapter are approved.
 Schedule::command('billing:outbox:dispatch')
     ->everyMinute()
-    ->withoutOverlapping();
+    ->withoutOverlapping()
+    ->when(fn (): bool => filled(config('database.connections.pgsql_operations.username')) || DB::connection()->getDriverName() !== 'pgsql');
 
 Schedule::command('billing:webhooks:reconcile')
     ->everyMinute()
-    ->withoutOverlapping();
+    ->withoutOverlapping()
+    ->when(fn (): bool => filled(config('database.connections.pgsql_operations.username')) || DB::connection()->getDriverName() !== 'pgsql');
