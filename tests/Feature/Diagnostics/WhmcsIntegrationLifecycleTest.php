@@ -131,3 +131,42 @@ test('prevents query-builder deletion so integration history cannot be bypassed'
 
     expect(DB::table('whmcs_integrations')->where('id', $integration->id)->exists())->toBeTrue();
 });
+
+test('assigns an unowned legacy integration to a verified MFA owner with immutable audit evidence', function () {
+    $owner = User::factory()->withTwoFactor()->create(['email' => 'legacy-owner@example.test', 'email_verified_at' => now()]);
+    $integration = WhmcsIntegration::create([
+        'name' => 'Legacy unassigned integration',
+        'status' => 'active',
+        'secret' => str_repeat('f', 64),
+        'secret_version' => 1,
+    ]);
+
+    $this->artisan('whmcs:integration:assign-owner', [
+        'integration' => $integration->id,
+        'email' => $owner->email,
+    ])->assertSuccessful();
+
+    expect($integration->fresh()->owner_user_id)->toBe($owner->id)
+        ->and(AuditEvent::query()->where('event_type', 'whmcs_integration.owner_assigned')->sole()->metadata)
+        ->toBe(['owner_user_id' => (string) $owner->id]);
+});
+
+test('does not reassign an integration that already has an owner', function () {
+    $firstOwner = User::factory()->withTwoFactor()->create(['email_verified_at' => now()]);
+    $secondOwner = User::factory()->withTwoFactor()->create(['email_verified_at' => now()]);
+    $integration = WhmcsIntegration::create([
+        'owner_user_id' => $firstOwner->id,
+        'name' => 'Already assigned integration',
+        'status' => 'active',
+        'secret' => str_repeat('9', 64),
+        'secret_version' => 1,
+    ]);
+
+    $this->artisan('whmcs:integration:assign-owner', [
+        'integration' => $integration->id,
+        'email' => $secondOwner->email,
+    ])->assertFailed();
+
+    expect($integration->fresh()->owner_user_id)->toBe($firstOwner->id)
+        ->and(AuditEvent::where('event_type', 'whmcs_integration.owner_assigned')->count())->toBe(0);
+});
