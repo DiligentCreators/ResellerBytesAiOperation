@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use LogicException;
 
 class AiUsageAttempt extends Model
 {
@@ -39,6 +40,15 @@ class AiUsageAttempt extends Model
         'reconciliation_approved_at',
         'reconciliation_note',
     ];
+
+    protected static function booted(): void
+    {
+        static::updating(function (AiUsageAttempt $attempt): void {
+            if ($attempt->isDirty('tenant_id')) {
+                throw new LogicException('AI usage attempt tenant attribution is immutable.');
+            }
+        });
+    }
 
     protected function casts(): array
     {
