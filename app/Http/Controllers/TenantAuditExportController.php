@@ -1,14 +1,14 @@
 <?php
 
-namespace App\\Http\\Controllers;
+namespace App\Http\Controllers;
 
-use App\\Models\\AuditEvent;
-use App\\Models\\Tenant;
-use App\\Models\\User;
-use App\\Services\\Audit\\AuditEventWriter;
-use App\\Services\\Tenancy\\TenantRoleAuthorization;
-use Illuminate\\Http\\Request;
-use Symfony\\Component\\HttpFoundation\\StreamedResponse;
+use App\Models\AuditEvent;
+use App\Models\Tenant;
+use App\Models\User;
+use App\Services\Audit\AuditEventWriter;
+use App\Services\Tenancy\TenantRoleAuthorization;
+use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class TenantAuditExportController extends Controller
 {
@@ -80,7 +80,7 @@ class TenantAuditExportController extends Controller
 
     private function csvSafe(?string $value): ?string
     {
-        if ($value !== null && preg_match('/^[=+@\\-\\t\\r]/', $value) === 1) {
+        if ($value !== null && preg_match('/^[=+@\-\t\r]/', $value) === 1) {
             return "'".$value;
         }
 
