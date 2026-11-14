@@ -64,10 +64,77 @@ return new class extends Migration
             $table->index(['tenant_id', 'status', 'received_at']);
             $table->unique(['id', 'tenant_id'], 'tenant_billing_payment_id_tenant_unique');
         });
+
+        $driver = DB::connection()->getDriverName();
+        if ($driver === 'pgsql') {
+            DB::unprepared(<<<'SQL'
+CREATE FUNCTION rb_guard_tenant_subscription_provider_identity() RETURNS trigger LANGUAGE plpgsql AS $rb$
+BEGIN
+    IF (OLD.billing_provider IS NOT NULL AND NEW.billing_provider IS DISTINCT FROM OLD.billing_provider)
+        OR (OLD.provider_account_id IS NOT NULL AND NEW.provider_account_id IS DISTINCT FROM OLD.provider_account_id)
+        OR (OLD.provider_subscription_id IS NOT NULL AND NEW.provider_subscription_id IS DISTINCT FROM OLD.provider_subscription_id) THEN
+        RAISE EXCEPTION 'tenant_subscription_provider_identity_immutable' USING ERRCODE = '23514';
+    END IF;
+    RETURN NEW;
+END;
+$rb$;
+CREATE FUNCTION rb_guard_tenant_billing_payment_immutable() RETURNS trigger LANGUAGE plpgsql AS $rb$
+BEGIN
+    RAISE EXCEPTION 'tenant_billing_payment_append_only' USING ERRCODE = '23514';
+END;
+$rb$;
+CREATE FUNCTION rb_check_billing_payment_audit_tenant() RETURNS trigger LANGUAGE plpgsql AS $rb$
+DECLARE expected_tenant uuid;
+BEGIN
+    IF NEW.subject_type = 'tenant_billing_payment' THEN
+        SELECT tenant_id INTO expected_tenant FROM tenant_billing_payments WHERE id::text = NEW.subject_id;
+        IF NEW.tenant_id IS DISTINCT FROM expected_tenant THEN
+            RAISE EXCEPTION 'audit_event_tenant_mismatch' USING ERRCODE = '23514';
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$rb$;
+CREATE TRIGGER rb_tenant_subscription_provider_identity BEFORE UPDATE ON tenant_subscriptions FOR EACH ROW EXECUTE FUNCTION rb_guard_tenant_subscription_provider_identity();
+CREATE TRIGGER rb_tenant_billing_payment_immutable BEFORE UPDATE OR DELETE ON tenant_billing_payments FOR EACH ROW EXECUTE FUNCTION rb_guard_tenant_billing_payment_immutable();
+CREATE TRIGGER rb_billing_payment_audit_tenant_guard BEFORE INSERT ON audit_events FOR EACH ROW EXECUTE FUNCTION rb_check_billing_payment_audit_tenant();
+SQL);
+        } elseif ($driver === 'sqlite') {
+            DB::unprepared(<<<'SQL'
+CREATE TRIGGER rb_tenant_subscription_provider_identity BEFORE UPDATE ON tenant_subscriptions
+WHEN (OLD.billing_provider IS NOT NULL AND NEW.billing_provider IS NOT OLD.billing_provider)
+ OR (OLD.provider_account_id IS NOT NULL AND NEW.provider_account_id IS NOT OLD.provider_account_id)
+ OR (OLD.provider_subscription_id IS NOT NULL AND NEW.provider_subscription_id IS NOT OLD.provider_subscription_id)
+BEGIN SELECT RAISE(ABORT, 'tenant_subscription_provider_identity_immutable'); END;
+CREATE TRIGGER rb_tenant_billing_payment_immutable BEFORE UPDATE ON tenant_billing_payments
+BEGIN SELECT RAISE(ABORT, 'tenant_billing_payment_append_only'); END;
+CREATE TRIGGER rb_tenant_billing_payment_no_delete BEFORE DELETE ON tenant_billing_payments
+BEGIN SELECT RAISE(ABORT, 'tenant_billing_payment_append_only'); END;
+CREATE TRIGGER rb_billing_payment_audit_tenant_guard BEFORE INSERT ON audit_events
+WHEN NEW.subject_type = 'tenant_billing_payment'
+ AND NEW.tenant_id IS NOT (SELECT tenant_id FROM tenant_billing_payments WHERE id = CAST(NEW.subject_id AS INTEGER))
+BEGIN SELECT RAISE(ABORT, 'audit_event_tenant_mismatch'); END;
+SQL);
+        }
     }
 
     public function down(): void
     {
+        $driver = DB::connection()->getDriverName();
+        if ($driver === 'pgsql') {
+            DB::unprepared('DROP TRIGGER IF EXISTS rb_tenant_subscription_provider_identity ON tenant_subscriptions');
+            DB::unprepared('DROP TRIGGER IF EXISTS rb_tenant_billing_payment_immutable ON tenant_billing_payments');
+            DB::unprepared('DROP TRIGGER IF EXISTS rb_billing_payment_audit_tenant_guard ON audit_events');
+            DB::unprepared('DROP FUNCTION IF EXISTS rb_guard_tenant_subscription_provider_identity()');
+            DB::unprepared('DROP FUNCTION IF EXISTS rb_guard_tenant_billing_payment_immutable()');
+            DB::unprepared('DROP FUNCTION IF EXISTS rb_check_billing_payment_audit_tenant()');
+        } elseif ($driver === 'sqlite') {
+            DB::unprepared('DROP TRIGGER IF EXISTS rb_tenant_subscription_provider_identity');
+            DB::unprepared('DROP TRIGGER IF EXISTS rb_tenant_billing_payment_immutable');
+            DB::unprepared('DROP TRIGGER IF EXISTS rb_tenant_billing_payment_no_delete');
+            DB::unprepared('DROP TRIGGER IF EXISTS rb_billing_payment_audit_tenant_guard');
+        }
+
         Schema::dropIfExists('tenant_billing_payments');
         Schema::dropIfExists('tenant_billing_invoices');
         Schema::dropIfExists('tenant_subscriptions');
