@@ -25,8 +25,9 @@ final class CheckOperationalAlerts extends Command
         AlertStateService $states,
     ): int {
         $observedAt = now()->toImmutable()->utc();
-        $alerts = $policy->evaluate($source->snapshot($observedAt), $observedAt);
-        $result = $states->process($alerts, $observedAt);
+        $metrics = $source->snapshot($observedAt);
+        $alerts = $policy->evaluate($metrics, $observedAt);
+        $result = $states->process($alerts, $observedAt, $policy->evaluatedCodes($metrics));
 
         $this->line(json_encode([
             'schema_version' => 1,
