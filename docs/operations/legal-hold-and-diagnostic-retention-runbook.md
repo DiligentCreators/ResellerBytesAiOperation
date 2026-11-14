@@ -50,7 +50,7 @@ php artisan diagnostics:retention:report --days=365
 
 The report command never deletes data. It reports age-based candidates only; active legal holds do not change the 365-day eligibility cutoff.
 
-The separate cleanup command is bounded to at most 500 diagnostic runs per invocation and excludes active processing states. At the 365-day cutoff it marks any active direct/descendant legal-hold records `expired_by_retention`, appends a `legal_hold.expired_by_retention` immutable audit event for each, appends the `diagnostics.retention.deleted` event, and deletes the diagnostic content in one transaction. If an audit append fails, the transaction aborts and the diagnostic content is not deleted.
+The separate cleanup command is bounded to at most 500 diagnostic runs per invocation and does not exempt `received`, `queued`, or `analyzing` states. At the 365-day cutoff it locks each diagnostic root, marks any active direct/descendant legal-hold records `expired_by_retention`, appends a `legal_hold.expired_by_retention` immutable audit event for each, appends the `diagnostics.retention.deleted` event, and deletes the diagnostic content in one transaction. Analysis jobs and stale-queue recovery refuse to start work for records at or beyond the cutoff. If an audit append fails, the transaction aborts and the diagnostic content is not deleted.
 
 Dry-run is the default:
 
