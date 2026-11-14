@@ -3,14 +3,17 @@
 namespace App\Http\Controllers;
 
 use App\Models\DiagnosticFinding;
+use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class FindingController extends Controller
 {
     public function index(): Response
     {
         $findings = DiagnosticFinding::query()
+            ->whereHas('diagnosticRun.integration', fn ($query) => $query->where('owner_user_id', Auth::id()))
             ->with('diagnosticRun.integration:id,name')
             ->latest()
             ->paginate(20)
@@ -32,6 +35,10 @@ class FindingController extends Controller
 
     public function show(DiagnosticFinding $finding): Response
     {
+        if (! $finding->diagnosticRun()->whereHas('integration', fn ($query) => $query->where('owner_user_id', Auth::id()))->exists()) {
+            throw new NotFoundHttpException();
+        }
+
         $finding->load([
             'diagnosticRun.integration:id,name',
             'recommendations',
