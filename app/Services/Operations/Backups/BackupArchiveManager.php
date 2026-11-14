@@ -33,6 +33,9 @@ final class BackupArchiveManager
         try {
             $this->dumpDatabase($connection, $dumpPath);
             $checksums = $this->cipher->encryptFile($dumpPath, $encryptedPath, $encryptionKey);
+            if ($checksums['encrypted_bytes'] > 5 * 1024 * 1024 * 1024) {
+                throw new RuntimeException('Encrypted backup exceeds the 5 GiB single-PutObject limit; multipart Object Lock upload is required.');
+            }
 
             $backupId = (string) Str::uuid();
             $createdAt = CarbonImmutable::now()->utc();

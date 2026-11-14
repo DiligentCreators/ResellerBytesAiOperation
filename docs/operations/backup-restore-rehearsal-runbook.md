@@ -135,7 +135,6 @@ Any failed check, unverifiable checkpoint, missing backup object lock, privilege
 
 No production backup, password, secret, or private key is requested in chat or stored in this repository.
 
-
 ## 7. Automated Wasabi PostgreSQL backup tooling
 
 The release-readiness branch adds an automated implementation for the PostgreSQL application database. It does not replace the isolated restore, audit-chain, role-separation, or application validation steps above.
@@ -149,7 +148,7 @@ Required runtime dependencies are AWS CLI v2, pg_dump, pg_restore, and PHP ext-s
 - BACKUP_OBJECT_LOCK_RETENTION_DAYS as a positive, owner-approved retention period. The application intentionally has no default for this value.
 - OPERATIONS_BACKUP_SUCCESS_MARKER_PATH as a private writable marker path consumed by the backup-age metric.
 
-The tool fails closed unless the bucket already has versioning and Object Lock enabled. It encrypts the pg_dump archive with authenticated libsodium secretstream, uploads each backup and manifest with explicit Object Lock COMPLIANCE retention and SSE-S3 AES256, verifies the Object Lock mode/retain-until date/size/checksum metadata, and downloads the backup object again for a full SHA-256 read-back check. Only then is the backup-success marker atomically updated.
+The tool fails closed unless the bucket already has versioning and Object Lock enabled. The current single-PutObject implementation also fails closed above 5 GiB; larger databases require a multipart Object Lock adapter before use. It encrypts the pg_dump archive with authenticated libsodium secretstream, uploads each backup and manifest with explicit Object Lock COMPLIANCE retention and SSE-S3 AES256, verifies the Object Lock mode/retain-until date/size/checksum metadata, and downloads the backup object again for a full SHA-256 read-back check. Only then is the backup-success marker atomically updated.
 
 Run a backup manually:
 
