@@ -10,7 +10,6 @@ use App\Http\Controllers\WhmcsIntegrationController;
 use App\Http\Controllers\TenantAuditExportController;
 use App\Http\Controllers\TenantNotificationController;
 use App\Http\Middleware\EnsureTwoFactorEnabled;
-use App\Http\Middleware\SetTenantDatabaseContext;
 use Illuminate\Support\Facades\Route;
 
 Route::inertia('/', 'welcome')->name('home');
