@@ -81,12 +81,12 @@ it('emits a redacted JSON evidence record for a healthy checkpoint', function ()
         expect(array_keys($evidence))->toBe($schema['required'])
             ->and($schema['properties']['reason_code']['enum'])->toContain($evidence['reason_code'])
             ->and($evidence)->toMatchArray([
-            'schema_version' => 1,
-            'status' => 'healthy',
-            'reason_code' => 'healthy',
-            'exit_code' => 0,
-            'unanchored_tail' => 0,
-        ])->and($evidence['checkpoint_sha256'])->toMatch('/^[a-f0-9]{64}$/')
+                'schema_version' => 1,
+                'status' => 'healthy',
+                'reason_code' => 'healthy',
+                'exit_code' => 0,
+                'unanchored_tail' => 0,
+            ])->and($evidence['checkpoint_sha256'])->toMatch('/^[a-f0-9]{64}$/')
             ->and($evidence['observed_at_utc'])->toBeString();
     } finally {
         @unlink($path);
