@@ -303,3 +303,13 @@ Schedule::command('operations:backup:create')
     ->timezone('UTC')
     ->withoutOverlapping()
     ->when(fn (): bool => (bool) config('operations.backups.enabled'));
+
+
+// Billing reconciliation is internal-only until a payment provider and verified webhook adapter are approved.
+Schedule::command('billing:outbox:dispatch')
+    ->everyMinute()
+    ->withoutOverlapping();
+
+Schedule::command('billing:webhooks:reconcile')
+    ->everyMinute()
+    ->withoutOverlapping();
