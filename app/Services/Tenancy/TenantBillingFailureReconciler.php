@@ -45,6 +45,10 @@ class TenantBillingFailureReconciler
                         ->lockForUpdate()
                         ->firstOrFail();
 
+                    if ($subscription->billing_provider !== $provider || $subscription->provider_account_id !== $providerAccountId) {
+                        throw new InvalidArgumentException('billing_subscription_provider_account_mismatch');
+                    }
+
                     if (in_array($subscription->status, ['active', 'trialing'], true)) {
                         $graceDays = max(1, min(30, (int) config('billing.payment_failure_grace_days', 7)));
                         app(TenantSubscriptionLifecycle::class)->transition(
