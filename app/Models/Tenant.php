@@ -44,6 +44,24 @@ class Tenant extends Model
             ->withTimestamps();
     }
 
+    /** @return HasMany<DiagnosticRun, $this> */
+    public function diagnosticRuns(): HasMany
+    {
+        return $this->hasMany(DiagnosticRun::class);
+    }
+
+    /** @return HasMany<DiagnosticFinding, $this> */
+    public function diagnosticFindings(): HasMany
+    {
+        return $this->hasMany(DiagnosticFinding::class);
+    }
+
+    /** @return HasMany<DiagnosticRecommendation, $this> */
+    public function diagnosticRecommendations(): HasMany
+    {
+        return $this->hasMany(DiagnosticRecommendation::class);
+    }
+
     /** @return HasMany<WhmcsIntegration, $this> */
     public function integrations(): HasMany
     {
