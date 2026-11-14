@@ -74,3 +74,18 @@ The config and runbooks record these approved values. Alert delivery, provider a
 - Expanded PostgreSQL role guidance to three distinct application identities. Reporting access is explicitly allowlisted rather than broad schema-wide SELECT.
 - Added a PostgreSQL CI regression script for the read-only reporting identity; exact-head CI for this new batch is pending.
 - PR #2 remains open and Draft. No merge, deploy, production migration, or live WHMCS change has occurred.
+
+
+## Pending for Shahrukh — owner-only inputs/actions
+
+Do not mark these complete until Shahrukh provides or authorizes them:
+
+1. Create and fund the separate cloud/security account and approve its billing.
+2. Generate and retain custody of the production Ed25519 signing/anchor keys; provide only non-secret public-key references/fingerprints through an approved secure channel.
+3. Provide approved secret-manager access and access policy.
+4. Verify actual AI provider/model pricing and approve the production price-card version and expiry.
+5. Provide approved backup/restore rehearsal access and an isolated recovery environment.
+6. Arrange and complete the independent security review against the exact reviewed SHA.
+7. Provide final release authorization.
+
+Approved monitoring, alert-routing, recovery, retention, signing-operator, and PostgreSQL role decisions are not pending. No production resource, secret, provider pricing approval, backup access, independent review, or release authorization is inferred from the repository changes.
