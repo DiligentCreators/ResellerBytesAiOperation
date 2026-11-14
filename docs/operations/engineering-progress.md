@@ -284,3 +284,17 @@ A green CI run is necessary but does not close these release gates or authorize 
 - Updated the retention policy and production-pilot checklist. Live audit-event retention is distinct from the separately approved 365-day immutable external backup-object retention; backup expiry does not authorize deletion of live audit records.
 - Audit events remain append-only and are retained indefinitely. Diagnostic content expires after 365 days with no legal-hold exception; hold metadata is expired and audited at the cutoff.
 - The decision was recorded in policy documentation. It does not authorize production migration, merge, or deployment.
+
+
+## Transactional tenant billing outbox and webhook reconciliation — 2026-11-15
+
+- Added tenant-scoped billing outbox and verified-webhook inbox tables with provider-account/event idempotency, payload SHA-256 binding, PostgreSQL RLS, due/lease indexes, retry state, and dead-letter timestamps.
+- Payment ledger confirmation and subscription status transitions now enqueue their internal event in the same transaction as the billing mutation and immutable audit append. Repeated identical outbox keys are idempotent; key reuse with changed content fails closed.
+- Added a normalized webhook inbox service that accepts events only after a future provider adapter has verified the signature and mapped the provider account to a tenant. It allowlists supported event types and payload fields, rejects future timestamps, stores no raw provider payload or credentials, and audits only provider/event type/payload digest.
+- Added scheduled reconciliation for verified payment-success and subscription past-due/canceled/expired/reactivated events. Payment reconciliation reuses the confirmed-payment ledger; reactivation requires a fully settled invoice for the same tenant and subscription.
+- Added bounded exponential retries (30 seconds to six hours), a 12-attempt ceiling, five-minute processing leases, permanent rejection/dead-letter handling, and redacted failure logs. Outbox publication is explicitly at-least-once; consumers must deduplicate on the stable outbox ID.
+- Added a separate PostgreSQL operations connection for global scheduled scans. The normal runtime role must remain RLS-restricted; scheduled commands fail closed if the operations username is not configured. Blank environment placeholders only were added. Actual role provisioning and RLS rehearsal remain pending.
+- Added feature tests for transaction-required outbox writes, idempotent duplicate handling, conflicting webhook replay, payload allowlisting, confirmed payment reconciliation, and outbox dispatch. These tests are authored but not executed.
+- No payment provider was selected, no public webhook route or charge initiation was enabled, and no provider credentials were added. Provider-specific signature verification/account mapping, independent review, operations-role provisioning, and production activation remain pending.
+- PHP 8.5 and project dependencies are unavailable in this execution environment (PHP 8.4 only), so migration and test execution remain blocked. All commits in this milestone use [skip ci]; workflow files and repository settings were not changed. Exact-head CI remains deferred until all engineering work is complete.
+- PR #2 remains open and Draft. No merge, deployment, production migration, or live WHMCS operation was performed.
