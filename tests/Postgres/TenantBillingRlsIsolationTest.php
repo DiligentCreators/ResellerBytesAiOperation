@@ -45,10 +45,16 @@ if ($runtimeRole->name === $operationsRole->name || $runtimeDatabase->name !== $
 }
 
 $role = $runtime->selectOne('SELECT rolbypassrls, rolsuper FROM pg_roles WHERE rolname = current_user');
-$operationsRoleFlags = $operations->selectOne('SELECT rolsuper FROM pg_roles WHERE rolname = current_user');
+$operationsRoleFlags = $operations->selectOne('SELECT rolbypassrls, rolsuper FROM pg_roles WHERE rolname = current_user');
 if ($role === null || filter_var($role->rolbypassrls, FILTER_VALIDATE_BOOLEAN) || filter_var($role->rolsuper, FILTER_VALIDATE_BOOLEAN)
-    || $operationsRoleFlags === null || filter_var($operationsRoleFlags->rolsuper, FILTER_VALIDATE_BOOLEAN)) {
-    throw new RuntimeException('billing_rls_runtime_role_must_not_bypass_rls_or_be_superuser_and_operations_role_must_not_be_superuser');
+    || $operationsRoleFlags === null || ! filter_var($operationsRoleFlags->rolbypassrls, FILTER_VALIDATE_BOOLEAN)
+    || filter_var($operationsRoleFlags->rolsuper, FILTER_VALIDATE_BOOLEAN)) {
+    throw new RuntimeException('billing_rls_runtime_role_must_not_bypass_rls_and_operations_role_must_bypass_without_superuser');
+}
+
+$operationsOwnedTables = $operations->selectOne("SELECT COUNT(*) AS owned_count FROM pg_class WHERE relname IN ('tenant_billing_outbox', 'tenant_billing_webhook_events', 'tenant_billing_provider_accounts', 'tenant_billing_adjustments', 'tenant_billing_invoices', 'tenant_billing_payments', 'tenant_subscriptions', 'audit_events') AND pg_get_userbyid(relowner) = current_user");
+if ((int) $operationsOwnedTables->owned_count !== 0) {
+    throw new RuntimeException('billing_rls_operations_role_must_not_own_billing_tables');
 }
 
 $tables = [
