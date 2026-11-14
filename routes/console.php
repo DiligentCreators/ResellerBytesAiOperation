@@ -267,6 +267,10 @@ Schedule::command('diagnostics:recover-queued')
     ->everyFiveMinutes()
     ->withoutOverlapping();
 
+Schedule::command('operations:metrics')
+    ->hourly()
+    ->withoutOverlapping();
+
 Schedule::command('operations:check-alerts')
     ->everyMinute()
     ->withoutOverlapping()
