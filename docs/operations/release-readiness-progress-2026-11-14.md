@@ -571,3 +571,11 @@ inferred from the repository changes.
 - Tests are committed but not executed in this environment: PHP 8.5 and the repository checkout/dependencies are unavailable. No live provider call or credential use occurred.
 - Every commit in this follow-up includes [skip ci]. No workflow file or repository setting was changed. Exact-head CI remains deferred until all roadmap engineering work is complete.
 - Latest branch head at this checkpoint: `3ef0056bb0c0cf39fb8d691fb48b6fa9578a659e`. PR #2 remains open and Draft; no merge, deployment, production migration, or live WHMCS operation is authorized.
+
+
+## S3-compatible audit-anchor adapter protocol coverage — 2026-11-14
+
+- Added an isolated fake AWS CLI executable test for the S3 adapter's successful protocol path: conditional immutable create, returned VersionId, COMPLIANCE retention metadata, exact-VersionId object read, and returned content. The fake client performs no network access and uses only temporary test files.
+- This complements the existing fail-closed configuration tests for dedicated bucket separation, HTTPS, credentials, and unsafe object keys. It does not prove Wasabi service compatibility; the non-production Wasabi Object Lock rehearsal remains an owner/infrastructure gate.
+- The test is committed but not executed locally because the required PHP 8.5 runtime and mounted repository/dependencies are unavailable. CI remains deferred until the final one-shot non-skip-ci commit.
+- All commits continue to include [skip ci]; no workflow file or repository setting was changed. PR #2 remains open and Draft, with no merge, deployment, production migration, or live storage operation authorized.
