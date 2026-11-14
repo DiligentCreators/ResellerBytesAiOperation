@@ -112,6 +112,11 @@ class PlatformMailSettingsController extends Controller
         $data = $request->validate(['recipient' => ['required', 'email:rfc', 'max:255']]);
         $mailer->send($data['recipient'], 'ResellerBytes mail configuration test', '<p>Your central outbound email configuration is working.</p>', 'Your central outbound email configuration is working.');
 
-        return back()->with('status', 'Test email accepted by the configured mail driver.');
+        $driver = PlatformMailSettings::query()->find(1)?->driver ?? config('platform_mail.driver', 'log');
+        $status = $driver === 'log'
+            ? 'Log driver is active; a redacted preview was recorded and no email was sent.'
+            : 'Test email accepted by the configured mail driver.';
+
+        return back()->with('status', $status);
     }
 }
