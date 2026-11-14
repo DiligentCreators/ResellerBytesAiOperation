@@ -486,3 +486,26 @@ inferred from the repository changes.
 - PR #2 remains open and Draft. No merge, production migration, deployment, or live
   WHMCS operation is authorized.
 
+## Additional audit-anchor validation hardening — 2026-11-14
+
+- Registered `audit:anchor:publish` explicitly in Laravel's command list and added a
+  command-level regression test proving it fails closed before storage access when the
+  dedicated bucket is absent.
+- Hardened the S3 adapter: dedicated audit credentials are separate from backup
+  credentials; the audit bucket must differ from the configured backup bucket; the
+  endpoint must be HTTPS and cannot embed user/password/query/fragment data. S3 metadata
+  responses must be JSON objects. The adapter's create path captures metadata without a
+  redundant object download; the publisher performs the single authoritative exact-
+  VersionId read-back.
+- Centralized strict UTC calendar timestamp validation in `AuditAnchorService`, so
+  malformed but correctly signed timestamps are rejected by all verification callers,
+  not only the monitor/publisher. Added regression coverage for impossible calendar
+  timestamps and chained-monitor predecessor omission.
+- Latest code head before this progress update: `0d8c73a13d3cdcc6ff8bc2235ddf341eda4312de`.
+  All commits in this batch use [skip ci]. Workflow files and repository settings were
+  not changed. No CI run has been triggered.
+- Static source review and test additions are continuing; no test result is claimed.
+  Full PHP 8.5 suite and final exact-head CI remain pending until the final one-shot
+  commit. Production bucket, credentials, keys, provider rehearsal, and independent
+  security review remain Shahrukh-controlled gates.
+
