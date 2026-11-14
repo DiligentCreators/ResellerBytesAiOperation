@@ -7,6 +7,7 @@ use App\Services\Operations\OperationalMetricsSource;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schedule;
 
 beforeEach(function () {
     config([
@@ -73,4 +74,13 @@ it('reads the backup success marker modification time and prunes samples older t
         ->and(DB::table('operations_metric_samples')->count())->toBe(1);
 
     @unlink($markerPath);
+});
+
+
+it('schedules hourly pruning of operational metric samples', function () {
+    $scheduled = collect(Schedule::events())->contains(
+        static fn ($event): bool => str_contains((string) $event->command, 'operations:metrics'),
+    );
+
+    expect($scheduled)->toBeTrue();
 });
