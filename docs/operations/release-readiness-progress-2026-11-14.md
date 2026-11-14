@@ -553,3 +553,11 @@ inferred from the repository changes.
 - Latest code head: `7bc3039d394e3cc2d5f8a8c933b86d025f9c5c4b`. Exact-head workflow runs: none (all intermediate commits use [skip ci]). No full tests have been executed; PHP 8.5 and the mounted repository/dependency environment are unavailable here.
 - PR #2 remains open and Draft, not merged. No deployment, production migration, live WHMCS call, production credential use, or repository-setting change occurred.
 
+
+## WHMCS nonce lifecycle coverage — 2026-11-14
+
+- Reviewed the scheduled `whmcs:nonces:prune` command and its unique `(integration_id, nonce)` constraint. The command deletes expired records in batches of 1,000 and caps each run at 10,000 deletions; the scheduler runs it every 15 minutes with overlap protection.
+- Added `tests/Feature/PruneWhmcsIntegrationNoncesTest.php` to prove expired nonces are pruned while active replay guards remain. Test is committed but not executed.
+- The signed-request feature tests cover valid HMAC ingestion, replay rejection, revoked integration rejection, and invalid signatures. All test helpers are wired to the Laravel test case; execution remains pending.
+- Latest head at this checkpoint: `63a0bbca7c438e571da7cb898a2fa02b121b8966`. Every intermediate commit uses [skip ci]; no workflow files or repository settings changed.
+
