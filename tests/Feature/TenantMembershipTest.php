@@ -4,6 +4,9 @@ use App\Models\Tenant;
 use App\Models\TenantMembership;
 use App\Models\User;
 use App\Models\WhmcsIntegration;
+use App\Models\DiagnosticRun;
+use App\Models\DiagnosticFinding;
+use App\Services\Tenancy\TenantRecordQuery;
 use App\Services\Tenancy\TenantAccess;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -95,4 +98,66 @@ it('requires an active tenant and active membership before granting tenant acces
     $tenant->forceFill(['status' => Tenant::STATUS_SUSPENDED])->save();
     expect(fn () => $access->requireMembership($user, $tenant->id))
         ->toThrow(ModelNotFoundException::class);
+});
+
+
+it('uses active tenant membership instead of historical integration ownership for tenant records', function () {
+    $historicalOwner = User::factory()->withTwoFactor()->create();
+    $member = User::factory()->withTwoFactor()->create();
+    $outsider = User::factory()->withTwoFactor()->create();
+
+    $tenant = Tenant::create([
+        'name' => 'Shared Workspace',
+        'slug' => 'shared-workspace',
+        'status' => Tenant::STATUS_ACTIVE,
+        'created_by_user_id' => $historicalOwner->id,
+    ]);
+    $membership = $tenant->memberships()->create([
+        'user_id' => $member->id,
+        'role' => TenantMembership::ROLE_VIEWER,
+        'status' => TenantMembership::STATUS_ACTIVE,
+        'accepted_at' => now(),
+    ]);
+    $integration = WhmcsIntegration::create([
+        'owner_user_id' => $historicalOwner->id,
+        'tenant_id' => $tenant->id,
+        'name' => 'Shared tenant integration',
+        'status' => 'active',
+        'secret' => bin2hex(random_bytes(32)),
+        'secret_version' => 1,
+    ]);
+    $run = DiagnosticRun::create([
+        'integration_id' => $integration->id,
+        'snapshot_uuid' => (string) Illuminate\\Support\\Str::uuid(),
+        'schema_version' => '1.0',
+        'addon_version' => '1.0.0',
+        'status' => 'received',
+        'collected_at' => now(),
+        'received_at' => now(),
+        'payload' => ['system' => ['whmcs_version' => '8.13.7']],
+        'payload_sha256' => str_repeat('b', 64),
+    ]);
+    $finding = DiagnosticFinding::create([
+        'diagnostic_run_id' => $run->id,
+        'fingerprint' => hash('sha256', 'shared-tenant-finding'),
+        'category' => 'security',
+        'severity' => 'high',
+        'title' => 'Shared tenant finding',
+        'summary' => 'Visible only to active tenant members.',
+        'evidence' => ['source' => 'tenant'],
+        'status' => 'open',
+    ]);
+
+    $records = app(TenantRecordQuery::class);
+
+    expect($records->integrations($member)->whereKey($integration->id)->exists())->toBeTrue()
+        ->and($records->runs($member)->whereKey($run->id)->exists())->toBeTrue()
+        ->and($records->findings($member)->whereKey($finding->id)->exists())->toBeTrue()
+        ->and($records->integrations($historicalOwner)->whereKey($integration->id)->exists())->toBeFalse()
+        ->and($records->runs($outsider)->whereKey($run->id)->exists())->toBeFalse();
+
+    $membership->forceFill(['status' => TenantMembership::STATUS_REVOKED])->save();
+
+    expect($records->integrations($member)->whereKey($integration->id)->exists())->toBeFalse()
+        ->and($records->findings($member)->whereKey($finding->id)->exists())->toBeFalse();
 });
