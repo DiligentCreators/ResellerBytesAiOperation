@@ -716,3 +716,13 @@ inferred from the repository changes.
 - Migration is authored only; no migration executed and no subscription, invoice, payment, or plan records provisioned. Provider selection, pricing, signed webhook integration, external registration and payment collection remain disabled pending Shahrukh approval.
 - Remaining: plan catalogue/pricing approval and subscription provisioning lifecycle; signed provider webhook verification and reconciliation; entitlement limits across all resources; role-gated integration/member/settings write endpoints; tenant exports/downloads/webhooks/notifications; full audit attribution; composite tenant constraints and PostgreSQL RLS; migration/backfill rehearsal and full test/CI verification.
 - All commits retain [skip ci]. PR #2 remains open and Draft; no workflow/settings changes, CI run, merge or deployment.
+
+
+## Tenant audit exports and internal notification inbox — 2026-11-15
+
+- Added owner/admin-only tenant audit CSV export with tenant-scoped query, optional UTC date bounds, immutable chain sequence/hash columns, chunked streaming, CSV formula-injection neutralization, private no-store headers, rate limiting, and an immutable tenant-attributed audit event recording each export request.
+- Added tenant notification inbox storage and JSON endpoints. Reads and mark-read updates are scoped simultaneously by tenant UUID and authenticated recipient user ID; notification publishing requires an active tenant and active membership, bounds payload size, accepts scalar payload values only, and uses a unique deduplication key.
+- Successful tenant diagnostic analysis now creates deduplicated in-app completion notifications for active owner/admin/operator/viewer members in the same database transaction as the analyzed status. Billing-only members do not receive diagnostic notifications. Legacy owner-only diagnostics remain unchanged.
+- Added tests for audit-export role restrictions/cache headers, notification recipient isolation, cross-user mark-read denial, inactive/non-member publication denial, and notification idempotency. Tests are authored, not executed.
+- External tenant webhooks and outbound email/SMS/push notifications remain disabled pending endpoint ownership verification, destination allowlisting/SSRF controls, signed payload key custody, retry/dead-letter policy and Shahrukh's provider/secret configuration. The new inbox is internal only.
+- New migration `2026_11_15_000006_create_tenant_notifications.php` is authored only and has not been executed. Audit export uses the existing tenant-attributed append-only hash chain; no retention changes were made.
