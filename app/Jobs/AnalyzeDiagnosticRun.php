@@ -30,13 +30,20 @@ class AnalyzeDiagnosticRun implements ShouldQueue
     /** @var array<int, int> */
     public array $backoff = [60, 300, 900];
 
-    public function __construct(public string $diagnosticRunId) {}
+    public function __construct(public string $diagnosticRunId, public int $ownerUserId)
+    {
+        if ($this->ownerUserId < 1) {
+            throw new \InvalidArgumentException('A positive diagnostic owner user ID is required.');
+        }
+    }
 
     public function handle(WhmcsDiagnosticAnalyzer $analyzer, AiBudgetService $budget): void
     {
         $run = DB::transaction(function (): ?DiagnosticRun {
             $run = DiagnosticRun::query()
                 ->whereKey($this->diagnosticRunId)
+                ->whereHas('integration', fn ($query) => $query->where('owner_user_id', $this->ownerUserId))
+                ->with('integration')
                 ->lockForUpdate()
                 ->first();
 
@@ -88,6 +95,7 @@ class AnalyzeDiagnosticRun implements ShouldQueue
                             ->first();
 
                         if ($currentRun === null
+                            || ! $currentRun->integration()->where('owner_user_id', $this->ownerUserId)->exists()
                             || $currentRun->received_at === null
                             || $currentRun->received_at->lessThanOrEqualTo(now('UTC')->subDays(365))) {
                             throw new RuntimeException('diagnostic_retention_expired');
@@ -115,10 +123,15 @@ class AnalyzeDiagnosticRun implements ShouldQueue
                 }
             }
 
-            $run->forceFill([
-                'status' => 'analysis_failed',
-                'analysis_error_code' => $this->safeErrorCode($exception),
-            ])->save();
+            DiagnosticRun::query()
+                ->whereKey($run->id)
+                ->whereHas('integration', fn ($query) => $query->where('owner_user_id', $this->ownerUserId))
+                ->where('status', '!=', 'analyzed')
+                ->update([
+                    'status' => 'analysis_failed',
+                    'analysis_error_code' => $this->safeErrorCode($exception),
+                    'updated_at' => now(),
+                ]);
 
             throw $exception;
         }
@@ -126,8 +139,13 @@ class AnalyzeDiagnosticRun implements ShouldQueue
         DB::transaction(function () use ($run, $result): void {
             $lockedRun = DiagnosticRun::query()
                 ->whereKey($run->id)
+                ->whereHas('integration', fn ($query) => $query->where('owner_user_id', $this->ownerUserId))
                 ->lockForUpdate()
-                ->firstOrFail();
+                ->first();
+
+            if ($lockedRun === null) {
+                return;
+            }
 
             // The provider response may arrive after the absolute retention deadline.
             // Recheck under the same row lock used for persistence so expired content
@@ -205,6 +223,7 @@ class AnalyzeDiagnosticRun implements ShouldQueue
     {
         DiagnosticRun::query()
             ->whereKey($this->diagnosticRunId)
+            ->whereHas('integration', fn ($query) => $query->where('owner_user_id', $this->ownerUserId))
             ->where('status', '!=', 'analyzed')
             ->update([
                 'status' => 'analysis_failed',
