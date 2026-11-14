@@ -148,7 +148,7 @@ Required runtime dependencies are AWS CLI v2, pg_dump, pg_restore, and PHP ext-s
 - BACKUP_OBJECT_LOCK_RETENTION_DAYS as a positive, owner-approved retention period. The application intentionally has no default for this value.
 - OPERATIONS_BACKUP_SUCCESS_MARKER_PATH as a private writable marker path consumed by the backup-age metric.
 
-The tool fails closed unless the bucket already has versioning and Object Lock enabled. The current single-PutObject implementation also fails closed above 5 GiB; larger databases require a multipart Object Lock adapter before use. It encrypts the pg_dump archive with authenticated libsodium secretstream, uploads each backup and manifest with explicit Object Lock COMPLIANCE retention and SSE-S3 AES256, verifies the Object Lock mode/retain-until date/size/checksum metadata, and downloads the backup object again for a full SHA-256 read-back check. Only then is the backup-success marker atomically updated.
+The tool fails closed unless the bucket already has versioning and Object Lock enabled. The current single-PutObject implementation also fails closed above 5 GB; larger databases require a multipart Object Lock adapter before use. It encrypts the pg_dump archive with authenticated libsodium secretstream, uploads each backup and manifest with explicit Object Lock COMPLIANCE retention and SSE-S3 AES256, verifies the Object Lock mode/retain-until date/size/checksum metadata, and downloads the backup object again for a full SHA-256 read-back check. Only then is the backup-success marker atomically updated.
 
 Run a backup manually:
 
@@ -160,7 +160,7 @@ The command emits a verified backup UUID and manifest metadata. The daily schedu
 
 ## 8. Automated restore verification and execution
 
-A restore command without --execute is verification-only. It downloads the manifest and encrypted archive, validates both the manifest and backup object's COMPLIANCE lock mode, retain-until date, size and checksum metadata, validates SHA-256 checksums, authenticates/decrypts the archive, and runs pg_restore --list without changing the database:
+A restore command without --execute is verification-only. It downloads the manifest and encrypted archive, validates the backup object's COMPLIANCE lock mode, retain-until date, size and checksum metadata, validates SHA-256 checksums, authenticates/decrypts the archive, and runs pg_restore --list without changing the database:
 
 ```sh
 php artisan operations:backup:restore BACKUP_UUID

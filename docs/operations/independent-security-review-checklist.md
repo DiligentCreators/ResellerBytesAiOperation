@@ -106,9 +106,7 @@ deployment assumptions, and unresolved findings.
       by locking the chain head while streaming.
 - [ ] Verify Ed25519 checkpoint tooling rejects signature tampering, environment
       mismatch, predecessor mismatch, local-prefix mismatch, and key reuse.
-- [ ] Confirm checkpoint tooling is local only: external bucket upload, Object
-      Lock, remote read-back, independent verifier scheduling, and alert delivery
-      are not implemented.
+- [ ] Confirm provider-neutral checkpoint publishing and fake-store contract tests are implemented, but no real provider adapter, external bucket, Object Lock read-back, independent verifier schedule, or production alert delivery is provisioned.
 - [ ] Confirm production migration/owner, runtime, and backup/restore database
       identities are separate.
 - [ ] Test runtime-role negative privileges against a disposable restored
@@ -125,9 +123,9 @@ deployment assumptions, and unresolved findings.
 - [ ] Verify the 365-day diagnostic report uses UTC receipt time, includes the
       exact cutoff boundary, counts dependent findings/recommendations, and never
       deletes records.
-- [ ] Confirm the report warns that legal holds are not evaluated.
+- [ ] Confirm the report is report-only and legal holds do not extend the absolute 365-day diagnostic retention deadline.
 - [ ] Confirm diagnostic cleanup is not scheduled and remains disabled by default; dry-run is the default and execution requires the feature flag plus explicit `--execute`. Confirm audit expiry and integration deletion are not scheduled or enabled.
-- [ ] Confirm the Owner-authorized legal-hold placement/release workflow records immutable audit evidence, uses fresh TOTP, and fails closed on audit-write failure. Confirm legal holds are the sole exception to the 365-day diagnostic retention period.
+- [ ] Confirm the Owner-authorized legal-hold placement/release workflow records immutable audit evidence, uses fresh TOTP, and fails closed on audit-write failure. Confirm active holds are marked expired with immutable audit evidence when diagnostic content reaches 365 days; legal holds do not extend diagnostic retention.
 - [ ] Review nonce cleanup for bounded batches, idempotency, expiry boundary,
       and rerun behavior.
 - [ ] Require isolated backup restore rehearsal and compare the restored chain

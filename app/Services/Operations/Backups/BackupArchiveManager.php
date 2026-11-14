@@ -33,7 +33,7 @@ final class BackupArchiveManager
         try {
             $this->dumpDatabase($connection, $dumpPath);
             $checksums = $this->cipher->encryptFile($dumpPath, $encryptedPath, $encryptionKey);
-            if ($checksums['encrypted_bytes'] > 5 * 1024 * 1024 * 1024) {
+            if ($checksums['encrypted_bytes'] > 5_000_000_000) {
                 throw new RuntimeException('Encrypted backup exceeds the 5 GiB single-PutObject limit; multipart Object Lock upload is required.');
             }
 
@@ -146,7 +146,6 @@ final class BackupArchiveManager
                 || ($manifest['backup_id'] ?? null) !== $backupId
                 || ($manifest['database_driver'] ?? null) !== 'pgsql'
                 || ($manifest['object_lock_mode'] ?? null) !== 'COMPLIANCE'
-                || ($manifest['manifest_key'] ?? null) !== $manifestKey
                 || ! is_string($manifest['object_key'] ?? null)
                 || ! str_starts_with($manifest['object_key'], 'backups/')
                 || ! is_string($manifest['encrypted_sha256'] ?? null)
@@ -201,12 +200,11 @@ final class BackupArchiveManager
         $connection = $this->postgresConnection(true);
         $manifest = $artifact['manifest'] ?? null;
 
-        if (! is_array($manifest)
-            || ($manifest['database_driver'] ?? null) !== 'pgsql'
-            || ! is_string($manifest['database_name'] ?? null)
-            || ! hash_equals((string) $connection['database'], $manifest['database_name'])) {
+        if (! is_array($manifest) || ($manifest['database_driver'] ?? null) !== 'pgsql') {
             throw new RuntimeException('Backup database identity does not match the configured restore target.');
         }
+
+        $this->assertRestoreTargetMatches($manifest);
 
         $dumpPath = $artifact['dump_path'] ?? null;
 
@@ -233,6 +231,24 @@ final class BackupArchiveManager
             'PGPASSWORD' => (string) ($connection['password'] ?? ''),
             'PGCONNECT_TIMEOUT' => '15',
         ], 14400, 'PostgreSQL restore failed');
+    }
+
+    /**
+     * Refuse to restore a manifest into a differently named configured database.
+     *
+     * @param  array<string, mixed>  $manifest
+     */
+    public function assertRestoreTargetMatches(array $manifest): void
+    {
+        $connectionName = (string) config('database.default');
+        $targetDatabase = config('database.connections.'.$connectionName.'.database');
+        $manifestDatabase = $manifest['database_name'] ?? null;
+
+        if (! is_string($targetDatabase)
+            || ! is_string($manifestDatabase)
+            || ! hash_equals($targetDatabase, $manifestDatabase)) {
+            throw new RuntimeException('Backup database identity does not match the configured restore target.');
+        }
     }
 
     /**

@@ -130,7 +130,7 @@ The repository currently implements the local SHA-256 chain and read-only chain 
 
 - The project Owner is the approval authority for both placing and releasing a legal hold.
 - Each placement/release must append an immutable audit event recording the owner identity, UTC timestamp, affected record/scope, action, reason, controlled evidence/case reference, and resulting state. Sensitive case documents and customer payloads must not be copied into audit metadata.
-- Future retention cleanup must exclude held records and re-check hold state inside the deletion transaction. If hold state cannot be read or the audit event cannot be committed, cleanup must fail closed and delete nothing.
+- Diagnostic content expires absolutely after 365 days from UTC received_at, with no legal-hold exception. At expiry, active hold metadata is marked expired_by_retention with an immutable audit event before diagnostic deletion; any audit-write failure aborts the transaction. Audit events themselves are retained indefinitely.
 - A legal hold overrides ordinary retention expiry, including the 365-day external-backup retention setting, until the Owner explicitly approves and audits release.
 - Governance is approved; the legal-hold schema/API/command and cleanup enforcement are **not yet implemented**. No automated diagnostic or audit-history deletion is permitted until implementation and negative-path tests pass.
 

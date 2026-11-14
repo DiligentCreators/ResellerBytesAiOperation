@@ -12,7 +12,7 @@ return new class extends Migration
             $table->uuid('id')->primary();
             $table->string('subject_type', 64);
             $table->string('subject_id', 64);
-            $table->string('status', 16)->default('active');
+            $table->string('status', 32)->default('active');
             $table->foreignId('placed_by_user_id')->constrained('users')->restrictOnDelete();
             $table->foreignId('released_by_user_id')->nullable()->constrained('users')->restrictOnDelete();
             $table->string('reason', 500);

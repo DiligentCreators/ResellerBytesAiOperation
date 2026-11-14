@@ -45,7 +45,7 @@ class ReportDiagnosticRetentionCandidates extends Command
         $this->line('Affected recommendations: '.$recommendationCount);
         $this->line('Oldest candidate received_at: '.($oldest ?? 'none'));
         $this->line('Newest candidate received_at: '.($newest ?? 'none'));
-        $this->warn('This report does not evaluate legal holds; automated deletion remains disabled.');
+        $this->warn('Report only: legal holds do not extend the absolute 365-day diagnostic retention cutoff; automated deletion remains disabled.');
 
         return self::SUCCESS;
     }

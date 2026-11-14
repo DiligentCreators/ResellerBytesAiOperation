@@ -94,7 +94,7 @@ This document records review evidence; it does not certify the application as pr
 
 - Global AI budget targets approved: USD 5.00 per UTC day and USD 50.00 per UTC calendar month.
 - Diagnostic snapshot retention target approved: 365 days, including dependent findings and recommendations.
-- Audit-event retention target approved: 2,555 days (approximately seven years), separate from diagnostic retention.
+- Earlier provisional audit-event retention target: 2,555 days (approximately seven years); superseded by the later 2026-11-14 Owner decision for indefinite audit-event retention.
 - These are policy targets only. No budget enforcement is active solely because these values were approved.
 - The design calls for atomic daily/monthly reservations, integer micro-USD accounting, versioned model pricing, idempotent usage settlement, and conservative handling of ambiguous provider outcomes.
 - No budget-ledger or retention migration has been added in this step. Schema changes remain reserved for the final consolidated migration batch.
@@ -254,7 +254,7 @@ A green CI run is necessary but does not close these release gates or authorize 
 
 - Project owner approved **365-day** immutable external audit-backup retention; recorded in the production-pilot checklist.
 - Project owner approved **Owner approval with audit trail** for legal-hold placement and release. Both actions must append an immutable audit event with owner identity, UTC timestamp, affected scope, reason, controlled evidence/case reference, and resulting state.
-- Legal holds override ordinary retention expiry. Future cleanup must exclude held records, re-check hold state inside the deletion transaction, and fail closed if hold state or audit recording fails.
+- Legal holds do not override the absolute 365-day diagnostic expiry. Cleanup marks active hold metadata expired_by_retention with immutable audit evidence before deleting diagnostic content; an audit-write failure aborts the transaction.
 - The Owner identity decision is implemented as a single `OPERATIONS_OWNER_EMAIL` configuration value. The configured account must be email-verified and have MFA enrolled; CLI placement/release additionally verifies a fresh TOTP code.
 - Implemented the legal-hold migration/model/service and `legal-hold:place` / `legal-hold:release` commands. Hold placement/release and immutable audit-event writes share a database transaction; audit failure rolls back the hold state change.
 - Implemented hold inheritance for diagnostic runs, findings, and recommendations. Hold placement and cleanup serialize on the diagnostic-run row; cleanup re-checks active holds inside the deletion transaction.
@@ -266,21 +266,21 @@ A green CI run is necessary but does not close these release gates or authorize 
 
 - Project owner approved **365 days** for diagnostic snapshots, including dependent findings and recommendations, measured from `received_at` in UTC.
 - Updated the report-only Artisan command default to 365 days; its explicit `--days` override remains available for controlled reporting. Updated boundary and default-behavior tests to cover the 365-day threshold.
-- Updated the retention policy, production-pilot checklist, and roadmap references from 90 to 365 days. Audit-event retention remains separate at 2,555 days; immutable external audit-backup retention remains 365 days.
-- This is the approved policy and report configuration, not authorization to delete records. The command remains report-only and does not evaluate legal holds. Automated cleanup remains disabled until owner-authorized legal-hold storage/workflow, query exclusion, in-transaction hold re-check, fail-closed audit writes, dependency-safe bounded deletion, negative-path tests, and backup/restore gates are complete.
-- Next owner decision: define which non-legal-hold exceptions may extend diagnostic retention beyond 365 days.
+- Updated the retention policy, production-pilot checklist, and roadmap references from 90 to 365 days. Audit-event retention is indefinite; immutable external audit-backup retention remains a separate 365-day Object Lock policy.
+- This is the approved policy and report configuration, not authorization to delete records. The command remains report-only. Legal holds do not change the 365-day cutoff. Automated cleanup remains disabled until owner-authorized legal-hold workflow, audited hold expiry, fail-closed audit writes, dependency-safe bounded deletion, negative-path tests, and backup/restore gates are complete.
+- No further diagnostic-retention exception decision is pending; the approved policy is absolute 365-day expiry with no exceptions.
 
 ## Diagnostic retention exception policy approved — 2026-11-14
 
-- Project Owner decision: **no discretionary exceptions** to the 365-day diagnostic retention period. Non-held diagnostic runs and their dependent findings/recommendations expire after 365 days from UTC `received_at`.
-- The previously approved legal-hold workflow remains the sole exception. Legal holds require Project Owner approval and immutable audit events for placement and release; a held record remains retained until an explicitly approved and audited release.
-- Routine support cases, analytics needs, convenience, or an investigation without a formal legal hold do not extend diagnostic retention.
-- Updated the retention policy and production-pilot checklist. This is a policy decision only: the report command remains read-only, does not evaluate holds, and no automated deletion has been enabled.
+- Project Owner decision: **no exceptions of any kind** to the 365-day diagnostic retention period. All diagnostic runs and their dependent findings/recommendations expire after 365 days from UTC `received_at`, regardless of active legal-hold status.
+- The previously approved legal-hold workflow remains for governance evidence. Legal holds require Project Owner approval and immutable audit events for placement and release; active hold metadata is marked expired_by_retention when the diagnostic target reaches 365 days. Diagnostic content is not retained beyond the cutoff.
+- No support case, analytics need, convenience, investigation, or legal-hold status extends diagnostic content retention beyond 365 days.
+- Updated the retention policy, production-pilot checklist, and cleanup implementation. The report remains read-only; the manual cleanup command is disabled by default, is not scheduled, and marks active hold metadata expired with immutable audit evidence before deleting diagnostic content at the cutoff.
 - External Object Lock provisioning, independent Ed25519 key custody, production DB-role naming, and restore rehearsal remain credential/infrastructure gates.
 
 ## Audit-event retention policy approved — 2026-11-14
 
 - Project Owner selected **indefinite retention**: audit events must never be automatically deleted, expired, or pruned. The prior 2,555-day (approximately seven-year) target is superseded.
 - Updated the retention policy and production-pilot checklist. Live audit-event retention is distinct from the separately approved 365-day immutable external backup-object retention; backup expiry does not authorize deletion of live audit records.
-- Audit events remain append-only and are excluded from all automated cleanup. The 365-day diagnostic retention policy and its owner-authorized legal-hold exception remain unchanged.
+- Audit events remain append-only and are retained indefinitely. Diagnostic content expires after 365 days with no legal-hold exception; hold metadata is expired and audited at the cutoff.
 - The decision was recorded in policy documentation. It does not authorize production migration, merge, or deployment.

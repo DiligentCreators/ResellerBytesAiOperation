@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\LegalHold;
 use App\Models\User;
 use App\Services\Audit\AuditEventWriter;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -110,6 +111,77 @@ class LegalHoldService
         }, 3);
     }
 
+    /**
+     * Expire active holds when their diagnostic run reaches the absolute 365-day retention limit.
+     * Hold metadata and immutable audit history remain; diagnostic content is not retained longer.
+     */
+    public function expireForDiagnosticRun(string $runId, string $receivedAt): int
+    {
+        $findingIds = DB::table('diagnostic_findings')
+            ->where('diagnostic_run_id', $runId)
+            ->pluck('id')
+            ->map(static fn (mixed $id): string => (string) $id)
+            ->all();
+
+        $recommendationIds = $findingIds === []
+            ? []
+            : DB::table('diagnostic_recommendations')
+                ->whereIn('diagnostic_finding_id', $findingIds)
+                ->pluck('id')
+                ->map(static fn (mixed $id): string => (string) $id)
+                ->all();
+
+        $holdsQuery = DB::table('legal_holds')
+            ->where('status', 'active')
+            ->where(function ($query) use ($runId, $findingIds, $recommendationIds): void {
+                $query->where(function ($query) use ($runId): void {
+                    $query->where('subject_type', 'diagnostic_run')->where('subject_id', $runId);
+                });
+
+                if ($findingIds !== []) {
+                    $query->orWhere(function ($query) use ($findingIds): void {
+                        $query->where('subject_type', 'diagnostic_finding')->whereIn('subject_id', $findingIds);
+                    });
+                }
+
+                if ($recommendationIds !== []) {
+                    $query->orWhere(function ($query) use ($recommendationIds): void {
+                        $query->where('subject_type', 'diagnostic_recommendation')->whereIn('subject_id', $recommendationIds);
+                    });
+                }
+            })
+            ->lockForUpdate();
+
+        $holds = $holdsQuery->get();
+        $expiredAt = now('UTC');
+
+        foreach ($holds as $hold) {
+            DB::table('legal_holds')
+                ->where('id', $hold->id)
+                ->update([
+                    'status' => 'expired_by_retention',
+                    'updated_at' => $expiredAt,
+                ]);
+
+            $this->audit->append([
+                'actor_type' => 'system',
+                'event_type' => 'legal_hold.expired_by_retention',
+                'subject_type' => 'legal_hold',
+                'subject_id' => (string) $hold->id,
+                'metadata' => [
+                    'target_type' => (string) $hold->subject_type,
+                    'target_id' => (string) $hold->subject_id,
+                    'hold_status' => 'expired_by_retention',
+                    'retention_days' => 365,
+                    'diagnostic_received_at' => $receivedAt,
+                ],
+                'occurred_at' => $expiredAt,
+            ]);
+        }
+
+        return $holds->count();
+    }
+
     public function isHeld(string $subjectType, string $subjectId): bool
     {
         $this->assertSubjectType($subjectType);
@@ -201,6 +273,14 @@ class LegalHoldService
         $root = $runId !== '' ? DB::table('diagnostic_runs')->where('id', $runId)->lockForUpdate()->first() : null;
         if ($root === null) {
             throw ValidationException::withMessages(['subject' => 'The target record or its diagnostic run no longer exists.']);
+        }
+
+        $retentionCutoff = now('UTC')->subDays(365);
+        if ($root->received_at === null
+            || Carbon::parse($root->received_at)->lessThanOrEqualTo($retentionCutoff)) {
+            throw ValidationException::withMessages([
+                'subject' => 'Diagnostic retention is absolute; legal holds cannot extend the 365-day retention period.',
+            ]);
         }
     }
 

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Console\Commands;
 
 use App\Services\Audit\AuditEventWriter;
@@ -11,7 +13,7 @@ class PruneExpiredDiagnosticRecords extends Command
 {
     protected $signature = 'diagnostics:retention:prune {--limit=100} {--execute}';
 
-    protected $description = 'Delete expired diagnostic records in bounded batches, excluding active legal holds';
+    protected $description = 'Delete diagnostic records after the absolute 365-day retention period';
 
     public function handle(LegalHoldService $holds, AuditEventWriter $audit): int
     {
@@ -30,8 +32,6 @@ class PruneExpiredDiagnosticRecords extends Command
         }
 
         $cutoff = now('UTC')->subDays(365);
-        // Bind the same canonical UTC timestamp in candidate selection and the
-        // locked re-check so database drivers cannot serialize Carbon differently.
         $cutoffTimestamp = $cutoff->copy()->utc()->format('Y-m-d H:i:s');
         $ids = DB::table('diagnostic_runs')
             ->where('received_at', '<=', $cutoffTimestamp)
@@ -41,16 +41,11 @@ class PruneExpiredDiagnosticRecords extends Command
             ->pluck('id');
 
         $eligible = 0;
-        $held = 0;
         $deleted = 0;
 
         foreach ($ids as $id) {
             if (! $execute) {
-                if ($holds->isHeld('diagnostic_run', (string) $id)) {
-                    $held++;
-                } else {
-                    $eligible++;
-                }
+                $eligible++;
 
                 continue;
             }
@@ -65,11 +60,9 @@ class PruneExpiredDiagnosticRecords extends Command
                     return 'skipped';
                 }
 
-                // Hold placement locks this same diagnostic-run row before inserting its hold.
-                // Re-check inside the deletion transaction to close the candidate-selection race.
-                if ($holds->isHeld('diagnostic_run', (string) $id)) {
-                    return 'held';
-                }
+                // Legal holds do not extend diagnostic retention. Close active holds
+                // with immutable audit evidence before expiring the diagnostic content.
+                $holds->expireForDiagnosticRun((string) $id, (string) $run->received_at);
 
                 $audit->append([
                     'actor_type' => 'system',
@@ -79,7 +72,7 @@ class PruneExpiredDiagnosticRecords extends Command
                     'metadata' => [
                         'retention_days' => 365,
                         'received_at' => $run->received_at,
-                        'policy' => 'diagnostic_received_at_365_days',
+                        'policy' => 'diagnostic_received_at_365_days_no_exception',
                     ],
                     'occurred_at' => now('UTC'),
                 ]);
@@ -89,26 +82,23 @@ class PruneExpiredDiagnosticRecords extends Command
                 return 'deleted';
             }, 3);
 
-            if ($result === 'held') {
-                $held++;
-            } elseif ($result === 'deleted') {
+            if ($result === 'deleted') {
                 $deleted++;
             }
         }
 
-        $this->line('Retention policy: 365 days from UTC received_at; active legal holds and active runs are excluded.');
+        $this->line('Retention policy: absolute 365 days from UTC received_at; legal holds do not extend diagnostic content retention.');
         $this->line('Batch limit: '.$limit);
         $this->line('Candidate records inspected: '.$ids->count());
 
         if (! $execute) {
             $this->warn('DRY RUN ONLY — no records were deleted. Use --execute only after deployment gates are approved.');
             $this->line('Eligible diagnostic runs: '.$eligible);
-            $this->line('Protected by legal hold: '.$held);
 
             return self::SUCCESS;
         }
 
-        $this->info("Deleted {$deleted} expired diagnostic run(s); protected {$held} by active legal hold(s).");
+        $this->info("Deleted {$deleted} expired diagnostic run(s); any active legal holds were separately expired and audited.");
 
         return self::SUCCESS;
     }

@@ -20,38 +20,15 @@ it('fails closed before database or network operations when Wasabi configuration
 });
 
 it('refuses to restore a backup into a database with a different identity', function () {
-    config([
-        'database.default' => 'pgsql',
-        'database.connections.pgsql' => [
-            'driver' => 'pgsql',
-            'host' => 'recovery-db.internal',
-            'port' => 5432,
-            'database' => 'recovery_target',
-            'username' => 'rb_runtime',
-            'password' => 'runtime-secret',
-        ],
-        'operations.backups.restore_username' => 'rb_migrator',
-        'operations.backups.restore_password' => 'restore-secret',
-    ]);
-
-    expect(fn () => app(BackupArchiveManager::class)->restore([
-        'manifest' => [
-            'database_driver' => 'pgsql',
-            'database_name' => 'production_database',
-        ],
-        'dump_path' => '/tmp/not-opened.dump',
-    ]))->toThrow(RuntimeException::class, 'database identity does not match');
-});
-
-it('rejects a restore manifest whose database name differs from the configured target', function () {
     $connectionName = (string) config('database.default');
     $targetDatabase = (string) config('database.connections.'.$connectionName.'.database');
+    $backups = app(BackupArchiveManager::class);
 
-    expect(fn () => app(BackupArchiveManager::class)->assertRestoreTargetMatches([
+    expect(fn () => $backups->assertRestoreTargetMatches([
         'database_name' => 'different_database',
-    ]))->toThrow(RuntimeException::class);
+    ]))->toThrow(RuntimeException::class, 'database identity does not match');
 
-    expect(fn () => app(BackupArchiveManager::class)->assertRestoreTargetMatches([
+    expect(fn () => $backups->assertRestoreTargetMatches([
         'database_name' => $targetDatabase,
     ]))->not->toThrow(RuntimeException::class);
 });

@@ -44,8 +44,8 @@ function legalHoldDiagnosticRun(): DiagnosticRun
         'schema_version' => '1.0',
         'addon_version' => '1.0.0',
         'status' => 'completed',
-        'collected_at' => now()->subDays(400),
-        'received_at' => now()->subDays(400),
+        'collected_at' => now()->subDays(30),
+        'received_at' => now()->subDays(30),
         'payload' => [],
         'payload_sha256' => str_repeat('b', 64),
     ]);
@@ -153,6 +153,7 @@ it('rolls back a hold if its immutable audit event cannot be appended', function
 
 it('keeps the diagnostic cleanup command dry-run by default and refuses execution while disabled', function () {
     $run = legalHoldDiagnosticRun();
+    DB::table('diagnostic_runs')->where('id', $run->id)->update(['received_at' => now()->subDays(400)]);
 
     $this->artisan('diagnostics:retention:prune')
         ->expectsOutputToContain('DRY RUN ONLY')
@@ -168,7 +169,7 @@ it('keeps the diagnostic cleanup command dry-run by default and refuses executio
     expect(DB::table('diagnostic_runs')->where('id', $run->id)->exists())->toBeTrue();
 });
 
-it('deletes only explicitly authorized expired diagnostic runs and preserves runs protected by descendant holds', function () {
+it('expires active descendant holds but still deletes diagnostic data at the absolute 365-day cutoff', function () {
     $owner = legalHoldOwner();
     $heldRun = legalHoldDiagnosticRun();
     $eligibleRun = legalHoldDiagnosticRun();
@@ -184,39 +185,51 @@ it('deletes only explicitly authorized expired diagnostic runs and preserves run
         'status' => 'open',
     ]);
 
-    app(LegalHoldService::class)->place(
+    $service = app(LegalHoldService::class);
+    $runHold = $service->place(
+        $owner,
+        'diagnostic_run',
+        $heldRun->id,
+        'Preserve this diagnostic run for a formal legal matter',
+        'CASE-2026-0043-RUN',
+    );
+    $findingHold = $service->place(
         $owner,
         'diagnostic_finding',
         $finding->id,
         'Preserve this finding for a formal legal matter',
-        'CASE-2026-0043',
+        'CASE-2026-0043-FINDING',
     );
+    $recommendation = DiagnosticRecommendation::create([
+        'diagnostic_finding_id' => $finding->id,
+        'recommendation' => 'Preserve this recommendation',
+        'rationale' => 'Legal hold retention fixture',
+        'risk_level' => 'low',
+        'requires_manual_action' => true,
+    ]);
+    $recommendationHold = $service->place(
+        $owner,
+        'diagnostic_recommendation',
+        $recommendation->id,
+        'Preserve this recommendation for a formal legal matter',
+        'CASE-2026-0043-RECOMMENDATION',
+    );
+    DB::table('diagnostic_runs')->whereIn('id', [$heldRun->id, $eligibleRun->id])->update([
+        'received_at' => now()->subDays(400),
+        'collected_at' => now()->subDays(400),
+    ]);
 
     config(['diagnostics.retention_cleanup_enabled' => true]);
 
     $this->artisan('diagnostics:retention:prune', ['--execute' => true])
-        ->expectsOutputToContain('Deleted 1 expired diagnostic run(s); protected 1 by active legal hold(s).')
+        ->expectsOutputToContain('Deleted 2 expired diagnostic run(s); any active legal holds were separately expired and audited.')
         ->assertSuccessful();
 
-    expect(DB::table('audit_events')->where('event_type', 'diagnostics.retention.deleted')->count())->toBe(1);
-
-    expect(DB::table('diagnostic_runs')->where('id', $heldRun->id)->exists())->toBeTrue()
-        ->and(DB::table('diagnostic_findings')->where('id', $finding->id)->exists())->toBeTrue()
-        ->and(DB::table('diagnostic_runs')->where('id', $eligibleRun->id)->exists())->toBeFalse();
-});
-
-it('fails closed and leaves expired records untouched when hold-state evaluation fails', function () {
-    $run = legalHoldDiagnosticRun();
-    config(['diagnostics.retention_cleanup_enabled' => true]);
-
-    $holds = Mockery::mock(LegalHoldService::class);
-    $holds->shouldReceive('isHeld')->once()->andThrow(new RuntimeException('hold_state_unavailable'));
-    app()->instance(LegalHoldService::class, $holds);
-
-    expect(fn () => $this->artisan('diagnostics:retention:prune', ['--execute' => true]))
-        ->toThrow(RuntimeException::class, 'hold_state_unavailable');
-
-    expect(DB::table('diagnostic_runs')->where('id', $run->id)->exists())->toBeTrue();
+    expect(DB::table('audit_events')->where('event_type', 'diagnostics.retention.deleted')->count())->toBe(2)
+        ->and(DB::table('audit_events')->where('event_type', 'legal_hold.expired_by_retention')->count())->toBe(3)
+        ->and(DB::table('legal_holds')->whereIn('id', [$runHold->id, $findingHold->id, $recommendationHold->id])->where('status', 'expired_by_retention')->count())->toBe(3)
+        ->and(DB::table('diagnostic_runs')->whereIn('id', [$heldRun->id, $eligibleRun->id])->count())->toBe(0)
+        ->and(DB::table('diagnostic_findings')->where('id', $finding->id)->exists())->toBeFalse();
 });
 
 it('rolls back legal hold release when its immutable audit event cannot be appended', function () {
@@ -246,6 +259,7 @@ it('rolls back legal hold release when its immutable audit event cannot be appen
 
 it('rolls back diagnostic deletion when its immutable audit event cannot be appended', function () {
     $run = legalHoldDiagnosticRun();
+    DB::table('diagnostic_runs')->where('id', $run->id)->update(['received_at' => now()->subDays(400)]);
     config(['diagnostics.retention_cleanup_enabled' => true]);
 
     $writer = Mockery::mock(AuditEventWriter::class);
@@ -280,7 +294,7 @@ it('uses an inclusive UTC cutoff for cleanup and excludes active diagnostic runs
         config(['diagnostics.retention_cleanup_enabled' => true]);
 
         $this->artisan('diagnostics:retention:prune', ['--execute' => true])
-            ->expectsOutputToContain('Deleted 1 expired diagnostic run(s); protected 0 by active legal hold(s).')
+            ->expectsOutputToContain('Deleted 1 expired diagnostic run(s); any active legal holds were separately expired and audited.')
             ->assertSuccessful();
 
         expect(DB::table('diagnostic_runs')->where('id', $boundaryRun->id)->exists())->toBeFalse()
@@ -289,6 +303,50 @@ it('uses an inclusive UTC cutoff for cleanup and excludes active diagnostic runs
     } finally {
         Carbon::setTestNow();
     }
+});
+
+
+it('rejects a legal hold after the diagnostic retention cutoff', function () {
+    $owner = legalHoldOwner();
+    $run = legalHoldDiagnosticRun();
+    DB::table('diagnostic_runs')->where('id', $run->id)->update(['received_at' => now()->subDays(365)]);
+
+    expect(fn () => app(LegalHoldService::class)->place(
+        $owner,
+        'diagnostic_run',
+        $run->id,
+        'Preserve records for a formal legal matter',
+        'CASE-2026-0049',
+    ))->toThrow(ValidationException::class);
+
+    expect(DB::table('legal_holds')->count())->toBe(0)
+        ->and(DB::table('audit_events')->where('event_type', 'legal_hold.placed')->count())->toBe(0);
+});
+
+it('rolls back expiry and deletion if a legal-hold expiry audit event cannot be appended', function () {
+    $owner = legalHoldOwner();
+    $run = legalHoldDiagnosticRun();
+    $hold = app(LegalHoldService::class)->place(
+        $owner,
+        'diagnostic_run',
+        $run->id,
+        'Preserve records for a formal legal matter',
+        'CASE-2026-0050',
+    );
+    DB::table('diagnostic_runs')->where('id', $run->id)->update(['received_at' => now()->subDays(400)]);
+    config(['diagnostics.retention_cleanup_enabled' => true]);
+
+    $writer = Mockery::mock(AuditEventWriter::class);
+    $writer->shouldReceive('append')->once()->andThrow(new RuntimeException('audit_write_failed'));
+    app()->instance(AuditEventWriter::class, $writer);
+    app()->instance(LegalHoldService::class, new LegalHoldService($writer));
+
+    expect(fn () => $this->artisan('diagnostics:retention:prune', ['--execute' => true]))
+        ->toThrow(RuntimeException::class, 'audit_write_failed');
+
+    expect(DB::table('diagnostic_runs')->where('id', $run->id)->exists())->toBeTrue()
+        ->and(DB::table('legal_holds')->where('id', $hold->id)->value('status'))->toBe('active')
+        ->and(DB::table('audit_events')->where('event_type', 'diagnostics.retention.deleted')->count())->toBe(0);
 });
 
 it('propagates a recommendation hold to its finding and parent diagnostic run', function () {

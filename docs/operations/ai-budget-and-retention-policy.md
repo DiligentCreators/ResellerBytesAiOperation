@@ -62,9 +62,9 @@ Migration `2026_11_12_000008_create_ai_budget_ledger_tables.php` adds the daily/
 - Retention age is measured from snapshot receipt time in UTC.
 - The 365-day policy applies to the diagnostic run and its dependent findings and recommendations, because those records contain derived evidence from the same snapshot.
 - Before any deletion, provide a dry-run report with candidate counts, oldest/newest timestamps, and affected dependent records.
-- A report-only command is available: `php artisan diagnostics:retention:report --days=365`. It reports candidate run counts, dependent finding/recommendation counts, cutoff, and oldest/newest receipt timestamps; it never deletes data and does not evaluate legal holds. A separate `diagnostics:retention:prune` command is hold-aware, bounded, dry-run by default, and re-checks holds inside the deletion transaction. It requires both `DIAGNOSTICS_RETENTION_CLEANUP_ENABLED=true` and explicit `--execute`; it is not scheduled and remains disabled by default.
+- A report-only command is available: `php artisan diagnostics:retention:report --days=365`. It reports candidate run counts, dependent finding/recommendation counts, cutoff, and oldest/newest receipt timestamps; it never deletes data and does not inspect hold status because holds do not alter the absolute 365-day cutoff. The separate `diagnostics:retention:prune` command is bounded and dry-run by default. It expires active hold metadata with immutable audit evidence and deletes diagnostic content at the cutoff in one transaction. It requires both `DIAGNOSTICS_RETENTION_CLEANUP_ENABLED=true` and explicit `--execute`; it is not scheduled and remains disabled by default.
 - Every diagnostic deletion must first append an immutable `diagnostics.retention.deleted` audit event in the same transaction; if audit append fails, deletion rolls back. Diagnostic retention never cascades into audit events or integration records.
-- The approved legal-hold model is the sole exception to the 365-day diagnostic expiry. Held records remain retained until the Project Owner explicitly approves and audits release. Cleanup must exclude held records, re-check hold state inside the deletion transaction, and fail closed if hold state or audit writing fails.
+- No legal-hold or other exception extends the 365-day diagnostic expiry. Active legal-hold metadata is transitioned to `expired_by_retention` with an immutable audit event when the diagnostic target expires. Diagnostic content is deleted at the 365-day cutoff; legal-hold records and audit events remain as governance evidence.
 
 ### Audit events — indefinite retention
 
@@ -166,7 +166,7 @@ The following items are deliberately not guessed or activated:
 
 - **Authority:** the project Owner is the approval authority to place and release a legal hold.
 - **Auditability:** every placement and release must produce an append-only audit event. At minimum record the acting owner identity, UTC timestamp, affected record/scope, action (place/release), reason, evidence or case reference, and resulting hold state. Do not put sensitive case documents or customer payloads in event metadata; store only a controlled reference.
-- **Enforcement:** any future cleanup job must exclude held records at query time and re-check hold state inside the deletion transaction. A hold or audit-write failure must fail closed: no deletion. Hold release must itself be explicitly owner-approved and audited; expiry of the 365-day backup period does not override a legal hold.
+- **Enforcement:** legal holds do not extend diagnostic content retention. Cleanup marks active holds `expired_by_retention` and appends an immutable audit event before deleting the diagnostic target; any audit-write failure aborts the transaction. Hold placement/release remains explicitly Owner-approved and audited. New holds cannot be placed on diagnostic targets already at or beyond the 365-day cutoff.
 - **Current implementation status:** legal-hold schema/model/service and Owner-only CLI placement/release commands are implemented. `OPERATIONS_OWNER_EMAIL` selects the sole Owner; the account must have verified email and enrolled MFA, and each CLI action requires fresh TOTP. Placement/release and immutable audit writes are atomic. The bounded diagnostic cleanup command excludes direct/descendant holds and re-checks inside the deletion transaction. Cleanup remains disabled by default, is not scheduled, and requires explicit `--execute` plus deployment approval.
 
 ### Shahrukh ke liye
@@ -186,16 +186,16 @@ The following items are deliberately not guessed or activated:
 
 No automated diagnostic snapshot cleanup, audit-event expiry, integration deletion, external anchor upload, or production privilege change is enabled by this policy document.
 
-### Approved diagnostic retention exceptions — 2026-11-14
+### Absolute diagnostic retention policy clarified — 2026-11-14
 
-- **Decision:** no discretionary or routine exception extends diagnostic retention beyond 365 days. Non-held diagnostic runs and their dependent findings/recommendations expire at 365 days from `received_at` (UTC).
-- The previously approved legal-hold process remains the only exception: a hold must be placed by the Project Owner with an immutable audit event and remains effective until a separately owner-approved and audited release. This is not a discretionary retention extension.
-- Customer support, convenience, product analytics, or ordinary investigation status do not independently extend retention. If a qualifying legal hold applies, the hold takes precedence; otherwise the 365-day expiry applies.
-- This decision does not enable scheduled or automatic deletion. A bounded manual cleanup command now exists with dry-run default, a disabled-by-default deployment feature flag, explicit `--execute`, in-transaction hold re-check, and dependency-safe cascade deletion. It must remain disabled until the exact release SHA passes CI and backup/restore and operational gates are approved.
+- **Decision:** no exception of any kind extends diagnostic retention beyond 365 days. All diagnostic runs and their dependent findings/recommendations expire at 365 days from `received_at` (UTC), whether or not an active legal hold exists.
+- The previously approved legal-hold process remains for governance evidence only. A hold must be placed by the Project Owner with an immutable audit event, but it does not preserve diagnostic content beyond 365 days. Active hold metadata is marked `expired_by_retention` and audited when its diagnostic target expires.
+- No customer support, convenience, product analytics, ordinary investigation, or legal-hold status extends diagnostic retention. All diagnostic content expires at 365 days from UTC `received_at`.
+- This decision does not enable scheduled or automatic deletion. A bounded manual cleanup command exists with dry-run default, a disabled-by-default deployment feature flag, explicit `--execute`, audited hold expiry, and dependency-safe deletion. It must remain disabled until the exact release SHA passes CI and backup/restore and operational gates are approved.
 
 ## Audit-event retention policy approved — 2026-11-14
 
 - Project Owner decision: **indefinite retention**. Audit events must never be automatically deleted, expired, or pruned; there is no 2,555-day expiry.
 - This applies to live audit-event records and is distinct from the separately approved 365-day immutable external backup-object retention. Backup-object lifecycle rules must not be interpreted as authorization to delete the live audit stream.
-- The diagnostic snapshot/finding/recommendation policy remains 365 days, subject only to the approved owner-authorized legal hold. Audit events remain append-only and are excluded from all automated cleanup.
+- The diagnostic snapshot/finding/recommendation policy is absolute 365 days with no exceptions. Audit events remain append-only, retained indefinitely, and excluded from all automated cleanup.
 - Owner authority is configured only through `OPERATIONS_OWNER_EMAIL`; no fallback Owner, role escalation, or public endpoint is provided. CLI placement/release requires fresh TOTP. The migration and commands are repository code only; no production migration, scheduled retention job, or deployment is authorized.

@@ -167,3 +167,19 @@ Approved monitoring, alert-routing, recovery, retention, signing-operator, and P
 - Scope limitation: this tool backs up the PostgreSQL application database only; WHMCS/MariaDB, uploaded files, and external provider state require separately designed backup coverage. The 5 GiB single-PutObject limit is a hard fail-closed boundary.
 - No backup or restore was executed against a real database or Wasabi bucket. Production restore remains explicitly gated by Shahrukh's incident-specific approval.
 - The base backup/restore implementation passed exact-head run #43599455622 (206 passed, 3 skipped, 921 assertions); subsequent queue-tracking and restore-target identity changes are pending their own exact-head CI run.
+
+
+## Security-review readiness and retention-policy alignment
+
+- Created docs/operations/security-review-readiness-pack.md as an evidence index and reviewer test plan. It explicitly distinguishes repository implementation from real infrastructure evidence and independent security approval.
+- Updated the independent review checklist for current provider-neutral checkpoint publishing, alert scheduling, Wasabi backup/restore tooling, and owner-controlled external provisioning gates.
+- Reconciled diagnostic retention implementation with Shahrukh's explicit no-exception decision: active legal holds no longer extend diagnostic data retention; hold rows transition to expired_by_retention and are audited when their target data reaches 365 days. Holds on already-expired targets are rejected. The legal-hold status column was widened to 32 characters for the explicit state.
+- Corrected the backup single-PutObject maximum to 5 GB (5,000,000,000 bytes), not 5 GiB.
+- Exact-head CI is intentionally deferred until the final one-shot commit. The earlier run #43599729637 was triggered by a concurrent commit without [skip ci] and failed only the general formatting check in the external audit-anchor document; five matrix jobs passed. The document has since been updated. No CI run was requested for our skip-ci commits.
+
+
+## CI-cost policy exception log and backup test correction
+
+- Three concurrent commits without [skip ci] were observed after Shahrukh's instruction, triggering extra runs despite this assistant's skip-ci commits: #43599729637 on 555f92e (general formatting failure in external-audit-anchor-monitoring-and-storage.md; five matrix jobs passed), #43600418285 on a831220 (general CI failed 30 tests after a backup test changed database.default to an unreachable PostgreSQL host, cascading into SQLite transaction errors; five matrix jobs passed), and #43600581151 on 591aead (in progress at this update).
+- The current hardening batch adds BackupArchiveManager::assertRestoreTargetMatches as a pure config comparison and rewrites BackupArchiveManagerTest to keep the active test database connection unchanged. The external audit-anchor documentation formatting has also been normalized.
+- No CI was requested for the assistant-authored skip-ci commits. From this point, no further CI should run until the one final commit without [skip ci] after all roadmap work is complete.
