@@ -9,6 +9,7 @@ use App\Models\WhmcsIntegration;
 use App\Services\Diagnostics\AiBudgetService;
 use App\Services\Diagnostics\WhmcsDiagnosticAnalyzer;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Http;
 use RuntimeException;
 
 it('persists validated AI findings and recommendations against their source snapshot', function () {
@@ -326,4 +327,60 @@ it('keeps a submitted provider timeout ambiguous and blocks an automatic duplica
     expect(AiUsageAttempt::query()->where('diagnostic_run_id', $run->id)->count())->toBe(1)
         ->and($attempt->fresh()->status)->toBe('ambiguous')
         ->and($run->fresh()->status)->toBe('analysis_failed');
+});
+
+
+it('settles confirmed provider usage before surfacing an unsuccessful HTTP response', function () {
+    $integration = WhmcsIntegration::create([
+        'name' => 'Confirmed usage on provider error test',
+        'status' => 'active',
+        'secret' => bin2hex(random_bytes(32)),
+        'secret_version' => 1,
+    ]);
+
+    $run = DiagnosticRun::create([
+        'integration_id' => $integration->id,
+        'snapshot_uuid' => (string) Str::uuid(),
+        'schema_version' => '1.0',
+        'addon_version' => '1.0.0',
+        'status' => 'received',
+        'collected_at' => now(),
+        'received_at' => now(),
+        'payload' => ['system' => ['whmcs_version' => '8.13.7']],
+        'payload_sha256' => str_repeat('a', 64),
+    ]);
+
+    config()->set('services.openai.key', 'test-provider-key');
+    Http::fake([
+        'api.openai.com/v1/responses' => Http::response([
+            'id' => 'resp_confirmed_usage_error',
+            'status' => 'failed',
+            'usage' => [
+                'input_tokens' => 100,
+                'input_tokens_details' => ['cached_tokens' => 20],
+                'output_tokens' => 30,
+                'total_tokens' => 130,
+            ],
+            'error' => ['code' => 'provider_processing_error'],
+        ], 500),
+    ]);
+
+    $settled = null;
+    expect(fn () => app(WhmcsDiagnosticAnalyzer::class)->analyze(
+        $run,
+        null,
+        function (array $body, array $usage) use (&$settled): void {
+            $settled = [$body['id'], $usage];
+        },
+    ))->toThrow(RuntimeException::class, 'provider_request_failed');
+
+    expect($settled)->toBe([
+        'resp_confirmed_usage_error',
+        [
+            'input_tokens' => 100,
+            'cached_input_tokens' => 20,
+            'output_tokens' => 30,
+            'total_tokens' => 130,
+        ],
+    ]);
 });
