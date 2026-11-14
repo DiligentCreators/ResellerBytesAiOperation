@@ -50,7 +50,7 @@ billing:webhooks:reconcile --limit=100 performs the bounded reconciliation pass.
 
 ## PostgreSQL RLS and operations role
 
-The ordinary runtime PostgreSQL login remains tenant-scoped and must not receive BYPASSRLS, table ownership, or superuser rights. The separately provisioned operations role may receive only the narrowly scoped privileges (and RLS bypass if required for cross-tenant scheduling) needed for these platform billing tasks; it must not be a superuser or table owner. Global scheduled reconciliation needs to scan due rows across tenants, so both commands execute through the separate pgsql_operations connection.
+The ordinary runtime PostgreSQL login remains tenant-scoped and must not receive BYPASSRLS, table ownership, or superuser rights. The separately provisioned operations role must be a distinct PostgreSQL login with BYPASSRLS for the global scheduled scans, narrowly granted only the table privileges required for these platform billing tasks, and must not be a superuser or table owner. The application verifies BYPASSRLS, non-superuser status, same-database targeting, and non-ownership before any global reconciliation runs. Global scheduled reconciliation needs to scan due rows across tenants, so both commands execute through the separate pgsql_operations connection.
 
 Configure only through the approved secret manager/runtime environment:
 
