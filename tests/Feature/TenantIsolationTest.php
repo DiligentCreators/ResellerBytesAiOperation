@@ -215,7 +215,10 @@ it('keeps tenant notification inbox entries private to the intended active membe
         $tenant->memberships()->create(['user_id' => $user->id, 'role' => TenantMembership::ROLE_VIEWER, 'status' => TenantMembership::STATUS_ACTIVE, 'accepted_at' => now()]);
     }
 
-    $notification = app(TenantNotificationService::class)->publish($tenant->id, $recipient->id, 'diagnostics.run.completed', ['run_id' => 42, 'status' => 'completed']);
+    $notification = app(TenantNotificationService::class)->publish($tenant->id, $recipient->id, 'diagnostics.run.completed', ['run_id' => 42, 'status' => 'completed'], 'diagnostic-run:42:completed');
+
+    $duplicate = app(TenantNotificationService::class)->publish($tenant->id, $recipient->id, 'diagnostics.run.completed', ['run_id' => 42, 'status' => 'completed'], 'diagnostic-run:42:completed');
+    expect($duplicate->id)->toBe($notification->id);
 
     $this->actingAs($recipient)->get('/tenants/'.$tenant->id.'/notifications')
         ->assertOk()->assertJsonPath('notifications.total', 1)
@@ -234,7 +237,7 @@ it('keeps tenant notification inbox entries private to the intended active membe
 it('does not publish notifications for suspended or non-member tenant users', function () {
     $tenant = Tenant::create(['name' => 'No Notification Workspace', 'slug' => 'no-notification-workspace', 'status' => Tenant::STATUS_ACTIVE]);
     $outsider = User::factory()->create();
-    expect(fn () => app(TenantNotificationService::class)->publish($tenant->id, $outsider->id, 'tenant.notice.created', ['message' => 'test']))
+    expect(fn () => app(TenantNotificationService::class)->publish($tenant->id, $outsider->id, 'tenant.notice.created', ['message' => 'test'], 'notice:outsider:001'))
         ->toThrow(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
 
     $tenant->forceFill(['status' => Tenant::STATUS_SUSPENDED])->save();
