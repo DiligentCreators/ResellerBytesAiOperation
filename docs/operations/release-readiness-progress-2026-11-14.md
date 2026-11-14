@@ -5,7 +5,7 @@
 - Repository: `DiligentCreators/ResellerBytesAiOperation`
 - Pull request: [#2 — Release readiness](https://github.com/DiligentCreators/ResellerBytesAiOperation/pull/2)
 - Branch: `work/release-readiness-audit`
-- Latest reviewed head at the time of this note: `7184d09429cc8522310cd94cfe4e30355e7c5d96`
+- Latest reviewed head: `cff03dd7264138929753101d7b446f0d3a88df1f`
 - PR remains open and Draft. No merge, production migration, deployment, or live WHMCS change has been performed.
 
 ## Previously verified CI baseline
@@ -49,7 +49,7 @@ This run does not verify the later SQL Server/MariaDB additions in this branch.
 
 1. Verify all six CI jobs on the exact latest branch SHA; fix any failures and rerun until green.
 2. Continue release checklist, security review preparation, and negative privilege/test coverage without enabling destructive retention.
-3. Keep these items in the operator decision queue: Object Lock/cloud account, 365-day retention approval, signing keys and production DB roles, legal-hold policy, and backup/restore rehearsal access.
+3. Keep only the seven owner-only inputs in the `Pending for Shahrukh` list below; approved operating thresholds, routing policy, recovery objectives, retention target, signing operator, and PostgreSQL role design are decisions already made.
 4. Keep PR #2 Draft. Do not merge, deploy, or run production migrations.
 
 ## Shahrukh-approved operational decisions — 2026-11-14
@@ -71,7 +71,7 @@ The config and runbooks record these approved values. Alert delivery, provider a
 - Applied approved monitoring thresholds, notification destination configuration, recovery objectives/approval gate, 365-day COMPLIANCE audit retention, and initial single-operator configuration to `config/operations.php` and `.env.example`.
 - Updated monitoring and backup/restore runbooks with the approved policy.
 - Expanded PostgreSQL role guidance to three distinct application identities. Reporting access is explicitly allowlisted rather than broad schema-wide SELECT.
-- Added a PostgreSQL CI regression script for the read-only reporting identity; exact-head CI for this new batch is pending.
+- Added a PostgreSQL CI regression script for the read-only reporting identity; exact-head CI passed on `cff03dd7264138929753101d7b446f0d3a88df1f`.
 - PR #2 remains open and Draft. No merge, deploy, production migration, or live WHMCS change has occurred.
 
 ## Pending for Shahrukh — owner-only inputs/actions
@@ -87,3 +87,12 @@ Do not mark these complete until Shahrukh provides or authorizes them:
 7. Provide final release authorization.
 
 Approved monitoring, alert-routing, recovery, retention, signing-operator, and PostgreSQL role decisions are not pending. No production resource, secret, provider pricing approval, backup access, independent review, or release authorization is inferred from the repository changes.
+
+
+## Exact-head CI confirmation — 2026-11-14
+
+- Commit `cff03dd7264138929753101d7b446f0d3a88df1f` passed all six required jobs in [run #43580604544](https://github.com/DiligentCreators/ResellerBytesAiOperation/actions/runs/43580604544).
+- General CI: **190 passed, 866 assertions**.
+- PostgreSQL CI verified the runtime identity's append-only audit and no-DDL restrictions, plus a read-only reporting identity that can SELECT only from an explicitly granted reporting table and is denied unapproved audit reads, writes, migration-ledger reads, and DDL.
+- MySQL 8.4, MariaDB 11.4, SQL Server 2022, and WHMCS PHP 8.1 compatibility jobs all passed.
+- PR #2 remains open and Draft; no merge, deployment, production migration, or live WHMCS operation occurred.
