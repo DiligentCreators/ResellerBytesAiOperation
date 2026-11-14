@@ -47,3 +47,10 @@ it('fails closed when dedicated audit storage credentials are missing', function
     expect(fn () => app(S3AuditCheckpointObjectStore::class)->findImmutableObject('audit-anchors/testing/checkpoint.json'))
         ->toThrow(RuntimeException::class, 'audit_anchor_storage_secret_key_not_configured');
 });
+
+it('rejects endpoints containing embedded credentials', function () {
+    config(['audit.anchor.storage.endpoint' => 'https://user:password@s3.example.invalid']);
+
+    expect(fn () => app(S3AuditCheckpointObjectStore::class)->findImmutableObject('audit-anchors/testing/checkpoint.json'))
+        ->toThrow(RuntimeException::class, 'audit_anchor_storage_endpoint_invalid');
+});
