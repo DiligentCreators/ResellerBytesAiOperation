@@ -2,6 +2,7 @@
 
 use App\Services\Audit\AuditEventCanonicalizer;
 use App\Services\Audit\AuditEventWriter;
+use App\Models\Tenant;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 
@@ -113,4 +114,44 @@ it('detects a modified event payload even when the chain head remains unchanged'
 
     expect(Artisan::call('audit:verify-integrity'))->toBe(1)
         ->and(Artisan::output())->toContain('event digest mismatch');
+});
+
+
+it('preserves version-one canonical hashes and binds tenant identity into version-two hashes', function () {
+    $canonicalizer = app(AuditEventCanonicalizer::class);
+    $legacy = [
+        'chain_sequence' => 7,
+        'previous_hash' => str_repeat('a', 64),
+        'hash_version' => 1,
+        'tenant_id' => 'tenant-must-not-affect-v1',
+        'event_type' => 'legacy.event',
+        'metadata' => ['legacy' => true],
+        'occurred_at' => '2026-11-13 10:11:12',
+    ];
+    $legacyWithoutTenant = $legacy;
+    unset($legacyWithoutTenant['tenant_id']);
+
+    expect($canonicalizer->hash($legacy))->toBe($canonicalizer->hash($legacyWithoutTenant));
+
+    $versionTwo = $legacy;
+    $versionTwo['hash_version'] = 2;
+    $versionTwo['tenant_id'] = 'tenant-a';
+    $otherTenant = $versionTwo;
+    $otherTenant['tenant_id'] = 'tenant-b';
+
+    expect($canonicalizer->hash($versionTwo))->not->toBe($canonicalizer->hash($otherTenant));
+});
+
+it('writes tenant attribution into version-two audit event hashes', function () {
+    $tenant = Tenant::create(['name' => 'Audit Tenant', 'slug' => 'audit-tenant', 'status' => Tenant::STATUS_ACTIVE]);
+    $event = app(AuditEventWriter::class)->append([
+        'tenant_id' => $tenant->id,
+        'event_type' => 'tenant.audit.test',
+        'metadata' => ['source' => 'tenant-test'],
+        'occurred_at' => now(),
+    ]);
+
+    expect($event->tenant_id)->toBe($tenant->id)
+        ->and($event->hash_version)->toBe(2)
+        ->and(Artisan::call('audit:verify-integrity'))->toBe(0);
 });
