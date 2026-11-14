@@ -129,7 +129,7 @@ class TenantSubscriptionLifecycle
 
                 app(TenantBillingOutbox::class)->enqueue(
                     $tenantId,
-                    'billing.subscription.status_changed:'.$subscription->id.':'.$subscription->updated_at?->format('YmdHis.u'),
+                    'billing.subscription.status_changed:'.$subscription->id.':'.Str::uuid(),
                     'billing.subscription.status_changed',
                     'tenant_subscription',
                     $subscription->id,
