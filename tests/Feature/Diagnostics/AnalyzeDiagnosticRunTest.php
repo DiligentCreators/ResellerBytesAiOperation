@@ -12,6 +12,7 @@ use App\Services\Diagnostics\AiBudgetService;
 use App\Services\Diagnostics\WhmcsDiagnosticAnalyzer;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Database\QueryException;
 use RuntimeException;
 
 it('persists validated AI findings and recommendations against their source snapshot', function () {
@@ -521,7 +522,7 @@ it('prevents tenant reassignment after diagnostic history exists', function () {
     ]);
 
     expect(fn () => $integration->forceFill(['tenant_id' => $replacementTenant->id])->save())
-        ->toThrow(\\Illuminate\\Database\\QueryException::class);
+        ->toThrow(QueryException::class);
 
     expect($integration->fresh()->tenant_id)->toBe($tenant->id)
         ->and($run->fresh()->tenant_id)->toBe($tenant->id)
