@@ -5,6 +5,7 @@ use App\Models\WhmcsIntegration;
 use Illuminate\Support\Str;
 
 function signedWhmcsSnapshotRequest(
+    \\Tests\\TestCase $testCase,
     string $integrationId,
     string $secret,
     string $nonce,
@@ -44,7 +45,7 @@ function signedWhmcsSnapshotRequest(
     ]);
     $signature = $signatureOverride ?? hash_hmac('sha256', $canonical, $secret);
 
-    return test()->call('POST', $path, [], [], [], [
+    return $testCase->call('POST', $path, [], [], [], [
         'CONTENT_TYPE' => 'application/json',
         'HTTP_ACCEPT' => 'application/json',
         'HTTP_X_RB_INTEGRATION' => $integrationId,
@@ -69,7 +70,7 @@ it('accepts a valid signed WHMCS snapshot once and rejects nonce replay', functi
     $integration = createWhmcsAuthenticationFixture();
     $nonce = rtrim(strtr(base64_encode(random_bytes(24)), '+/', '-_'), '=');
 
-    $first = signedWhmcsSnapshotRequest($integration->id, $integration->secret, $nonce);
+    $first = signedWhmcsSnapshotRequest($this, $integration->id, $integration->secret, $nonce);
     $first->assertAccepted();
 
     expect(IntegrationRequestNonce::query()
@@ -99,7 +100,7 @@ it('rejects a WHMCS request with an invalid HMAC signature', function () {
     $integration = createWhmcsAuthenticationFixture();
     $nonce = rtrim(strtr(base64_encode(random_bytes(24)), '+/', '-_'), '=');
 
-    signedWhmcsSnapshotRequest($integration->id, $integration->secret, $nonce, str_repeat('0', 64))
+    signedWhmcsSnapshotRequest($this, $integration->id, $integration->secret, $nonce, str_repeat('0', 64))
         ->assertUnauthorized();
 
     expect(IntegrationRequestNonce::query()
