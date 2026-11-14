@@ -11,6 +11,18 @@ use RuntimeException;
 class TenantBillingWebhookGateway
 {
     /**
+     * Resolve only an explicitly configured provider adapter.
+     *
+     * @param array<string, string|string[]> $headers
+     */
+    public function ingestConfigured(string $provider, string $rawBody, array $headers): TenantBillingWebhookEvent
+    {
+        $adapter = app(BillingProviderAdapterRegistry::class)->resolve($provider);
+
+        return $this->ingest($provider, $adapter, $rawBody, $headers);
+    }
+
+    /**
      * Verify, tenant-map and ingest a provider webhook. This is an internal
      * application boundary; no public HTTP route is registered by this class.
      *
