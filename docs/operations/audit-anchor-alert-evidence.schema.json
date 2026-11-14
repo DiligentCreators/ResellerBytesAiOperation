@@ -4,8 +4,7 @@
     "description": "Redacted, non-secret evidence emitted by audit:anchor:monitor --json. This record does not itself prove remote Object Lock storage or alert delivery.",
     "type": "object",
     "additionalProperties": false,
-    "required":
-    [
+    "required": [
         "schema_version",
         "status",
         "reason_code",
@@ -18,14 +17,11 @@
         "checkpoint_age_seconds",
         "exit_code"
     ],
-    "properties":
-    {
-        "schema_version": {"const":1},
-        "status": {"enum":["healthy","failed"]},
-        "reason_code":
-        {
-            "enum":
-            [
+    "properties": {
+        "schema_version": { "const": 1 },
+        "status": { "enum": ["healthy", "failed"] },
+        "reason_code": {
+            "enum": [
                 "healthy",
                 "checkpoint_unavailable",
                 "invalid_threshold",
@@ -37,13 +33,19 @@
                 "verification_failed"
             ]
         },
-        "observed_at_utc": {"type":"string","format":"date-time"},
-        "environment": {"type":["string","null"],"pattern":"^[a-zA-Z0-9._-]+$"},
-        "checkpoint_sha256": {"type":["string","null"],"pattern":"^[a-f0-9]{64}$"},
-        "anchor_sequence": {"type":["integer","null"],"minimum":0},
-        "local_sequence": {"type":["integer","null"],"minimum":0},
-        "unanchored_tail": {"type":["integer","null"],"minimum":0},
-        "checkpoint_age_seconds": {"type":["integer","null"]},
-        "exit_code": {"enum":[0,1]}
+        "observed_at_utc": { "type": "string", "format": "date-time" },
+        "environment": {
+            "type": ["string", "null"],
+            "pattern": "^[a-zA-Z0-9._-]+$"
+        },
+        "checkpoint_sha256": {
+            "type": ["string", "null"],
+            "pattern": "^[a-f0-9]{64}$"
+        },
+        "anchor_sequence": { "type": ["integer", "null"], "minimum": 0 },
+        "local_sequence": { "type": ["integer", "null"], "minimum": 0 },
+        "unanchored_tail": { "type": ["integer", "null"], "minimum": 0 },
+        "checkpoint_age_seconds": { "type": ["integer", "null"] },
+        "exit_code": { "enum": [0, 1] }
     }
 }
