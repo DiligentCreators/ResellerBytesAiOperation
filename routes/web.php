@@ -15,6 +15,8 @@ Route::inertia('/', 'welcome')->name('home');
 
 Route::middleware(['auth', 'verified', EnsureTwoFactorEnabled::class])->group(function () {
     Route::get('dashboard', DashboardController::class)->name('dashboard');
+    Route::get('tenants/{tenant}/notifications', [TenantNotificationController::class, 'index'])->middleware('throttle:30,1')->name('tenants.notifications.index');
+    Route::post('tenants/{tenant}/notifications/{notification}/read', [TenantNotificationController::class, 'markRead'])->middleware('throttle:30,1')->name('tenants.notifications.read');
     Route::get('tenants/{tenant}/audit-events/export', TenantAuditExportController::class)->middleware('throttle:3,1')->name('tenants.audit-events.export');
     Route::get('integrations', [WhmcsIntegrationController::class, 'index'])->name('integrations.index');
     Route::get('diagnostic-runs', [DiagnosticRunController::class, 'index'])->name('diagnostic-runs.index');
