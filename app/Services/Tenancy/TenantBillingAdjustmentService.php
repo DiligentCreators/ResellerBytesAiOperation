@@ -47,6 +47,7 @@ class TenantBillingAdjustmentService
             $payment = TenantBillingPayment::query()
                 ->where('tenant_id', $tenantId)
                 ->where('provider', $provider)
+                ->where('provider_account_id', $providerAccountId)
                 ->where('provider_payment_id', $providerPaymentId)
                 ->lockForUpdate()
                 ->firstOrFail();
