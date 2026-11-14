@@ -35,6 +35,17 @@ class TenantBillingOperationsConnection
                 throw new RuntimeException('billing_operations_database_driver_invalid');
             }
 
+            $role = $operations->selectOne('SELECT rolbypassrls, rolsuper FROM pg_roles WHERE rolname = current_user');
+            if ($role === null || ! filter_var($role->rolbypassrls, FILTER_VALIDATE_BOOLEAN)
+                || filter_var($role->rolsuper, FILTER_VALIDATE_BOOLEAN)) {
+                throw new RuntimeException('billing_operations_database_role_privileges_invalid');
+            }
+
+            $ownedTables = $operations->selectOne("SELECT COUNT(*) AS owned_count FROM pg_class WHERE relname IN ('tenant_billing_outbox', 'tenant_billing_webhook_events', 'tenant_billing_provider_accounts', 'tenant_billing_adjustments', 'tenant_billing_invoices', 'tenant_billing_payments', 'tenant_subscriptions', 'audit_events') AND pg_get_userbyid(relowner) = current_user");
+            if ((int) ($ownedTables->owned_count ?? 0) !== 0) {
+                throw new RuntimeException('billing_operations_database_role_must_not_own_tables');
+            }
+
             $runtimeDatabase = DB::connection($default)->selectOne('select current_database() as database_name')->database_name;
             $operationsDatabase = $operations->selectOne('select current_database() as database_name')->database_name;
             if (! is_string($runtimeDatabase) || ! is_string($operationsDatabase)
