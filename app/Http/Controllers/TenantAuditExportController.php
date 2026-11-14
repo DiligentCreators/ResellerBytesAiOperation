@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\AuditEvent;
 use App\Models\Tenant;
+use App\Models\TenantMembership;
 use App\Models\User;
 use App\Services\Audit\AuditEventWriter;
 use App\Services\Tenancy\TenantRoleAuthorization;
@@ -42,7 +43,18 @@ class TenantAuditExportController extends Controller
         $filename = 'tenant-audit-'.$tenant->slug.'-'.now()->utc()->format('Ymd-His').'.csv';
 
         return response()->streamDownload(function () use ($tenant, $from, $to, $user): void {
-            app(TenantDatabaseContext::class)->run($tenant->id, (int) $user->getKey(), function () use ($tenant, $from, $to): void {
+            app(TenantDatabaseContext::class)->run(null, (int) $user->getKey(), function () use ($tenant, $from, $to, $user): void {
+                $activeMembership = TenantMembership::query()
+                    ->where('tenant_id', $tenant->id)
+                    ->where('user_id', $user->getKey())
+                    ->where('status', TenantMembership::STATUS_ACTIVE)
+                    ->exists();
+
+                if (! $activeMembership) {
+                    abort(403);
+                }
+
+                app(TenantDatabaseContext::class)->run($tenant->id, (int) $user->getKey(), function () use ($tenant, $from, $to): void {
             $output = fopen('php://output', 'wb');
             if ($output === false) {
                 return;
@@ -74,6 +86,7 @@ class TenantAuditExportController extends Controller
                 });
 
             fclose($output);
+                });
             });
         }, $filename, [
             'Content-Type' => 'text/csv; charset=UTF-8',
