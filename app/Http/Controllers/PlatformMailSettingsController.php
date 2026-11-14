@@ -64,10 +64,10 @@ class PlatformMailSettingsController extends Controller
         $config['from_address'] = $data['from_address'] ?? '';
         $config['from_name'] = $data['from_name'] ?? '';
 
-        if (($data['clear_smtp_password'] ?? false) === true) {
+        if (! empty($data['clear_smtp_password'])) {
             unset($config['password']);
         }
-        if (($data['clear_postmark_token'] ?? false) === true) {
+        if (! empty($data['clear_postmark_token'])) {
             unset($config['server_token']);
         }
 
