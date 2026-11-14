@@ -17,7 +17,9 @@ class TenantResourceLimitService
     {
         return $this->withinLockedSubscription($tenantId, function (TenantSubscription $subscription) use ($tenantId): TenantSubscription {
             $limit = $this->limit($subscription, 'integrations');
-            $used = DB::table('whmcs_integrations')->where('tenant_id', $tenantId)->count();
+            $used = DB::table('whmcs_integrations')->where('tenant_id', $tenantId)
+                ->where('status', 'active')
+                ->count();
 
             if ($used >= $limit) {
                 throw new AuthorizationException('The tenant integration limit has been reached.');
