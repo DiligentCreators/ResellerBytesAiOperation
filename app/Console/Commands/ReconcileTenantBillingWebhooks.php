@@ -237,6 +237,7 @@ class ReconcileTenantBillingWebhooks extends Command
                 'amount_minor' => $amount,
                 'currency' => $currency,
                 'provider' => $event->provider,
+                'provider_account_id' => $event->provider_account_id,
                 'provider_payment_id' => $paymentId,
                 'received_at' => $event->received_at,
             ]);
