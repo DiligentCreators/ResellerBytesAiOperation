@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureTwoFactorEnabled;
 use App\Jobs\SendTenantMembershipInvitation;
 use App\Models\Tenant;
 use App\Models\TenantMembership;
@@ -119,6 +120,7 @@ it('rejects Postmark delivery when required secret or sender configuration is ab
 });
 
 it('only shows a pending invitation to its intended signed-in account', function () {
+    $this->withoutMiddleware(EnsureTwoFactorEnabled::class);
     [$tenant, $admin, $invitee] = tenantInvitationEmailFixture();
     $membership = app(TenantMembershipLifecycle::class)->invite(
         $admin,
@@ -138,6 +140,7 @@ it('only shows a pending invitation to its intended signed-in account', function
 });
 
 it('rejects an expired invitation link and does not auto-accept on GET', function () {
+    $this->withoutMiddleware(EnsureTwoFactorEnabled::class);
     [$tenant, $admin, $invitee] = tenantInvitationEmailFixture();
     $membership = app(TenantMembershipLifecycle::class)->invite(
         $admin,
