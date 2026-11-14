@@ -146,6 +146,88 @@ class TenantSubscriptionLifecycle
         );
     }
 
+    public function renewFromSettledInvoice(
+        string $tenantId,
+        int $subscriptionId,
+        int $invoiceId,
+        DateTimeInterface $periodStartsAt,
+        DateTimeInterface $periodEndsAt,
+    ): TenantSubscription {
+        $periodStart = CarbonImmutable::instance($periodStartsAt)->utc();
+        $periodEnd = CarbonImmutable::instance($periodEndsAt)->utc();
+        $now = CarbonImmutable::now('UTC');
+
+        if (! $periodEnd->greaterThan($periodStart)
+            || $periodStart->greaterThan($now->addMinutes(5))
+            || $periodEnd->diffInDays($periodStart) > 366) {
+            throw new InvalidArgumentException('tenant_subscription_renewal_period_invalid');
+        }
+
+        return app(TenantDatabaseContext::class)->run(
+            $tenantId,
+            null,
+            fn (): TenantSubscription => DB::transaction(function () use ($tenantId, $subscriptionId, $invoiceId, $periodStart, $periodEnd): TenantSubscription {
+                Tenant::query()->whereKey($tenantId)->lockForUpdate()->firstOrFail();
+
+                $subscription = TenantSubscription::query()
+                    ->where('tenant_id', $tenantId)
+                    ->whereKey($subscriptionId)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                if (! in_array($subscription->status, ['trialing', 'active', 'past_due', 'suspended'], true)) {
+                    throw new InvalidArgumentException('tenant_subscription_renewal_status_invalid');
+                }
+
+                if (! $periodStart->equalTo($subscription->current_period_ends_at)) {
+                    throw new InvalidArgumentException('tenant_subscription_renewal_period_gap');
+                }
+
+                $this->requireSettledInvoice($tenantId, $subscription, $invoiceId);
+
+                $previousStatus = $subscription->status;
+                $subscription->forceFill([
+                    'status' => 'active',
+                    'current_period_starts_at' => $periodStart,
+                    'current_period_ends_at' => $periodEnd,
+                    'grace_ends_at' => null,
+                ])->save();
+
+                app(AuditEventWriter::class)->append([
+                    'actor_type' => 'system',
+                    'actor_id' => null,
+                    'tenant_id' => $tenantId,
+                    'event_type' => 'tenant_subscription.renewed',
+                    'subject_type' => 'tenant_subscription',
+                    'subject_id' => (string) $subscription->id,
+                    'metadata' => [
+                        'previous_status' => $previousStatus,
+                        'new_status' => 'active',
+                        'invoice_id' => $invoiceId,
+                        'period_starts_at' => $periodStart->toIso8601String(),
+                        'period_ends_at' => $periodEnd->toIso8601String(),
+                    ],
+                    'occurred_at' => now('UTC'),
+                ]);
+
+                app(TenantBillingOutbox::class)->enqueue(
+                    $tenantId,
+                    'billing.subscription.renewed:'.$subscription->id.':'.$invoiceId,
+                    'billing.subscription.renewed',
+                    'tenant_subscription',
+                    $subscription->id,
+                    [
+                        'invoice_id' => $invoiceId,
+                        'period_starts_at' => $periodStart->toIso8601String(),
+                        'period_ends_at' => $periodEnd->toIso8601String(),
+                    ],
+                );
+
+                return $subscription->refresh();
+            }, 3),
+        );
+    }
+
     private function requireSettledInvoice(string $tenantId, TenantSubscription $subscription, ?int $invoiceId): void
     {
         if ($invoiceId === null) {
