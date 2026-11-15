@@ -77,7 +77,7 @@ class PlatformMailSettingsTest extends TestCase
             ->assertDontSee('value="private-smtp-user"');
     }
 
-    public function test_postmark_environment_configuration_is_used_when_no_database_settings_exist(): void
+    public function test_postmark_environment_configuration_fills_missing_database_secrets(): void
     {
         PlatformMailSettings::query()->updateOrCreate(['id' => 1], ['driver' => 'postmark', 'configuration' => []]);
         Http::swap(new Factory());
