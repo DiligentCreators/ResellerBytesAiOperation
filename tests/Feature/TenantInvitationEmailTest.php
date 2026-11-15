@@ -5,6 +5,7 @@ use App\Jobs\SendTenantMembershipInvitation;
 use App\Models\PlatformMailSettings;
 use App\Models\Tenant;
 use App\Models\TenantMembership;
+use App\Models\TenantSubscription;
 use App\Models\User;
 use App\Services\Mail\TenantInvitationMailer;
 use App\Services\Tenancy\TenantMembershipLifecycle;
@@ -27,6 +28,17 @@ function tenantInvitationEmailFixture(): array
         'role' => TenantMembership::ROLE_ADMIN,
         'status' => TenantMembership::STATUS_ACTIVE,
         'accepted_at' => now(),
+    ]);
+    TenantSubscription::create([
+        'tenant_id' => $tenant->id,
+        'plan_code' => 'invitation-test-plan',
+        'billing_mode' => 'manual',
+        'status' => 'active',
+        'currency' => 'USD',
+        'unit_amount_minor' => 0,
+        'entitlements' => ['limits' => ['members' => 10]],
+        'current_period_starts_at' => now()->subDay(),
+        'current_period_ends_at' => now()->addMonth(),
     ]);
 
     return [$tenant, $admin, $invitee];
