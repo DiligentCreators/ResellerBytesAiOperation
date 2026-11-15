@@ -19,8 +19,9 @@ class TenantBrandingSettings
                 app(TenantRoleAuthorization::class)->require($actor, $tenantId, 'tenant.settings.manage');
                 $tenant = Tenant::query()->whereKey($tenantId)->where('status', Tenant::STATUS_ACTIVE)->lockForUpdate()->firstOrFail();
 
-                $settings = $tenant->settings ?? [];
+                $settings = (array) ($tenant->settings ?? []);
                 $oldBranding = $settings['branding'] ?? [];
+                $oldBranding = is_array($oldBranding) ? $oldBranding : [];
                 $settings['branding'] = array_merge($oldBranding, $branding);
                 $tenant->forceFill(['settings' => $settings])->save();
 
