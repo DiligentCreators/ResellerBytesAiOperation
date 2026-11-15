@@ -65,7 +65,14 @@ class VerifyAuditIntegrity extends Command
                     'occurred_at' => $row->occurred_at,
                 ];
 
-                $computedHash = $canonicalizer->hash($event);
+                try {
+                    $computedHash = $canonicalizer->hash($event);
+                } catch (Throwable) {
+                    $this->error("Integrity failure at event {$eventId}: event payload is not canonicalizable.");
+
+                    return self::FAILURE;
+                }
+
                 if (! is_string($row->event_hash) || ! hash_equals($computedHash, $row->event_hash)) {
                     $this->error("Integrity failure at event {$eventId}: event digest mismatch.");
 
