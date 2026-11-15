@@ -10,6 +10,7 @@ return [
         'backup_max_age_hours' => (int) env('OPERATIONS_ALERT_BACKUP_MAX_AGE_HOURS', 26),
         'disk' => ['warning_percent' => (int) env('OPERATIONS_ALERT_DISK_WARNING_PERCENT', 80), 'critical_percent' => (int) env('OPERATIONS_ALERT_DISK_CRITICAL_PERCENT', 90)],
         'queue_job_max_age_minutes' => (int) env('OPERATIONS_ALERT_QUEUE_JOB_MAX_AGE_MINUTES', 15),
+        'billing_stale_processing_minutes' => (int) env('OPERATIONS_ALERT_BILLING_STALE_PROCESSING_MINUTES', 5),
     ],
 
     'metrics' => [

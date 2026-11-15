@@ -403,3 +403,12 @@ A green CI run is necessary but does not close these release gates or authorize 
 - The report executes through the dedicated PostgreSQL operations-role guard and emits aggregate metrics only; tenant IDs, provider/account IDs, event IDs, payloads, signatures, and exception messages are excluded.
 - Added feature coverage for the JSON contract, backlog/dead-letter/replay counters, oldest-due age, and non-disclosure of tenant/provider/payload identifiers. Runtime execution remains pending the PHP 8.5 environment.
 - No provider activation, credentials, workflow changes, repository settings, merge, or deployment.
+
+
+### Billing alert integration — 2026-11-15
+
+- Integrated aggregate webhook-inbox and transactional-outbox health into the existing operational metrics snapshot using the separately guarded PostgreSQL operations role.
+- Added alert conditions for any billing dead letter, processing leases older than five minutes, and due pending backlog older than the approved 15-minute queue threshold. Existing alert-state deduplication and repeat behavior is reused.
+- Missing billing tables or unavailable/invalid operations-role configuration yields null metrics; unavailable telemetry cannot falsely clear an active alert.
+- Metrics expose aggregate counts and age only; no tenant IDs, provider/account IDs, event IDs, payloads, or secrets. Notifications remain disabled by default until Shahrukh configures approved destinations.
+- Added feature coverage for metric aggregation, non-disclosure, alert evaluation, and fail-closed resolution behavior. Runtime execution remains pending PHP 8.5 and PostgreSQL operations-role provisioning.

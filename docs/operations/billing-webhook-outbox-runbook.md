@@ -83,3 +83,10 @@ No production charge, webhook endpoint, database migration, or deployment is aut
 ## Redacted billing operations report
 
 Run `php artisan billing:operations:report` for a compact aggregate view, or add `--json` for machine-readable evidence. The report contains only schema version, UTC observation time, and aggregate counts/ages for due pending work, processing leases older than five minutes, dead letters, retry-exhausted records, and records at the three-manual-replay ceiling. It intentionally omits tenant IDs, provider/account identifiers, event IDs, payloads, signatures, and exception text. On PostgreSQL it runs only through the separately provisioned operations role and fails closed if that role boundary is invalid. This is report-only telemetry; alert thresholds and delivery routing are not inferred or enabled by this command.
+
+
+## Billing alert integration
+
+The scheduled `operations:metrics` snapshot includes aggregate billing webhook-inbox and transactional-outbox health, read through the separately guarded PostgreSQL operations connection. It reports dead-letter counts, processing leases older than five minutes, and the oldest due pending item age. It never exports tenant IDs, provider/account identifiers, event IDs, or payload data.
+
+The existing `operations:check-alerts` policy raises deduplicated alerts when either queue has any dead-lettered item, any processing lease older than five minutes, or a due pending item older than the approved 15-minute queue threshold. Missing tables or an unavailable/invalid operations role produce null billing metrics; those gaps do not resolve existing alerts as healthy. Notifications remain disabled by default (`OPERATIONS_ALERTS_ENABLED=false`) until owner-configured destinations are provisioned. Central mail transport remains Log now, SMTP first, Postmark at launch.

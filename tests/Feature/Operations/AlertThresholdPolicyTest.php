@@ -128,3 +128,31 @@ it('marks only metrics with an observed value as safe to resolve', function () {
         'queue_job_age_exceeded',
     ]);
 });
+
+
+it('raises billing alerts for dead letters, stale leases and backlog older than 15 minutes', function () {
+    $metrics = [
+        'billing_webhook_dead_letter_count' => 1, 'billing_outbox_dead_letter_count' => 0,
+        'billing_webhook_stale_processing_count' => 0, 'billing_outbox_stale_processing_count' => 2,
+        'billing_webhook_oldest_pending_age_minutes' => 0, 'billing_outbox_oldest_pending_age_minutes' => 15.1,
+    ];
+
+    expect(array_column(app(AlertThresholdPolicy::class)->evaluate($metrics), 'code'))->toBe([
+        'billing_webhook_dead_lettered', 'billing_outbox_processing_stale', 'billing_outbox_backlog_age_exceeded',
+    ]);
+    expect(app(AlertThresholdPolicy::class)->evaluatedCodes($metrics))->toContain(
+        'billing_webhook_dead_lettered', 'billing_webhook_processing_stale', 'billing_webhook_backlog_age_exceeded',
+        'billing_outbox_dead_lettered', 'billing_outbox_processing_stale', 'billing_outbox_backlog_age_exceeded',
+    );
+});
+
+it('does not resolve billing alerts when operations telemetry is unavailable', function () {
+    $metrics = [
+        'billing_webhook_dead_letter_count' => null, 'billing_outbox_dead_letter_count' => null,
+        'billing_webhook_stale_processing_count' => null, 'billing_outbox_stale_processing_count' => null,
+        'billing_webhook_oldest_pending_age_minutes' => null, 'billing_outbox_oldest_pending_age_minutes' => null,
+    ];
+
+    expect(app(AlertThresholdPolicy::class)->evaluate($metrics))->toBe([])
+        ->and(app(AlertThresholdPolicy::class)->evaluatedCodes($metrics))->toBe([]);
+});

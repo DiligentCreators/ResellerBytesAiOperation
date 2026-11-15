@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Http\Middleware\CaptureOperationalMetrics;
+use App\Models\Tenant;
 use App\Services\Operations\OperationalMetricsSource;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
@@ -112,4 +113,37 @@ it('schedules hourly pruning of operational metric samples', function () {
     );
 
     expect($scheduled)->toBeTrue();
+});
+
+
+it('collects billing queue health as aggregate-only operational metrics', function () {
+    $tenant = Tenant::create(['name' => 'Metrics tenant', 'slug' => 'metrics-tenant', 'status' => Tenant::STATUS_ACTIVE]);
+    $observedAt = CarbonImmutable::parse('2026-11-14T12:00:00Z');
+
+    DB::table('tenant_billing_outbox')->insert([
+        'tenant_id' => $tenant->id, 'idempotency_key' => 'metrics-outbox-pending',
+        'event_type' => 'billing.invoice.issued', 'aggregate_type' => 'billing_invoice', 'aggregate_id' => '1',
+        'payload' => json_encode(['private' => 'never-return'], JSON_THROW_ON_ERROR), 'status' => 'pending',
+        'attempts' => 2, 'manual_replay_count' => 0, 'available_at' => $observedAt->subMinutes(20),
+        'created_at' => $observedAt->subMinutes(20), 'updated_at' => $observedAt->subMinutes(20),
+    ]);
+    DB::table('tenant_billing_webhook_events')->insert([
+        'tenant_id' => $tenant->id, 'provider' => 'test_gateway', 'provider_account_id' => 'private-account',
+        'provider_event_id' => 'metrics-webhook-dead', 'event_type' => 'invoice.payment_failed',
+        'payload_sha256' => hash('sha256', 'payload'),
+        'payload' => json_encode(['private' => 'never-return'], JSON_THROW_ON_ERROR), 'status' => 'dead_lettered',
+        'attempts' => 12, 'manual_replay_count' => 3, 'received_at' => $observedAt->subHour(),
+        'available_at' => $observedAt->subHour(), 'dead_lettered_at' => $observedAt,
+        'created_at' => $observedAt->subHour(), 'updated_at' => $observedAt,
+    ]);
+
+    $metrics = app(OperationalMetricsSource::class)->snapshot($observedAt);
+
+    expect($metrics)->toMatchArray([
+        'billing_webhook_dead_letter_count' => 1, 'billing_outbox_dead_letter_count' => 0,
+        'billing_webhook_stale_processing_count' => 0, 'billing_outbox_stale_processing_count' => 0,
+        'billing_webhook_oldest_pending_age_minutes' => 0.0, 'billing_outbox_oldest_pending_age_minutes' => 20.0,
+    ]);
+    expect(json_encode($metrics, JSON_THROW_ON_ERROR))
+        ->not->toContain('private-account')->not->toContain('never-return')->not->toContain($tenant->id);
 });

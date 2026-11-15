@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Operations;
 
+use App\Services\Tenancy\TenantBillingOperationsConnection;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -22,7 +23,13 @@ final class OperationalMetricsSource
      *   api_p95_latency_ms: float|null,
      *   last_successful_backup_at: string|null,
      *   disk_usage_percent: float|null,
-     *   oldest_queue_job_age_minutes: float|null
+     *   oldest_queue_job_age_minutes: float|null,
+     *   billing_webhook_dead_letter_count: int|null,
+     *   billing_outbox_dead_letter_count: int|null,
+     *   billing_webhook_stale_processing_count: int|null,
+     *   billing_outbox_stale_processing_count: int|null,
+     *   billing_webhook_oldest_pending_age_minutes: float|null,
+     *   billing_outbox_oldest_pending_age_minutes: float|null
      * }
      */
     public function snapshot(?CarbonImmutable $observedAt = null): array
@@ -56,6 +63,7 @@ final class OperationalMetricsSource
             'last_successful_backup_at' => $this->lastSuccessfulBackupAt($observedAt),
             'disk_usage_percent' => $this->diskUsagePercent(),
             'oldest_queue_job_age_minutes' => $this->oldestQueueJobAgeMinutes($observedAt),
+            ...$this->billingQueueMetrics($observedAt),
         ];
     }
 
@@ -68,6 +76,51 @@ final class OperationalMetricsSource
         return DB::table('operations_metric_samples')
             ->where('created_at', '<', ($observedAt ?? CarbonImmutable::now())->utc()->subDay())
             ->delete();
+    }
+
+
+    /**
+     * Aggregate billing queue health under the separately guarded operations role.
+     * Null metrics preserve active alerts when telemetry or role configuration is unavailable.
+     *
+     * @return array<string, int|float|null>
+     */
+    private function billingQueueMetrics(CarbonImmutable $observedAt): array
+    {
+        $empty = [
+            'billing_webhook_dead_letter_count' => null,
+            'billing_outbox_dead_letter_count' => null,
+            'billing_webhook_stale_processing_count' => null,
+            'billing_outbox_stale_processing_count' => null,
+            'billing_webhook_oldest_pending_age_minutes' => null,
+            'billing_outbox_oldest_pending_age_minutes' => null,
+        ];
+
+        try {
+            return app(TenantBillingOperationsConnection::class)->run(function () use ($observedAt, $empty): array {
+                $metrics = $empty;
+                $staleBefore = $observedAt->subMinutes(max(1, (int) config('operations.monitoring.billing_stale_processing_minutes', 5)));
+
+                foreach (['webhook' => 'tenant_billing_webhook_events', 'outbox' => 'tenant_billing_outbox'] as $kind => $table) {
+                    if (! Schema::hasTable($table)) {
+                        continue;
+                    }
+
+                    $metrics["billing_{$kind}_dead_letter_count"] = DB::table($table)->where('status', 'dead_lettered')->count();
+                    $metrics["billing_{$kind}_stale_processing_count"] = DB::table($table)
+                        ->where('status', 'processing')->whereNotNull('locked_at')->where('locked_at', '<=', $staleBefore)->count();
+                    $oldestDue = DB::table($table)->where('status', 'pending')
+                        ->where('available_at', '<=', $observedAt)->min('available_at');
+                    $metrics["billing_{$kind}_oldest_pending_age_minutes"] = is_string($oldestDue)
+                        ? max(0, ($observedAt->getTimestamp() - CarbonImmutable::parse($oldestDue, 'UTC')->getTimestamp()) / 60)
+                        : 0.0;
+                }
+
+                return $metrics;
+            });
+        } catch (Throwable) {
+            return $empty;
+        }
     }
 
     private function lastSuccessfulBackupAt(CarbonImmutable $observedAt): ?string
