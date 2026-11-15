@@ -155,3 +155,34 @@ it('writes tenant attribution into version-two audit event hashes', function () 
         ->and($event->hash_version)->toBe(2)
         ->and(Artisan::call('audit:verify-integrity'))->toBe(0);
 });
+
+it('fails closed with sanitized output when stored audit metadata is malformed', function () {
+    if (DB::connection()->getDriverName() !== 'sqlite') {
+        test()->markTestSkipped('This focused trigger suspension test runs on SQLite.');
+    }
+
+    $event = app(AuditEventWriter::class)->append([
+        'event_type' => 'test.malformed-metadata',
+        'metadata' => ['source' => 'test'],
+        'occurred_at' => now(),
+    ]);
+
+    DB::unprepared('DROP TRIGGER audit_events_reject_update');
+    try {
+        DB::table('audit_events')->where('id', $event->id)->update([
+            'metadata' => '{malformed-json',
+        ]);
+    } finally {
+        DB::unprepared(<<<'SQL'
+            CREATE TRIGGER audit_events_reject_update
+            BEFORE UPDATE ON audit_events
+            BEGIN
+                SELECT RAISE(ABORT, 'audit_events is append-only; UPDATE is prohibited');
+            END;
+        SQL);
+    }
+
+    expect(Artisan::call('audit:verify-integrity'))->toBe(1)
+        ->and(Artisan::output())->toContain('event payload is not canonicalizable')
+        ->and(Artisan::output())->not->toContain('malformed-json');
+});
