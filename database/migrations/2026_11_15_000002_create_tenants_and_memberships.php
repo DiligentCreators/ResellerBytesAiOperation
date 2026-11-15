@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -31,15 +32,27 @@ return new class extends Migration
             $table->index(['user_id', 'status', 'role']);
         });
 
+        if (DB::connection()->getDriverName() === 'sqlite') {
+            DB::unprepared('DROP TRIGGER IF EXISTS whmcs_integrations_reject_delete');
+        }
+
         Schema::table('whmcs_integrations', function (Blueprint $table) {
             $table->foreignUuid('tenant_id')->nullable()->after('owner_user_id')
                 ->constrained('tenants')->restrictOnDelete();
             $table->index(['tenant_id', 'status']);
         });
+
+        if (DB::connection()->getDriverName() === 'sqlite') {
+            $this->restoreSqliteIntegrationRetentionTrigger();
+        }
     }
 
     public function down(): void
     {
+        if (DB::connection()->getDriverName() === 'sqlite') {
+            DB::unprepared('DROP TRIGGER IF EXISTS whmcs_integrations_reject_delete');
+        }
+
         Schema::table('whmcs_integrations', function (Blueprint $table) {
             $table->dropIndex(['tenant_id', 'status']);
             $table->dropConstrainedForeignId('tenant_id');
@@ -47,5 +60,20 @@ return new class extends Migration
 
         Schema::dropIfExists('tenant_memberships');
         Schema::dropIfExists('tenants');
+
+        if (DB::connection()->getDriverName() === 'sqlite') {
+            $this->restoreSqliteIntegrationRetentionTrigger();
+        }
+    }
+
+    private function restoreSqliteIntegrationRetentionTrigger(): void
+    {
+        DB::unprepared(<<<'SQL'
+            CREATE TRIGGER whmcs_integrations_reject_delete
+            BEFORE DELETE ON whmcs_integrations
+            BEGIN
+                SELECT RAISE(ABORT, 'whmcs_integrations are retained for audit history; revoke instead of deleting');
+            END;
+        SQL);
     }
 };
