@@ -89,3 +89,28 @@ it('rejects a backup archive encrypted with a different key', function () {
     @unlink($encrypted);
     @unlink($decrypted);
 });
+
+it('rejects truncated and trailing data around authenticated backup frames', function () {
+    $source = tempnam(sys_get_temp_dir(), 'rb-backup-source-');
+    $encrypted = tempnam(sys_get_temp_dir(), 'rb-backup-encrypted-');
+    $decrypted = tempnam(sys_get_temp_dir(), 'rb-backup-decrypted-');
+    $key = random_bytes(SODIUM_CRYPTO_SECRETSTREAM_XCHACHA20POLY1305_KEYBYTES);
+    $cipher = app(BackupArchiveCipher::class);
+
+    file_put_contents($source, str_repeat('frame-boundary-check', 256));
+    $cipher->encryptFile($source, $encrypted, $key);
+    $valid = file_get_contents($encrypted);
+    expect($valid)->toBeString();
+
+    file_put_contents($encrypted, substr($valid, 0, -1));
+    expect(fn () => $cipher->decryptFile($encrypted, $decrypted, $key))
+        ->toThrow(RuntimeException::class);
+
+    file_put_contents($encrypted, $valid.'untrusted-trailing-bytes');
+    expect(fn () => $cipher->decryptFile($encrypted, $decrypted, $key))
+        ->toThrow(RuntimeException::class);
+
+    @unlink($source);
+    @unlink($encrypted);
+    @unlink($decrypted);
+});
