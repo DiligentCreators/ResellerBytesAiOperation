@@ -1,10 +1,10 @@
 <?php
 
-namespace App\\Services\\Tenancy;
+namespace App\Services\Tenancy;
 
-use App\\Contracts\\Billing\\BillingProviderAdapter;
-use App\\Models\\TenantBillingWebhookEvent;
-use Carbon\\CarbonImmutable;
+use App\Contracts\Billing\BillingProviderAdapter;
+use App\Models\TenantBillingWebhookEvent;
+use Carbon\CarbonImmutable;
 use InvalidArgumentException;
 use RuntimeException;
 
