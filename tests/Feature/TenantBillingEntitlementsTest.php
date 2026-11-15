@@ -236,3 +236,13 @@ it('keeps tenant subscription plan and entitlement snapshots immutable after pro
     expect($subscription->fresh()->unit_amount_minor)->toBe(4900)
         ->and($subscription->fresh()->entitlements['diagnostics.reanalyze'])->toBeTrue();
 });
+
+it('allows only one current tenant subscription snapshot at a time', function () {
+    $tenant = Tenant::create(['name' => 'Single Plan Workspace', 'slug' => 'single-plan-workspace', 'status' => Tenant::STATUS_ACTIVE]);
+    createTenantSubscriptionFixture($tenant);
+
+    expect(fn () => createTenantSubscriptionFixture($tenant, ['plan_code' => 'overlapping-plan']))
+        ->toThrow(QueryException::class);
+
+    expect(TenantSubscription::query()->where('tenant_id', $tenant->id)->count())->toBe(1);
+});
