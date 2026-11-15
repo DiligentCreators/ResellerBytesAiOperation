@@ -328,3 +328,16 @@ it('emits redacted schema-conformant evidence when the signed checkpoint timesta
         @unlink($path);
     }
 });
+
+
+it('rejects an oversized checkpoint without parsing it', function () {
+    $path = tempnam(sys_get_temp_dir(), 'rb-anchor-large-');
+    file_put_contents($path, str_repeat('x', 65537));
+
+    try {
+        expect(Artisan::call('audit:anchor:monitor', ['checkpoint' => $path, '--json' => true]))->toBe(1)
+            ->and(json_decode(Artisan::output(), true, 512, JSON_THROW_ON_ERROR)['reason_code'])->toBe('checkpoint_too_large');
+    } finally {
+        @unlink($path);
+    }
+});
