@@ -81,6 +81,13 @@ BEGIN
         OR (OLD.provider_subscription_id IS NOT NULL AND NEW.provider_subscription_id IS DISTINCT FROM OLD.provider_subscription_id) THEN
         RAISE EXCEPTION 'tenant_subscription_provider_identity_immutable' USING ERRCODE = '23514';
     END IF;
+    IF NEW.plan_code IS DISTINCT FROM OLD.plan_code
+        OR NEW.billing_mode IS DISTINCT FROM OLD.billing_mode
+        OR NEW.currency IS DISTINCT FROM OLD.currency
+        OR NEW.unit_amount_minor IS DISTINCT FROM OLD.unit_amount_minor
+        OR NEW.entitlements IS DISTINCT FROM OLD.entitlements THEN
+        RAISE EXCEPTION 'tenant_subscription_plan_snapshot_immutable' USING ERRCODE = '23514';
+    END IF;
     RETURN NEW;
 END;
 $rb$;
@@ -126,6 +133,13 @@ WHEN NEW.tenant_id IS NOT OLD.tenant_id
  OR (OLD.provider_account_id IS NOT NULL AND NEW.provider_account_id IS NOT OLD.provider_account_id)
  OR (OLD.provider_subscription_id IS NOT NULL AND NEW.provider_subscription_id IS NOT OLD.provider_subscription_id)
 BEGIN SELECT RAISE(ABORT, 'tenant_subscription_provider_identity_immutable'); END;
+CREATE TRIGGER rb_tenant_subscription_plan_snapshot_immutable BEFORE UPDATE ON tenant_subscriptions
+WHEN NEW.plan_code IS NOT OLD.plan_code
+ OR NEW.billing_mode IS NOT OLD.billing_mode
+ OR NEW.currency IS NOT OLD.currency
+ OR NEW.unit_amount_minor IS NOT OLD.unit_amount_minor
+ OR NEW.entitlements IS NOT OLD.entitlements
+BEGIN SELECT RAISE(ABORT, 'tenant_subscription_plan_snapshot_immutable'); END;
 CREATE TRIGGER rb_tenant_billing_invoice_provider_identity BEFORE UPDATE ON tenant_billing_invoices
 WHEN NEW.tenant_id IS NOT OLD.tenant_id
  OR (OLD.tenant_subscription_id IS NOT NULL AND NEW.tenant_subscription_id IS NOT OLD.tenant_subscription_id)
@@ -150,6 +164,7 @@ SQL);
         $driver = DB::connection()->getDriverName();
         if ($driver === 'pgsql') {
             DB::unprepared('DROP TRIGGER IF EXISTS rb_tenant_subscription_provider_identity ON tenant_subscriptions');
+            DB::unprepared('DROP TRIGGER IF EXISTS rb_tenant_subscription_plan_snapshot_immutable ON tenant_subscriptions');
             DB::unprepared('DROP TRIGGER IF EXISTS rb_tenant_billing_payment_immutable ON tenant_billing_payments');
             DB::unprepared('DROP TRIGGER IF EXISTS rb_tenant_billing_invoice_provider_identity ON tenant_billing_invoices');
             DB::unprepared('DROP TRIGGER IF EXISTS rb_billing_payment_audit_tenant_guard ON audit_events');
@@ -159,6 +174,7 @@ SQL);
             DB::unprepared('DROP FUNCTION IF EXISTS rb_check_billing_payment_audit_tenant()');
         } elseif ($driver === 'sqlite') {
             DB::unprepared('DROP TRIGGER IF EXISTS rb_tenant_subscription_provider_identity');
+            DB::unprepared('DROP TRIGGER IF EXISTS rb_tenant_subscription_plan_snapshot_immutable');
             DB::unprepared('DROP TRIGGER IF EXISTS rb_tenant_billing_payment_immutable');
             DB::unprepared('DROP TRIGGER IF EXISTS rb_tenant_billing_invoice_provider_identity');
             DB::unprepared('DROP TRIGGER IF EXISTS rb_tenant_billing_payment_no_delete');
