@@ -486,13 +486,15 @@ it('settles confirmed provider usage before surfacing an unsuccessful HTTP respo
         ->andReturn($pendingRequest);
 
     $settled = null;
-    expect(fn () => app(WhmcsDiagnosticAnalyzer::class)->analyze(
-        $run,
-        null,
-        function (array $body, array $usage) use (&$settled): void {
-            $settled = [$body['id'], $usage];
-        },
-    ))->toThrow(RuntimeException::class, 'provider_request_failed');
+    expect(function () use ($run, &$settled): void {
+        app(WhmcsDiagnosticAnalyzer::class)->analyze(
+            $run,
+            null,
+            function (array $body, array $usage) use (&$settled): void {
+                $settled = [$body['id'], $usage];
+            },
+        );
+    })->toThrow(RuntimeException::class, 'provider_request_failed');
 
     expect($settled)->toBe([
         'resp_confirmed_usage_error',
