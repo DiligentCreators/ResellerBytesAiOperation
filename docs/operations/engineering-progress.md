@@ -615,3 +615,10 @@ A green CI run is necessary but does not close these release gates or authorize 
 - Made the analyzer normalize JSON-encoded response bodies before extracting confirmed usage, and changed the failing-provider test to return explicit JSON from a catch-all fake. The queue recovery EXISTS predicate remains in place to avoid PostgreSQL nullable outer-join row locks.
 - Sorted imports in the affected application and feature-test files. All post-#716 remediation commits use [skip ci].
 - Pre-final head: 28bab78b3822ba057a214effc27623f9e9cd1418; 134 commits ahead and 0 behind the verified handoff head; no workflow file or repository setting changed. The next single non-[skip ci] commit triggers the next six-job matrix.
+
+
+### One-shot CI handoff after #716 remediation — 2026-11-15
+
+- PR #2 description now records runs #713 through #716 and their remediation evidence. Shahrukh's environment setup checklist and approval status remain unchanged.
+- Pre-final head: 8c4952822ec7c7d89596db401b649c0bfa29ffa4; 135 commits ahead and 0 behind the verified handoff head. No workflow files or repository settings changed.
+- This is the final documentation change before the next single non-[skip ci] commit. The exact-head six-job matrix must be fully green before PR #2 is marked ready or merged.
