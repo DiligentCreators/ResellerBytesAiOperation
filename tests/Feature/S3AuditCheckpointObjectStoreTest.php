@@ -99,19 +99,18 @@ it('creates and reads back an exact immutable S3 object version through the CLI 
     }
 });
 
-
 it('bounds external checkpoint downloads before loading them into memory', function () {
     $script = tempnam(sys_get_temp_dir(), 'rb-audit-s3-oversized-');
     if (! is_string($script)) {
         throw new RuntimeException('fake_s3_cli_script_failed');
     }
 
-    $program = "#!/usr/bin/env php\\n<?php\\n".
-        '$args = $argv;'. "\\n".
-        '$action = $args[2] ?? null;'. "\\n".
-        'if ($action === "head-object") { echo json_encode(["VersionId" => "test-version-1", "ObjectLockMode" => "COMPLIANCE", "ObjectLockRetainUntilDate" => "2027-11-15T00:00:00Z"]); exit(0); }'. "\\n".
-        'if ($action === "get-object") { $index = array_search("--version-id", $args, true); $destination = $index === false ? null : ($args[$index + 2] ?? null); file_put_contents((string) $destination, str_repeat("x", 65537)); echo json_encode(["VersionId" => "test-version-1"]); exit(0); }'. "\\n".
-        'fwrite(STDERR, "unsupported fake operation"); exit(2);'. "\\n";
+    $program = "#!/usr/bin/env php\n<?php\n".
+        '$args = $argv;'. "\n".
+        '$action = $args[2] ?? null;'. "\n".
+        'if ($action === "head-object") { echo json_encode(["VersionId" => "test-version-1", "ObjectLockMode" => "COMPLIANCE", "ObjectLockRetainUntilDate" => "2027-11-15T00:00:00Z"]); exit(0); }'. "\n".
+        'if ($action === "get-object") { $index = array_search("--version-id", $args, true); $destination = $index === false ? null : ($args[$index + 2] ?? null); file_put_contents((string) $destination, str_repeat("x", 65537)); echo json_encode(["VersionId" => "test-version-1"]); exit(0); }'. "\n".
+        'fwrite(STDERR, "unsupported fake operation"); exit(2);'. "\n";
     file_put_contents($script, $program);
     chmod($script, 0700);
     config(['audit.anchor.storage.aws_cli_binary' => $script]);
