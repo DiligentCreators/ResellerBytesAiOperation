@@ -82,7 +82,7 @@ $webhookId = null;
 $createdMapping = false;
 
 try {
-    $mapping = $operations->table('tenant_billing_provider_accounts')
+    $mapping = $runtime->table('tenant_billing_provider_accounts')
         ->where('provider', $provider)
         ->where('provider_account_id', $account)
         ->first();
@@ -105,7 +105,7 @@ try {
         $mappingId = $mapping->id;
     }
 
-    $outboxId = $operations->table('tenant_billing_outbox')->insertGetId([
+    $outboxId = $runtime->table('tenant_billing_outbox')->insertGetId([
         'tenant_id' => $tenantA,
         'idempotency_key' => 'rls-test-'.$token,
         'event_type' => 'billing.rls_probe',
@@ -120,7 +120,7 @@ try {
         'updated_at' => $now,
     ]);
 
-    $webhookId = $operations->table('tenant_billing_webhook_events')->insertGetId([
+    $webhookId = $runtime->table('tenant_billing_webhook_events')->insertGetId([
         'tenant_id' => $tenantA,
         'provider' => $provider,
         'provider_account_id' => $account,
@@ -193,12 +193,12 @@ try {
     ], JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR).PHP_EOL);
 } finally {
     if ($webhookId !== null) {
-        $operations->table('tenant_billing_webhook_events')->where('id', $webhookId)->delete();
+        $runtime->table('tenant_billing_webhook_events')->where('id', $webhookId)->delete();
     }
     if ($outboxId !== null) {
-        $operations->table('tenant_billing_outbox')->where('id', $outboxId)->delete();
+        $runtime->table('tenant_billing_outbox')->where('id', $outboxId)->delete();
     }
     if ($createdMapping && $mappingId !== null) {
-        $operations->table('tenant_billing_provider_accounts')->where('id', $mappingId)->delete();
+        $runtime->table('tenant_billing_provider_accounts')->where('id', $mappingId)->delete();
     }
 }
