@@ -89,7 +89,6 @@ class PlatformMailSettingsTest extends TestCase
             'platform_mail.postmark.message_stream' => 'outbound',
         ]);
         Http::swap(new Factory());
-        Http::swap(new Factory());
         Http::fake(['https://api.postmarkapp.com/email' => Http::response(['MessageID' => 'fake'], 200)]);
 
         app(CentralOutboundMailer::class)->send('recipient@example.test', 'Test', '<p>test</p>', 'test');
@@ -106,6 +105,7 @@ class PlatformMailSettingsTest extends TestCase
             'from_address' => 'mail@example.test',
             'from_name' => 'ResellerBytes',
         ]]);
+        Http::swap(new Factory());
         Http::fake(['https://api.postmarkapp.com/email' => Http::response(['MessageID' => 'fake'], 200)]);
         app(CentralOutboundMailer::class)->send('recipient@example.test', 'Test', '<p>test</p>', 'test');
         Http::assertSent(fn ($request) => $request->hasHeader('X-Postmark-Server-Token', 'fake-token'));
@@ -144,6 +144,7 @@ class PlatformMailSettingsTest extends TestCase
             'from_address' => 'mail@example.test',
             'from_name' => 'ResellerBytes',
         ]]);
+        Http::swap(new Factory());
         Http::fake(['https://api.postmarkapp.com/email' => Http::response(['MessageID' => 'fake'], 200)]);
 
         \Illuminate\Support\Facades\Mail::to('recipient@example.test')->send(
@@ -159,6 +160,7 @@ class PlatformMailSettingsTest extends TestCase
     {
         config(['operations.owner_email' => 'owner@example.test', 'platform_mail.driver' => 'log']);
         $user = User::factory()->create(['email' => 'owner@example.test']);
+        Http::swap(new Factory());
         Http::fake();
 
         $this->actingAs($user)->post('/platform/mail-settings/test', [
@@ -236,6 +238,7 @@ class PlatformMailSettingsTest extends TestCase
     public function test_log_driver_never_contacts_external_transport_or_logs_message_content(): void
     {
         PlatformMailSettings::query()->create(['id' => 1, 'driver' => 'log', 'configuration' => []]);
+        Http::swap(new Factory());
         Http::fake();
         Log::shouldReceive('info')->once()->with('outbound_mail.preview', ['driver' => 'log']);
         app(CentralOutboundMailer::class)->send('recipient@example.test', 'sensitive-subject', '<p>private body</p>', 'private body');
