@@ -2,19 +2,19 @@
 
 namespace App\Jobs;
 
+use App\Jobs\Middleware\SetTenantDatabaseContext;
 use App\Models\DiagnosticFinding;
 use App\Models\DiagnosticRun;
 use App\Models\TenantMembership;
-use App\Jobs\Middleware\SetTenantDatabaseContext;
 use App\Services\Diagnostics\AiBudgetService;
 use App\Services\Diagnostics\WhmcsDiagnosticAnalyzer;
+use App\Services\Tenancy\TenantDatabaseContext;
 use App\Services\Tenancy\TenantEntitlementService;
 use App\Services\Tenancy\TenantResourceLimitService;
-use App\Services\Tenancy\TenantDatabaseContext;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Bus\Queueable;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
