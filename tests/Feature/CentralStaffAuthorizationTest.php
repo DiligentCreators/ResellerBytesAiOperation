@@ -55,7 +55,9 @@ it('allows only the configured super admin to create staff and change permission
 
     $created = User::query()->where('email', 'billing-operator@example.test')->firstOrFail();
     $access = CentralStaffAccess::query()->where('user_id', $created->id)->firstOrFail();
-    expect($access->permissions)->toBe(['billing', 'support']);
+    expect($access->permissions)->toBe(['billing', 'support'])
+        ->and(app(CentralStaffAuthorization::class)->can($created, 'billing'))->toBeTrue()
+        ->and(app(CentralStaffAuthorization::class)->can($created, 'support'))->toBeTrue();
 
     $this->actingAs($owner)->put('/platform/staff/'.$access->id, [
         'permissions' => ['tenants', 'audit'],
@@ -74,6 +76,8 @@ it('prevents staff from escalating their own permissions and prevents staff dele
         'permissions' => ['tenants'],
         'granted_by_user_id' => $owner->id,
     ]);
+
+    $this->actingAs($staff)->get('/platform/mail-settings')->assertForbidden();
 
     $this->actingAs($staff)->put('/platform/staff/'.$access->id, [
         'permissions' => CentralStaffAuthorization::PERMISSIONS,
