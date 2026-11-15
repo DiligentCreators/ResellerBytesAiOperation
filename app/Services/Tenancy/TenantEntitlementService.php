@@ -37,7 +37,8 @@ class TenantEntitlementService
     public function requireFeature(string $tenantId, string $feature): TenantSubscription
     {
         $subscription = $this->activeSubscription($tenantId);
-        if (($subscription->entitlements[$feature] ?? false) !== true) {
+        $entitlements = (array) $subscription->entitlements;
+        if (($entitlements[$feature] ?? false) !== true) {
             throw new AuthorizationException('The current tenant subscription does not include this feature.');
         }
         return $subscription;
@@ -46,7 +47,9 @@ class TenantEntitlementService
     public function requireLimit(string $tenantId, string $limit, int $requested): TenantSubscription
     {
         $subscription = $this->activeSubscription($tenantId);
-        $maximum = $subscription->entitlements['limits'][$limit] ?? null;
+        $entitlements = (array) $subscription->entitlements;
+        $limits = $entitlements['limits'] ?? [];
+        $maximum = is_array($limits) ? ($limits[$limit] ?? null) : null;
         if (! is_int($maximum) || $maximum < 0 || $requested < 0 || $requested > $maximum) {
             throw new AuthorizationException('The current tenant subscription limit does not permit this operation.');
         }
