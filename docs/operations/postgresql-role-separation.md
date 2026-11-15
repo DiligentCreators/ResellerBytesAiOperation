@@ -14,6 +14,11 @@ Use separate credentials and sessions for:
 
 The migration login and cluster administrator must not be the same routine credential. Store both credentials in the approved secret manager with separate access policies.
 
+- `rb_billing_ops`: dedicated cross-tenant billing-read/monitoring login. It is the only application role permitted to bypass RLS, and it must be `BYPASSRLS NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT`. It is not an owner of any application table and is not a member of `rb_migrator`. Its only table privileges are SELECT on `tenant_billing_provider_accounts`, `tenant_billing_webhook_events`, and `tenant_billing_outbox`; no DML, sequence, schema CREATE, or other table privileges are permitted. Do not use it for fixture writes or ordinary tenant requests.
+
+The application guard in `TenantBillingOperationsConnection` fails closed unless the operations login is distinct from the runtime login, has the expected role flags, is not a migrator member, has schema USAGE but not CREATE, owns no protected tables, and has effective SELECT-only access to exactly the three-table allowlist. Runtime RLS rehearsal fixtures are created and removed using the tenant-scoped runtime role, not the bypass role.
+
+
 ## Provisioning template
 
 Run as the PostgreSQL cluster administrator after substituting the database name and generating unique strong passwords in the secret manager. Do not commit real credentials.
@@ -23,8 +28,22 @@ Run as the PostgreSQL cluster administrator after substituting the database name
 CREATE ROLE rb_migrator LOGIN PASSWORD '<MIGRATOR_SECRET>';
 CREATE ROLE rb_runtime LOGIN PASSWORD '<RUNTIME_SECRET>';
 CREATE ROLE rb_readonly LOGIN PASSWORD '<READONLY_SECRET>';
+CREATE ROLE rb_billing_ops LOGIN BYPASSRLS NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT PASSWORD '<BILLING_OPS_SECRET>';
+
 
 GRANT CONNECT ON DATABASE resellerbytes_ai_operation TO rb_migrator, rb_runtime, rb_readonly;
+
+GRANT CONNECT ON DATABASE resellerbytes_ai_operation TO rb_billing_ops;
+GRANT USAGE ON SCHEMA public TO rb_billing_ops;
+REVOKE CREATE ON SCHEMA public FROM rb_billing_ops;
+REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA public FROM rb_billing_ops;
+REVOKE ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public FROM rb_billing_ops;
+GRANT SELECT ON TABLE tenant_billing_provider_accounts, tenant_billing_webhook_events, tenant_billing_outbox TO rb_billing_ops;
+ALTER DEFAULT PRIVILEGES FOR ROLE rb_migrator IN SCHEMA public
+    REVOKE ALL ON TABLES FROM rb_billing_ops;
+ALTER DEFAULT PRIVILEGES FOR ROLE rb_migrator IN SCHEMA public
+    REVOKE ALL ON SEQUENCES FROM rb_billing_ops;
+
 
 -- The migration identity owns application objects and is the only application
 -- identity allowed to create/alter schema objects.
@@ -105,10 +124,16 @@ Run as the DBA and retain the sanitized output in the deployment evidence:
 ```sql
 SELECT rolname, rolsuper, rolcreatedb, rolcreaterole, rolcanlogin
 FROM pg_roles
-WHERE rolname IN ('rb_migrator', 'rb_runtime', 'rb_readonly');
+WHERE rolname IN ('rb_migrator', 'rb_runtime', 'rb_readonly', 'rb_billing_ops');
 
 SELECT has_schema_privilege('rb_runtime', 'public', 'CREATE') AS runtime_can_create_schema;
 SELECT has_schema_privilege('rb_readonly', 'public', 'CREATE') AS readonly_can_create_schema;
+SELECT has_schema_privilege('rb_billing_ops', 'public', 'CREATE') AS billing_ops_can_create_schema;
+SELECT has_table_privilege('rb_billing_ops', 'tenant_billing_provider_accounts', 'SELECT') AS billing_ops_can_read_provider_accounts;
+SELECT has_table_privilege('rb_billing_ops', 'tenant_billing_webhook_events', 'SELECT') AS billing_ops_can_read_webhooks;
+SELECT has_table_privilege('rb_billing_ops', 'tenant_billing_outbox', 'SELECT') AS billing_ops_can_read_outbox;
+SELECT has_table_privilege('rb_billing_ops', 'tenant_billing_outbox', 'UPDATE') AS billing_ops_can_update_outbox;
+SELECT has_table_privilege('rb_billing_ops', 'audit_events', 'SELECT') AS billing_ops_can_read_audit;
 SELECT has_table_privilege('rb_readonly', 'reporting_safe_view', 'SELECT') AS readonly_can_read_approved_view;
 SELECT has_table_privilege('rb_readonly', 'audit_events', 'INSERT') AS readonly_can_insert_audit;
 SELECT has_table_privilege('rb_readonly', 'audit_events', 'UPDATE') AS readonly_can_update_audit;
@@ -119,7 +144,7 @@ SELECT has_table_privilege('rb_runtime', 'audit_events', 'DELETE') AS runtime_ca
 SELECT has_table_privilege('rb_runtime', 'audit_chain_heads', 'UPDATE') AS runtime_can_advance_chain_head;
 ```
 
-Expected values: all three application logins are non-superusers; read-only can SELECT only from explicitly granted reporting views/tables and cannot read unapproved audit tables or INSERT/UPDATE; only the migrator can create schema objects; runtime cannot read the migration ledger; runtime can insert but cannot update/delete audit events; runtime can update the chain head because the append transaction requires it.
+Expected values: all application logins are non-superusers; billing ops alone has BYPASSRLS, cannot create schema, can SELECT only the three approved billing tables, and cannot UPDATE or read audit events; read-only can SELECT only from explicitly granted reporting views/tables and cannot read unapproved audit tables or INSERT/UPDATE; only the migrator can create schema objects; runtime cannot read the migration ledger; runtime can insert but cannot update/delete audit events; runtime can update the chain head because the append transaction requires it.
 
 Also connect using the runtime credential and attempt UPDATE, DELETE, and TRUNCATE against a disposable audit row in a non-production test database. Each must fail. Confirm normal audit append, chain verification, diagnostic ingestion, AI settlement, and nonce cleanup still work under the runtime login.
 
