@@ -88,7 +88,8 @@ Last reviewed: 2026-11-15
 - **Pending** means not yet independently verified.
 - **Blocked** means a required safety precondition or external operator action is outstanding.
 
-This document records review evidence; it does not certify the application as production-ready.
+This document records review evidence; it does not certify the application as
+production-ready.
 
 ## Operator-approved budget and retention policy — 2026-11-12
 
@@ -110,7 +111,9 @@ This document records review evidence; it does not certify the application as pr
 
 ## Approved hybrid SaaS direction — 2026-11-12
 
-The operator selected the hybrid business model: validate ResellerBytes AI Operations internally first, then commercialize the same platform for external hosting providers.
+The operator selected the hybrid business model: validate ResellerBytes AI
+Operations internally first, then commercialize the same platform for external
+hosting providers.
 
 Approved architecture decisions:
 
@@ -122,7 +125,10 @@ Approved architecture decisions:
 - Automated billing requires verified, idempotent provider webhooks; manual payments require auditable recording and adjustment history.
 - Custom domains and advanced white-label features are deferred until domain verification, TLS, routing, and tenant-isolation controls are implemented.
 
-The approved target architecture and phased delivery plan are documented in hybrid-saas-architecture-and-roadmap.md. The overall first-commercial-release planning estimate is approximately 5–9 weeks, subject to Phase 1 verification, schema complexity, payment-provider access, and beta feedback.
+The approved target architecture and phased delivery plan are documented in
+hybrid-saas-architecture-and-roadmap.md. The overall first-commercial-release
+planning estimate is approximately 5–9 weeks, subject to Phase 1 verification,
+schema complexity, payment-provider access, and beta feedback.
 
 ### Current CI status correction
 
@@ -133,7 +139,8 @@ The approved target architecture and phased delivery plan are documented in hybr
 
 ## Current branch-head verification — 2026-11-12
 
-This section supersedes earlier CI-status statements above where they conflict with the latest verified repository evidence.
+This section supersedes earlier CI-status statements above where they conflict
+with the latest verified repository evidence.
 
 - Latest reviewed PR check run: [43277780912](https://github.com/DiligentCreators/ResellerBytesAiOperation/actions/runs/43277780912) — both `ci` and `whmcs-addon-php81` completed successfully.
 - Verified CI summary for that run: formatting, lint, frontend build, TypeScript, Pint, PHPStan, and Pest passed; Pest reported 109 passed and 2 skipped (457 assertions).
@@ -156,7 +163,8 @@ This section supersedes earlier CI-status statements above where they conflict w
 5. Generate and verify production signing keys through the approved secret-management process.
 6. Complete retention dry-run controls, production pilot checklist, backup/restore rehearsal, and one-shot read-only WHMCS pilot only after explicit deployment approval.
 
-A green CI run is necessary but does not close these release gates or authorize merge, migration, or deployment.
+A green CI run is necessary but does not close these release gates or authorize
+merge, migration, or deployment.
 
 ## Ambiguous AI-attempt reconciliation implementation — 2026-11-12
 
@@ -195,7 +203,8 @@ Verified PR #2 head: `41d939164a2c787d5feced121e4dfc24b823068b`.
 
 ## Current branch-head verification — 2026-11-13
 
-This section supersedes earlier CI and recovery-status entries where they conflict with the latest verified evidence.
+This section supersedes earlier CI and recovery-status entries where they
+conflict with the latest verified evidence.
 
 - Verified review-branch head: `608a57a39321b82523d23d405f0cb50250912d92`.
 - GitHub Actions run [43312619197](https://github.com/DiligentCreators/ResellerBytesAiOperation/actions/runs/43312619197) completed successfully. The main CI, PostgreSQL AI-budget, and WHMCS PHP 8.1 jobs all passed.
@@ -210,7 +219,8 @@ This section supersedes earlier CI and recovery-status entries where they confli
 - Remaining release gates include confirmed-charge settlement, least-privilege production DB role provisioning, external tamper-evident audit backup/export, integration deletion/history lifecycle, production signing-key setup and ZIP verification, approved retention implementation, backup/restore rehearsal, production infrastructure verification, and an explicitly approved read-only WHMCS pilot.
 - The hybrid SaaS tenant-isolation, dual-billing, entitlement, and white-label roadmap remains a separate implementation phase and is not certified as delivered by this PR.
 
-A green CI run is necessary but does not close these release gates or authorize merge, migration, or deployment.
+A green CI run is necessary but does not close these release gates or authorize
+merge, migration, or deployment.
 
 ## Database-enforced audit append-only controls - 2026-11-13
 
