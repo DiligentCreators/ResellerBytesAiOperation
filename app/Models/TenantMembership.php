@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/** @property \\Carbon\\CarbonImmutable|null $accepted_at */
 class TenantMembership extends Model
 {
     use HasUuids;
