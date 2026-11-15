@@ -480,3 +480,13 @@ A green CI run is necessary but does not close these release gates or authorize 
 - Existing account deletion remains password-confirmed, transactionally audited, and blocked for the last remaining operations account. Tenant membership invite/accept/role-change/suspend/revoke remains tenant-authorized, owner-protected, and audit-recorded.
 - Added a regression test for profile audit privacy. Password-change audit coverage is implemented; full runtime test validation remains pending PHP 8.5 and dependencies.
 - All continuation commits carry [skip ci]. PR #2 remains Open + Draft; no workflow file or repository setting was changed, and no merge or deployment occurred.
+
+
+### Retention enforcement and recovery-gate verification — 2026-11-15
+
+- Re-verified the diagnostic retention implementation against the approved absolute policy: UTC `received_at` cutoff at 365 days, inclusive boundary, no legal-hold exception, bounded batch deletion, dry-run default, and dual execution gates (deployment feature flag plus explicit `--execute`). Cleanup is deliberately not scheduled.
+- Existing feature coverage exercises report-only behavior, cleanup disabled by default, active descendant-hold expiry with immutable audit events, exact cutoff handling including active analysis, and transaction rollback when audit append fails. Audit events remain append-only and are not part of diagnostic cleanup.
+- Added operator password-change audit regression coverage. Audit metadata contains only a boolean credential-change marker; no password or credential material is recorded.
+- Extended the independent security review checklist for operator profile/password audit privacy and in-flight queue worker observability.
+- Corrected the in-flight queue alert lifecycle so a healthy observed processing-age metric can resolve the alert, while missing telemetry cannot. Added regression coverage for stale alert, exact 15-minute boundary, healthy resolution, and telemetry gaps.
+- Runtime tests remain unexecuted because the current environment lacks the required PHP 8.5 runtime and project dependencies. Do not treat this as CI evidence. All commits continue to include [skip ci]; no workflow files or repository settings were changed.
