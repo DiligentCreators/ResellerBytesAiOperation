@@ -83,20 +83,20 @@ $createdMapping = false;
 
 try {
     $mapping = $operations->table('tenant_billing_provider_accounts')
-    ->where('provider', $provider)
-    ->where('provider_account_id', $account)
-    ->first();
+        ->where('provider', $provider)
+        ->where('provider_account_id', $account)
+        ->first();
 
     if ($mapping === null) {
         $mappingId = $operations->table('tenant_billing_provider_accounts')->insertGetId([
-        'tenant_id' => $tenantA,
-        'provider' => $provider,
-        'provider_account_id' => $account,
-        'status' => 'active',
-        'verified_at' => $now,
-        'created_at' => $now,
-        'updated_at' => $now,
-    ]);
+            'tenant_id' => $tenantA,
+            'provider' => $provider,
+            'provider_account_id' => $account,
+            'status' => 'active',
+            'verified_at' => $now,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
         $createdMapping = true;
     } else {
         if ($mapping->tenant_id !== $tenantA) {
@@ -105,7 +105,7 @@ try {
         $mappingId = $mapping->id;
     }
 
-$outboxId = $operations->table('tenant_billing_outbox')->insertGetId([
+    $outboxId = $operations->table('tenant_billing_outbox')->insertGetId([
         'tenant_id' => $tenantA,
         'idempotency_key' => 'rls-test-'.$token,
         'event_type' => 'billing.rls_probe',
@@ -119,7 +119,7 @@ $outboxId = $operations->table('tenant_billing_outbox')->insertGetId([
         'created_at' => $now,
         'updated_at' => $now,
     ]);
-    
+
     $webhookId = $operations->table('tenant_billing_webhook_events')->insertGetId([
         'tenant_id' => $tenantA,
         'provider' => $provider,
