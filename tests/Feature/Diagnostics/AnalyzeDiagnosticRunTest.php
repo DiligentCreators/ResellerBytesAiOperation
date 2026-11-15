@@ -463,8 +463,6 @@ it('settles confirmed provider usage before surfacing an unsuccessful HTTP respo
         ),
     ]);
 
-
-
     $settled = null;
     expect(fn () => app(WhmcsDiagnosticAnalyzer::class)->analyze(
         $run,
