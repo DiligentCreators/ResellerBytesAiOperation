@@ -580,3 +580,12 @@ A green CI run is necessary but does not close these release gates or authorize 
 - Updated deployment mail guidance to the central Log/SMTP/Postmark configuration and documented OPERATIONS_OWNER_EMAIL and the four PostgreSQL application/service identities.
 - Compared the actual branch against handoff head 8364f4ac8815aa75422e26a5db72ef7f5fb5e411: 38 commits ahead, zero behind; changed-file comparison confirms no workflow file or repository setting changed in this implementation pass.
 - Current exact branch head: cc95d2570e64af1a040d3db2a921a38840a4f01f. All 38 commits in this pass include [skip ci]. Exact-head CI has intentionally not been triggered yet; it will run once on the final non-[skip ci] commit after remaining review/documentation is complete. PHP 8.5 test execution is not available in this environment.
+
+
+### One-shot release CI handoff — 2026-11-15
+
+- PR #2 description now contains the final release-readiness summary, verification boundaries, and the complete Shahrukh setup checklist.
+- Shahrukh's security-review and release approval are recorded as received. Owner-run Wasabi/Object Lock, production signing-key custody, PostgreSQL role provisioning, mail credentials, PHP 8.5 local suite, and backup/restore rehearsal remain documented as environment setup; repository engineering does not wait on them.
+- Deferred tenant onboarding, commercial plan/provider activation, white-label, and custom domains are explicitly outside this release.
+- Pre-final branch head: e2e7104a7e0a39c4f2972340fa37f07f6fbc162f. The 39-commit finalization pass is 0 behind the verified handoff head and changed no workflow files or repository settings. Every intermediate commit includes [skip ci].
+- This entry is the final documentation change before the single non-[skip ci] commit. That commit is intended to trigger the six required CI jobs once. PR remains open and Draft until the exact-head CI result is green; no deployment or production operation is authorized.
