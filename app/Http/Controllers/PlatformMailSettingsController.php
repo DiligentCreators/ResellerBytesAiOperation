@@ -34,7 +34,7 @@ class PlatformMailSettingsController extends Controller
             'server_token' => config('platform_mail.postmark.server_token'),
             'message_stream' => config('platform_mail.postmark.message_stream'),
         ];
-        $saved = $settings?->configuration ?? [];
+        $saved = (array) ($settings?->configuration ?? []);
         foreach ($saved as $key => $value) {
             if ($value !== null && $value !== '') {
                 $fallback[$key] = $value;
