@@ -19,6 +19,8 @@ type Props = {
     status?: string;
 };
 
+const selectClassName = 'rounded-md border bg-background p-2';
+
 export default function MailSettings(props: Props) {
     return (
         <>
@@ -27,7 +29,8 @@ export default function MailSettings(props: Props) {
                 <Heading
                     title="Platform outbound email"
                     description={
-                        'One central mail configuration for platform and tenant system messages.'
+                        'One central mail configuration for platform ' +
+                        'and tenant system messages.'
                     }
                 />
                 {props.status && (
@@ -48,9 +51,11 @@ export default function MailSettings(props: Props) {
                                     id="driver"
                                     name="driver"
                                     defaultValue={props.driver}
-                                    className="rounded-md border bg-background p-2"
+                                    className={selectClassName}
                                 >
-                                    <option value="log">Log only (no email sent)</option>
+                                    <option value="log">
+                                        Log only (no email sent)
+                                    </option>
                                     <option value="smtp">SMTP</option>
                                     <option value="postmark">Postmark</option>
                                 </select>
@@ -112,7 +117,9 @@ export default function MailSettings(props: Props) {
                                     }
                                 />
                                 {props.smtp_username_set && (
-                                    <label className="flex items-center gap-2 text-sm">
+                                    <label
+                                        className="flex items-center gap-2 text-sm"
+                                    >
                                         <input
                                             type="checkbox"
                                             name="clear_smtp_username"
