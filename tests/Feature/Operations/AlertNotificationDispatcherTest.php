@@ -12,11 +12,33 @@ use Illuminate\Support\Facades\Mail;
 beforeEach(function () {
     config([
         'operations.alerts.email' => 'owner@example.test',
+        'platform_mail.driver' => 'smtp',
         'operations.alerts.slack_webhook_url' => 'https://hooks.slack.test/alerts',
         'operations.alerts.discord_webhook_url' => null,
         'operations.alerts.critical_whatsapp_webhook_url' => null,
         'operations.alerts.critical_sms_webhook_url' => null,
     ]);
+});
+
+
+it('does not mark the log-only mail driver as an email delivery', function () {
+    config(['platform_mail.driver' => 'log']);
+    Mail::fake();
+    Http::fake(['https://hooks.slack.test/*' => Http::response([], 200)]);
+
+    $result = app(AlertNotificationDispatcher::class)->dispatch([
+        'code' => 'error_rate_exceeded',
+        'severity' => 'alert',
+        'observed' => 2.5,
+        'threshold' => 2,
+        'window_minutes' => 5,
+    ], CarbonImmutable::parse('2026-11-14T12:00:00Z'));
+
+    expect($result['success'])->toBeFalse()
+        ->and($result['deliveries']['email'])->toBe('not_sent')
+        ->and($result['deliveries']['team_channel'])->toBe('delivered');
+
+    Mail::assertNothingSent();
 });
 
 it('delivers standard alerts to owner email and exactly one configured team channel', function () {
