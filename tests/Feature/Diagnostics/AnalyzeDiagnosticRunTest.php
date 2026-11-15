@@ -455,6 +455,7 @@ it('settles confirmed provider usage before surfacing an unsuccessful HTTP respo
     ]);
 
     config()->set('services.openai.key', 'test-provider-key');
+    // Isolate the facade so the response-handling contract is tested without a network fake.
     Http::swap(new \Illuminate\Http\Client\Factory());
     $rawBody = json_encode([
         'id' => 'resp_confirmed_usage_error',
