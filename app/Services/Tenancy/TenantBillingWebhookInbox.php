@@ -38,7 +38,7 @@ class TenantBillingWebhookInbox
             || trim($providerEventId) === ''
             || strlen($providerEventId) > 180
             || ! preg_match('/^[a-z][a-z0-9_.-]{2,119}$/', $eventType)
-            || ! is_string($providerAccountId) || trim($providerAccountId) === '' || strlen($providerAccountId) > 160) {
+            || trim($providerAccountId) === '' || strlen($providerAccountId) > 160) {
             throw new InvalidArgumentException('billing_webhook_input_invalid');
         }
 
