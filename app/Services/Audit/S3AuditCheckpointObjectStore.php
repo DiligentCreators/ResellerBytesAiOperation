@@ -14,6 +14,7 @@ use Throwable;
 
 final class S3AuditCheckpointObjectStore implements AuditCheckpointObjectStore
 {
+    private const MAX_CHECKPOINT_BYTES = 65536;
     public function createImmutableIfAbsent(
         string $objectKey,
         string $contents,
@@ -121,13 +122,25 @@ final class S3AuditCheckpointObjectStore implements AuditCheckpointObjectStore
             $headVersion = $head['VersionId'] ?? null;
             $retentionMode = $head['ObjectLockMode'] ?? null;
             $retainUntil = $head['ObjectLockRetainUntilDate'] ?? null;
-            $contents = file_get_contents($path);
+            $handle = @fopen($path, 'rb');
+            if ($handle === false) {
+                throw new RuntimeException('audit_anchor_object_readback_incomplete');
+            }
+
+            try {
+                $contents = fread($handle, self::MAX_CHECKPOINT_BYTES + 1);
+            } finally {
+                fclose($handle);
+            }
 
             if (! is_string($headVersion) || ! hash_equals($versionId, $headVersion)
                 || ! is_string($retentionMode)
                 || ! is_string($retainUntil)
                 || ! is_string($contents)) {
                 throw new RuntimeException('audit_anchor_object_readback_incomplete');
+            }
+            if (strlen($contents) > self::MAX_CHECKPOINT_BYTES) {
+                throw new RuntimeException('audit_anchor_object_readback_oversized');
             }
 
             return new AuditCheckpointObjectVersion(
