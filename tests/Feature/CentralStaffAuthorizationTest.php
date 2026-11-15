@@ -63,9 +63,12 @@ it('allows only the configured super admin to create staff and change permission
         'permissions' => ['tenants', 'audit'],
     ])->assertRedirect();
 
+    $permissionEvent = DB::table('audit_events')->where('event_type', 'central_staff.permissions_changed')->first();
     expect($access->fresh()->permissions)->toBe(['tenants', 'audit'])
         ->and(DB::table('audit_events')->where('event_type', 'central_staff.created')->exists())->toBeTrue()
-        ->and(DB::table('audit_events')->where('event_type', 'central_staff.permissions_changed')->exists())->toBeTrue();
+        ->and($permissionEvent)->not->toBeNull()
+        ->and(json_decode($permissionEvent->metadata, true, flags: JSON_THROW_ON_ERROR))
+        ->toMatchArray(['before' => ['billing', 'support'], 'after' => ['tenants', 'audit']]);
 });
 
 it('prevents staff from escalating their own permissions and prevents staff deletion of the super admin', function () {
@@ -148,4 +151,24 @@ it('rolls back a staff permission change when its audit event cannot be appended
     ]))->toThrow(RuntimeException::class, 'audit_write_failed');
 
     expect($access->fresh()->permissions)->toBe(['tenants']);
+});
+
+
+it('never allows the configured super admin to be modified or deleted through staff administration', function () {
+    $owner = User::factory()->withTwoFactor()->create(['email' => 'owner@example.test']);
+    $staleAccess = CentralStaffAccess::query()->create([
+        'user_id' => $owner->id,
+        'permissions' => ['tenants'],
+        'granted_by_user_id' => $owner->id,
+    ]);
+
+    $this->actingAs($owner)->put('/platform/staff/'.$staleAccess->id, [
+        'permissions' => ['billing'],
+    ])->assertUnprocessable();
+
+    $this->actingAs($owner)->delete('/platform/staff/'.$staleAccess->id)->assertUnprocessable();
+
+    expect(User::query()->whereKey($owner->id)->exists())->toBeTrue()
+        ->and($staleAccess->fresh()->permissions)->toBe(['tenants'])
+        ->and(CentralStaffAccess::query()->whereKey($staleAccess->id)->exists())->toBeTrue();
 });
