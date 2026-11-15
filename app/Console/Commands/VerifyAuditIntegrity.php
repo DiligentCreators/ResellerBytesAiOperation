@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Services\Audit\AuditEventCanonicalizer;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
+use Throwable;
 
 class VerifyAuditIntegrity extends Command
 {
