@@ -155,3 +155,17 @@ it('rejects an oversized local checkpoint before JSON parsing', function () {
         @unlink($path);
     }
 });
+
+
+it('does not expose infrastructure exception details from local checkpoint verification', function () {
+    $path = tempnam(sys_get_temp_dir(), 'rb-anchor-invalid-');
+    file_put_contents($path, '{"payload":[],"signature":"invalid"}');
+
+    try {
+        expect(Artisan::call('audit:anchor:verify', ['checkpoint' => $path]))->toBe(1)
+            ->and(Artisan::output())->toContain('Check sanitized operational logs')
+            ->and(Artisan::output())->not->toContain('audit_anchor_invalid_envelope');
+    } finally {
+        @unlink($path);
+    }
+});
