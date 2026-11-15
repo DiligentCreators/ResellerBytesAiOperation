@@ -39,7 +39,12 @@ it('authorizes only explicitly assigned central permissions for staff', function
 it('allows only the configured super admin to create staff and change permissions with audit evidence', function () {
     $owner = User::factory()->withTwoFactor()->create(['email' => 'owner@example.test']);
     $staff = User::factory()->withTwoFactor()->create();
-    $this->actingAs($staff)->put('/platform/staff/1', ['permissions' => ['tenants', 'settings']])->assertForbidden();
+    $staffAccess = CentralStaffAccess::query()->create([
+        'user_id' => $staff->id,
+        'permissions' => ['tenants'],
+        'granted_by_user_id' => $owner->id,
+    ]);
+    $this->actingAs($staff)->put('/platform/staff/'.$staffAccess->id, ['permissions' => ['tenants', 'settings']])->assertForbidden();
 
     $this->actingAs($owner)->post('/platform/staff', [
         'name' => 'Billing Operator',
