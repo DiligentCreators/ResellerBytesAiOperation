@@ -486,6 +486,7 @@ it('settles confirmed provider usage before surfacing an unsuccessful HTTP respo
         ->andReturn($pendingRequest);
 
     $settled = null;
+    // A normal closure keeps the captured settlement state visible after the expected exception.
     expect(function () use ($run, &$settled): void {
         app(WhmcsDiagnosticAnalyzer::class)->analyze(
             $run,
