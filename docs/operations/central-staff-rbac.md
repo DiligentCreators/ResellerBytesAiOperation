@@ -36,5 +36,6 @@ Creating, changing, and deleting staff accounts writes an immutable audit event 
 5. Deliver the strong temporary password through an approved secure channel; staff must enroll and confirm TOTP before operational routes are available, and should rotate the temporary password after first sign-in.
 6. Review immutable audit events after every staff creation, permission change, or removal.
 7. Test each role against both permitted and forbidden endpoints before enabling it operationally.
+8. Keep the CentralStaffAuthorizationTest feature suite in the required application CI gate; it covers the permission allowlist, audit before/after values, self-escalation denial, and super-admin protection.
 
 This application RBAC does not grant PostgreSQL privileges and must never be used as a substitute for database role separation.
