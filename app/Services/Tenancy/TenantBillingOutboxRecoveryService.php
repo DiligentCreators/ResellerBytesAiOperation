@@ -1,12 +1,12 @@
 <?php
 
-namespace App\\Services\\Tenancy;
+namespace App\Services\Tenancy;
 
-use App\\Models\\Tenant;
-use App\\Models\\TenantBillingOutboxMessage;
-use App\\Models\\User;
-use App\\Services\\Audit\\AuditEventWriter;
-use Illuminate\\Support\\Facades\\DB;
+use App\Models\Tenant;
+use App\Models\TenantBillingOutboxMessage;
+use App\Models\User;
+use App\Services\Audit\AuditEventWriter;
+use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 use RuntimeException;
 
