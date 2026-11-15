@@ -119,7 +119,7 @@ it('does not start a billable analysis for a diagnostic run beyond its retention
     $budget = Mockery::mock(AiBudgetService::class);
     $budget->shouldNotReceive('reserve');
 
-    (new AnalyzeDiagnosticRun($run->id))->handle($analyzer, $budget);
+    (new AnalyzeDiagnosticRun($run->id, (int) $integration->owner_user_id, $integration->tenant_id))->handle($analyzer, $budget);
 
     expect($run->fresh()->status)->toBe('queued')
         ->and($run->fresh()->analysis_attempts)->toBe(0);
@@ -156,7 +156,7 @@ it('releases a pre-submit reservation if the diagnostic crosses its retention cu
     });
 
     $budget = app(AiBudgetService::class);
-    expect(fn () => (new AnalyzeDiagnosticRun($run->id))->handle($analyzer, $budget))
+    expect(fn () => (new AnalyzeDiagnosticRun($run->id, (int) $integration->owner_user_id, $integration->tenant_id))->handle($analyzer, $budget))
         ->toThrow(RuntimeException::class, 'diagnostic_retention_expired');
 
     $attempt = AiUsageAttempt::query()->where('diagnostic_run_id', $run->id)->sole();
@@ -211,7 +211,7 @@ it('does not persist provider results when a diagnostic expires during analysis'
         ];
     });
 
-    (new AnalyzeDiagnosticRun($run->id))->handle($analyzer, app(AiBudgetService::class));
+    (new AnalyzeDiagnosticRun($run->id, (int) $integration->owner_user_id, $integration->tenant_id))->handle($analyzer, app(AiBudgetService::class));
 
     $attempt = AiUsageAttempt::query()->where('diagnostic_run_id', $run->id)->sole();
 
@@ -284,7 +284,7 @@ it('marks a failed analysis attempt without modifying the source diagnostic payl
     $analyzer = Mockery::mock(WhmcsDiagnosticAnalyzer::class);
     $analyzer->shouldReceive('analyze')->once()->andThrow(new RuntimeException('provider_request_failed'));
 
-    expect(fn () => (new AnalyzeDiagnosticRun($run->id))->handle($analyzer, app(AiBudgetService::class)))
+    expect(fn () => (new AnalyzeDiagnosticRun($run->id, (int) $integration->owner_user_id, $integration->tenant_id))->handle($analyzer, app(AiBudgetService::class)))
         ->toThrow(RuntimeException::class, 'provider_request_failed');
 
     expect($run->fresh()->status)->toBe('analysis_failed')
@@ -338,7 +338,7 @@ it('reclaims an analysis lease after the queue retry visibility timeout', functi
         ];
     });
 
-    (new AnalyzeDiagnosticRun($run->id))->handle($analyzer, app(AiBudgetService::class));
+    (new AnalyzeDiagnosticRun($run->id, (int) $integration->owner_user_id, $integration->tenant_id))->handle($analyzer, app(AiBudgetService::class));
 
     expect($run->fresh()->status)->toBe('analyzed')
         ->and($run->fresh()->analysis_attempts)->toBe(2);
@@ -370,7 +370,7 @@ it('does not start a duplicate analysis while the current worker lease is active
     $analyzer = Mockery::mock(WhmcsDiagnosticAnalyzer::class);
     $analyzer->shouldNotReceive('analyze');
 
-    (new AnalyzeDiagnosticRun($run->id))->handle($analyzer, app(AiBudgetService::class));
+    (new AnalyzeDiagnosticRun($run->id, (int) $integration->owner_user_id, $integration->tenant_id))->handle($analyzer, app(AiBudgetService::class));
 
     expect($run->fresh()->status)->toBe('analyzing')
         ->and($run->fresh()->analysis_attempts)->toBe(1);
@@ -404,7 +404,7 @@ it('keeps a submitted provider timeout ambiguous and blocks an automatic duplica
         throw new RuntimeException('provider_request_failed');
     });
 
-    $job = new AnalyzeDiagnosticRun($run->id);
+    $job = new AnalyzeDiagnosticRun($run->id, (int) $integration->owner_user_id, $integration->tenant_id);
     $budget = app(AiBudgetService::class);
 
     expect(fn () => $job->handle($analyzer, $budget))
