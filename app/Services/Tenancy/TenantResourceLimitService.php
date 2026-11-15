@@ -39,7 +39,7 @@ class TenantResourceLimitService
                 ->where('received_at', '<', $subscription->current_period_ends_at)
                 ->count();
 
-            if ($used > $limit) {
+            if ($used >= $limit) {
                 throw new AuthorizationException('The tenant diagnostic allowance for this billing period has been exhausted.');
             }
 
