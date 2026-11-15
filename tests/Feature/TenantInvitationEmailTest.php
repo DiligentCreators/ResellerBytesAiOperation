@@ -9,6 +9,7 @@ use App\Models\TenantSubscription;
 use App\Models\User;
 use App\Services\Mail\TenantInvitationMailer;
 use App\Services\Tenancy\TenantMembershipLifecycle;
+use Illuminate\Http\Client\Factory;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -79,6 +80,7 @@ it('sends an invitation through the centrally configured Postmark transport with
             'from_name' => 'ResellerBytes',
         ],
     ]);
+    Http::swap(new Factory());
     Http::fake(['https://api.postmarkapp.com/email' => Http::response(['MessageID' => 'postmark-message-id'], 200)]);
 
     app(TenantInvitationMailer::class)->sendTenantInvitation($membership->fresh());
@@ -108,7 +110,7 @@ it('uses a local log preview without making an external request or logging priva
     Http::preventStrayRequests();
     Log::shouldReceive('info')
         ->once()
-        ->with('outbound_mail.preview', ['driver' => 'log', 'subject' => 'You have been invited to Invitation Mail Workspace']);
+        ->with('outbound_mail.preview', ['driver' => 'log']);
 
     app(TenantInvitationMailer::class)->sendTenantInvitation($membership->fresh());
 });
