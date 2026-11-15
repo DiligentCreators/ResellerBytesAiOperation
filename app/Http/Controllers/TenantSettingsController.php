@@ -19,7 +19,7 @@ class TenantSettingsController extends Controller
 
         return response()->json([
             'tenant' => ['id' => $tenant->id, 'name' => $tenant->name],
-            'branding' => $tenant->settings['branding'] ?? [],
+            'branding' => ((array) $tenant->settings)['branding'] ?? [],
         ]);
     }
 
@@ -41,7 +41,7 @@ class TenantSettingsController extends Controller
 
         return response()->json([
             'tenant' => ['id' => $updated->id, 'name' => $updated->name],
-            'branding' => $updated->settings['branding'] ?? [],
+            'branding' => ((array) $updated->settings)['branding'] ?? [],
         ]);
     }
 }
