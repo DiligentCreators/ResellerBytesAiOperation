@@ -63,6 +63,9 @@ it('fails closed for missing subscription and unavailable features or limits', f
         ->toThrow(AuthorizationException::class);
     expect(fn () => app(TenantEntitlementService::class)->requireLimit($tenant->id, 'integrations', 3))
         ->toThrow(AuthorizationException::class);
+
+    expect(fn () => app(TenantEntitlementService::class)->requireLimit($tenant->id, 'integrations', -1))
+        ->toThrow(AuthorizationException::class);
 });
 
 it('applies explicit role capability boundaries', function () {
