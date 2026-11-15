@@ -23,7 +23,8 @@ final class OperationalMetricsSource
      *   api_p95_latency_ms: float|null,
      *   last_successful_backup_at: string|null,
      *   disk_usage_percent: float|null,
-     *   oldest_queue_job_age_minutes: float|null,\n     *   oldest_processing_job_age_minutes: float|null,
+     *   oldest_queue_job_age_minutes: float|null,
+     *   oldest_processing_job_age_minutes: float|null,
      *   billing_webhook_dead_letter_count: int|null,
      *   billing_outbox_dead_letter_count: int|null,
      *   billing_webhook_stale_processing_count: int|null,
@@ -62,7 +63,8 @@ final class OperationalMetricsSource
             'api_p95_latency_ms' => $p95Latency !== null ? (float) $p95Latency : null,
             'last_successful_backup_at' => $this->lastSuccessfulBackupAt($observedAt),
             'disk_usage_percent' => $this->diskUsagePercent(),
-            'oldest_queue_job_age_minutes' => $this->oldestQueueJobAgeMinutes($observedAt),\n            'oldest_processing_job_age_minutes' => $this->queueMetrics->oldestProcessingJobAgeMinutes($observedAt),
+            'oldest_queue_job_age_minutes' => $this->oldestQueueJobAgeMinutes($observedAt),
+            'oldest_processing_job_age_minutes' => $this->queueMetrics->oldestProcessingJobAgeMinutes($observedAt),
             ...$this->billingQueueMetrics($observedAt),
         ];
     }
