@@ -75,6 +75,16 @@ real isolated environment.
 - Verify no automatic billable retries and no silent release after provider submission
   uncertainty.
 
+### Billing webhook, outbox, and recovery
+
+- The provider-neutral adapter registry is empty by default. No provider SDK, live credentials, public webhook route, checkout, or charge-initiation endpoint is activated.
+- Verify raw-body signature validation, five-minute timestamp tolerance, 256 KiB request bound, provider/account identity match, and tenant-scoped resolution of provider invoice/subscription references. Adapters must not supply local tenant or record IDs.
+- Verify transactional outbox/inbox identity and payload immutability, provider-account binding, idempotent reconciliation, at-least-once outbox delivery, and consumer deduplication by stable outbox ID.
+- Dead-letter replay must require tenant `billing.manage`, explicit command confirmation, constrained reason code, and a maximum of three manual replays. Webhook replay additionally requires the original provider-account mapping to remain active and verified; that mapping is row-locked with the tenant and event during replay.
+- Verify replay state changes and audit evidence are atomic, and logs/reports exclude tenant/provider/event identifiers, signatures, payloads, and raw exception text.
+- The dedicated PostgreSQL billing-operations identity must be separately provisioned and verified as same-database, BYPASSRLS but non-superuser/non-owner, non-inheriting, and SELECT-only on exactly the provider-account, webhook-inbox, and outbox tables.
+- No payment provider is selected or activated. Final grace policy, merchant-account ownership, provider pricing, production credentials, and non-production RLS rehearsal remain release gates.
+
 ### Audit chain and checkpoint publication
 
 - Audit events are append-only and retained indefinitely. Verify the central
@@ -155,6 +165,7 @@ real isolated environment.
   route access. Evidence: IDOR/access-control test matrix.
 - **WHMCS HMAC:** Altered method/path/body, stale timestamp, nonce replay, duplicate
   UUID and malformed JSON. Evidence: signature and replay tests.
+- **Billing recovery:** Duplicate/changed provider events, tenant/account mismatch, concurrent provider-account deactivation during dead-letter replay, unauthorized replay, three-replay ceiling, audit rollback, stale outbox leases, and aggregate-report privacy. Evidence: billing feature tests, PostgreSQL RLS rehearsal, and independent provider contract tests.
 - **Data minimization:** Customer/billing/domain/payment/credential/raw-config fields in
   fixtures. Evidence: payload allowlist and redaction checks.
 - **AI budget:** Concurrent reservation race, daily/monthly cap, provider timeout after
