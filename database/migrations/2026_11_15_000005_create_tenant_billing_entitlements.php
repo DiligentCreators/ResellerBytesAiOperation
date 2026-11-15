@@ -77,7 +77,7 @@ return new class extends Migration
 
         if ($driver === 'pgsql') {
             DB::unprepared(<<<'SQL'
-CREATE FUNCTION rb_guard_tenant_subscription_provider_identity() RETURNS trigger LANGUAGE plpgsql AS $rb$
+CREATE OR REPLACE FUNCTION rb_guard_tenant_subscription_provider_identity() RETURNS trigger LANGUAGE plpgsql AS $rb$
 BEGIN
     IF NEW.tenant_id IS DISTINCT FROM OLD.tenant_id
         OR (OLD.billing_provider IS NOT NULL AND NEW.billing_provider IS DISTINCT FROM OLD.billing_provider)
@@ -95,7 +95,7 @@ BEGIN
     RETURN NEW;
 END;
 $rb$;
-CREATE FUNCTION rb_guard_tenant_billing_invoice_provider_identity() RETURNS trigger LANGUAGE plpgsql AS $rb$
+CREATE OR REPLACE FUNCTION rb_guard_tenant_billing_invoice_provider_identity() RETURNS trigger LANGUAGE plpgsql AS $rb$
 BEGIN
     IF NEW.tenant_id IS DISTINCT FROM OLD.tenant_id
         OR (OLD.tenant_subscription_id IS NOT NULL AND NEW.tenant_subscription_id IS DISTINCT FROM OLD.tenant_subscription_id)
@@ -107,12 +107,12 @@ BEGIN
     RETURN NEW;
 END;
 $rb$;
-CREATE FUNCTION rb_guard_tenant_billing_payment_immutable() RETURNS trigger LANGUAGE plpgsql AS $rb$
+CREATE OR REPLACE FUNCTION rb_guard_tenant_billing_payment_immutable() RETURNS trigger LANGUAGE plpgsql AS $rb$
 BEGIN
     RAISE EXCEPTION 'tenant_billing_payment_append_only' USING ERRCODE = '23514';
 END;
 $rb$;
-CREATE FUNCTION rb_check_billing_payment_audit_tenant() RETURNS trigger LANGUAGE plpgsql AS $rb$
+CREATE OR REPLACE FUNCTION rb_check_billing_payment_audit_tenant() RETURNS trigger LANGUAGE plpgsql AS $rb$
 DECLARE expected_tenant uuid;
 BEGIN
     IF NEW.subject_type = 'tenant_billing_payment' THEN
