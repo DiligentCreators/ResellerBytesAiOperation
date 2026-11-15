@@ -15,6 +15,7 @@ use App\Services\Tenancy\TenantRoleAuthorization;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Database\QueryException;
 use RuntimeException;
 
 function createTenantSubscriptionFixture(Tenant $tenant, array $overrides = []): TenantSubscription
@@ -215,4 +216,20 @@ it('fails closed when the active tenant plan omits a diagnostic quota', function
 
     expect(fn () => app(TenantResourceLimitService::class)->requireDiagnosticCapacity($tenant->id))
         ->toThrow(AuthorizationException::class, 'resource limit is not configured');
+});
+
+it('keeps tenant subscription plan and entitlement snapshots immutable after provisioning', function () {
+    $tenant = Tenant::create(['name' => 'Immutable Plan Workspace', 'slug' => 'immutable-plan-workspace', 'status' => Tenant::STATUS_ACTIVE]);
+    $subscription = createTenantSubscriptionFixture($tenant);
+
+    expect(fn () => $subscription->forceFill([
+        'entitlements' => ['diagnostics.analysis' => false],
+    ])->save())->toThrow(QueryException::class, 'tenant_subscription_plan_snapshot_immutable');
+
+    expect(fn () => $subscription->forceFill([
+        'unit_amount_minor' => 9900,
+    ])->save())->toThrow(QueryException::class, 'tenant_subscription_plan_snapshot_immutable');
+
+    expect($subscription->fresh()->unit_amount_minor)->toBe(4900)
+        ->and($subscription->fresh()->entitlements['diagnostics.reanalyze'])->toBeTrue();
 });
