@@ -5,15 +5,15 @@ use App\Models\AiBudgetPeriod;
 use App\Models\AiUsageAttempt;
 use App\Models\DiagnosticFinding;
 use App\Models\DiagnosticRun;
-use App\Models\WhmcsIntegration;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Models\WhmcsIntegration;
 use App\Services\Diagnostics\AiBudgetService;
 use App\Services\Diagnostics\WhmcsDiagnosticAnalyzer;
-use Illuminate\Support\Str;
 use Illuminate\Auth\Access\AuthorizationException;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 use RuntimeException;
 
 it('persists validated AI findings and recommendations against their source snapshot', function () {
