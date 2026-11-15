@@ -21,7 +21,7 @@ it('rejects cross-tenant diagnostic findings at the database boundary', function
         'secret' => 'test-integration-secret',
     ]);
 
-    expect(fn () => DB::table('diagnostic_runs')->insert([
+    expect(fn () => DB::transaction(fn () => DB::table('diagnostic_runs')->insert([
         'id' => (string) Str::uuid(),
         'integration_id' => $integration->id,
         'tenant_id' => null,
@@ -35,7 +35,7 @@ it('rejects cross-tenant diagnostic findings at the database boundary', function
         'payload_sha256' => hash('sha256', 'legacy-null-bypass'),
         'created_at' => now(),
         'updated_at' => now(),
-    ]))->toThrow(QueryException::class);
+    ])))->toThrow(QueryException::class);
 
     $runId = (string) Str::uuid();
     DB::table('diagnostic_runs')->insert([
@@ -54,7 +54,7 @@ it('rejects cross-tenant diagnostic findings at the database boundary', function
         'updated_at' => now(),
     ]);
 
-    expect(fn () => DB::table('diagnostic_findings')->insert([
+    expect(fn () => DB::transaction(fn () => DB::table('diagnostic_findings')->insert([
         'id' => (string) Str::uuid(),
         'diagnostic_run_id' => $runId,
         'tenant_id' => null,
@@ -67,9 +67,9 @@ it('rejects cross-tenant diagnostic findings at the database boundary', function
         'status' => 'open',
         'created_at' => now(),
         'updated_at' => now(),
-    ]))->toThrow(QueryException::class);
+    ])))->toThrow(QueryException::class);
 
-    expect(fn () => DB::table('diagnostic_findings')->insert([
+    expect(fn () => DB::transaction(fn () => DB::table('diagnostic_findings')->insert([
         'id' => (string) Str::uuid(),
         'diagnostic_run_id' => $runId,
         'tenant_id' => $tenantB->id,
@@ -82,7 +82,7 @@ it('rejects cross-tenant diagnostic findings at the database boundary', function
         'status' => 'open',
         'created_at' => now(),
         'updated_at' => now(),
-    ]))->toThrow(QueryException::class);
+    ])))->toThrow(QueryException::class);
 });
 
 it('rejects notification recipients without a membership in the same tenant', function () {
@@ -97,14 +97,14 @@ it('rejects notification recipients without a membership in the same tenant', fu
         'accepted_at' => now(),
     ]);
 
-    expect(fn () => DB::table('tenant_notifications')->insert([
+    expect(fn () => DB::transaction(fn () => DB::table('tenant_notifications')->insert([
         'tenant_id' => $tenantB->id,
         'user_id' => $user->id,
         'event_type' => 'diagnostics.run.completed',
         'notification_key' => 'run:cross-tenant:001',
         'payload' => json_encode(['run_id' => 'x']),
         'created_at' => now(),
-    ]))->toThrow(QueryException::class);
+    ])))->toThrow(QueryException::class);
 });
 
 
@@ -126,7 +126,7 @@ it('rejects invoices and payments linked across tenant billing boundaries', func
         'updated_at' => now(),
     ]);
 
-    expect(fn () => DB::table('tenant_billing_invoices')->insert([
+    expect(fn () => DB::transaction(fn () => DB::table('tenant_billing_invoices')->insert([
         'tenant_id' => $tenantA->id,
         'tenant_subscription_id' => $subscriptionId,
         'invoice_number' => 'CROSS-TENANT-SUBSCRIPTION-001',
@@ -137,7 +137,7 @@ it('rejects invoices and payments linked across tenant billing boundaries', func
         'issued_at' => now(),
         'created_at' => now(),
         'updated_at' => now(),
-    ]))->toThrow(QueryException::class);
+    ])))->toThrow(QueryException::class);
 
     $invoiceId = DB::table('tenant_billing_invoices')->insertGetId([
         'tenant_id' => $tenantA->id,
@@ -152,7 +152,7 @@ it('rejects invoices and payments linked across tenant billing boundaries', func
         'updated_at' => now(),
     ]);
 
-    expect(fn () => DB::table('tenant_billing_payments')->insert([
+    expect(fn () => DB::transaction(fn () => DB::table('tenant_billing_payments')->insert([
         'tenant_id' => $tenantB->id,
         'tenant_billing_invoice_id' => $invoiceId,
         'collection_mode' => 'manual',
@@ -162,7 +162,7 @@ it('rejects invoices and payments linked across tenant billing boundaries', func
         'amount_minor' => 100,
         'created_at' => now(),
         'updated_at' => now(),
-    ]))->toThrow(QueryException::class);
+    ])))->toThrow(QueryException::class);
 });
 
 
