@@ -512,9 +512,17 @@ final class BackupArchiveManager
 
         $arguments[] = $path;
         $response = json_decode($this->runAws($settings, $arguments), true, 512, JSON_THROW_ON_ERROR);
-        $versionId = is_array($response) ? ($response['VersionId'] ?? null) : null;
+        $downloadedVersionId = is_array($response) ? ($response['VersionId'] ?? null) : null;
 
-        return is_string($versionId) && trim($versionId) !== '' ? $versionId : null;
+        if (! is_string($downloadedVersionId) || trim($downloadedVersionId) === '') {
+            return null;
+        }
+
+        if ($versionId !== null && ! hash_equals($versionId, $downloadedVersionId)) {
+            throw new RuntimeException('Downloaded backup object version does not match the requested immutable version.');
+        }
+
+        return $downloadedVersionId;
     }
 
     /**
