@@ -606,7 +606,6 @@ A green CI run is necessary but does not close these release gates or authorize 
 - The source/migration repairs, 13-file formatter pass, tenant-context test corrections, and PostgreSQL-safe recovery locking are complete. All intermediate remediation commits use [skip ci].
 - This is the final documentation change before the next single non-[skip ci] commit. Keep PR #2 open and Draft until every required CI job passes.
 
-
 ### CI #716 findings and final remediation — 2026-11-15
 
 - Run #43711904818 completed: MySQL, MariaDB, SQL Server, and WHMCS PHP 8.1 passed. The CI job still found formatting drift in the Markdown/TSX set. PostgreSQL tests exposed a missing global RuntimeException import, a tenant-null assertion referencing an undefined fixture, a deliberate tenant-remap FK violation that needed a nested savepoint, and a provider usage callback fixture whose JSON body needed normalization.
@@ -615,7 +614,6 @@ A green CI run is necessary but does not close these release gates or authorize 
 - Made the analyzer normalize JSON-encoded response bodies before extracting confirmed usage, and changed the failing-provider test to return explicit JSON from a catch-all fake. The queue recovery EXISTS predicate remains in place to avoid PostgreSQL nullable outer-join row locks.
 - Sorted imports in the affected application and feature-test files. All post-#716 remediation commits use [skip ci].
 - Pre-final head: 28bab78b3822ba057a214effc27623f9e9cd1418; 134 commits ahead and 0 behind the verified handoff head; no workflow file or repository setting changed. The next single non-[skip ci] commit triggers the next six-job matrix.
-
 
 ### One-shot CI handoff after #716 remediation — 2026-11-15
 
