@@ -20,6 +20,7 @@ class PlatformMailSettingsController extends Controller
         abort_unless(app(CentralStaffAuthorization::class)->can($request->user(), 'settings'), 403);
     }
 
+    /** @return array<string, mixed> */
     private function effectiveConfiguration(?PlatformMailSettings $settings): array
     {
         $fallback = [
@@ -86,6 +87,7 @@ class PlatformMailSettingsController extends Controller
         ]);
 
         $existing = PlatformMailSettings::query()->find(1);
+        /** @var array<string, mixed> $config */
         $config = $existing?->configuration ?? [];
         $config['from_address'] = $data['from_address'] ?? '';
         $config['from_name'] = $data['from_name'] ?? '';
