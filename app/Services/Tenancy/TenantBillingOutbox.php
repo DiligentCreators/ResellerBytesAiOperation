@@ -1,10 +1,10 @@
 <?php
 
-namespace App\\Services\\Tenancy;
+namespace App\Services\Tenancy;
 
-use App\\Models\\Tenant;
-use App\\Models\\TenantBillingOutboxMessage;
-use Illuminate\\Support\\Facades\\DB;
+use App\Models\Tenant;
+use App\Models\TenantBillingOutboxMessage;
+use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 use LogicException;
 use RuntimeException;
