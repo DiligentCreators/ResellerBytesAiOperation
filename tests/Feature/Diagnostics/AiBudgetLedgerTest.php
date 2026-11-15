@@ -171,7 +171,7 @@ it('releases an ambiguous reservation only through audited no-charge reconciliat
         ->and($attempt->fresh()->reconciled_at)->not->toBeNull()
         ->and(AiBudgetPeriod::query()->where('period_type', 'daily')->sole()->reserved_micro_usd)->toBe(0)
         ->and(AiBudgetPeriod::query()->where('period_type', 'monthly')->sole()->reserved_micro_usd)->toBe(0)
-        ->and(AuditEvent::query()->where('event_type', 'ai_usage_attempt.reconciled_not_charged')->value('tenant_id'))->toBe($tenant->id)
+        ->and(AuditEvent::query()->where('event_type', 'ai_usage_attempt.reconciled_not_charged')->value('tenant_id'))->toBe($run->tenant_id)
         ->and(AuditEvent::query()->where('event_type', 'ai_usage_attempt.reconciled_not_charged')->count())->toBe(1)
         ->and(AuditEvent::query()->where('event_type', 'ai_usage_attempt.reconciliation_approved')->sole()->actor_id)->toBe((string) $approver->getKey());
 
@@ -392,7 +392,8 @@ it('settles provider usage against the tenant captured at reservation even if in
     $run = makeBudgetDiagnosticRun(1, $tenantA);
     $attempt = app(AiBudgetService::class)->reserve($run, 'gpt-5.6-sol', '2026-11-12.1');
 
-    $run->integration->forceFill(['tenant_id' => $tenantB->id])->save();
+    expect(fn () => $run->integration->forceFill(['tenant_id' => $tenantB->id])->save())
+        ->toThrow(\\Illuminate\\Database\\QueryException::class);
     $service = app(AiBudgetService::class);
     $service->markSubmitted($attempt);
     $service->settle($attempt, ['input_tokens' => 1_000, 'cached_input_tokens' => 0, 'output_tokens' => 500], 'resp_captured_tenant');
