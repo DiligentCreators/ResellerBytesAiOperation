@@ -60,7 +60,7 @@ if ($role === null || filter_var($role->rolbypassrls, FILTER_VALIDATE_BOOLEAN) |
     throw new RuntimeException('billing_rls_runtime_role_must_not_bypass_rls_and_operations_role_must_bypass_without_superuser');
 }
 
-$operationsSchema = $operations->selectOne("SELECT has_schema_privilege(current_user, 'public', 'USAGE') AS can_use, has_schema_privilege(current_user, 'public', 'CREATE') AS can_create, EXISTS (SELECT 1 FROM pg_roles AS migrator WHERE migrator.rolname = 'rb_migrator' AND pg_has_role(current_user, migrator.oid, 'MEMBER')) AS is_migrator_member");
+$operationsSchema = $operations->selectOne("SELECT has_schema_privilege(current_user, 'public', 'USAGE') AS can_use, has_schema_privilege(current_user, 'public', 'CREATE') AS can_create, array_to_string(current_schemas(false), ',') AS search_path, EXISTS (SELECT 1 FROM pg_roles AS migrator WHERE migrator.rolname = 'rb_migrator' AND pg_has_role(current_user, migrator.oid, 'MEMBER')) AS is_migrator_member");
 $operationsUnexpectedPrivileges = $operations->selectOne(<<<'SQL'
 SELECT COUNT(*) AS unexpected_count
 FROM pg_class AS relation
@@ -90,6 +90,7 @@ SQL);
 if ($operationsSchema === null || ! filter_var($operationsSchema->can_use, FILTER_VALIDATE_BOOLEAN)
     || filter_var($operationsSchema->can_create, FILTER_VALIDATE_BOOLEAN)
     || filter_var($operationsSchema->is_migrator_member, FILTER_VALIDATE_BOOLEAN)
+    || $operationsSchema->search_path !== 'public'
     || (int) $operationsUnexpectedPrivileges->unexpected_count !== 0) {
     throw new RuntimeException('billing_rls_operations_role_privileges_not_least_privilege');
 }
