@@ -7,8 +7,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * @property array<string, mixed> $payload
- * @property \\Carbon\\CarbonImmutable|null $read_at
- * @property \\Carbon\\CarbonImmutable $created_at
+ * @property \Carbon\CarbonImmutable|null $read_at
+ * @property \Carbon\CarbonImmutable $created_at
  */
 class TenantNotification extends Model
 {
