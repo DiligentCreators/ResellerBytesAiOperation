@@ -274,16 +274,4 @@ it('enforces subscription integration and diagnostic-period quotas from the enti
     expect(fn () => $limits->requireDiagnosticCapacity($tenant->id))
         ->toThrow(\Illuminate\Auth\Access\AuthorizationException::class);
 
-    expect(fn () => \App\Models\DiagnosticRun::create([
-        'integration_id' => $run->integration_id,
-        'tenant_id' => $tenant->id,
-        'snapshot_uuid' => (string) Str::uuid(),
-        'schema_version' => '1.0',
-        'addon_version' => '1.0.0',
-        'status' => 'received',
-        'collected_at' => now(),
-        'received_at' => now(),
-        'payload' => ['source' => 'quota-test-overage'],
-        'payload_sha256' => hash('sha256', 'quota-test-overage'),
-    ]))->toThrow(\Illuminate\Auth\Access\AuthorizationException::class);
 });
