@@ -10,6 +10,7 @@ use Throwable;
 
 class MonitorAuditAnchorCheckpoint extends Command
 {
+    private const MAX_CHECKPOINT_BYTES = 65536;
     protected $signature = 'audit:anchor:monitor {checkpoint : Path to the downloaded signed checkpoint JSON} {--max-age-minutes=60 : Maximum permitted checkpoint age} {--max-unanchored-tail=0 : Maximum permitted unanchored audit events} {--expected-previous= : Expected prior checkpoint SHA-256 digest} {--json : Emit a redacted machine-readable evidence record}';
 
     protected $description = 'Fail closed when the external audit checkpoint is missing, stale, invalid, or behind the local chain';
@@ -65,9 +66,12 @@ class MonitorAuditAnchorCheckpoint extends Command
             return $finish('invalid_threshold');
         }
 
-        $bytes = file_get_contents($path);
+        $bytes = file_get_contents($path, false, null, 0, self::MAX_CHECKPOINT_BYTES + 1);
         if (! is_string($bytes)) {
             return $finish('checkpoint_read_failed');
+        }
+        if (strlen($bytes) > self::MAX_CHECKPOINT_BYTES) {
+            return $finish('checkpoint_too_large');
         }
 
         $previous = $this->option('expected-previous');
