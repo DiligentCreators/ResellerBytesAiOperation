@@ -491,6 +491,7 @@ it('settles confirmed provider usage before surfacing an unsuccessful HTTP respo
         ],
     ]);
     Http::assertSentCount(1);
+    // Assert the provider endpoint and bearer auth without exposing the configured token.
     Http::assertSent(fn (\Illuminate\Http\Client\Request $request): bool => $request->url() === 'https://api.openai.com/v1/responses' && $request->hasHeader('Authorization', 'Bearer test-provider-key'));
 });
 
