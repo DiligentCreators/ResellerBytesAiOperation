@@ -262,12 +262,12 @@ Artisan::command('diagnostics:recover-queued {--stale-minutes=15} {--limit=100}'
             continue;
         }
 
-        if (! is_string($recoveryState) || ! str_starts_with($recoveryState, 'claimed:')) {
+        if (! str_starts_with($recoveryState, 'claimed:')) {
             continue;
         }
 
         $claim = explode(':', substr($recoveryState, strlen('claimed:')), 2);
-        $ownerUserId = (int) ($claim[0] ?? 0);
+        $ownerUserId = (int) $claim[0];
         $tenantId = isset($claim[1]) && $claim[1] !== '-' ? $claim[1] : null;
         if ($ownerUserId < 1) {
             continue;
