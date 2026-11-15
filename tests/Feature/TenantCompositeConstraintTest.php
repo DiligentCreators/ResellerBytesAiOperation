@@ -271,10 +271,10 @@ it('enforces subscription integration and diagnostic-period quotas from the enti
         'payload_sha256' => hash('sha256', 'quota-test'),
     ]);
 
-    // The current diagnostic is included in the period count and remains eligible.
-    $limits->requireDiagnosticCapacity($tenant->id);
+    expect(fn () => $limits->requireDiagnosticCapacity($tenant->id))
+        ->toThrow(\Illuminate\Auth\Access\AuthorizationException::class);
 
-    \App\Models\DiagnosticRun::create([
+    expect(fn () => \App\Models\DiagnosticRun::create([
         'integration_id' => $run->integration_id,
         'tenant_id' => $tenant->id,
         'snapshot_uuid' => (string) Str::uuid(),
@@ -285,8 +285,5 @@ it('enforces subscription integration and diagnostic-period quotas from the enti
         'received_at' => now(),
         'payload' => ['source' => 'quota-test-overage'],
         'payload_sha256' => hash('sha256', 'quota-test-overage'),
-    ]);
-
-    expect(fn () => $limits->requireDiagnosticCapacity($tenant->id))
-        ->toThrow(\Illuminate\Auth\Access\AuthorizationException::class);
+    ]))->toThrow(\Illuminate\Auth\Access\AuthorizationException::class);
 });
