@@ -58,6 +58,10 @@ return new class extends Migration
             $table->unique(['id', 'tenant_id'], 'tenant_subscriptions_id_tenant_unique');
         });
 
+        if (DB::connection()->getDriverName() === 'sqlite') {
+            $this->dropSqliteBillingTableTriggers();
+        }
+
         Schema::table('tenant_billing_invoices', function (Blueprint $table): void {
             $table->unique(['id', 'tenant_id'], 'tenant_billing_invoices_id_tenant_unique');
             $table->foreign(['tenant_subscription_id', 'tenant_id'], 'tenant_invoices_subscription_tenant_fk')
@@ -75,6 +79,10 @@ return new class extends Migration
         });
 
         $this->createTenantConsistencyTriggers();
+
+        if (DB::connection()->getDriverName() === 'sqlite') {
+            $this->restoreSqliteBillingTableTriggers();
+        }
 
         if (DB::connection()->getDriverName() === 'pgsql') {
             $this->enablePostgresRls();
@@ -338,6 +346,10 @@ SQL);
             DB::statement('ALTER TABLE tenants DISABLE ROW LEVEL SECURITY');
         }
 
+        if (DB::connection()->getDriverName() === 'sqlite') {
+            $this->dropSqliteBillingTableTriggers();
+        }
+
         Schema::table('tenant_notifications', fn (Blueprint $table) => $table->dropForeign('tenant_notifications_membership_fk'));
         Schema::table('tenant_billing_payments', fn (Blueprint $table) => $table->dropForeign('tenant_payments_invoice_tenant_fk'));
         Schema::table('tenant_billing_invoices', function (Blueprint $table): void {
@@ -367,5 +379,42 @@ SQL);
             $table->dropColumn('tenant_id');
         });
         Schema::table('whmcs_integrations', fn (Blueprint $table) => $table->dropUnique('integrations_id_tenant_unique'));
+
+        if (DB::connection()->getDriverName() === 'sqlite') {
+            $this->restoreSqliteBillingTableTriggers();
+        }
+    }
+
+    private function dropSqliteBillingTableTriggers(): void
+    {
+        foreach ([
+            'rb_tenant_billing_invoice_provider_identity',
+            'rb_tenant_billing_payment_immutable',
+            'rb_tenant_billing_payment_no_delete',
+            'rb_billing_payment_audit_tenant_guard',
+        ] as $trigger) {
+            DB::unprepared("DROP TRIGGER IF EXISTS {$trigger}");
+        }
+    }
+
+    private function restoreSqliteBillingTableTriggers(): void
+    {
+        DB::unprepared(<<<'SQL'
+CREATE TRIGGER rb_tenant_billing_invoice_provider_identity BEFORE UPDATE ON tenant_billing_invoices
+WHEN NEW.tenant_id IS NOT OLD.tenant_id
+ OR (OLD.tenant_subscription_id IS NOT NULL AND NEW.tenant_subscription_id IS NOT OLD.tenant_subscription_id)
+ OR (OLD.provider IS NOT NULL AND NEW.provider IS NOT OLD.provider)
+ OR (OLD.provider_account_id IS NOT NULL AND NEW.provider_account_id IS NOT OLD.provider_account_id)
+ OR (OLD.provider_invoice_id IS NOT NULL AND NEW.provider_invoice_id IS NOT OLD.provider_invoice_id)
+BEGIN SELECT RAISE(ABORT, 'tenant_billing_invoice_provider_identity_immutable'); END;
+CREATE TRIGGER rb_tenant_billing_payment_immutable BEFORE UPDATE ON tenant_billing_payments
+BEGIN SELECT RAISE(ABORT, 'tenant_billing_payment_append_only'); END;
+CREATE TRIGGER rb_tenant_billing_payment_no_delete BEFORE DELETE ON tenant_billing_payments
+BEGIN SELECT RAISE(ABORT, 'tenant_billing_payment_append_only'); END;
+CREATE TRIGGER rb_billing_payment_audit_tenant_guard BEFORE INSERT ON audit_events
+WHEN NEW.subject_type = 'tenant_billing_payment'
+ AND NEW.tenant_id IS NOT (SELECT tenant_id FROM tenant_billing_payments WHERE id = CAST(NEW.subject_id AS INTEGER))
+BEGIN SELECT RAISE(ABORT, 'audit_event_tenant_mismatch'); END;
+SQL);
     }
 };
