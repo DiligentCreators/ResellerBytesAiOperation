@@ -132,10 +132,6 @@ final class AlertThresholdPolicy
 
         $billingBacklogMinutes = (int) config('operations.monitoring.queue_job_max_age_minutes', 15);
 
-        if ($this->numericMetric($metrics, 'oldest_processing_job_age_minutes') !== null) {
-            $codes[] = 'queue_job_processing_stale';
-        }
-
         foreach (['webhook', 'outbox'] as $queue) {
             $deadLetters = $this->numericMetric($metrics, "billing_{$queue}_dead_letter_count");
             if ($deadLetters !== null && $deadLetters > 0) {
@@ -188,6 +184,10 @@ final class AlertThresholdPolicy
 
         if ($this->numericMetric($metrics, 'oldest_queue_job_age_minutes') !== null) {
             $codes[] = 'queue_job_age_exceeded';
+        }
+
+        if ($this->numericMetric($metrics, 'oldest_processing_job_age_minutes') !== null) {
+            $codes[] = 'queue_job_processing_stale';
         }
 
 
