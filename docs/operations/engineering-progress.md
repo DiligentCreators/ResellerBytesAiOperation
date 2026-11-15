@@ -708,6 +708,7 @@ merge, migration, or deployment.
   every required job passes.
 
 ### CI #722 findings and follow-up — 2026-11-15
+
 - Run #722 on `40c47184a19c36188f3d3cae4e250e699b45ed98`: WHMCS PHP 8.1,
   MySQL, MariaDB, and SQL Server passed. PostgreSQL completed bootstrap and
   reported 68 passed, 2 skipped, and one failed provider-usage callback test.
@@ -723,4 +724,3 @@ merge, migration, or deployment.
   `10c173fb6f27ec608e4ba10599873836e42d610c`. This is the final documentation
   entry before the next single non-`[skip ci]` commit. PR #2 remains Draft
   until every required CI job passes.
-
