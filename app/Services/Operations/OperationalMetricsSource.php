@@ -13,6 +13,7 @@ use Throwable;
 
 final class OperationalMetricsSource
 {
+    private const MAX_BACKUP_MARKER_BYTES = 4096;
     public function __construct(private readonly QueueJobMetricsTracker $queueMetrics) {}
 
     /**
@@ -133,8 +134,8 @@ final class OperationalMetricsSource
             return null;
         }
 
-        $contents = @file_get_contents($path);
-        if (! is_string($contents)) {
+        $contents = @file_get_contents($path, false, null, 0, self::MAX_BACKUP_MARKER_BYTES + 1);
+        if (! is_string($contents) || strlen($contents) > self::MAX_BACKUP_MARKER_BYTES) {
             return null;
         }
 
