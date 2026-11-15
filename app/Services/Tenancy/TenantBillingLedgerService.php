@@ -73,7 +73,7 @@ class TenantBillingLedgerService
                 ->firstOrFail();
 
             if ($payment['collection_mode'] === 'manual') {
-                $actor = User::query()->findOrFail($payment['recorded_by_user_id']);
+                $actor = User::query()->findOrFail((int) $payment['recorded_by_user_id']);
                 $membership = TenantMembership::query()
                     ->where('tenant_id', $tenantId)
                     ->where('user_id', $actor->getKey())
