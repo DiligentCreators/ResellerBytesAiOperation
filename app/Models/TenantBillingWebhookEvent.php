@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class TenantBillingWebhookEvent extends Model
+/**\n * @property array<string, mixed> $payload\n * @property \\Illuminate\\Support\\Carbon $received_at\n * @property \\Illuminate\\Support\\Carbon|null $provider_occurred_at\n * @property \\Illuminate\\Support\\Carbon|null $available_at\n * @property \\Illuminate\\Support\\Carbon|null $locked_at\n * @property \\Illuminate\\Support\\Carbon|null $processed_at\n * @property \\Illuminate\\Support\\Carbon|null $dead_lettered_at\n */\nclass TenantBillingWebhookEvent extends Model
 {
     protected $fillable = [
         'tenant_id', 'provider', 'provider_account_id', 'provider_event_id', 'event_type',
