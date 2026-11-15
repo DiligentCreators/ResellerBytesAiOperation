@@ -151,6 +151,7 @@ it('uses active tenant membership instead of historical integration ownership fo
     ]);
     $finding = DiagnosticFinding::create([
         'diagnostic_run_id' => $run->id,
+        'tenant_id' => $tenant->id,
         'fingerprint' => hash('sha256', 'shared-tenant-finding'),
         'category' => 'security',
         'severity' => 'high',
