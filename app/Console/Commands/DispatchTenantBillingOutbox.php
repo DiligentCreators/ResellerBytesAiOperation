@@ -1,16 +1,16 @@
 <?php
 
-namespace App\\Console\\Commands;
+namespace App\Console\Commands;
 
-use App\\Events\\TenantBillingOutboxPublished;
-use App\\Models\\TenantBillingOutboxMessage;
-use App\\Services\\Tenancy\\TenantDatabaseContext;
-use App\\Services\\Tenancy\\TenantBillingOperationsConnection;
-use Carbon\\CarbonImmutable;
-use Illuminate\\Console\\Command;
-use Illuminate\\Support\\Facades\\DB;
-use Illuminate\\Support\\Facades\\Event;
-use Illuminate\\Support\\Facades\\Log;
+use App\Events\TenantBillingOutboxPublished;
+use App\Models\TenantBillingOutboxMessage;
+use App\Services\Tenancy\TenantDatabaseContext;
+use App\Services\Tenancy\TenantBillingOperationsConnection;
+use Carbon\CarbonImmutable;
+use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 
 class DispatchTenantBillingOutbox extends Command
