@@ -205,3 +205,9 @@ A reviewer must not mark this checklist approved based solely on repository CI.
 Production identity, database grants, cloud Object Lock, backup restoration,
 external checkpoint read-back, and alert delivery require independent evidence
 from the actual deployment environment.
+
+
+- [ ] Verify exact VersionId returned by each immutable backup download matches the requested VersionId before accepting the file.
+- [ ] Verify malformed audit-event metadata causes a sanitized integrity failure without leaking stored payload text.
+- [ ] Complete a real Wasabi Object Lock COMPLIANCE and exact-version read-back rehearsal in the owner-provisioned isolated environment; repository tests do not substitute for provider compatibility evidence.
+- [ ] Complete backup/restore rehearsal with approved isolated PostgreSQL and WHMCS/MariaDB plus uploaded-file recovery scope; capture measured RPO/RTO evidence.
