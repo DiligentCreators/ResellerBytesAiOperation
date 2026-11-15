@@ -158,14 +158,21 @@ it('does not resolve billing alerts when operations telemetry is unavailable', f
 });
 
 
-it('alerts when a queue worker remains in processing beyond fifteen minutes', function () {
-    $alerts = app(AlertThresholdPolicy::class)->evaluate([
+it('alerts on stale in-flight workers, resolves on healthy telemetry, and preserves alerts when telemetry is missing', function () {
+    $policy = app(AlertThresholdPolicy::class);
+
+    $alerts = $policy->evaluate([
         'last_successful_backup_at' => now()->toIso8601String(),
         'oldest_processing_job_age_minutes' => 15.1,
     ]);
 
     expect(array_column($alerts, 'code'))->toContain('queue_job_processing_stale')
-        ->and(app(AlertThresholdPolicy::class)->evaluatedCodes([
+        ->and($policy->evaluate([
+            'last_successful_backup_at' => now()->toIso8601String(),
+            'oldest_processing_job_age_minutes' => 15,
+        ]))->not->toContain('queue_job_processing_stale')
+        ->and($policy->evaluatedCodes([
             'oldest_processing_job_age_minutes' => 0,
-        ]))->toContain('queue_job_processing_stale');
+        ]))->toContain('queue_job_processing_stale')
+        ->and($policy->evaluatedCodes([]))->not->toContain('queue_job_processing_stale');
 });
