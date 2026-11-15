@@ -37,12 +37,12 @@ return new class extends Migration
             $scope = "(tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid OR {$membership})";
             DB::statement("CREATE POLICY tenant_isolation_policy ON tenant_billing_adjustments USING ({$scope}) WITH CHECK ({$scope})");
             DB::unprepared(<<<'SQL'
-CREATE FUNCTION rb_guard_tenant_billing_adjustment_immutable() RETURNS trigger LANGUAGE plpgsql AS $rb$
+CREATE OR REPLACE FUNCTION rb_guard_tenant_billing_adjustment_immutable() RETURNS trigger LANGUAGE plpgsql AS $rb$
 BEGIN
     RAISE EXCEPTION 'tenant_billing_adjustment_append_only' USING ERRCODE = '23514';
 END;
 $rb$;
-CREATE FUNCTION rb_check_billing_adjustment_audit_tenant() RETURNS trigger LANGUAGE plpgsql AS $rb$
+CREATE OR REPLACE FUNCTION rb_check_billing_adjustment_audit_tenant() RETURNS trigger LANGUAGE plpgsql AS $rb$
 DECLARE expected_tenant uuid;
 BEGIN
     IF NEW.subject_type = 'tenant_billing_adjustment' THEN
