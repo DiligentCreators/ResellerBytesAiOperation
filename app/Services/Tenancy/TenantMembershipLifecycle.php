@@ -144,6 +144,7 @@ class TenantMembershipLifecycle
         }, 3));
     }
 
+    /** @param array<string, mixed> $metadata */
     private function audit(User $actor, string $tenantId, string $event, TenantMembership $membership, array $metadata, ?string $ip): void
     {
         app(AuditEventWriter::class)->append([
