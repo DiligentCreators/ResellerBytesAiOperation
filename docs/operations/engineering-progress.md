@@ -1680,3 +1680,22 @@ merge, migration, or deployment.
   commit is the single final non-`[skip ci]` commit intended to trigger the
   six-job matrix. Exact-head CI is pending; no workflow file, repository
   setting, production database, or deployment target was changed.
+
+### CI #721 findings and follow-up — 2026-11-15
+
+- Run #721 on `182559e51c6600645b33d59b2a17fc08ceea2509`: WHMCS PHP 8.1,
+  MySQL, MariaDB, and SQL Server passed. PostgreSQL migrations and bootstrap
+  completed; its focused suite reported 68 passed, 2 skipped, and one failed
+  provider-error usage-callback assertion.
+- The failed provider fixture supplied a PHP array to the fake HTTP response.
+  It now supplies a fresh JSON-encoded response body, matching the analyzer's
+  raw-body parsing path.
+- Main CI completed the frontend build, then reported Markdown formatting
+  issues in this document and `security-review-readiness-pack.md`. Both
+  documents were reflowed; the latest source check reports no lines over
+  80 columns in either file.
+- Remediation commits after run #721 use `[skip ci]`. Current pre-final head:
+  `9cea1f8aee86487e5e86bb35805ffc4baeb80f7c`. This is the final documentation
+  entry before the next single non-`[skip ci]` commit, which will trigger the
+  exact-head six-job matrix. PR #2 remains Draft until every job passes.
+
