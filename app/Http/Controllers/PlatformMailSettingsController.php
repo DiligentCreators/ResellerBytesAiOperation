@@ -34,7 +34,7 @@ class PlatformMailSettingsController extends Controller
             'server_token' => config('platform_mail.postmark.server_token'),
             'message_stream' => config('platform_mail.postmark.message_stream'),
         ];
-        $saved = (array) ($settings?->configuration ?? []);
+        $saved = $settings instanceof PlatformMailSettings ? (array) $settings->configuration : [];
         foreach ($saved as $key => $value) {
             if ($value !== null && $value !== '') {
                 $fallback[$key] = $value;
@@ -54,7 +54,7 @@ class PlatformMailSettingsController extends Controller
         $settings = PlatformMailSettings::query()->find(1);
         $config = $this->effectiveConfiguration($settings);
         return Inertia::render('platform/mail-settings', [
-            'driver' => $settings?->driver ?? config('platform_mail.driver', 'log'),
+            'driver' => $settings instanceof PlatformMailSettings ? $settings->driver : config('platform_mail.driver', 'log'),
             'from_address' => $config['from_address'] ?? '',
             'from_name' => $config['from_name'] ?? '',
             'smtp_host' => $config['host'] ?? '',
@@ -88,7 +88,7 @@ class PlatformMailSettingsController extends Controller
 
         $existing = PlatformMailSettings::query()->find(1);
         /** @var array<string, mixed> $config */
-        $config = $existing?->configuration ?? [];
+        $config = $existing instanceof PlatformMailSettings ? (array) $existing->configuration : [];
         $config['from_address'] = $data['from_address'] ?? '';
         $config['from_name'] = $data['from_name'] ?? '';
         $cleared = $config['_cleared'] ?? [];
@@ -160,7 +160,8 @@ class PlatformMailSettingsController extends Controller
         } catch (Throwable) {
             throw ValidationException::withMessages(['recipient' => 'Test delivery failed. Check the selected transport configuration and connectivity.']);
         }
-        $driver = PlatformMailSettings::query()->find(1)?->driver ?? config('platform_mail.driver', 'log');
+        $settings = PlatformMailSettings::query()->find(1);
+        $driver = $settings instanceof PlatformMailSettings ? $settings->driver : config('platform_mail.driver', 'log');
         $status = $driver === 'log'
             ? 'Log driver is active; a redacted preview was recorded and no email was sent.'
             : 'Test email accepted by the configured mail driver.';
