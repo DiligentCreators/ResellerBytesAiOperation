@@ -20,6 +20,7 @@ type Props = {
 };
 
 const selectClassName = 'rounded-md border bg-background p-2';
+const checkboxLabelClassName = 'flex items-center gap-2 text-sm';
 
 export default function MailSettings(props: Props) {
     return (
@@ -92,7 +93,7 @@ export default function MailSettings(props: Props) {
                                     id="smtp_encryption"
                                     name="smtp_encryption"
                                     defaultValue={props.smtp_encryption}
-                                    className="rounded-md border bg-background p-2"
+                                    className={selectClassName}
                                 >
                                     <option value="tls">STARTTLS</option>
                                     <option value="ssl">Implicit TLS</option>
@@ -118,7 +119,7 @@ export default function MailSettings(props: Props) {
                                 />
                                 {props.smtp_username_set && (
                                     <label
-                                        className="flex items-center gap-2 text-sm"
+                                        className={checkboxLabelClassName}
                                     >
                                         <input
                                             type="checkbox"
@@ -149,7 +150,7 @@ export default function MailSettings(props: Props) {
                                 />
                                 <InputError message={errors.smtp_password} />
                                 {props.smtp_password_set && (
-                                    <label className="flex items-center gap-2 text-sm">
+                                    <label className={checkboxLabelClassName}>
                                         <input
                                             type="checkbox"
                                             name="clear_smtp_password"
@@ -185,7 +186,7 @@ export default function MailSettings(props: Props) {
                                     message={errors.postmark_server_token}
                                 />
                                 {props.postmark_token_set && (
-                                    <label className="flex items-center gap-2 text-sm">
+                                    <label className={checkboxLabelClassName}>
                                         <input
                                             type="checkbox"
                                             name="clear_postmark_token"
