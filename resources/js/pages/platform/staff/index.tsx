@@ -101,7 +101,7 @@ export default function CentralStaffPage({
                                 </div>
                                 <div className="grid gap-2">
                                     <Label htmlFor="staff-password">
-                                        {'Temporary password (14+ characters; ' +
+                                        {'Temporary password (14+ chars; ' +
                                             'mixed case, number and symbol)'}
                                     </Label>
                                     <Input
