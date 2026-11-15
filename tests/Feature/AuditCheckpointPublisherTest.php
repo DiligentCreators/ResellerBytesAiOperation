@@ -278,7 +278,7 @@ it('registers the publish command and fails closed before storage access without
 
     try {
         expect(Artisan::call('audit:anchor:publish', ['checkpoint' => $path]))->toBe(1)
-            ->and(Artisan::output())->toContain('audit_anchor_storage_bucket_not_configured');
+            ->and(Artisan::output())->toContain('audit_anchor_publish_outcome_ambiguous');
     } finally {
         @unlink($path);
     }
