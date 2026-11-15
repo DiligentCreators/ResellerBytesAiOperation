@@ -166,8 +166,9 @@ real isolated environment.
   bounded batch, audit failure rollback and held target still expiring. Evidence:
   retention and queue-recovery tests.
 - **Checkpoint:** Signature tamper, environment/predecessor mismatch, stale/future
-  timestamp, duplicate key, missing version, checksum and retention mismatch. Evidence:
-  verifier and publisher tests.
+  timestamp, duplicate key, missing version, checksum and retention mismatch, plus
+  rejection of checkpoint files larger than 64 KiB before unbounded parsing. Evidence:
+  independent verifier, local verifier and publisher tests.
 - **Alerts:** Missing route, invalid/non-HTTPS endpoint, timeout, non-2xx, duplicate
   alert, retry and critical routing. Evidence: adapter and state-service tests.
 - **Backups:** Wrong key, tampered/truncated archive, wrong manifest, missing Object
