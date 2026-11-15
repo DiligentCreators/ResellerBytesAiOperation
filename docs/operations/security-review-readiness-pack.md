@@ -62,6 +62,8 @@ real isolated environment.
   Owner email, approval reference, fresh TOTP, and interactive confirmation.
 - PostgreSQL design separates runtime, deploy-only migration, and read-only reporting
   identities. Verify actual grants from the deployment, not only migration scripts.
+- Verify tenant resource quotas serialize on the active subscription row, deny exact-limit overages, fail closed on missing limits, and preserve idempotent duplicate snapshot delivery at the quota boundary. Verify plan code, billing mode, currency, unit price, and entitlement snapshots are database-immutable after provisioning.
+- Verify tenant invitations are queued only after membership commit, signed for seven days, bound to the intended user and pending membership, never auto-accepted on GET, and cannot be disclosed to another account. Verify pending resend does not create duplicate membership rows and revoked invitations are not delivered.
 
 ### WHMCS ingestion and AI spend
 
