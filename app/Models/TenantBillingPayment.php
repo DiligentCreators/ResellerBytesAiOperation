@@ -8,8 +8,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * @property int $amount_minor
- * @property \\Carbon\\CarbonImmutable|null $received_at
- * @property-read \\Illuminate\\Database\\Eloquent\\Collection<int, TenantBillingAdjustment> $adjustments
+ * @property \Carbon\CarbonImmutable|null $received_at
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, TenantBillingAdjustment> $adjustments
  */
 class TenantBillingPayment extends Model
 {
