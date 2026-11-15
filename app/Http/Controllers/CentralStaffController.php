@@ -45,7 +45,7 @@ class CentralStaffController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email:rfc', 'max:255', 'unique:users,email'],
             'password' => ['required', 'string', 'min:14', 'max:255'],
-            'permissions' => ['present', 'array'],
+            'permissions' => ['sometimes', 'array'],
             'permissions.*' => ['required', 'string', Rule::in(CentralStaffAuthorization::PERMISSIONS)],
         ]);
 
@@ -58,7 +58,7 @@ class CentralStaffController extends Controller
             ]);
             $access = CentralStaffAccess::query()->create([
                 'user_id' => $staff->id,
-                'permissions' => array_values(array_unique($data['permissions'])),
+                'permissions' => array_values(array_unique($data['permissions'] ?? [])),
                 'granted_by_user_id' => $request->user()->id,
             ]);
             $audit->append([
@@ -78,14 +78,14 @@ class CentralStaffController extends Controller
         $this->requireSuperAdmin($request, $authorization);
         abort_if($authorization->isSuperAdmin($staff->user), 422, 'The super admin cannot be modified as staff.');
         $data = $request->validate([
-            'permissions' => ['required', 'array'],
+            'permissions' => ['sometimes', 'array'],
             'permissions.*' => ['required', 'string', Rule::in(CentralStaffAuthorization::PERMISSIONS)],
         ]);
 
         DB::transaction(function () use ($data, $request, $staff, $audit): void {
             $before = $staff->permissions;
             $staff->forceFill([
-                'permissions' => array_values(array_unique($data['permissions'])),
+                'permissions' => array_values(array_unique($data['permissions'] ?? [])),
                 'granted_by_user_id' => $request->user()->id,
             ])->save();
             $audit->append([
