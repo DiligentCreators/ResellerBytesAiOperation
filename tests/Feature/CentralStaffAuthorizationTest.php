@@ -4,6 +4,7 @@ use App\Models\CentralStaffAccess;
 use App\Models\User;
 use App\Services\CentralStaffAuthorization;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 
 uses(RefreshDatabase::class);
 
