@@ -27,13 +27,14 @@ class CentralOutboundMailer
             'message_stream' => config('platform_mail.postmark.message_stream'),
         ];
 
-        foreach (($settings?->configuration ?? []) as $key => $value) {
+        $saved = (array) ($settings?->configuration ?? []);
+        foreach ($saved as $key => $value) {
             if ($value !== null && $value !== '') {
                 $config[$key] = $value;
             }
         }
 
-        foreach (($settings?->configuration['_cleared'] ?? []) as $key => $cleared) {
+        foreach ((array) ($saved['_cleared'] ?? []) as $key => $cleared) {
             if ($cleared === true) {
                 $config[$key] = '';
             }
