@@ -19,7 +19,7 @@ class TenantBillingLedgerService
      * Record a payment already confirmed by the collection channel. This method
      * never initiates a charge or trusts an unverified provider callback.
      *
-     * @param array{collection_mode: string, idempotency_key: string, amount_minor: int, currency: string, provider?: ?string, provider_account_id?: ?string, provider_payment_id?: ?string, reference?: ?string, recorded_by_user_id?: ?int, received_at: mixed} $payment
+     * @param array<string, mixed> $payment
      */
     public function recordConfirmedPayment(string $tenantId, int $invoiceId, array $payment): TenantBillingPayment
     {
