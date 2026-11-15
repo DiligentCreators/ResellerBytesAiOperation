@@ -177,18 +177,18 @@ test('provisions tenant integrations only for authorized members within the acti
         'email' => 'tenant-owner@example.test',
         'email_verified_at' => now(),
     ]);
-    $tenant = \\App\\Models\\Tenant::create([
+    $tenant = \App\Models\Tenant::create([
         'name' => 'Provisioning Workspace',
         'slug' => 'provisioning-workspace',
-        'status' => \\App\\Models\\Tenant::STATUS_ACTIVE,
+        'status' => \App\Models\Tenant::STATUS_ACTIVE,
     ]);
     $tenant->memberships()->create([
         'user_id' => $owner->id,
-        'role' => \\App\\Models\\TenantMembership::ROLE_OWNER,
-        'status' => \\App\\Models\\TenantMembership::STATUS_ACTIVE,
+        'role' => \App\Models\TenantMembership::ROLE_OWNER,
+        'status' => \App\Models\TenantMembership::STATUS_ACTIVE,
         'accepted_at' => now(),
     ]);
-    \\App\\Models\\TenantSubscription::create([
+    \App\Models\TenantSubscription::create([
         'tenant_id' => $tenant->id,
         'plan_code' => 'tenant-provisioning-test',
         'billing_mode' => 'manual',
