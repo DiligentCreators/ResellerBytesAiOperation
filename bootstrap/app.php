@@ -16,6 +16,7 @@ use App\Console\Commands\ReleaseLegalHold;
 use App\Console\Commands\ReportDiagnosticRetentionCandidates;
 use App\Console\Commands\DispatchTenantBillingOutbox;
 use App\Console\Commands\ReconcileTenantBillingWebhooks;
+use App\Console\Commands\ReportTenantBillingOperations;
 use App\Console\Commands\RetryTenantBillingWebhookDeadLetter;
 use App\Console\Commands\RetryTenantBillingOutboxDeadLetter;
 use App\Console\Commands\RestoreOperationalBackup;
@@ -59,7 +60,8 @@ return Application::configure(basePath: dirname(__DIR__))
         ReleaseLegalHold::class,
         ReportDiagnosticRetentionCandidates::class,
         DispatchTenantBillingOutbox::class,
-        ReconcileTenantBillingWebhooks::class,\n        ReportTenantBillingOperations::class,
+        ReconcileTenantBillingWebhooks::class,
+        ReportTenantBillingOperations::class,
         RetryTenantBillingWebhookDeadLetter::class,
         RetryTenantBillingOutboxDeadLetter::class,
         RestoreOperationalBackup::class,
