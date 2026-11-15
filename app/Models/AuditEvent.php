@@ -5,6 +5,10 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use LogicException;
 
+/**
+ * @property array<string, mixed> $metadata
+ * @property \\Carbon\\CarbonImmutable $occurred_at
+ */
 class AuditEvent extends Model
 {
     public $timestamps = false;
