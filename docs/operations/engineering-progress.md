@@ -651,3 +651,10 @@ merge, migration, or deployment.
 - Replaced the provider test's callback-generated response with a literal JSON response body matched by a catch-all fake, retaining the request assertion. The analyzer now decodes raw JSON, falls back to the framework decoder, and normalizes object-shaped usage before invoking the callback.
 - Wrapped the remaining long prose paragraphs in the three reported Markdown documents, collapsed duplicate section spacing, and aligned the mail-settings/staff TSX pages with the repository formatter. The app sidebar and other formatter targets now pass.
 - These changes are [skip ci] remediations. Current head: d8e65767d6d6aec57a1dff49b0a87a4fb7bbe262; 157 commits ahead and 0 behind the verified handoff head; no workflow file or repository setting changed. One final non-[skip ci] commit will verify the repaired head.
+
+### One-shot final CI handoff after #718 — 2026-11-15
+
+- PR #2 description records runs #713 through #718 and the remediation evidence after each failure.
+- Pre-final head: 53b0201c005be4449e2a7fbe91db00fb80b6b5b0; 158 commits ahead and 0 behind the verified handoff head. No workflow files or repository settings changed.
+- The final provider-response fixture, PostgreSQL savepoint assertions, and remaining formatter corrections are complete. All intermediate remediation commits use [skip ci].
+- This is the final documentation change before the next non-[skip ci] commit. PR #2 remains Draft until every required CI job passes.
