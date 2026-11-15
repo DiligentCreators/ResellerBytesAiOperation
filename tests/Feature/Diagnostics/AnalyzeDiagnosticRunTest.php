@@ -486,7 +486,8 @@ it('settles confirmed provider usage before surfacing an unsuccessful HTTP respo
     $settled = null;
     expect(fn () => app(WhmcsDiagnosticAnalyzer::class)->analyze(
         $run,
-        afterResponse: function (array $body, array $usage) use (&$settled): void {
+        null,
+        function (array $body, array $usage) use (&$settled): void {
             $settled = [$body['id'], $usage];
         },
     ))->toThrow(RuntimeException::class, 'provider_request_failed');
