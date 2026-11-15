@@ -87,7 +87,7 @@ return new class extends Migration
 
         if ($driver === 'pgsql') {
             DB::unprepared(<<<'SQL'
-CREATE FUNCTION rb_check_diagnostic_run_tenant() RETURNS trigger LANGUAGE plpgsql AS $rb$
+CREATE OR REPLACE FUNCTION rb_check_diagnostic_run_tenant() RETURNS trigger LANGUAGE plpgsql AS $rb$
 DECLARE expected_tenant uuid;
 BEGIN
     SELECT tenant_id INTO expected_tenant FROM whmcs_integrations WHERE id = NEW.integration_id;
@@ -97,7 +97,7 @@ BEGIN
     RETURN NEW;
 END;
 $rb$;
-CREATE FUNCTION rb_check_diagnostic_finding_tenant() RETURNS trigger LANGUAGE plpgsql AS $rb$
+CREATE OR REPLACE FUNCTION rb_check_diagnostic_finding_tenant() RETURNS trigger LANGUAGE plpgsql AS $rb$
 DECLARE expected_tenant uuid;
 BEGIN
     SELECT tenant_id INTO expected_tenant FROM diagnostic_runs WHERE id = NEW.diagnostic_run_id;
@@ -107,7 +107,7 @@ BEGIN
     RETURN NEW;
 END;
 $rb$;
-CREATE FUNCTION rb_check_diagnostic_recommendation_tenant() RETURNS trigger LANGUAGE plpgsql AS $rb$
+CREATE OR REPLACE FUNCTION rb_check_diagnostic_recommendation_tenant() RETURNS trigger LANGUAGE plpgsql AS $rb$
 DECLARE expected_tenant uuid;
 BEGIN
     SELECT tenant_id INTO expected_tenant FROM diagnostic_findings WHERE id = NEW.diagnostic_finding_id;
@@ -117,7 +117,7 @@ BEGIN
     RETURN NEW;
 END;
 $rb$;
-CREATE FUNCTION rb_check_ai_usage_tenant() RETURNS trigger LANGUAGE plpgsql AS $rb$
+CREATE OR REPLACE FUNCTION rb_check_ai_usage_tenant() RETURNS trigger LANGUAGE plpgsql AS $rb$
 DECLARE expected_tenant uuid;
 BEGIN
     IF NEW.diagnostic_run_id IS NOT NULL THEN
@@ -129,7 +129,7 @@ BEGIN
     RETURN NEW;
 END;
 $rb$;
-CREATE FUNCTION rb_check_audit_event_tenant() RETURNS trigger LANGUAGE plpgsql AS $rb$
+CREATE OR REPLACE FUNCTION rb_check_audit_event_tenant() RETURNS trigger LANGUAGE plpgsql AS $rb$
 DECLARE expected_tenant uuid;
 BEGIN
     IF NEW.subject_type = 'tenant' THEN
