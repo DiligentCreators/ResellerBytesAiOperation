@@ -1,6 +1,8 @@
 <?php
 
 use App\Models\Tenant;
+use App\Models\TenantBillingInvoice;
+use App\Models\TenantBillingPayment;
 use App\Models\TenantMembership;
 use App\Models\TenantSubscription;
 use App\Models\User;
@@ -49,7 +51,31 @@ it('audits past-due and recovery transitions and keeps grace entitlements bounde
         ->and($pastDue->grace_ends_at->isFuture())->toBeTrue()
         ->and(app(TenantEntitlementService::class)->activeSubscription($tenant->id)->id)->toBe($subscription->id);
 
-    $active = $lifecycle->transition($tenant->id, $subscription->id, 'active', null, $actor->id);
+    $invoice = TenantBillingInvoice::create([
+        'tenant_id' => $tenant->id,
+        'tenant_subscription_id' => $subscription->id,
+        'invoice_number' => 'INV-REACTIVATION-'.strtoupper(Str::random(8)),
+        'status' => 'paid',
+        'currency' => 'USD',
+        'amount_due_minor' => 1000,
+        'amount_paid_minor' => 1000,
+        'issued_at' => now()->subDay(),
+        'paid_at' => now(),
+    ]);
+    TenantBillingPayment::create([
+        'tenant_id' => $tenant->id,
+        'tenant_billing_invoice_id' => $invoice->id,
+        'collection_mode' => 'manual',
+        'idempotency_key' => 'reactivation-payment-'.Str::random(12),
+        'status' => 'succeeded',
+        'currency' => 'USD',
+        'amount_minor' => 1000,
+        'reference' => 'verified-manual-settlement',
+        'recorded_by_user_id' => $actor->id,
+        'received_at' => now(),
+    ]);
+
+    $active = $lifecycle->transition($tenant->id, $subscription->id, 'active', null, $actor->id, $invoice->id);
 
     expect($active->status)->toBe('active')
         ->and($active->grace_ends_at)->toBeNull()
