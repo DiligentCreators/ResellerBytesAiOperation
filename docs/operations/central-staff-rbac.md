@@ -21,7 +21,7 @@ The fixed allowlist is:
 - settings — central platform configuration (currently includes platform mail transport)
 - audit — central audit and evidence access
 
-Unknown permissions are rejected by validation and by the authorization service. Route/controller boundaries must use the central.permission:<permission> middleware or CentralStaffAuthorization::can(); hiding navigation items is not an authorization control. Tenant-member roles remain a separate tenant-scoped authorization system.
+Unknown permissions are rejected by validation and by the authorization service. Route/controller boundaries must use the central.permission:<permission> middleware or CentralStaffAuthorization::can(); hiding navigation items is not an authorization control. The existing central mail-settings routes are gated by settings. Tenant workspace routes remain governed by tenant membership and are deliberately not gated by central-staff permissions. The tenants, billing, support, and audit permission keys are available for their corresponding central feature endpoints; this branch does not introduce new tenant provisioning, billing UI, support UI, or a central audit UI.
 
 ## Audit evidence
 
