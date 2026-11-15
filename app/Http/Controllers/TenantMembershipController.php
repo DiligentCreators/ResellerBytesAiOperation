@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\Tenant;
-use App\Jobs\SendTenantMembershipInvitation;
 use App\Models\TenantMembership;
 use App\Models\User;
 use App\Services\Tenancy\TenantMembershipLifecycle;
@@ -35,7 +34,6 @@ class TenantMembershipController extends Controller
         /** @var User $user */
         $user = $request->user();
         $membership = $lifecycle->invite($user, $tenant->id, $data['email'], $data['role'], $request->ip());
-        SendTenantMembershipInvitation::dispatch($tenant->id, $membership->id, (int) $membership->user_id)->afterCommit();
 
         return response()->json(['membership' => $membership->load('user:id,name,email'), 'email_delivery' => 'queued'], 201);
     }
