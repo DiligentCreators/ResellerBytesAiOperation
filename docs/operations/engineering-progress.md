@@ -497,3 +497,11 @@ A green CI run is necessary but does not close these release gates or authorize 
 - Bounded both the independent public-key verifier and application checkpoint verification command to read at most 64 KiB + 1 byte before rejecting oversized input. This caps memory use even if a file grows between metadata inspection and read.
 - Added regression coverage for oversized checkpoint rejection in both verification paths. Checkpoint envelope version and signing protocol remain unchanged.
 - Runtime tests are not executed in this environment; final exact-head CI remains pending the single planned non-skip-ci commit.
+
+
+### Audit checkpoint verifier hardening — 2026-11-15
+
+- Applied a strict 64 KiB checkpoint input bound to all three verification entry points: independent public-key verifier, local application verification command, and checkpoint monitor. Each reads at most 64 KiB + 1 byte before rejecting oversized files, preventing unbounded file reads even if file size changes during access.
+- Sanitized local checkpoint verification failures so exception messages cannot expose database/provider configuration or infrastructure details. Monitor failures remain reason-code-only.
+- Added regression tests for oversized input across all verification entry points and for local verifier error redaction. Updated the independent review matrix and key-custody boundary notes.
+- No key format, signing protocol, workflow file, or repository setting changed. Tests remain unexecuted pending PHP 8.5 and project dependencies.
