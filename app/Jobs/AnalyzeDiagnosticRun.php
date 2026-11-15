@@ -45,6 +45,7 @@ class AnalyzeDiagnosticRun implements ShouldQueue
         }
     }
 
+    /** @return array<int, object|string> */
     public function middleware(): array
     {
         return [new SetTenantDatabaseContext($this->tenantId, $this->ownerUserId)];
@@ -181,7 +182,8 @@ class AnalyzeDiagnosticRun implements ShouldQueue
                 $evidencePaths = array_values(array_unique($findingData['evidence_paths']));
                 sort($evidencePaths, SORT_STRING);
 
-                $fingerprint = hash('sha256', implode("\n", [
+                $fingerprint = hash('sha256', implode("
+", [
                     $findingData['category'],
                     mb_strtolower($findingData['title']),
                     implode('|', $evidencePaths),
