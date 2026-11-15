@@ -54,7 +54,8 @@ it('aggregates five-minute API error rate and p95 latency without request payloa
         ->and($metrics['api_p95_latency_ms'])->toBe(300.0)
         ->and($metrics['last_successful_backup_at'])->toBeNull()
         ->and($metrics['disk_usage_percent'])->toBeFloat()
-        ->and($metrics['oldest_queue_job_age_minutes'])->toBeNull()\n        ->and($metrics['oldest_processing_job_age_minutes'])->toBeNull();
+        ->and($metrics['oldest_queue_job_age_minutes'])->toBeNull()
+        ->and($metrics['oldest_processing_job_age_minutes'])->toBeNull();
 });
 
 it('captures API response status and duration without storing request content', function () {
