@@ -433,3 +433,10 @@ A green CI run is necessary but does not close these release gates or authorize 
 - Moved the production owner's fresh TOTP challenge to after the verified pre-restore backup and immediately before the immutable restore-approval record and destructive restore.
 - The owner email and approval-reference checks still occur before the confirmation gate. If the final TOTP check fails, the safety snapshot is retained and the target database is not restored.
 - This narrows the gap between the second factor and the destructive operation; no production restore was run. Runtime tests remain pending PHP 8.5 and infrastructure access. The commit uses [skip ci]; no workflow file or repository setting was changed.
+
+### Backup manifest and restore gate hardening — 2026-11-15
+
+- Restore approval evidence is now written to and verified in immutable object storage before the final fresh production-owner TOTP challenge; TOTP is requested immediately before the destructive PostgreSQL restore.
+- Backup manifest intake now enforces a 1 MiB size ceiling, strict SHA-256 syntax, a positive encrypted archive size within the 5 GB single-PutObject limit, and an archive object key derived exactly from the manifest creation date and backup UUID.
+- Backup-success marker updates now fail closed on incomplete writes or permission-setting failures before the atomic rename.
+- Updated the recovery runbook with these validation and approval-order guarantees. No cloud backup or restore was run; runtime tests remain pending PHP 8.5, cloud account, secret-manager access, and isolated recovery infrastructure. All commits continue to include [skip ci].
