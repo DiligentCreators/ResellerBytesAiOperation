@@ -471,3 +471,12 @@ A green CI run is necessary but does not close these release gates or authorize 
 - Successful completion and terminal failure clear the sample; delayed retries return it to queued state with the new availability time. Queue age reporting excludes processing jobs, while a separate processing-age metric feeds the approved 15-minute alert threshold.
 - Added regression coverage for queued → processing → finished lifecycle, processing-age telemetry, and stale-worker alert evaluation. Runtime tests remain unexecuted pending PHP 8.5 and dependencies.
 - Every intermediate commit uses [skip ci]. No workflow file or repository setting changed; PR #2 remains Open + Draft, with no merge or deployment.
+
+
+### Operator account lifecycle audit coverage — 2026-11-15
+
+- Operator profile changes now append transactional audit evidence listing changed field names only; actual names and email addresses are not copied into audit metadata.
+- Password changes now append transactional audit evidence with a boolean credential-change marker only. Passwords, hashes, reset tokens and other credential material are never included.
+- Existing account deletion remains password-confirmed, transactionally audited, and blocked for the last remaining operations account. Tenant membership invite/accept/role-change/suspend/revoke remains tenant-authorized, owner-protected, and audit-recorded.
+- Added a regression test for profile audit privacy. Password-change audit coverage is implemented; full runtime test validation remains pending PHP 8.5 and dependencies.
+- All continuation commits carry [skip ci]. PR #2 remains Open + Draft; no workflow file or repository setting was changed, and no merge or deployment occurred.
