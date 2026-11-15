@@ -676,10 +676,19 @@ merge, migration, or deployment.
 ### PostgreSQL and billing test remediation before final CI — 2026-11-15
 
 - Verified the live PR head before the final CI trigger: `2a9d641c24703cec6cd07a3a2f8894feb76c8005`.
-- Corrected doubled PHP namespace separators in the standalone PostgreSQL billing RLS rehearsal and the billing outbox feature test.
-- Added nested transaction/savepoint isolation around expected tenant/composite-FK and billing immutability violations so PostgreSQL's aborted-statement state does not leak into later assertions.
-- The dedicated billing RLS rehearsal remains an explicit owner-run check because it requires two real tenant fixtures and a separately provisioned `pgsql_operations` role. The production role setup remains documented; no credentials are stored in the repository.
-- All remediation commits before this entry use `[skip ci]`. This documentation commit is the single final non-`[skip ci]` commit intended to trigger the six-job matrix. Exact-head CI is pending; no workflow file, repository setting, production database, or deployment target was changed.
+- Corrected doubled PHP namespace separators in the standalone PostgreSQL
+  billing RLS rehearsal and the billing outbox feature test.
+- Added nested transaction/savepoint isolation around expected tenant/composite-FK
+  and billing immutability violations so PostgreSQL's aborted-statement state
+  does not leak into later assertions.
+- The dedicated billing RLS rehearsal remains an explicit owner-run check
+  because it requires two real tenant fixtures and a separately provisioned
+  `pgsql_operations` role. The production role setup remains documented; no
+  credentials are stored in the repository.
+- All remediation commits before this entry use `[skip ci]`. This documentation
+  commit is the single final non-`[skip ci]` commit intended to trigger the
+  six-job matrix. Exact-head CI is pending; no workflow file, repository
+  setting, production database, or deployment target was changed.
 
 ### CI #721 findings and follow-up — 2026-11-15
 
