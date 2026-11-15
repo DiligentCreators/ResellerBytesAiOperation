@@ -27,7 +27,10 @@ if (! Str::isUuid($tenantA) || ! Str::isUuid($tenantB) || $tenantA === $tenantB 
     throw new RuntimeException('billing_rls_rehearsal_requires_two_tenant_uuids_and_adjustment_fixture_id');
 }
 
-$adjustment = $operations->table('tenant_billing_adjustments')
+$runtime->statement("SELECT set_config('app.current_tenant_id', ?, false)", [$tenantA]);
+$runtime->statement("SELECT set_config('app.current_user_id', '', false)");
+
+$adjustment = $runtime->table('tenant_billing_adjustments')
     ->where('id', $adjustmentId)
     ->where('tenant_id', $tenantA)
     ->first();
