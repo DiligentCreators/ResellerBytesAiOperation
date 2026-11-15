@@ -35,9 +35,9 @@ final class PublishAuditAnchorCheckpoint extends Command
 
         try {
             $result = $publisher->publish($bytes, $expectedPrevious);
-        } catch (Throwable $exception) {
-            // Exception messages are intentionally limited to stable reason codes.
-            $this->error('Audit anchor publication failed: '.$exception->getMessage());
+        } catch (Throwable) {
+            // Storage-provider exceptions may contain endpoints, account identifiers, or command diagnostics.
+            $this->error('Audit anchor publication failed. Check the sanitized operational logs and storage configuration.')
 
             return self::FAILURE;
         }
