@@ -32,6 +32,12 @@ class CentralOutboundMailer
             }
         }
 
+        foreach (($settings?->configuration['_cleared'] ?? []) as $key => $cleared) {
+            if ($cleared === true) {
+                $config[$key] = '';
+            }
+        }
+
         return $config;
     }
 
