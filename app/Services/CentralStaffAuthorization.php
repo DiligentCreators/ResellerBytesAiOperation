@@ -29,9 +29,12 @@ class CentralStaffAuthorization
 
         $access = CentralStaffAccess::query()->where('user_id', $user->getKey())->first();
 
-        return in_array($permission, $access?->permissions ?? [], true);
+        $permissions = $access instanceof CentralStaffAccess ? $access->permissions : [];
+
+        return in_array($permission, $permissions, true);
     }
 
+    /** @return list<string> */
     public function permissions(?User $user): array
     {
         if ($this->isSuperAdmin($user)) {
@@ -43,6 +46,8 @@ class CentralStaffAuthorization
 
         $access = CentralStaffAccess::query()->where('user_id', $user->getKey())->first();
 
-        return array_values(array_intersect($access?->permissions ?? [], self::PERMISSIONS));
+        $permissions = $access instanceof CentralStaffAccess ? $access->permissions : [];
+
+        return array_values(array_intersect($permissions, self::PERMISSIONS));
     }
 }
