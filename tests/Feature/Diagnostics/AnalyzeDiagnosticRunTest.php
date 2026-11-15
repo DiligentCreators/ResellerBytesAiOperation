@@ -457,18 +457,19 @@ it('settles confirmed provider usage before surfacing an unsuccessful HTTP respo
     config()->set('services.openai.key', 'test-provider-key');
     // Prevent a fake registered by an earlier test from intercepting this response.
     Http::swap(new \Illuminate\Http\Client\Factory());
+    $rawBody = json_encode([
+        'id' => 'resp_confirmed_usage_error',
+        'status' => 'failed',
+        'usage' => [
+            'input_tokens' => 100,
+            'input_tokens_details' => ['cached_tokens' => 20],
+            'output_tokens' => 30,
+            'total_tokens' => 130,
+        ],
+        'error' => ['code' => 'provider_processing_error'],
+    ], JSON_THROW_ON_ERROR);
     Http::fake([
-        '*' => Http::response([
-            'id' => 'resp_confirmed_usage_error',
-            'status' => 'failed',
-            'usage' => [
-                'input_tokens' => 100,
-                'input_tokens_details' => ['cached_tokens' => 20],
-                'output_tokens' => 30,
-                'total_tokens' => 130,
-            ],
-            'error' => ['code' => 'provider_processing_error'],
-        ], 500, ['Content-Type' => 'application/json']),
+        '*' => Http::response($rawBody, 500, ['Content-Type' => 'application/json']),
     ]);
 
     $settled = null;
