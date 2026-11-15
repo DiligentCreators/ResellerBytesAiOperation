@@ -142,3 +142,19 @@ it('enforces the expected previous checkpoint digest when supplied', function ()
         @unlink($path);
     }
 });
+
+
+it('rejects an oversized checkpoint before parsing it', function () {
+    $path = tempnam(sys_get_temp_dir(), 'rb-anchor-large-');
+    file_put_contents($path, str_repeat('x', 65537));
+
+    try {
+        $keyPair = sodium_crypto_sign_keypair();
+        $process = runIndependentAuditAnchorVerifier($path, base64_encode(sodium_crypto_sign_publickey($keyPair)));
+
+        expect($process->isSuccessful())->toBeFalse()
+            ->and($process->getErrorOutput())->toContain('exceeds the 64 KiB size limit');
+    } finally {
+        @unlink($path);
+    }
+});
