@@ -29,7 +29,7 @@ return new class extends Migration
             $scope = "(tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid OR {$membership})";
             DB::statement("CREATE POLICY tenant_isolation_policy ON tenant_billing_provider_accounts USING ({$scope}) WITH CHECK ({$scope})");
             DB::unprepared(<<<'SQL'
-CREATE FUNCTION rb_guard_tenant_billing_provider_account_identity() RETURNS trigger LANGUAGE plpgsql AS $rb$
+CREATE OR REPLACE FUNCTION rb_guard_tenant_billing_provider_account_identity() RETURNS trigger LANGUAGE plpgsql AS $rb$
 BEGIN
     IF NEW.tenant_id IS DISTINCT FROM OLD.tenant_id
         OR NEW.provider IS DISTINCT FROM OLD.provider
@@ -39,7 +39,7 @@ BEGIN
     RETURN NEW;
 END;
 $rb$;
-CREATE FUNCTION rb_check_billing_provider_account_audit_tenant() RETURNS trigger LANGUAGE plpgsql AS $rb$
+CREATE OR REPLACE FUNCTION rb_check_billing_provider_account_audit_tenant() RETURNS trigger LANGUAGE plpgsql AS $rb$
 DECLARE expected_tenant uuid;
 BEGIN
     IF NEW.subject_type = 'tenant_billing_provider_account' THEN
