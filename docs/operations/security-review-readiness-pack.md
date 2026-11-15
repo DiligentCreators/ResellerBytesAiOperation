@@ -106,7 +106,7 @@ real isolated environment.
 
 - Approved thresholds: error rate >2% over 5 minutes; API p95 >1.5 seconds; no
   successful backup for 26 hours; disk 80% warning / 90% critical; queued jobs older
-  than 15 minutes.
+  than 15 minutes or remain in-flight for more than 15 minutes.
 - Metric capture avoids request/response payloads and queue job payloads. Missing
   metrics must remain unavailable/null, not fabricated. The backup-success marker is
   bounded to 4 KiB before JSON parsing; malformed or oversized markers remain missing.
