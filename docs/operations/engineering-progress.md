@@ -420,3 +420,10 @@ A green CI run is necessary but does not close these release gates or authorize 
 - SMTP credential-pair validation now respects explicit clears, and Postmark cannot be re-enabled using a fallback token after the owner clears it.
 - Added regression coverage for clearing Postmark tokens despite an environment fallback and clearing SMTP credentials without environment values reappearing.
 - Tests are authored but not executed in this environment; PHP 8.5 is required by the repository and only PHP 8.4 is available. All commits in this follow-up use [skip ci]. No workflow file or repository setting was changed.
+
+### Alert delivery status under Log mail mode — 2026-11-15
+
+- Alert dispatch now reports email as `not_sent` when the central mail transport is configured for Log; it no longer treats a redacted preview/no-op as successful email delivery.
+- Incomplete delivery keeps the alert eligible for retry and increments the existing failed-notification result; configured team/critical webhooks continue to be evaluated independently.
+- Added a regression test proving Log mode sends no email and cannot mark the overall alert delivery successful even when the team webhook acknowledges.
+- Runtime tests remain unexecuted pending PHP 8.5 and dependencies. Follow-up commits continue to use [skip ci]; no workflow file or repository setting was changed.
