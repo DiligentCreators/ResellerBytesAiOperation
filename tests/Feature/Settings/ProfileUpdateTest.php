@@ -145,3 +145,20 @@ test('correct password must be provided to delete account', function () {
 
     expect($user->fresh())->not->toBeNull();
 });
+
+
+test('profile changes append audit evidence without copying profile values', function () {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)->patch(route('profile.update'), [
+        'name' => 'Updated Operator',
+        'email' => 'updated-operator@example.com',
+    ])->assertSessionHasNoErrors();
+
+    $event = AuditEvent::where('event_type', 'operations_user.profile_updated')->first();
+
+    expect($event)->not->toBeNull()
+        ->and($event->actor_id)->toBe((string) $user->id)
+        ->and($event->metadata['changed_fields'])->toContain('name', 'email', 'email_verified_at')
+        ->and(json_encode($event->metadata, JSON_THROW_ON_ERROR))->not->toContain('updated-operator@example.com');
+});
