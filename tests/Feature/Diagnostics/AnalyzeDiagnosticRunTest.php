@@ -463,11 +463,14 @@ it('settles confirmed provider usage before surfacing an unsuccessful HTTP respo
         ),
     ]);
 
+    $probe = Http::post(config('services.openai.responses_url'), []);
+    expect($probe->json())->toBeArray()
+        ->and($probe->json('usage'))->toBeArray();
+
     $settled = null;
     expect(fn () => app(WhmcsDiagnosticAnalyzer::class)->analyze(
         $run,
-        null,
-        function (array $body, array $usage) use (&$settled): void {
+        afterResponse: function (array $body, array $usage) use (&$settled): void {
             $settled = [$body['id'], $usage];
         },
     ))->toThrow(RuntimeException::class, 'provider_request_failed');
