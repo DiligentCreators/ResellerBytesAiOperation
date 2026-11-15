@@ -467,21 +467,13 @@ it('settles confirmed provider usage before surfacing an unsuccessful HTTP respo
         'error' => ['code' => 'provider_processing_error'],
     ], JSON_THROW_ON_ERROR);
 
-    $response = new \Illuminate\Http\Client\Response(
-        new \GuzzleHttp\Psr7\Response(500, ['Content-Type' => 'application/json'], $rawBody),
-    );
-
-    $pendingRequest = Mockery::mock(\Illuminate\Http\Client\PendingRequest::class);
-    $pendingRequest->shouldReceive('acceptJson')->once()->andReturnSelf();
-    $pendingRequest->shouldReceive('connectTimeout')->once()->with(10)->andReturnSelf();
-    $pendingRequest->shouldReceive('timeout')->once()->with(45)->andReturnSelf();
-    $pendingRequest->shouldReceive('post')->once()
-        ->with('https://api.openai.com/v1/responses', Mockery::type('array'))
-        ->andReturn($response);
-
-    Http::shouldReceive('withToken')->once()
-        ->with('test-provider-key')
-        ->andReturn($pendingRequest);
+    Http::fake([
+        'https://api.openai.com/v1/responses' => Http::response(
+            $rawBody,
+            500,
+            ['Content-Type' => 'application/json'],
+        ),
+    ]);
 
     $settled = null;
     expect(fn () => app(WhmcsDiagnosticAnalyzer::class)->analyze(
