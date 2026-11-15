@@ -162,3 +162,21 @@ test('profile changes append audit evidence without copying profile values', fun
         ->and($event->metadata['changed_fields'])->toContain('name', 'email', 'email_verified_at')
         ->and(json_encode($event->metadata, JSON_THROW_ON_ERROR))->not->toContain('updated-operator@example.com');
 });
+
+
+test('password changes append audit evidence without credential material', function () {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)->put(route('user-password.update'), [
+        'current_password' => 'password',
+        'password' => 'new-operator-password',
+        'password_confirmation' => 'new-operator-password',
+    ])->assertSessionHasNoErrors();
+
+    $event = AuditEvent::where('event_type', 'operations_user.password_changed')->first();
+
+    expect($event)->not->toBeNull()
+        ->and($event->actor_id)->toBe((string) $user->id)
+        ->and($event->metadata)->toBe(['credential_changed' => true])
+        ->and(json_encode($event->metadata, JSON_THROW_ON_ERROR))->not->toContain('new-operator-password');
+});
