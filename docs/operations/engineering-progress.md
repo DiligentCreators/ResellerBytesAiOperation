@@ -589,3 +589,11 @@ A green CI run is necessary but does not close these release gates or authorize 
 - Deferred tenant onboarding, commercial plan/provider activation, white-label, and custom domains are explicitly outside this release.
 - Pre-final branch head: e2e7104a7e0a39c4f2972340fa37f07f6fbc162f. The 39-commit finalization pass is 0 behind the verified handoff head and changed no workflow files or repository settings. Every intermediate commit includes [skip ci].
 - This entry is the final documentation change before the single non-[skip ci] commit. That commit is intended to trigger the six required CI jobs once. PR remains open and Draft until the exact-head CI result is green; no deployment or production operation is authorized.
+
+
+### CI bootstrap failure and repair — 2026-11-15
+
+- The first final CI attempt, run #43710503977, failed during Composer autoload/package discovery before application tests started. Root cause: 23 billing source files had doubled namespace separators in PHP namespace/import declarations; Composer reported PSR-4 skips and PHP stopped at DispatchTenantBillingOutbox.php line 3.
+- Repaired namespace/import declarations across all reported billing commands, events, services, contracts, models, and DTOs. Also repaired doubled global Throwable references in TenantBillingWebhookInbox. Verified representative repaired files contain valid single-separator PHP declarations and no remaining doubled separators.
+- These are [skip ci] remediation commits, as required. No workflow file or repository setting changed. The previous run's remaining jobs are not a valid green result for this head.
+- Current remediation head: 50c4c8f43ff6503f32c4815ab366c66af614c913. The next single non-[skip ci] commit will trigger the required six-job CI rerun; PR #2 remains open and Draft until that exact-head run passes.
