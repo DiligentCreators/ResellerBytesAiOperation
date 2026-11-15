@@ -90,7 +90,12 @@ final class BackupArchiveManager
                 throw new RuntimeException('Uploaded backup did not pass read-back checksum verification.');
             }
 
-            file_put_contents($manifestPath, json_encode($manifest, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));
+            $manifestContents = json_encode($manifest, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR);
+            $manifestWritten = file_put_contents($manifestPath, $manifestContents, LOCK_EX);
+            if ($manifestWritten !== strlen($manifestContents) || ! chmod($manifestPath, 0600)) {
+                throw new RuntimeException('Unable to persist the complete private backup manifest.');
+            }
+
             $manifestHash = hash_file('sha256', $manifestPath);
             if (! is_string($manifestHash)) {
                 throw new RuntimeException('Unable to calculate backup manifest checksum.');
