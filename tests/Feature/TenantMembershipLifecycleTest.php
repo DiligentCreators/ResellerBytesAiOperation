@@ -133,3 +133,16 @@ it('reissues a revoked membership using its existing unique tenant-user row', fu
         ->and($second->role)->toBe(TenantMembership::ROLE_OPERATOR)
         ->and($tenant->memberships()->where('user_id', $invitee->id)->count())->toBe(1);
 });
+
+it('reissues a pending invitation without creating a duplicate membership', function () {
+    [$tenant, $owner, $admin, $invitee] = membershipLifecycleFixture();
+    $lifecycle = app(TenantMembershipLifecycle::class);
+    $first = $lifecycle->invite($admin, $tenant->id, $invitee->email, TenantMembership::ROLE_VIEWER);
+    $resent = $lifecycle->invite($owner, $tenant->id, $invitee->email, TenantMembership::ROLE_OPERATOR);
+
+    expect($resent->id)->toBe($first->id)
+        ->and($resent->status)->toBe(TenantMembership::STATUS_INVITED)
+        ->and($resent->role)->toBe(TenantMembership::ROLE_OPERATOR)
+        ->and($tenant->memberships()->where('user_id', $invitee->id)->count())->toBe(1)
+        ->and(\\Illuminate\\Support\\Facades\\DB::table('audit_events')->where('tenant_id', $tenant->id)->where('event_type', 'tenant.membership.invited')->count())->toBe(2);
+});
