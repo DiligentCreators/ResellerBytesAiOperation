@@ -141,6 +141,7 @@ it('rolls back a staff permission change when its audit event cannot be appended
     $writer = Mockery::mock(\App\Services\Audit\AuditEventWriter::class);
     $writer->shouldReceive('append')->once()->andThrow(new RuntimeException('audit_write_failed'));
     app()->instance(\App\Services\Audit\AuditEventWriter::class, $writer);
+    $this->withoutExceptionHandling();
 
     expect(fn () => $this->actingAs($owner)->put('/platform/staff/'.$access->id, [
         'permissions' => ['billing', 'support'],
