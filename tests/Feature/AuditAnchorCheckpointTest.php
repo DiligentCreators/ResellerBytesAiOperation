@@ -134,3 +134,11 @@ it('rejects an audit anchor public key that does not match its private key', fun
     expect(fn () => app(AuditAnchorService::class)->createCheckpoint())
         ->toThrow(RuntimeException::class, 'audit_anchor_keypair_mismatch');
 });
+
+it('does not expose key or infrastructure exception details from checkpoint export', function () {
+    config(['audit.anchor.private_key' => null]);
+
+    expect(Artisan::call('audit:anchor:export'))->toBe(1)
+        ->and(Artisan::output())->toContain('Audit anchor export failed.')
+        ->and(Artisan::output())->not->toContain('AUDIT_ANCHOR_PRIVATE_KEY_not_configured');
+});
