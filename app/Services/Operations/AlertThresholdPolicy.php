@@ -120,7 +120,21 @@ final class AlertThresholdPolicy
         }
 
 
+        $oldestProcessingJobAge = $this->numericMetric($metrics, 'oldest_processing_job_age_minutes');
+        if ($oldestProcessingJobAge !== null && $oldestProcessingJobAge > $queueAgeThreshold) {
+            $alerts[] = [
+                'code' => 'queue_job_processing_stale',
+                'severity' => 'alert',
+                'observed' => $oldestProcessingJobAge,
+                'threshold' => $queueAgeThreshold,
+            ];
+        }
+
         $billingBacklogMinutes = (int) config('operations.monitoring.queue_job_max_age_minutes', 15);
+
+        if ($this->numericMetric($metrics, 'oldest_processing_job_age_minutes') !== null) {
+            $codes[] = 'queue_job_processing_stale';
+        }
 
         foreach (['webhook', 'outbox'] as $queue) {
             $deadLetters = $this->numericMetric($metrics, "billing_{$queue}_dead_letter_count");
