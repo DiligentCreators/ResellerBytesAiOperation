@@ -9,6 +9,12 @@ The billing ledger is the source of truth. This implementation adds a transactio
 
 No payment provider has been selected. No public webhook endpoint, provider SDK, charge initiation, subscription checkout, customer portal, or external tenant webhook destination is enabled. The internal inbox service may only be called by a future provider adapter after that adapter verifies the provider signature, resolves the provider account to exactly one tenant, and maps the provider event to the documented normalized payload. The inbox service is not a signature verifier.
 
+## PostgreSQL operations-role boundary
+
+The `pgsql_operations` connection must use a dedicated `rb_billing_ops` login, distinct from the tenant runtime identity. It is the only application login with `BYPASSRLS`, but it is never a superuser, database/role creator, replication role, schema creator, migrator member, or owner of application tables. Its effective privileges are SELECT-only on exactly `tenant_billing_provider_accounts`, `tenant_billing_webhook_events`, and `tenant_billing_outbox`; no other table or sequence privileges are allowed. The application connection guard checks role flags, database identity, schema privileges, ownership, and the effective table allowlist before any cross-tenant read. Any mismatch fails closed and billing telemetry remains unknown rather than healthy.
+
+The RLS rehearsal creates and cleans its outbox, inbox, and provider-account fixtures using the tenant-scoped runtime role with tenant context set before writes. The bypass role is used only to verify its catalog/role boundary; it is not used as a fixture writer. Provision `rb_billing_ops` using the DBA-only procedure in `postgresql-role-separation.md`, and retain sanitized privilege-verification output before enabling the application connection.
+
 ## Transactional outbox
 
 tenant_billing_outbox stores tenant-scoped events in the same database transaction as the billing state change. Payment ledger writes and subscription status transitions enqueue their event before the transaction commits. A rollback therefore removes both the business mutation and its outbox record.
