@@ -455,8 +455,7 @@ it('settles confirmed provider usage before surfacing an unsuccessful HTTP respo
     ]);
 
     config()->set('services.openai.key', 'test-provider-key');
-    // Prevent a fake registered by an earlier test from intercepting this response.
-    Http::swap(new \Illuminate\Http\Client\Factory());
+    Http::swap(new \\Illuminate\\Http\\Client\\Factory());
     $rawBody = json_encode([
         'id' => 'resp_confirmed_usage_error',
         'status' => 'failed',
@@ -468,9 +467,22 @@ it('settles confirmed provider usage before surfacing an unsuccessful HTTP respo
         ],
         'error' => ['code' => 'provider_processing_error'],
     ], JSON_THROW_ON_ERROR);
-    Http::fake([
-        '*' => Http::response($rawBody, 500, ['Content-Type' => 'application/json']),
-    ]);
+
+    $response = Mockery::mock(\\Illuminate\\Http\\Client\\Response::class);
+    $response->shouldReceive('body')->once()->andReturn($rawBody);
+    $response->shouldReceive('successful')->once()->andReturnFalse();
+
+    $pendingRequest = Mockery::mock(\\Illuminate\\Http\\Client\\PendingRequest::class);
+    $pendingRequest->shouldReceive('acceptJson')->once()->andReturnSelf();
+    $pendingRequest->shouldReceive('connectTimeout')->once()->with(10)->andReturnSelf();
+    $pendingRequest->shouldReceive('timeout')->once()->with(45)->andReturnSelf();
+    $pendingRequest->shouldReceive('post')->once()
+        ->with('https://api.openai.com/v1/responses', Mockery::type('array'))
+        ->andReturn($response);
+
+    Http::shouldReceive('withToken')->once()
+        ->with('test-provider-key')
+        ->andReturn($pendingRequest);
 
     $settled = null;
     expect(fn () => app(WhmcsDiagnosticAnalyzer::class)->analyze(
