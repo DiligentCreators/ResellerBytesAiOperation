@@ -9,9 +9,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 /**
  * @property int $amount_due_minor
  * @property int $amount_paid_minor
- * @property \\Carbon\\CarbonImmutable|null $issued_at
- * @property \\Carbon\\CarbonImmutable|null $due_at
- * @property \\Carbon\\CarbonImmutable|null $paid_at
+ * @property \Carbon\CarbonImmutable|null $issued_at
+ * @property \Carbon\CarbonImmutable|null $due_at
+ * @property \Carbon\CarbonImmutable|null $paid_at
  */
 class TenantBillingInvoice extends Model
 {
