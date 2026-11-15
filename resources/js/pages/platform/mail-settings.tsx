@@ -118,9 +118,7 @@ export default function MailSettings(props: Props) {
                                     }
                                 />
                                 {props.smtp_username_set && (
-                                    <label
-                                        className={checkboxLabelClassName}
-                                    >
+                                    <label className={checkboxLabelClassName}>
                                         <input
                                             type="checkbox"
                                             name="clear_smtp_username"
@@ -259,10 +257,7 @@ export default function MailSettings(props: Props) {
                                 />
                                 <InputError message={errors.recipient} />
                             </div>
-                            <Button
-                                variant="secondary"
-                                disabled={processing}
-                            >
+                            <Button variant="secondary" disabled={processing}>
                                 Send test email
                             </Button>
                         </>
