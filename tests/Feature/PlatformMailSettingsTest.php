@@ -79,7 +79,7 @@ class PlatformMailSettingsTest extends TestCase
 
     public function test_postmark_environment_configuration_is_used_when_no_database_settings_exist(): void
     {
-        PlatformMailSettings::query()->delete();
+        PlatformMailSettings::query()->updateOrCreate(['id' => 1], ['driver' => 'postmark', 'configuration' => []]);
         Http::swap(new Factory());
         config([
             'platform_mail.driver' => 'postmark',
@@ -94,7 +94,7 @@ class PlatformMailSettingsTest extends TestCase
         app(CentralOutboundMailer::class)->send('recipient@example.test', 'Test', '<p>test</p>', 'test');
 
         Http::assertSent(fn ($request) => $request->hasHeader('X-Postmark-Server-Token', 'environment-token')
-            && $request['From'] === 'Environment Sender <env-mail@example.test>');
+            && $request['From'] === '"Environment Sender" <env-mail@example.test>');
     }
 
     public function test_postmark_driver_uses_saved_encrypted_configuration(): void
