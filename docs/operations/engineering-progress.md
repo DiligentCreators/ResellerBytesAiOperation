@@ -658,3 +658,10 @@ merge, migration, or deployment.
 - Pre-final head: 53b0201c005be4449e2a7fbe91db00fb80b6b5b0; 158 commits ahead and 0 behind the verified handoff head. No workflow files or repository settings changed.
 - The final provider-response fixture, PostgreSQL savepoint assertions, and remaining formatter corrections are complete. All intermediate remediation commits use [skip ci].
 - This is the final documentation change before the next non-[skip ci] commit. PR #2 remains Draft until every required CI job passes.
+
+### CI #719 findings and final formatting/provider correction — 2026-11-15
+
+- Run #43713904140 completed: MySQL, MariaDB, SQL Server, and WHMCS PHP 8.1 passed. PostgreSQL's only failing assertion remained the provider usage callback; Vite Plus reported two Markdown documents and two TSX pages.
+- Wrapped the remaining long checklist/reviewer bullets, normalized section spacing, and aligned short JSX elements with the configured print width.
+- The provider test now uses a fresh literal-JSON response for each request (rather than reusing a response object), and retains the named afterResponse callback plus request assertion. This avoids a consumed response stream masking the usage callback.
+- These are [skip ci] remediations. Current head: bd977b775a5da4f07b7e4b08f8a8242d920759f1; 167 commits ahead and 0 behind the verified handoff head. No workflow file or repository setting changed. One final non-[skip ci] commit will verify the repaired head.
