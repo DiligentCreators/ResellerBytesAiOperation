@@ -132,6 +132,7 @@ it('marks only metrics with an observed value as safe to resolve', function () {
 
 it('raises billing alerts for dead letters, stale leases and backlog older than 15 minutes', function () {
     $metrics = [
+        'last_successful_backup_at' => now()->toIso8601String(),
         'billing_webhook_dead_letter_count' => 1, 'billing_outbox_dead_letter_count' => 0,
         'billing_webhook_stale_processing_count' => 0, 'billing_outbox_stale_processing_count' => 2,
         'billing_webhook_oldest_pending_age_minutes' => 0, 'billing_outbox_oldest_pending_age_minutes' => 15.1,
@@ -148,13 +149,18 @@ it('raises billing alerts for dead letters, stale leases and backlog older than 
 
 it('does not resolve billing alerts when operations telemetry is unavailable', function () {
     $metrics = [
+        'last_successful_backup_at' => now()->toIso8601String(),
         'billing_webhook_dead_letter_count' => null, 'billing_outbox_dead_letter_count' => null,
         'billing_webhook_stale_processing_count' => null, 'billing_outbox_stale_processing_count' => null,
         'billing_webhook_oldest_pending_age_minutes' => null, 'billing_outbox_oldest_pending_age_minutes' => null,
     ];
 
     expect(app(AlertThresholdPolicy::class)->evaluate($metrics))->toBe([])
-        ->and(app(AlertThresholdPolicy::class)->evaluatedCodes($metrics))->toBe([]);
+        ->and(app(AlertThresholdPolicy::class)->evaluatedCodes($metrics))->toBe([
+            'successful_backup_missing',
+            'successful_backup_stale',
+            'successful_backup_timestamp_invalid',
+        ]);
 });
 
 
