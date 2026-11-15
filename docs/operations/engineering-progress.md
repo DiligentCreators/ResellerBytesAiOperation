@@ -644,3 +644,10 @@ merge, migration, or deployment.
 - Pre-final head: a30afb0a39bbf44acd76f3ec5b24770a02953f43; 145 commits ahead and 0 behind the verified handoff head. No workflow files or repository settings changed.
 - The final PostgreSQL savepoint/provider-body fixes and remaining Markdown/TSX normalization are complete. All remediation commits use [skip ci].
 - This is the final documentation change before the next non-[skip ci] commit. PR #2 remains open and Draft until all six jobs pass.
+
+### CI #718 findings and final follow-up — 2026-11-15
+
+- Run #43713467134 completed: MySQL, MariaDB, SQL Server, and WHMCS PHP 8.1 passed. PostgreSQL had one remaining failing assertion in the provider-usage callback test; Vite Plus flagged three Markdown documents and two TSX pages.
+- Replaced the provider test's callback-generated response with a literal JSON response body matched by a catch-all fake, retaining the request assertion. The analyzer now decodes raw JSON, falls back to the framework decoder, and normalizes object-shaped usage before invoking the callback.
+- Wrapped the remaining long prose paragraphs in the three reported Markdown documents, collapsed duplicate section spacing, and aligned the mail-settings/staff TSX pages with the repository formatter. The app sidebar and other formatter targets now pass.
+- These changes are [skip ci] remediations. Current head: d8e65767d6d6aec57a1dff49b0a87a4fb7bbe262; 157 commits ahead and 0 behind the verified handoff head; no workflow file or repository setting changed. One final non-[skip ci] commit will verify the repaired head.
