@@ -148,9 +148,7 @@ export default function MailSettings(props: Props) {
                                 />
                                 <InputError message={errors.smtp_password} />
                                 {props.smtp_password_set && (
-                                    <label
-                                        className={checkboxLabelClassName}
-                                    >
+                                    <label className={checkboxLabelClassName}>
                                         <input
                                             type="checkbox"
                                             name="clear_smtp_password"
