@@ -30,7 +30,11 @@ const mainNavItems: NavItem[] = [
     { title: 'Integrations', href: '/integrations', icon: Server },
     { title: 'Diagnostic Runs', href: '/diagnostic-runs', icon: Activity },
     { title: 'Findings', href: '/findings', icon: ShieldAlert },
-    { title: 'WHMCS Addon & Setup', href: '/whmcs-addon/setup', icon: Download },
+    {
+        title: 'WHMCS Addon & Setup',
+        href: '/whmcs-addon/setup',
+        icon: Download,
+    },
 ];
 
 const footerNavItems: NavItem[] = [
