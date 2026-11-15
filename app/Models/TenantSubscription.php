@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-/**\n * @property array<string, mixed> $entitlements\n * @property \\Illuminate\\Support\\Carbon|null $current_period_starts_at\n * @property \\Illuminate\\Support\\Carbon|null $current_period_ends_at\n * @property \\Illuminate\\Support\\Carbon|null $grace_ends_at\n * @property \\Illuminate\\Support\\Carbon|null $canceled_at\n */\nclass TenantSubscription extends Model
+/**\n * @property array<string, mixed> $entitlements\n * @property \Carbon\CarbonImmutable|null $current_period_starts_at\n * @property \Carbon\CarbonImmutable|null $current_period_ends_at\n * @property \Carbon\CarbonImmutable|null $grace_ends_at\n * @property \Carbon\CarbonImmutable|null $canceled_at\n */\nclass TenantSubscription extends Model
 {
     protected $fillable = ['tenant_id', 'plan_code', 'billing_mode', 'status', 'billing_provider', 'provider_account_id', 'provider_subscription_id', 'currency', 'unit_amount_minor', 'entitlements', 'current_period_starts_at', 'current_period_ends_at', 'grace_ends_at', 'canceled_at', 'created_by_user_id'];
 
