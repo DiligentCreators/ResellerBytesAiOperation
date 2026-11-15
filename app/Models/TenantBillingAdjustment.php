@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * @property int $amount_minor
- * @property \\Carbon\\CarbonImmutable|null $occurred_at
+ * @property \Carbon\CarbonImmutable|null $occurred_at
  */
 class TenantBillingAdjustment extends Model
 {
