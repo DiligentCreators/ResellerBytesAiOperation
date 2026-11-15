@@ -161,7 +161,10 @@ deterministic key, resolves its exact version, reads that version back, and vali
 the bytes and retention metadata. A confirmed absent key re-throws the create failure;
 authorization/transport ambiguity and failed read-back remain failures. The adapter
 suppresses raw AWS CLI diagnostics and fails closed when configuration, version IDs,
-Object Lock metadata, or conditional-create support is missing.
+Object Lock metadata, or conditional-create support is missing. Exact-version downloads
+are read with a strict 64 KiB + 1 byte bound before content is returned to the publisher,
+matching the checkpoint verifier's 64 KiB input ceiling and preventing an unexpectedly
+large remote object from being loaded without limit.
 
 The provider-neutral publisher has fake-store tests for duplicate-key rejection,
 missing version ID, version mismatch, checksum mismatch, retention-mode mismatch,
