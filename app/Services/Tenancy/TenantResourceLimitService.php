@@ -1,10 +1,10 @@
 <?php
 
-namespace App\\Services\\Tenancy;
+namespace App\Services\Tenancy;
 
-use App\\Models\\TenantSubscription;
-use Illuminate\\Auth\\Access\\AuthorizationException;
-use Illuminate\\Support\\Facades\\DB;
+use App\Models\TenantSubscription;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Enforces limits from the immutable entitlement snapshot on the active
