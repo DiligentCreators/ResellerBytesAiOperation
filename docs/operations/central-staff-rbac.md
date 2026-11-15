@@ -33,7 +33,7 @@ Creating, changing, and deleting staff accounts writes an immutable audit event 
 2. Run reviewed migrations using rb_migrator, never the runtime login.
 3. Sign in as the configured owner with verified email and enforced TOTP.
 4. Open Central Staff, create individual staff accounts, and grant only required permissions.
-5. Give staff temporary credentials through an approved channel and require them to change their password through the normal account-security flow.
+5. Deliver the strong temporary password through an approved secure channel; staff must enroll and confirm TOTP before operational routes are available, and should rotate the temporary password after first sign-in.
 6. Review immutable audit events after every staff creation, permission change, or removal.
 7. Test each role against both permitted and forbidden endpoints before enabling it operationally.
 
