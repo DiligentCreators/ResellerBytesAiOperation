@@ -27,7 +27,7 @@ class CentralOutboundMailer
             'message_stream' => config('platform_mail.postmark.message_stream'),
         ];
 
-        $saved = (array) ($settings?->configuration ?? []);
+        $saved = $settings instanceof PlatformMailSettings ? (array) $settings->configuration : [];
         foreach ($saved as $key => $value) {
             if ($value !== null && $value !== '') {
                 $config[$key] = $value;
@@ -46,7 +46,7 @@ class CentralOutboundMailer
     public function send(string $to, string $subject, string $html, string $text): void
     {
         $settings = PlatformMailSettings::query()->find(1);
-        $driver = $settings?->driver ?? config('platform_mail.driver', 'log');
+        $driver = $settings instanceof PlatformMailSettings ? $settings->driver : config('platform_mail.driver', 'log');
 
         if ($driver === 'log') {
             Log::info('outbound_mail.preview', ['driver' => 'log']);
