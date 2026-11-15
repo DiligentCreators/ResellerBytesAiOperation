@@ -427,3 +427,9 @@ A green CI run is necessary but does not close these release gates or authorize 
 - Incomplete delivery keeps the alert eligible for retry and increments the existing failed-notification result; configured team/critical webhooks continue to be evaluated independently.
 - Added a regression test proving Log mode sends no email and cannot mark the overall alert delivery successful even when the team webhook acknowledges.
 - Runtime tests remain unexecuted pending PHP 8.5 and dependencies. Follow-up commits continue to use [skip ci]; no workflow file or repository setting was changed.
+
+### Production restore approval freshness — 2026-11-15
+
+- Moved the production owner's fresh TOTP challenge to after the verified pre-restore backup and immediately before the immutable restore-approval record and destructive restore.
+- The owner email and approval-reference checks still occur before the confirmation gate. If the final TOTP check fails, the safety snapshot is retained and the target database is not restored.
+- This narrows the gap between the second factor and the destructive operation; no production restore was run. Runtime tests remain pending PHP 8.5 and infrastructure access. The commit uses [skip ci]; no workflow file or repository setting was changed.
