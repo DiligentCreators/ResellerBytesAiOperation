@@ -34,7 +34,11 @@ const mainNavItems: NavItem[] = [
 ];
 
 const footerNavItems: NavItem[] = [
-    { title: 'WHMCS Documentation', href: 'https://docs.whmcs.com/8-13/addon-modules/', icon: BookOpen },
+    {
+        title: 'WHMCS Documentation',
+        href: 'https://docs.whmcs.com/8-13/addon-modules/',
+        icon: BookOpen,
+    },
 ];
 
 export function AppSidebar() {
@@ -43,16 +47,43 @@ export function AppSidebar() {
     };
     const permissions = auth.central_permissions ?? [];
     const navItems = [...mainNavItems];
-    if (permissions.includes('settings')) navItems.push({ title: 'Mail Settings', href: '/platform/mail-settings', icon: Mail });
-    if (auth.is_platform_admin) navItems.push({ title: 'Central Staff', href: '/platform/staff', icon: Users });
+
+    if (permissions.includes('settings')) {
+        navItems.push({
+            title: 'Mail Settings',
+            href: '/platform/mail-settings',
+            icon: Mail,
+        });
+    }
+
+    if (auth.is_platform_admin) {
+        navItems.push({
+            title: 'Central Staff',
+            href: '/platform/staff',
+            icon: Users,
+        });
+    }
 
     return (
         <Sidebar collapsible="icon" variant="inset">
             <SidebarHeader>
-                <SidebarMenu><SidebarMenuItem><SidebarMenuButton size="lg" asChild><Link href={dashboard()} prefetch><AppLogo /></Link></SidebarMenuButton></SidebarMenuItem></SidebarMenu>
+                <SidebarMenu>
+                    <SidebarMenuItem>
+                        <SidebarMenuButton size="lg" asChild>
+                            <Link href={dashboard()} prefetch>
+                                <AppLogo />
+                            </Link>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                </SidebarMenu>
             </SidebarHeader>
-            <SidebarContent><NavMain items={navItems} /></SidebarContent>
-            <SidebarFooter><NavFooter items={footerNavItems} className="mt-auto" /><NavUser /></SidebarFooter>
+            <SidebarContent>
+                <NavMain items={navItems} />
+            </SidebarContent>
+            <SidebarFooter>
+                <NavFooter items={footerNavItems} className="mt-auto" />
+                <NavUser />
+            </SidebarFooter>
         </Sidebar>
     );
 }
