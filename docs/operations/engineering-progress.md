@@ -19,14 +19,14 @@ Last reviewed: 2026-11-15
 ## CI evidence
 
 - GitHub Actions run
-  [43207784623](https://github.com/DiligentCreators/ResellerBytesAiOperation/actions/runs/43207784623)
+  run #43207784623
   completed successfully for an earlier commit; both `whmcs-addon-php81` and
   `ci` passed.
 - Main-branch run
-  [43126184415](https://github.com/DiligentCreators/ResellerBytesAiOperation/actions/runs/43126184415)
+  run #43126184415
   also completed successfully for its commit.
 - Latest reviewed run
-  [43228161983](https://github.com/DiligentCreators/ResellerBytesAiOperation/actions/runs/43228161983)
+  run #43228161983
   is **not green**: `whmcs-addon-php81` passed, while `ci` failed at Pint's
   `fully_qualified_strict_types` formatting check for
   `whmcs-addon/tests/signed_api_client_test.php`.
@@ -34,23 +34,23 @@ Last reviewed: 2026-11-15
   run; the workflow stopped at the Pint test before the remaining test suite
   could establish a pass.
 - The strict-types formatting issue was still present in the PR merge-check run
-  [43230275243](https://github.com/DiligentCreators/ResellerBytesAiOperation/actions/runs/43230275243):
+  run #43230275243:
   `whmcs-addon-php81` passed, while `ci` failed at the same Pint rule in
   `whmcs-addon/tests/signed_api_client_test.php`. The test now removes redundant
   leading backslashes from global `RuntimeException` references and imports
   `SignedApiClient` in the final namespace block. This correction is pending CI
   verification; no new CI has been intentionally triggered.
 - Runs
-  [43245822574](https://github.com/DiligentCreators/ResellerBytesAiOperation/actions/runs/43245822574),
-  [43246446818](https://github.com/DiligentCreators/ResellerBytesAiOperation/actions/runs/43246446818),
+  run #43245822574,
+  run #43246446818,
   and
-  [43246879200](https://github.com/DiligentCreators/ResellerBytesAiOperation/actions/runs/43246879200)
+  run #43246879200
   passed the WHMCS PHP 8.1 addon job but failed main CI at frontend formatting.
   Run
-  [43247959545](https://github.com/DiligentCreators/ResellerBytesAiOperation/actions/runs/43247959545)
+  run #43247959545
   passed frontend formatting, lint, and TypeScript checks, then failed Pint's
   ordered-imports rule in `routes/web.php`. Run
-  [43248233467](https://github.com/DiligentCreators/ResellerBytesAiOperation/actions/runs/43248233467)
+  run #43248233467
   passed formatting, lint, TypeScript, and Pint, then PHPStan reported that the
   validated Sodium secret-key string needed an explicit non-empty guard. The
   previous non-empty guard was insufficient for PHPStan's Sodium stub; an
@@ -311,7 +311,7 @@ This section supersedes earlier CI-status statements above where they conflict
 with the latest verified repository evidence.
 
 - Latest reviewed PR check run:
-  [43277780912](https://github.com/DiligentCreators/ResellerBytesAiOperation/actions/runs/43277780912)
+  run #43277780912
   — both `ci` and `whmcs-addon-php81` completed successfully.
 - Verified CI summary for that run: formatting, lint, frontend build,
   TypeScript, Pint, PHPStan, and Pest passed; Pest reported 109 passed and 2
@@ -388,12 +388,12 @@ merge, migration, or deployment.
   attempts remain held until a separately reviewed provider-usage settlement
   workflow exists.
 
-## Current branch-head verification — 2026-11-12 (supersedes earlier status entries)
+## Current branch-head verification — 2026-11-12
 
 Verified PR #2 head: `41d939164a2c787d5feced121e4dfc24b823068b`.
 
 - Workflow run
-  [43286897952](https://github.com/DiligentCreators/ResellerBytesAiOperation/actions/runs/43286897952)
+  run #43286897952
   completed successfully on this exact head. The main CI job and WHMCS PHP 8.1
   compatibility job passed.
 - Main CI checks: all 84 frontend files formatted; lint found no warnings/errors
@@ -457,7 +457,7 @@ conflict with the latest verified evidence.
 
 - Verified review-branch head: `608a57a39321b82523d23d405f0cb50250912d92`.
 - GitHub Actions run
-  [43312619197](https://github.com/DiligentCreators/ResellerBytesAiOperation/actions/runs/43312619197)
+  run #43312619197
   completed successfully. The main CI, PostgreSQL AI-budget, and WHMCS PHP 8.1
   jobs all passed.
 - Main CI: formatting, lint, frontend build, TypeScript, Pint, and PHPStan
@@ -525,7 +525,7 @@ merge, migration, or deployment.
   evidence.
 - Verified on exact branch head `9737f57042db5e3b072faa2b5de5c308d13f8b38`: CI
   run
-  [43432519756](https://github.com/DiligentCreators/ResellerBytesAiOperation/actions/runs/43432519756)
+  run #43432519756
   is green. Main CI: 127 passed, 2 skipped, 565 assertions; Pint, PHPStan,
   frontend formatting/lint/type checks passed. PostgreSQL 16: 36 passed, 176
   assertions, including the TRUNCATE rejection and multi-process budget
@@ -541,7 +541,7 @@ merge, migration, or deployment.
   forge new rows. Those controls remain open. The migration has not been applied
   to production. No merge or deployment has occurred.
 
-## Cryptographic audit-chain milestone — implementation complete on branch; rollout pending — 2026-11-13
+## Cryptographic audit-chain milestone — 2026-11-13
 
 - Added `docs/operations/audit-hash-chain-design.md` as the implementation
   contract for the next audit-integrity milestone.
@@ -596,7 +596,7 @@ merge, migration, or deployment.
   four required CI jobs passed — general CI, PostgreSQL AI-budget/audit
   concurrency suite, MySQL 8.4 integration-retention suite, and WHMCS PHP 8.1
   compatibility. Run:
-  https://github.com/DiligentCreators/ResellerBytesAiOperation/actions/runs/43506323777
+  run #43506323777
 - Added database-level DELETE protection for retained WHMCS integration history.
   Regression coverage now exercises SQLite, PostgreSQL, and MySQL 8.4
   query-builder deletion attempts. MariaDB and SQL Server code paths remain
@@ -866,7 +866,7 @@ merge, migration, or deployment.
 - Added regression coverage proving a renewal from a mismatched provider account
   is dead-lettered without changing subscription status or period.
 
-### Subscription provider identity and append-only payment integrity — 2026-11-15
+### Subscription provider identity and append-only payments — 2026-11-15
 
 - Added provider account binding to tenant subscriptions. Provider, provider
   account, and provider subscription ID may be bound once and cannot be
