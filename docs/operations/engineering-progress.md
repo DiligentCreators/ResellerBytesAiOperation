@@ -490,3 +490,10 @@ A green CI run is necessary but does not close these release gates or authorize 
 - Extended the independent security review checklist for operator profile/password audit privacy and in-flight queue worker observability.
 - Corrected the in-flight queue alert lifecycle so a healthy observed processing-age metric can resolve the alert, while missing telemetry cannot. Added regression coverage for stale alert, exact 15-minute boundary, healthy resolution, and telemetry gaps.
 - Runtime tests remain unexecuted because the current environment lacks the required PHP 8.5 runtime and project dependencies. Do not treat this as CI evidence. All commits continue to include [skip ci]; no workflow files or repository settings were changed.
+
+
+### Audit checkpoint input bounds — 2026-11-15
+
+- Bounded both the independent public-key verifier and application checkpoint verification command to read at most 64 KiB + 1 byte before rejecting oversized input. This caps memory use even if a file grows between metadata inspection and read.
+- Added regression coverage for oversized checkpoint rejection in both verification paths. Checkpoint envelope version and signing protocol remain unchanged.
+- Runtime tests are not executed in this environment; final exact-head CI remains pending the single planned non-skip-ci commit.
