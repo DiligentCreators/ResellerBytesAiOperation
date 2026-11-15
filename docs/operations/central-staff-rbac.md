@@ -8,7 +8,7 @@ Central staff authorization is an application-level boundary. It is separate fro
 - The configured account is resolved by normalized email and always receives every central permission; it does not need a central_staff_access row.
 - Staff accounts are separate users records created by the super admin from the Central Staff page. Each receives an explicit permission allowlist.
 - Staff cannot create staff, change any permission assignment, change their own permission set, or delete the super admin. Staff administration endpoints require the configured super-admin identity, independently of assigned staff permissions.
-- The super admin's configured email cannot be changed through profile settings, and the super-admin account cannot be deleted through profile settings.
+- The super admin's configured email cannot be changed through profile settings, and the super-admin account cannot be deleted through profile settings. The staff controller also rejects permission changes or deletion if an unexpected/stale staff-access row is ever associated with the configured super-admin account.
 - If OPERATIONS_OWNER_EMAIL is blank or does not match an existing account, no user receives super-admin privileges. Set it to the verified owner account before enabling central administration.
 
 ## Permission vocabulary
