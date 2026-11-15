@@ -29,6 +29,23 @@ class TenantResourceLimitService
         });
     }
 
+    public function requireMemberCapacity(string $tenantId): TenantSubscription
+    {
+        return $this->withinLockedSubscription($tenantId, function (TenantSubscription $subscription) use ($tenantId): TenantSubscription {
+            $limit = $this->limit($subscription, 'members');
+            $used = DB::table('tenant_memberships')
+                ->where('tenant_id', $tenantId)
+                ->whereIn('status', ['active', 'invited', 'suspended'])
+                ->count();
+
+            if ($used >= $limit) {
+                throw new AuthorizationException('The tenant member limit has been reached.');
+            }
+
+            return $subscription;
+        });
+    }
+
     public function requireDiagnosticCapacity(string $tenantId): TenantSubscription
     {
         return $this->withinLockedSubscription($tenantId, function (TenantSubscription $subscription) use ($tenantId): TenantSubscription {
