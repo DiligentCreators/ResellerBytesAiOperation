@@ -83,7 +83,9 @@ class TenantResourceLimitService
 
     private function limit(TenantSubscription $subscription, string $key): int
     {
-        $value = $subscription->entitlements['limits'][$key] ?? null;
+        $entitlements = (array) $subscription->entitlements;
+        $limits = $entitlements['limits'] ?? [];
+        $value = is_array($limits) ? ($limits[$key] ?? null) : null;
 
         if (! is_int($value) || $value < 0) {
             throw new AuthorizationException('The tenant resource limit is not configured in the active entitlement snapshot.');
