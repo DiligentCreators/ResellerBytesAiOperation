@@ -12,6 +12,7 @@ use App\Services\Audit\AuditEventWriter;
 use App\Services\Diagnostics\AiBudgetService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
+use Illuminate\Database\QueryException;
 use RuntimeException;
 
 function makeBudgetDiagnosticRun(int $attempts = 1, ?Tenant $tenant = null): DiagnosticRun
@@ -386,14 +387,14 @@ it('keeps tenant attribution immutable on an AI usage attempt', function () {
 });
 
 
-it('settles provider usage against the tenant captured at reservation even if integration mapping later changes', function () {
+it('prevents integration tenant remapping after diagnostic history is captured', function () {
     $tenantA = Tenant::create(['name' => 'Captured Billing Tenant A', 'slug' => 'captured-billing-tenant-a', 'status' => Tenant::STATUS_ACTIVE]);
     $tenantB = Tenant::create(['name' => 'Captured Billing Tenant B', 'slug' => 'captured-billing-tenant-b', 'status' => Tenant::STATUS_ACTIVE]);
     $run = makeBudgetDiagnosticRun(1, $tenantA);
     $attempt = app(AiBudgetService::class)->reserve($run, 'gpt-5.6-sol', '2026-11-12.1');
 
     expect(fn () => $run->integration->forceFill(['tenant_id' => $tenantB->id])->save())
-        ->toThrow(\\Illuminate\\Database\\QueryException::class);
+        ->toThrow(QueryException::class);
     $service = app(AiBudgetService::class);
     $service->markSubmitted($attempt);
     $service->settle($attempt, ['input_tokens' => 1_000, 'cached_input_tokens' => 0, 'output_tokens' => 500], 'resp_captured_tenant');
