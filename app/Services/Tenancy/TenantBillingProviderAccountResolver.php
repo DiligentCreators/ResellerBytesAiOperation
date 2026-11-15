@@ -1,8 +1,8 @@
 <?php
 
-namespace App\\Services\\Tenancy;
+namespace App\Services\Tenancy;
 
-use App\\Models\\TenantBillingProviderAccount;
+use App\Models\TenantBillingProviderAccount;
 use RuntimeException;
 
 class TenantBillingProviderAccountResolver
