@@ -123,6 +123,9 @@ $webhookId = null;
 $createdMapping = false;
 
 try {
+    $runtime->statement("SELECT set_config('app.current_tenant_id', ?, false)", [$tenantA]);
+    $runtime->statement("SELECT set_config('app.current_user_id', '', false)");
+
     $mapping = $runtime->table('tenant_billing_provider_accounts')
         ->where('provider', $provider)
         ->where('provider_account_id', $account)
@@ -177,9 +180,6 @@ try {
         'created_at' => $now,
         'updated_at' => $now,
     ]);
-
-    $runtime->statement("SELECT set_config('app.current_tenant_id', ?, false)", [$tenantA]);
-    $runtime->statement("SELECT set_config('app.current_user_id', '', false)");
 
     $counts = [];
     foreach ([
