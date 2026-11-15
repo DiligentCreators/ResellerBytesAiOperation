@@ -43,8 +43,11 @@ Required application settings:
 - OPENAI_MODEL=gpt-5.6-sol
 - OPENAI_REASONING_EFFORT=medium
 - WHMCS_ADDON_VERSION=1.0.0
+- OPERATIONS_OWNER_EMAIL set to the verified, TOTP-enrolled sole central super-admin account
+- DB_MIGRATION_USERNAME/DB_MIGRATION_PASSWORD and DB_READONLY_USERNAME/DB_READONLY_PASSWORD configured separately from DB_USERNAME/DB_PASSWORD
+- DB_OPERATIONS_USERNAME/DB_OPERATIONS_PASSWORD configured for the dedicated billing-operations identity after the PostgreSQL role-separation rehearsal
 
-Configure production SMTP before relying on password-reset emails. Set `MAIL_MAILER=smtp`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_SCHEME` (`smtp` for STARTTLS or `smtps` for implicit TLS), `MAIL_FROM_ADDRESS`, and `MAIL_FROM_NAME` to your approved mail provider, then test a password-reset email. Do not leave the example `MAIL_MAILER=log` setting in production.
+Configure the central outbound mail transport using the platform mail settings page or the secret-managed PLATFORM_MAIL_* fallback variables in .env.example. The approved policy is Log for the current default, SMTP as the first production transport, and Postmark at launch. SMTP uses PLATFORM_MAIL_SMTP_HOST/PORT/ENCRYPTION/USERNAME/PASSWORD plus PLATFORM_MAIL_FROM_ADDRESS/FROM_NAME; Postmark uses PLATFORM_MAIL_POSTMARK_SERVER_TOKEN and PLATFORM_MAIL_POSTMARK_MESSAGE_STREAM. Saved database secrets are encrypted at rest and never returned to the UI. Do not place mail credentials in Git or chat. After configuring the chosen transport, use the platform mail test action and separately verify password-reset and invitation delivery.
 
 Set a sensible OpenAI project spend limit and monitor usage. AI analysis must never receive credentials, customer records, invoices, payment details, or raw configuration files.
 
