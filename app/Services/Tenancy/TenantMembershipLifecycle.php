@@ -56,6 +56,19 @@ class TenantMembershipLifecycle
         });
     }
 
+    public function invitationFor(User $user, string $tenantId, string $membershipId): TenantMembership
+    {
+        return $this->inTenant($tenantId, (int) $user->getKey(), function () use ($user, $tenantId, $membershipId): TenantMembership {
+            return TenantMembership::query()
+                ->with(['tenant', 'user'])
+                ->where('tenant_id', $tenantId)
+                ->where('user_id', $user->getKey())
+                ->whereKey($membershipId)
+                ->where('status', TenantMembership::STATUS_INVITED)
+                ->firstOrFail();
+        });
+    }
+
     public function accept(User $user, string $tenantId, ?string $ip = null): TenantMembership
     {
         return $this->inTenant($tenantId, (int) $user->getKey(), function () use ($user, $tenantId, $ip): TenantMembership {
