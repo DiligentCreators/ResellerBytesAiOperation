@@ -38,14 +38,17 @@ class TenantBillingOperationsConnection
             $runtimeRole = DB::connection($default)->selectOne('SELECT current_user AS role_name');
             $runtimeRoleFlags = DB::connection($default)->selectOne('SELECT rolbypassrls, rolsuper FROM pg_roles WHERE rolname = current_user');
             $operationsRole = $operations->selectOne('SELECT current_user AS role_name');
-            $role = $operations->selectOne('SELECT rolbypassrls, rolsuper, rolcreatedb, rolcreaterole FROM pg_roles WHERE rolname = current_user');
+            $role = $operations->selectOne('SELECT rolbypassrls, rolsuper, rolcreatedb, rolcreaterole, rolinherit, rolcanlogin, rolreplication FROM pg_roles WHERE rolname = current_user');
             if ($runtimeRole === null || $operationsRole === null || $runtimeRole->role_name === $operationsRole->role_name
                 || $runtimeRoleFlags === null || filter_var($runtimeRoleFlags->rolbypassrls, FILTER_VALIDATE_BOOLEAN)
                 || filter_var($runtimeRoleFlags->rolsuper, FILTER_VALIDATE_BOOLEAN)
                 || $role === null || ! filter_var($role->rolbypassrls, FILTER_VALIDATE_BOOLEAN)
                 || filter_var($role->rolsuper, FILTER_VALIDATE_BOOLEAN)
                 || filter_var($role->rolcreatedb, FILTER_VALIDATE_BOOLEAN)
-                || filter_var($role->rolcreaterole, FILTER_VALIDATE_BOOLEAN)) {
+                || filter_var($role->rolcreaterole, FILTER_VALIDATE_BOOLEAN)
+                || filter_var($role->rolinherit, FILTER_VALIDATE_BOOLEAN)
+                || ! filter_var($role->rolcanlogin, FILTER_VALIDATE_BOOLEAN)
+                || filter_var($role->rolreplication, FILTER_VALIDATE_BOOLEAN)) {
                 throw new RuntimeException('billing_operations_database_role_privileges_invalid');
             }
 
