@@ -49,13 +49,13 @@ class TenantBillingLedgerService
             throw new InvalidArgumentException('billing_provider_payment_reference_required');
         }
 
-        if (! (($payment['received_at'] ?? null) instanceof \\DateTimeInterface) && ! is_string($payment['received_at'] ?? null)) {
+        if (! (($payment['received_at'] ?? null) instanceof \DateTimeInterface) && ! is_string($payment['received_at'] ?? null)) {
             throw new InvalidArgumentException('billing_payment_received_at_invalid');
         }
 
         try {
             $receivedAt = CarbonImmutable::parse($payment['received_at'])->utc();
-        } catch (\\Throwable) {
+        } catch (\Throwable) {
             throw new InvalidArgumentException('billing_payment_received_at_invalid');
         }
 
