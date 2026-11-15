@@ -85,6 +85,7 @@ it('sends an invitation through the centrally configured Postmark transport with
 
     app(TenantInvitationMailer::class)->sendTenantInvitation($membership->fresh());
 
+    // Separate assertions keep transport routing, auth-header presence, and payload failures diagnosable.
     Http::assertSentCount(1);
     Http::assertSent(fn ($request) => $request->url() === 'https://api.postmarkapp.com/email');
     Http::assertSent(fn ($request) => $request->hasHeader('X-Postmark-Server-Token'));
