@@ -76,7 +76,7 @@ class CentralStaffController extends Controller
     public function update(Request $request, CentralStaffAccess $staff, CentralStaffAuthorization $authorization, AuditEventWriter $audit): RedirectResponse
     {
         $this->requireSuperAdmin($request, $authorization);
-        abort_if($authorization->isSuperAdmin($staff->user), 422, 'The super admin cannot be modified as staff.');
+        abort_if($authorization->isSuperAdmin($staff->user()->firstOrFail()), 422, 'The super admin cannot be modified as staff.');
         $data = $request->validate([
             'permissions' => ['sometimes', 'array'],
             'permissions.*' => ['required', 'string', Rule::in(CentralStaffAuthorization::PERMISSIONS)],
@@ -103,9 +103,9 @@ class CentralStaffController extends Controller
     public function destroy(Request $request, CentralStaffAccess $staff, CentralStaffAuthorization $authorization, AuditEventWriter $audit): RedirectResponse
     {
         $this->requireSuperAdmin($request, $authorization);
-        abort_if($authorization->isSuperAdmin($staff->user), 422, 'The super admin cannot be deleted.');
+        abort_if($authorization->isSuperAdmin($staff->user()->firstOrFail()), 422, 'The super admin cannot be deleted.');
         DB::transaction(function () use ($request, $staff, $audit): void {
-            $user = $staff->user;
+            $user = $staff->user()->firstOrFail();
             $audit->append([
                 'actor_type' => 'user', 'actor_id' => (string) $request->user()->id,
                 'event_type' => 'central_staff.deleted', 'subject_type' => User::class,
