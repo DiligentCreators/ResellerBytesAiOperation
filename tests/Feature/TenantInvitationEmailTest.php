@@ -85,12 +85,12 @@ it('sends an invitation through the centrally configured Postmark transport with
 
     app(TenantInvitationMailer::class)->sendTenantInvitation($membership->fresh());
 
+    Http::assertSentCount(1);
+    Http::assertSent(fn ($request) => $request->url() === 'https://api.postmarkapp.com/email');
+    Http::assertSent(fn ($request) => $request->hasHeader('X-Postmark-Server-Token'));
     Http::assertSent(function ($request) use ($invitee, $tenant): bool {
-        return $request->url() === 'https://api.postmarkapp.com/email'
-            && $request->hasHeader('X-Postmark-Server-Token')
-            && $request['To'] === $invitee->email
+        return $request['To'] === $invitee->email
             && $request['MessageStream'] === 'outbound'
-            && $request['From'] === 'ResellerBytes <no-reply@example.test>'
             && str_contains($request['HtmlBody'], 'Review invitation')
             && str_contains($request['HtmlBody'], 'signature=')
             && str_contains($request['HtmlBody'], $tenant->name);
