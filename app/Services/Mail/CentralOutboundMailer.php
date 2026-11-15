@@ -12,6 +12,7 @@ use Throwable;
 
 class CentralOutboundMailer
 {
+    /** @return array<string, mixed> */
     private function effectiveConfiguration(?PlatformMailSettings $settings): array
     {
         $config = [
@@ -53,7 +54,8 @@ class CentralOutboundMailer
 
         $config = $this->effectiveConfiguration($settings);
         $from = (string) ($config['from_address'] ?? '');
-        $name = str_replace(["\r", "\n", '"', '<', '>'], '', (string) ($config['from_name'] ?? ''));
+        $name = str_replace(["\r", "
+", '"', '<', '>'], '', (string) ($config['from_name'] ?? ''));
 
         if (! filter_var($from, FILTER_VALIDATE_EMAIL) || $name === '') {
             throw new RuntimeException('platform_mail_sender_configuration_invalid');
