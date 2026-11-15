@@ -7,7 +7,7 @@ use LogicException;
 
 /**
  * @property array<string, mixed> $metadata
- * @property \\Carbon\\CarbonImmutable $occurred_at
+ * @property \Carbon\CarbonImmutable $occurred_at
  */
 class AuditEvent extends Model
 {
