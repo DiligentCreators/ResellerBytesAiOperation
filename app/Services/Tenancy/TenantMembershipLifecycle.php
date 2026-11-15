@@ -28,7 +28,7 @@ class TenantMembershipLifecycle
             $tenant = Tenant::query()->whereKey($tenantId)->where('status', Tenant::STATUS_ACTIVE)->lockForUpdate()->firstOrFail();
 
             $existing = TenantMembership::query()->where('tenant_id', $tenantId)->where('user_id', $target->getKey())->lockForUpdate()->first();
-            if ($existing && in_array($existing->status, [TenantMembership::STATUS_ACTIVE, TenantMembership::STATUS_INVITED, TenantMembership::STATUS_SUSPENDED], true)) {
+            if ($existing && in_array($existing->status, [TenantMembership::STATUS_ACTIVE, TenantMembership::STATUS_SUSPENDED], true)) {
                 throw ValidationException::withMessages(['email' => 'This account already has an active, pending, or suspended membership.']);
             }
 
