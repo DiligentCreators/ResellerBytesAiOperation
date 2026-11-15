@@ -107,3 +107,20 @@ it('allows staff to use only the central settings area explicitly granted to the
     $this->actingAs($staff)->get('/platform/mail-settings')->assertOk();
     $this->actingAs($staff)->get('/platform/staff')->assertForbidden();
 });
+
+it('lets only the super admin remove a staff account and records the removal', function () {
+    $owner = User::factory()->withTwoFactor()->create(['email' => 'owner@example.test']);
+    $staff = User::factory()->withTwoFactor()->create();
+    $access = CentralStaffAccess::query()->create([
+        'user_id' => $staff->id,
+        'permissions' => ['support'],
+        'granted_by_user_id' => $owner->id,
+    ]);
+
+    $this->actingAs($owner)->delete('/platform/staff/'.$access->id)->assertRedirect();
+
+    expect(User::query()->whereKey($staff->id)->exists())->toBeFalse()
+        ->and(CentralStaffAccess::query()->whereKey($access->id)->exists())->toBeFalse()
+        ->and(DB::table('audit_events')->where('event_type', 'central_staff.deleted')
+            ->where('subject_id', (string) $staff->id)->exists())->toBeTrue();
+});
