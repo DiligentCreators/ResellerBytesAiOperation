@@ -29,6 +29,25 @@ it('aggregates five-minute API error rate and p95 latency without request payloa
         ['status_code' => 200, 'duration_ms' => 900, 'created_at' => $observedAt->subMinutes(6)],
     ]);
 
+
+    DB::table('tenant_billing_outbox')->insert([
+        'tenant_id' => $tenant->id, 'idempotency_key' => 'metrics-outbox-processing',
+        'event_type' => 'billing.invoice.issued', 'aggregate_type' => 'billing_invoice', 'aggregate_id' => '2',
+        'payload' => json_encode(['private' => 'never-return'], JSON_THROW_ON_ERROR), 'status' => 'processing',
+        'attempts' => 1, 'manual_replay_count' => 0, 'available_at' => $observedAt,
+        'locked_at' => $observedAt->subMinutes(8), 'created_at' => $observedAt->subMinutes(8),
+        'updated_at' => $observedAt->subMinutes(8),
+    ]);
+    DB::table('tenant_billing_webhook_events')->insert([
+        'tenant_id' => $tenant->id, 'provider' => 'test_gateway', 'provider_account_id' => 'private-account',
+        'provider_event_id' => 'metrics-webhook-processing', 'event_type' => 'invoice.payment_failed',
+        'payload_sha256' => hash('sha256', 'payload-processing'),
+        'payload' => json_encode(['private' => 'never-return'], JSON_THROW_ON_ERROR), 'status' => 'processing',
+        'attempts' => 1, 'manual_replay_count' => 0, 'received_at' => $observedAt->subMinutes(8),
+        'available_at' => $observedAt, 'locked_at' => $observedAt->subMinutes(8),
+        'created_at' => $observedAt->subMinutes(8), 'updated_at' => $observedAt->subMinutes(8),
+    ]);
+
     $metrics = app(OperationalMetricsSource::class)->snapshot($observedAt);
 
     expect($metrics['error_rate_percent'])->toBe((2 / 3) * 100)
@@ -141,7 +160,7 @@ it('collects billing queue health as aggregate-only operational metrics', functi
 
     expect($metrics)->toMatchArray([
         'billing_webhook_dead_letter_count' => 1, 'billing_outbox_dead_letter_count' => 0,
-        'billing_webhook_stale_processing_count' => 0, 'billing_outbox_stale_processing_count' => 0,
+        'billing_webhook_stale_processing_count' => 1, 'billing_outbox_stale_processing_count' => 1,
         'billing_webhook_oldest_pending_age_minutes' => 0.0, 'billing_outbox_oldest_pending_age_minutes' => 20.0,
     ]);
     expect(json_encode($metrics, JSON_THROW_ON_ERROR))
