@@ -49,7 +49,7 @@ it('allows only the configured super admin to create staff and change permission
     $this->actingAs($owner)->post('/platform/staff', [
         'name' => 'Billing Operator',
         'email' => 'billing-operator@example.test',
-        'password' => 'long-and-random-password-123',
+        'password' => 'Long-and-random-password-123!',
         'permissions' => ['billing', 'support'],
     ])->assertRedirect();
 
