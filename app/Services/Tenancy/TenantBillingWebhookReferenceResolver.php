@@ -1,9 +1,9 @@
 <?php
 
-namespace App\\Services\\Tenancy;
+namespace App\Services\Tenancy;
 
-use App\\Models\\TenantBillingInvoice;
-use App\\Models\\TenantSubscription;
+use App\Models\TenantBillingInvoice;
+use App\Models\TenantSubscription;
 use InvalidArgumentException;
 
 class TenantBillingWebhookReferenceResolver
