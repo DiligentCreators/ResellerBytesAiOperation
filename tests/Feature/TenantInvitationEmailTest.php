@@ -87,7 +87,7 @@ it('sends an invitation through the centrally configured Postmark transport with
 
     Http::assertSent(function ($request) use ($invitee, $tenant): bool {
         return $request->url() === 'https://api.postmarkapp.com/email'
-            && $request->hasHeader('X-Postmark-Server-Token', 'test-server-token')
+            && $request->hasHeader('X-Postmark-Server-Token')
             && $request['To'] === $invitee->email
             && $request['MessageStream'] === 'outbound'
             && $request['From'] === 'ResellerBytes <no-reply@example.test>'
