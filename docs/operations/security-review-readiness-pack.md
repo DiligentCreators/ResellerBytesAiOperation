@@ -286,6 +286,7 @@ The last previously confirmed green run before subsequent hardening was run
 #43598332919 on commit 703772cc8def8f45d394ef53fc80ca582c3dae68 (six jobs;
 general CI 203 passed, 3 skipped, 915 assertions). Four concurrent commits
 landed without [skip ci] after the cost rule and triggered extra runs:
+
 - Commit 555f92ef6b5c828562f3d4e19b84e63da48759a6, run #43599729637: five matrix
   jobs passed; general CI failed the formatting check for
   docs/operations/external-audit-anchor-monitoring-and-storage.md.
