@@ -43,6 +43,12 @@ class PlatformMailSettingsController extends Controller
             }
         }
 
+        foreach (($saved['_cleared'] ?? []) as $key => $cleared) {
+            if ($cleared === true) {
+                $fallback[$key] = '';
+            }
+        }
+
         return $fallback;
     }
 
@@ -93,14 +99,18 @@ class PlatformMailSettingsController extends Controller
         $clearSmtpPassword = filter_var($data['clear_smtp_password'] ?? false, FILTER_VALIDATE_BOOLEAN);
         $clearPostmarkToken = filter_var($data['clear_postmark_token'] ?? false, FILTER_VALIDATE_BOOLEAN);
 
+        $cleared = $config['_cleared'] ?? [];
         if ($clearSmtpPassword) {
             unset($config['password']);
+            $cleared['password'] = true;
         }
         if (filter_var($data['clear_smtp_username'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
             unset($config['username']);
+            $cleared['username'] = true;
         }
         if ($clearPostmarkToken) {
             unset($config['server_token']);
+            $cleared['server_token'] = true;
         }
 
         if ($data['driver'] === 'smtp') {
@@ -108,14 +118,18 @@ class PlatformMailSettingsController extends Controller
                 'host' => $data['smtp_host'],
                 'port' => (int) $data['smtp_port'],
                 'encryption' => $data['smtp_encryption'],
-                'username' => (($data['smtp_username'] ?? '') !== '') ? $data['smtp_username'] : ($config['username'] ?? config('platform_mail.smtp.username') ?? ''),
+                'username' => (($data['smtp_username'] ?? '') !== '') ? $data['smtp_username'] : ($config['username'] ?? (empty($cleared['username']) ? (config('platform_mail.smtp.username') ?? '') : '')),
             ]);
 
+            if (($data['smtp_username'] ?? '') !== '') {
+                unset($cleared['username']);
+            }
             if (($data['smtp_password'] ?? '') !== '') {
                 $config['password'] = $data['smtp_password'];
+                unset($cleared['password']);
             }
 
-            $effectivePassword = $config['password'] ?? config('platform_mail.smtp.password');
+            $effectivePassword = $config['password'] ?? (empty($cleared['password']) ? config('platform_mail.smtp.password') : '');
             if (($config['username'] ?? '') !== '' && empty($effectivePassword)) {
                 throw ValidationException::withMessages([
                     'smtp_password' => 'A password is required when SMTP authentication is enabled.',
@@ -135,12 +149,18 @@ class PlatformMailSettingsController extends Controller
                 $config['server_token'] = $data['postmark_server_token'];
             }
 
-            if (empty($config['server_token']) && empty(config('platform_mail.postmark.server_token'))) {
+            if (($data['postmark_server_token'] ?? '') !== '') {
+                unset($cleared['server_token']);
+            }
+
+            if (empty($config['server_token']) && (empty($cleared['server_token']) && empty(config('platform_mail.postmark.server_token')))) {
                 throw ValidationException::withMessages([
                     'postmark_server_token' => 'A Postmark server token is required.',
                 ]);
             }
         }
+
+        $config['_cleared'] = $cleared;
 
         DB::transaction(function () use ($data, $config, $request): void {
             PlatformMailSettings::query()->updateOrCreate(['id' => 1], [
