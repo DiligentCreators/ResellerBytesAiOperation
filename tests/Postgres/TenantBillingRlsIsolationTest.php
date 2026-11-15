@@ -82,14 +82,13 @@ $webhookId = null;
 $createdMapping = false;
 
 try {
-$mapping = $operations->table('tenant_billing_provider_accounts')
+    $mapping = $operations->table('tenant_billing_provider_accounts')
     ->where('provider', $provider)
     ->where('provider_account_id', $account)
     ->first();
 
-$createdMapping = false;
-if ($mapping === null) {
-    $mappingId = $operations->table('tenant_billing_provider_accounts')->insertGetId([
+    if ($mapping === null) {
+        $mappingId = $operations->table('tenant_billing_provider_accounts')->insertGetId([
         'tenant_id' => $tenantA,
         'provider' => $provider,
         'provider_account_id' => $account,
@@ -98,46 +97,45 @@ if ($mapping === null) {
         'created_at' => $now,
         'updated_at' => $now,
     ]);
-    $createdMapping = true;
-} else {
-    if ($mapping->tenant_id !== $tenantA) {
-        throw new RuntimeException('billing_rls_payment_provider_account_not_bound_to_tenant_a');
+        $createdMapping = true;
+    } else {
+        if ($mapping->tenant_id !== $tenantA) {
+            throw new RuntimeException('billing_rls_payment_provider_account_not_bound_to_tenant_a');
+        }
+        $mappingId = $mapping->id;
     }
-    $mappingId = $mapping->id;
-}
 
 $outboxId = $operations->table('tenant_billing_outbox')->insertGetId([
-    'tenant_id' => $tenantA,
-    'idempotency_key' => 'rls-test-'.$token,
-    'event_type' => 'billing.rls_probe',
-    'aggregate_type' => 'billing_rls_probe',
-    'aggregate_id' => '1',
-    'payload' => json_encode(['probe' => $token], JSON_THROW_ON_ERROR),
-    'status' => 'pending',
-    'attempts' => 0,
-    'manual_replay_count' => 0,
-    'available_at' => $now,
-    'created_at' => $now,
-    'updated_at' => $now,
-]);
-
-$webhookId = $operations->table('tenant_billing_webhook_events')->insertGetId([
-    'tenant_id' => $tenantA,
-    'provider' => $provider,
-    'provider_account_id' => $account,
-    'provider_event_id' => 'rls-'.$token,
-    'event_type' => 'invoice.payment_failed',
-    'payload' => json_encode(['invoice_id' => 1, 'failure_code' => 'rls_probe'], JSON_THROW_ON_ERROR),
-    'payload_sha256' => hash('sha256', $token),
-    'status' => 'pending',
-    'attempts' => 0,
-    'manual_replay_count' => 0,
-    'received_at' => $now,
-    'available_at' => $now,
-    'created_at' => $now,
-    'updated_at' => $now,
-]);
-
+        'tenant_id' => $tenantA,
+        'idempotency_key' => 'rls-test-'.$token,
+        'event_type' => 'billing.rls_probe',
+        'aggregate_type' => 'billing_rls_probe',
+        'aggregate_id' => '1',
+        'payload' => json_encode(['probe' => $token], JSON_THROW_ON_ERROR),
+        'status' => 'pending',
+        'attempts' => 0,
+        'manual_replay_count' => 0,
+        'available_at' => $now,
+        'created_at' => $now,
+        'updated_at' => $now,
+    ]);
+    
+    $webhookId = $operations->table('tenant_billing_webhook_events')->insertGetId([
+        'tenant_id' => $tenantA,
+        'provider' => $provider,
+        'provider_account_id' => $account,
+        'provider_event_id' => 'rls-'.$token,
+        'event_type' => 'invoice.payment_failed',
+        'payload' => json_encode(['invoice_id' => 1, 'failure_code' => 'rls_probe'], JSON_THROW_ON_ERROR),
+        'payload_sha256' => hash('sha256', $token),
+        'status' => 'pending',
+        'attempts' => 0,
+        'manual_replay_count' => 0,
+        'received_at' => $now,
+        'available_at' => $now,
+        'created_at' => $now,
+        'updated_at' => $now,
+    ]);
 
     $runtime->statement("SELECT set_config('app.current_tenant_id', ?, false)", [$tenantA]);
     $runtime->statement("SELECT set_config('app.current_user_id', '', false)");
