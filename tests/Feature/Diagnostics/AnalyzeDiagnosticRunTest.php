@@ -455,7 +455,7 @@ it('settles confirmed provider usage before surfacing an unsuccessful HTTP respo
 
     config()->set('services.openai.key', 'test-provider-key');
     Http::fake([
-        'https://api.openai.com/v1/responses' => Http::response([
+        '*' => Http::response([
             'id' => 'resp_confirmed_usage_error',
             'status' => 'failed',
             'usage' => [
@@ -476,6 +476,8 @@ it('settles confirmed provider usage before surfacing an unsuccessful HTTP respo
             $settled = [$body['id'], $usage];
         },
     ))->toThrow(RuntimeException::class, 'provider_request_failed');
+
+    Http::assertSent(fn ($request) => str_contains($request->url(), '/v1/responses'));
 
     expect($settled)->toBe([
         'resp_confirmed_usage_error',
