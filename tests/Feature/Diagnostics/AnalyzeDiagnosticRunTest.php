@@ -467,11 +467,11 @@ it('settles confirmed provider usage before surfacing an unsuccessful HTTP respo
         'error' => ['code' => 'provider_processing_error'],
     ], JSON_THROW_ON_ERROR);
 
-    $response = Mockery::mock(\\Illuminate\\Http\\Client\\Response::class);
+    $response = Mockery::mock(\Illuminate\\Http\\Client\\Response::class);
     $response->shouldReceive('body')->once()->andReturn($rawBody);
     $response->shouldReceive('successful')->once()->andReturnFalse();
 
-    $pendingRequest = Mockery::mock(\\Illuminate\\Http\\Client\\PendingRequest::class);
+    $pendingRequest = Mockery::mock(\Illuminate\\Http\\Client\\PendingRequest::class);
     $pendingRequest->shouldReceive('acceptJson')->once()->andReturnSelf();
     $pendingRequest->shouldReceive('connectTimeout')->once()->with(10)->andReturnSelf();
     $pendingRequest->shouldReceive('timeout')->once()->with(45)->andReturnSelf();
