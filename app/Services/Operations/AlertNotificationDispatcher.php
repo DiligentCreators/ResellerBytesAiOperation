@@ -23,7 +23,10 @@ class AlertNotificationDispatcher
         $deliveries = [];
 
         $email = config('operations.alerts.email');
-        if (is_string($email) && filter_var($email, FILTER_VALIDATE_EMAIL) !== false) {
+        $mailDriver = PlatformMailSettings::query()->find(1)?->driver ?? config('platform_mail.driver', 'log');
+        if ($mailDriver === 'log') {
+            $deliveries['email'] = 'not_sent';
+        } elseif (is_string($email) && filter_var($email, FILTER_VALIDATE_EMAIL) !== false) {
             try {
                 Mail::to($email)->send(new OperationalAlertMail(
                     $alert['severity'],
@@ -81,7 +84,8 @@ class AlertNotificationDispatcher
 
         return [
             'success' => ! in_array('missing', $deliveries, true)
-                && ! in_array('failed', $deliveries, true),
+                && ! in_array('failed', $deliveries, true)
+                && ! in_array('not_sent', $deliveries, true),
             'deliveries' => $deliveries,
         ];
     }
