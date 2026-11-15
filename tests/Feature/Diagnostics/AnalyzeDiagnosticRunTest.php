@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Services\Diagnostics\AiBudgetService;
 use App\Services\Diagnostics\WhmcsDiagnosticAnalyzer;
 use Illuminate\Support\Str;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Database\QueryException;
 use RuntimeException;
@@ -581,7 +582,8 @@ it('denies tenant AI analysis without an active subscription feature entitlement
     $budget = Mockery::mock(AiBudgetService::class);
     $budget->shouldNotReceive('reserve');
 
-    (new AnalyzeDiagnosticRun($run->id, $owner->id, $tenant->id))->handle($analyzer, $budget);
+    expect(fn () => (new AnalyzeDiagnosticRun($run->id, $owner->id, $tenant->id))->handle($analyzer, $budget))
+        ->toThrow(AuthorizationException::class, 'An active tenant subscription is required for this operation.');
 
     expect($run->fresh()->status)->toBe('analysis_failed')
         ->and($run->fresh()->analysis_error_code)->toBe('tenant_entitlement_denied')
