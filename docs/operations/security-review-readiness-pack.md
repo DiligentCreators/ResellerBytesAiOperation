@@ -106,10 +106,11 @@ evidence from the real isolated environment.
   provider-accountbinding, idempotent reconciliation, at-least-once outbox
   delivery,and consumer deduplication by stable outbox ID.
 - Dead-letter replay must require tenant `billing.manage`, explicit command
-  confirmation, constrainedreason code, and a maximum of three manual replays.
-  Webhook replay additionallyrequires the original provider-account mapping to
-  remain active andverified; that mapping is row-locked with the tenant and
-  event during replay.
+  confirmation,
+  constrainedreason code, and a maximum of three manual replays. Webhook replay
+  additionallyrequires the original provider-account mapping to remain active
+  andverified; that mapping is row-locked with the tenant and event during
+  replay.
 - Verify replay state changes and audit evidence are atomic, and logs/reports
   excludetenant/provider/event identifiers, signatures, payloads, and raw
   exceptiontext.
@@ -224,8 +225,9 @@ evidence from the real isolated environment.
   atthe 365-day boundary and audit append failure. Evidence: LegalHoldTest and
   auditevents.
 - **Retention:** UTC inclusive cutoff, expired `received`/`queued`/`analyzing`
-  states, bounded batch,audit failure rollback and held target still expiring.
-  Evidence: retentionand queue-recovery tests.
+  states, bounded
+  batch,audit failure rollback and held target still expiring. Evidence:
+  retentionand queue-recovery tests.
 - **Checkpoint:** Signature tamper, environment/predecessor mismatch,
   stale/futuretimestamp, duplicate key, missing version, checksum and retention
   mismatch,plus rejection of checkpoint files larger than 64 KiB before
