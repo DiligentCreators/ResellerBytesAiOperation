@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Services\Tenancy\TenantMembershipLifecycle;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\DB;
 
 function membershipLifecycleFixture(): array
 {
@@ -144,5 +145,5 @@ it('reissues a pending invitation without creating a duplicate membership', func
         ->and($resent->status)->toBe(TenantMembership::STATUS_INVITED)
         ->and($resent->role)->toBe(TenantMembership::ROLE_OPERATOR)
         ->and($tenant->memberships()->where('user_id', $invitee->id)->count())->toBe(1)
-        ->and(\\Illuminate\\Support\\Facades\\DB::table('audit_events')->where('tenant_id', $tenant->id)->where('event_type', 'tenant.membership.invited')->count())->toBe(2);
+        ->and(DB::table('audit_events')->where('tenant_id', $tenant->id)->where('event_type', 'tenant.membership.invited')->count())->toBe(2);
 });
