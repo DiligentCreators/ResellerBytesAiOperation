@@ -84,10 +84,7 @@ final class BackupArchiveManager
             );
 
             $archiveReadBackVersionId = $this->downloadObject($settings, $objectKey, $verificationPath, $objectVersionId);
-            if (! is_string($archiveReadBackVersionId)
-                || ! hash_equals($objectVersionId, $archiveReadBackVersionId)) {
-                throw new RuntimeException('Uploaded backup exact-version read-back could not be confirmed.');
-            }
+            $this->assertExactVersionReadBack($objectVersionId, $archiveReadBackVersionId, 'Uploaded backup');
 
             if (! hash_equals($checksums['encrypted_sha256'], (string) hash_file('sha256', $verificationPath))) {
                 throw new RuntimeException('Uploaded backup did not pass read-back checksum verification.');
@@ -117,10 +114,7 @@ final class BackupArchiveManager
                 $manifestVersionId,
             );
             $manifestReadBackVersionId = $this->downloadObject($settings, $manifestKey, $verificationPath, $manifestVersionId);
-            if (! is_string($manifestReadBackVersionId)
-                || ! hash_equals($manifestVersionId, $manifestReadBackVersionId)) {
-                throw new RuntimeException('Uploaded backup manifest exact-version read-back could not be confirmed.');
-            }
+            $this->assertExactVersionReadBack($manifestVersionId, $manifestReadBackVersionId, 'Uploaded backup manifest');
 
             if (! hash_equals($manifestHash, (string) hash_file('sha256', $verificationPath))) {
                 throw new RuntimeException('Uploaded backup manifest did not pass exact-version read-back checksum verification.');
@@ -259,6 +253,21 @@ final class BackupArchiveManager
             $this->removeWorkingDirectory($workingDirectory);
 
             throw $exception;
+        }
+    }
+
+    /**
+     * Require an object-store read-back to identify the exact immutable version requested.
+     */
+    public function assertExactVersionReadBack(
+        string $expectedVersionId,
+        ?string $actualVersionId,
+        string $objectDescription,
+    ): void {
+        if ($actualVersionId === null
+            || trim($actualVersionId) === ''
+            || ! hash_equals($expectedVersionId, $actualVersionId)) {
+            throw new RuntimeException($objectDescription.' exact-version read-back could not be confirmed.');
         }
     }
 
