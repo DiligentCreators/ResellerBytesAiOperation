@@ -167,3 +167,19 @@ it('collects billing queue health as aggregate-only operational metrics', functi
     expect(json_encode($metrics, JSON_THROW_ON_ERROR))
         ->not->toContain('private-account')->not->toContain('never-return')->not->toContain($tenant->id);
 });
+
+
+it('treats an oversized backup success marker as unavailable without reading it unbounded', function () {
+    $markerPath = tempnam(sys_get_temp_dir(), 'rb-backup-marker-large-');
+    expect($markerPath)->toBeString();
+    file_put_contents($markerPath, str_repeat('x', 4097));
+    config(['operations.metrics.backup_success_marker_path' => $markerPath]);
+
+    try {
+        expect(app(OperationalMetricsSource::class)
+            ->snapshot(CarbonImmutable::parse('2026-11-14T12:00:00Z'))['last_successful_backup_at'])
+            ->toBeNull();
+    } finally {
+        @unlink($markerPath);
+    }
+});
