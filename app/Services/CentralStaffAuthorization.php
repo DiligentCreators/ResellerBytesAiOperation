@@ -20,18 +20,16 @@ class CentralStaffAuthorization
         if (! in_array($permission, self::PERMISSIONS, true)) {
             return false;
         }
-
         if ($this->isSuperAdmin($user)) {
             return true;
         }
-
         if (! $user) {
             return false;
         }
 
-        return in_array($permission, CentralStaffAccess::query()
-            ->where('user_id', $user->getKey())
-            ->value('permissions') ?? [], true);
+        $access = CentralStaffAccess::query()->where('user_id', $user->getKey())->first();
+
+        return in_array($permission, $access?->permissions ?? [], true);
     }
 
     public function permissions(?User $user): array
@@ -39,10 +37,12 @@ class CentralStaffAuthorization
         if ($this->isSuperAdmin($user)) {
             return self::PERMISSIONS;
         }
+        if (! $user) {
+            return [];
+        }
 
-        return array_values(array_intersect(
-            CentralStaffAccess::query()->where('user_id', $user?->getKey())->value('permissions') ?? [],
-            self::PERMISSIONS,
-        ));
+        $access = CentralStaffAccess::query()->where('user_id', $user->getKey())->first();
+
+        return array_values(array_intersect($access?->permissions ?? [], self::PERMISSIONS));
     }
 }
