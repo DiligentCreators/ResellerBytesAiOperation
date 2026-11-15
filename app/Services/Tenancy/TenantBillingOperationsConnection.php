@@ -1,9 +1,9 @@
 <?php
 
-namespace App\\Services\\Tenancy;
+namespace App\Services\Tenancy;
 
 use Closure;
-use Illuminate\\Support\\Facades\\DB;
+use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
 class TenantBillingOperationsConnection
