@@ -8,6 +8,7 @@ use App\Models\PlatformMailSettings;
 use App\Models\User;
 use App\Services\Mail\CentralOutboundMailer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\Factory;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -78,6 +79,8 @@ class PlatformMailSettingsTest extends TestCase
 
     public function test_postmark_environment_configuration_is_used_when_no_database_settings_exist(): void
     {
+        PlatformMailSettings::query()->delete();
+        Http::swap(new Factory());
         config([
             'platform_mail.driver' => 'postmark',
             'platform_mail.from_address' => 'env-mail@example.test',
@@ -85,6 +88,8 @@ class PlatformMailSettingsTest extends TestCase
             'platform_mail.postmark.server_token' => 'environment-token',
             'platform_mail.postmark.message_stream' => 'outbound',
         ]);
+        Http::swap(new Factory());
+        Http::swap(new Factory());
         Http::fake(['https://api.postmarkapp.com/email' => Http::response(['MessageID' => 'fake'], 200)]);
 
         app(CentralOutboundMailer::class)->send('recipient@example.test', 'Test', '<p>test</p>', 'test');
