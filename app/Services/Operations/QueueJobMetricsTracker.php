@@ -76,7 +76,7 @@ final class QueueJobMetricsTracker
                     'updated_at' => CarbonImmutable::now()->utc(),
                 ]);
         } catch (Throwable $exception) {
-            Log::warning('Operational queue metric could not be cleared when processing started.', [
+            Log::warning('Operational queue metric could not be marked as processing.', [
                 'exception_class' => $exception::class,
             ]);
         }
