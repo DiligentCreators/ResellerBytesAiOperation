@@ -83,12 +83,19 @@ class WhmcsDiagnosticAnalyzer
                 ],
             ]);
 
-        $body = $response->json();
+        $rawBody = $response->body();
+        $body = is_string($rawBody) ? json_decode($rawBody, true) : null;
+        if (! is_array($body)) {
+            $body = $response->json();
+        }
         if (is_string($body)) {
-            $decodedBody = json_decode($body, true);
-            if (is_array($decodedBody)) {
-                $body = $decodedBody;
-            }
+            $body = json_decode($body, true);
+        }
+        if (is_object($body)) {
+            $body = (array) $body;
+        }
+        if (is_array($body) && is_object($body['usage'] ?? null)) {
+            $body['usage'] = (array) $body['usage'];
         }
 
         // A provider may report billable usage alongside an unsuccessful response.
