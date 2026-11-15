@@ -227,11 +227,27 @@ class PlatformMailSettingsTest extends TestCase
         app(CentralOutboundMailer::class)->send('recipient@example.test', 'Test', '<p>test</p>', 'test');
     }
 
-    public function test_log_driver_never_contacts_external_transport(): void
+    public function test_log_driver_never_contacts_external_transport_or_logs_message_content(): void
     {
         PlatformMailSettings::query()->create(['id' => 1, 'driver' => 'log', 'configuration' => []]);
         Http::fake();
-        app(CentralOutboundMailer::class)->send('recipient@example.test', 'Test', '<p>test</p>', 'test');
+        Log::shouldReceive('info')->once()->with('outbound_mail.preview', ['driver' => 'log']);
+        app(CentralOutboundMailer::class)->send('recipient@example.test', 'sensitive-subject', '<p>private body</p>', 'private body');
         Http::assertNothingSent();
+    }
+
+    public function test_smtp_rejects_unencrypted_transport_configuration(): void
+    {
+        config(['operations.owner_email' => 'owner@example.test']);
+        $user = User::factory()->create(['email' => 'owner@example.test']);
+
+        $this->actingAs($user)->put('/platform/mail-settings', [
+            'driver' => 'smtp',
+            'from_address' => 'mail@example.test',
+            'from_name' => 'ResellerBytes',
+            'smtp_host' => 'smtp.example.test',
+            'smtp_port' => 25,
+            'smtp_encryption' => 'none',
+        ])->assertSessionHasErrors('smtp_encryption');
     }
 }
