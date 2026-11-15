@@ -284,7 +284,7 @@ test('rejects unsigned query parameters on the ingestion endpoint', function () 
         ->and(IntegrationRequestNonce::count())->toBe(0);
 });
 
-test('queues AI analysis after a snapshot is committed when an API key is configured', function () {
+test('defers AI analysis dispatch until the surrounding snapshot transaction commits', function () {
     config(['services.openai.key' => 'test-api-key']);
     Queue::fake();
 
@@ -300,11 +300,9 @@ test('queues AI analysis after a snapshot is committed when an API key is config
         $signed['headers'],
         $signed['body'],
     )->assertAccepted()
-        ->assertJsonPath('data.status', 'received');
+        ->assertJsonPath('data.status', 'queued');
 
-    Queue::assertPushed(AnalyzeDiagnosticRun::class, function (AnalyzeDiagnosticRun $job) {
-        return DiagnosticRun::whereKey($job->diagnosticRunId)->exists();
-    });
+    Queue::assertNothingPushed();
 });
 
 test('rejects arbitrary collector metadata instead of forwarding it to AI', function () {
