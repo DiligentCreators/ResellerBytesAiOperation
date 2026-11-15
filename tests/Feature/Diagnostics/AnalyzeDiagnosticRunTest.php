@@ -455,21 +455,23 @@ it('settles confirmed provider usage before surfacing an unsuccessful HTTP respo
     ]);
 
     config()->set('services.openai.key', 'test-provider-key');
-    Http::fakeSequence()->push(
-        json_encode([
-            'id' => 'resp_confirmed_usage_error',
-            'status' => 'failed',
-            'usage' => [
-                'input_tokens' => 100,
-                'input_tokens_details' => ['cached_tokens' => 20],
-                'output_tokens' => 30,
-                'total_tokens' => 130,
-            ],
-            'error' => ['code' => 'provider_processing_error'],
-        ], JSON_THROW_ON_ERROR),
-        500,
-        ['Content-Type' => 'application/json'],
-    );
+    Http::fake([
+        'https://api.openai.com/v1/responses' => Http::response(
+            json_encode([
+                'id' => 'resp_confirmed_usage_error',
+                'status' => 'failed',
+                'usage' => [
+                    'input_tokens' => 100,
+                    'input_tokens_details' => ['cached_tokens' => 20],
+                    'output_tokens' => 30,
+                    'total_tokens' => 130,
+                ],
+                'error' => ['code' => 'provider_processing_error'],
+            ], JSON_THROW_ON_ERROR),
+            500,
+            ['Content-Type' => 'application/json'],
+        ),
+    ]);
 
     $settled = null;
     expect(fn () => app(WhmcsDiagnosticAnalyzer::class)->analyze(
