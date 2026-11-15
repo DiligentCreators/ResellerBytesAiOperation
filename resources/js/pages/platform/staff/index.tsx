@@ -35,7 +35,7 @@ export default function CentralStaffPage({ permissions, staff, status }: Props) 
                             <>
                                 <div className="grid gap-2"><Label htmlFor="staff-name">Full name</Label><Input id="staff-name" name="name" required /><InputError message={errors.name} /></div>
                                 <div className="grid gap-2"><Label htmlFor="staff-email">Email</Label><Input id="staff-email" name="email" type="email" required /><InputError message={errors.email} /></div>
-                                <div className="grid gap-2"><Label htmlFor="staff-password">Temporary password (minimum 14 characters)</Label><Input id="staff-password" name="password" type="password" autoComplete="new-password" required /><InputError message={errors.password} /></div>
+                                <div className="grid gap-2"><Label htmlFor="staff-password">Temporary password (14+ characters; mixed case, number and symbol)</Label><Input id="staff-password" name="password" type="password" autoComplete="new-password" required /><InputError message={errors.password} /></div>
                                 <div className="space-y-2"><Label>Permissions</Label><PermissionChoices permissions={permissions} /><InputError message={errors.permissions} /></div>
                                 <Button disabled={processing}>Create staff account</Button>
                             </>
