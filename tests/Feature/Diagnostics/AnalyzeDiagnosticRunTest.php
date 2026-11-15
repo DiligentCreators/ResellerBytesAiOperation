@@ -455,21 +455,33 @@ it('settles confirmed provider usage before surfacing an unsuccessful HTTP respo
     ]);
 
     config()->set('services.openai.key', 'test-provider-key');
-    Http::fake(fn () => Http::response(
-        json_encode([
-            'id' => 'resp_confirmed_usage_error',
-            'status' => 'failed',
-            'usage' => [
-                'input_tokens' => 100,
-                'input_tokens_details' => ['cached_tokens' => 20],
-                'output_tokens' => 30,
-                'total_tokens' => 130,
-            ],
-            'error' => ['code' => 'provider_processing_error'],
-        ], JSON_THROW_ON_ERROR),
-        500,
-        ['Content-Type' => 'application/json'],
-    ));
+    $rawBody = json_encode([
+        'id' => 'resp_confirmed_usage_error',
+        'status' => 'failed',
+        'usage' => [
+            'input_tokens' => 100,
+            'input_tokens_details' => ['cached_tokens' => 20],
+            'output_tokens' => 30,
+            'total_tokens' => 130,
+        ],
+        'error' => ['code' => 'provider_processing_error'],
+    ], JSON_THROW_ON_ERROR);
+
+    $response = Mockery::mock(\\Illuminate\\Http\\Client\\Response::class);
+    $response->shouldReceive('body')->once()->andReturn($rawBody);
+    $response->shouldReceive('successful')->once()->andReturnFalse();
+
+    $pendingRequest = Mockery::mock(\\Illuminate\\Http\\Client\\PendingRequest::class);
+    $pendingRequest->shouldReceive('acceptJson')->once()->andReturnSelf();
+    $pendingRequest->shouldReceive('connectTimeout')->once()->with(10)->andReturnSelf();
+    $pendingRequest->shouldReceive('timeout')->once()->with(45)->andReturnSelf();
+    $pendingRequest->shouldReceive('post')->once()
+        ->with('https://api.openai.com/v1/responses', Mockery::type('array'))
+        ->andReturn($response);
+
+    Http::shouldReceive('withToken')->once()
+        ->with('test-provider-key')
+        ->andReturn($pendingRequest);
 
     $settled = null;
     expect(fn () => app(WhmcsDiagnosticAnalyzer::class)->analyze(
@@ -479,7 +491,6 @@ it('settles confirmed provider usage before surfacing an unsuccessful HTTP respo
         },
     ))->toThrow(RuntimeException::class, 'provider_request_failed');
 
-    Http::assertSent(fn ($request) => str_contains($request->url(), '/v1/responses'));
     expect($settled)->toBe([
         'resp_confirmed_usage_error',
         [
