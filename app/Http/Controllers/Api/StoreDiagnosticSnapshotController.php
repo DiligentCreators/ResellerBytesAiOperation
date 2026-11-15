@@ -9,6 +9,7 @@ use App\Models\DiagnosticRun;
 use App\Models\WhmcsIntegration;
 use App\Services\Audit\AuditEventWriter;
 use App\Services\Tenancy\TenantResourceLimitService;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Carbon;
@@ -69,6 +70,15 @@ class StoreDiagnosticSnapshotController extends Controller
 
                 return $run;
             });
+        } catch (AuthorizationException $exception) {
+            // A concurrent identical delivery may have committed while this request waited on the quota lock.
+            $existing = $this->findExistingRun($integration, $validated['snapshot_uuid']);
+
+            if ($existing) {
+                return $this->idempotentResponse($existing, $payloadHash);
+            }
+
+            throw $exception;
         } catch (QueryException $exception) {
             // A concurrent retry may have inserted the same integration/snapshot pair.
             $existing = $this->findExistingRun($integration, $validated['snapshot_uuid']);
