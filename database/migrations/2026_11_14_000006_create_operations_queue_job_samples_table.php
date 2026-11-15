@@ -15,6 +15,8 @@ return new class extends Migration
             $table->string('job_id', 128);
             $table->string('queue_name', 128);
             $table->timestamp('available_at')->index();
+            $table->string('status', 16)->default('queued')->index();
+            $table->timestamp('started_at')->nullable()->index();
             $table->timestamps();
             $table->unique(['connection_name', 'job_id']);
         });
