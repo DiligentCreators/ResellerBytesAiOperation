@@ -16,6 +16,11 @@ Critical alerts additionally require at least one configured route:
 
 All configured critical routes are attempted. Do not place webhook URLs, provider tokens, phone numbers, or real email addresses in source control.
 
+
+## Central mail transport interaction
+
+The alert dispatcher checks the central platform mail driver before reporting email delivery. When the driver is `log`, it records email as `not_sent` (a redacted preview is not a delivery), keeps the overall notification incomplete, and leaves the alert eligible for retry. Configure an approved SMTP transport before expecting email alerts to be acknowledged. Postmark remains a later launch transport; never place mail credentials in source control or chat.
+
 ## Evaluation and deduplication
 
 - Run php artisan operations:check-alerts for one manual evaluation.
