@@ -1,8 +1,8 @@
 <?php
 
-namespace App\\Data\\Billing;
+namespace App\Data\Billing;
 
-use Carbon\\CarbonImmutable;
+use Carbon\CarbonImmutable;
 
 final readonly class VerifiedBillingWebhook
 {
