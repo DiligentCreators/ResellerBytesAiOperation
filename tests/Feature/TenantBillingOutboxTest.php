@@ -57,12 +57,15 @@ function createBillingOutboxInvoice(Tenant $tenant, int $amount = 4900, ?string 
     ]);
 }
 
-it('requires a surrounding transaction and deduplicates identical outbox events per tenant', function () {
+it('keeps outbox writes atomic and deduplicates identical events per tenant', function () {
     $tenant = createBillingOutboxTenant('billing-outbox-transaction');
     $outbox = app(TenantBillingOutbox::class);
 
-    expect(fn () => $outbox->enqueue($tenant->id, 'invoice-issued:1', 'billing.invoice.issued', 'billing_invoice', 1, ['invoice_id' => 1]))
-        ->toThrow(LogicException::class, 'billing_outbox_requires_business_transaction');
+    expect(fn () => DB::transaction(function () use ($outbox, $tenant): void {
+        $outbox->enqueue($tenant->id, 'invoice-issued:rollback', 'billing.invoice.issued', 'billing_invoice', 99, ['invoice_id' => 99]);
+        throw new RuntimeException('rollback business transaction');
+    }))->toThrow(RuntimeException::class, 'rollback business transaction');
+    expect(TenantBillingOutboxMessage::query()->where('tenant_id', $tenant->id)->where('idempotency_key', 'invoice-issued:rollback')->exists())->toBeFalse();
 
     $first = DB::transaction(fn () => $outbox->enqueue(
         $tenant->id,
@@ -732,7 +735,7 @@ it('rejects payment idempotency-key reuse with a different provider account', fu
     expect(fn () => $service->recordConfirmedPayment($tenant->id, $invoice->id, [
         ...$payment,
         'provider_account_id' => 'acct_attacker_002',
-    ]))->toThrow(RuntimeException::class, 'billing_payment_idempotency_conflict');
+    ]))->toThrow(RuntimeException::class, 'billing_invoice_provider_account_mismatch');
 });
 
 it('does not allow a refund from another provider account to mutate a payment', function () {
