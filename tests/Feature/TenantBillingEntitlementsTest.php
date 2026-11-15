@@ -237,6 +237,7 @@ it('keeps tenant subscription plan and entitlement snapshots immutable after pro
         ->and($subscription->fresh()->entitlements['diagnostics.reanalyze'])->toBeTrue();
 });
 
+/** Regression coverage for SQLite table rebuilds in migration 000007. */
 it('preserves billing identity, append-only, and audit tenant triggers after composite constraints', function () {
     $tenant = Tenant::create(['name' => 'Trigger Workspace', 'slug' => 'trigger-workspace', 'status' => Tenant::STATUS_ACTIVE]);
     $otherTenant = Tenant::create(['name' => 'Other Trigger Workspace', 'slug' => 'other-trigger-workspace', 'status' => Tenant::STATUS_ACTIVE]);
