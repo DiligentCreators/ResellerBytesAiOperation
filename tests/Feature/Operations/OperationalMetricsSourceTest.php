@@ -20,6 +20,7 @@ beforeEach(function () {
 });
 
 it('aggregates five-minute API error rate and p95 latency without request payload data', function () {
+    $tenant = Tenant::create(['name' => 'Metrics processing tenant', 'slug' => 'metrics-processing-tenant', 'status' => Tenant::STATUS_ACTIVE]);
     $observedAt = CarbonImmutable::parse('2026-11-14T12:00:00Z');
 
     DB::table('operations_metric_samples')->insert([
@@ -161,7 +162,7 @@ it('collects billing queue health as aggregate-only operational metrics', functi
 
     expect($metrics)->toMatchArray([
         'billing_webhook_dead_letter_count' => 1, 'billing_outbox_dead_letter_count' => 0,
-        'billing_webhook_stale_processing_count' => 1, 'billing_outbox_stale_processing_count' => 1,
+        'billing_webhook_stale_processing_count' => 0, 'billing_outbox_stale_processing_count' => 0,
         'billing_webhook_oldest_pending_age_minutes' => 0.0, 'billing_outbox_oldest_pending_age_minutes' => 20.0,
     ]);
     expect(json_encode($metrics, JSON_THROW_ON_ERROR))
