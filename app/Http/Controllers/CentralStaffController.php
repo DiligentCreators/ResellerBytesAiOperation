@@ -29,13 +29,18 @@ class CentralStaffController extends Controller
         return Inertia::render('platform/staff/index', [
             'permissions' => CentralStaffAuthorization::PERMISSIONS,
             'staff' => CentralStaffAccess::query()->with('user:id,name,email')->orderBy('id')->get()
-                ->map(fn (CentralStaffAccess $access): array => [
-                    'id' => $access->id,
-                    'user_id' => $access->user_id,
-                    'name' => $access->user->name,
-                    'email' => $access->user->email,
-                    'permissions' => $access->permissions,
-                ]),
+                ->map(function (CentralStaffAccess $access): array {
+                    /** @var User $user */
+                    $user = $access->user;
+
+                    return [
+                        'id' => $access->id,
+                        'user_id' => $access->user_id,
+                        'name' => $user->name,
+                        'email' => $user->email,
+                        'permissions' => $access->permissions,
+                    ];
+                }),
         ]);
     }
 
@@ -77,7 +82,9 @@ class CentralStaffController extends Controller
     public function update(Request $request, CentralStaffAccess $staff, CentralStaffAuthorization $authorization, AuditEventWriter $audit): RedirectResponse
     {
         $this->requireSuperAdmin($request, $authorization);
-        abort_if($authorization->isSuperAdmin($staff->user()->firstOrFail()), 422, 'The super admin cannot be modified as staff.');
+        /** @var User $staffUser */
+        $staffUser = $staff->user()->firstOrFail();
+        abort_if($authorization->isSuperAdmin($staffUser), 422, 'The super admin cannot be modified as staff.');
         $data = $request->validate([
             'permissions' => ['sometimes', 'array'],
             'permissions.*' => ['required', 'string', Rule::in(CentralStaffAuthorization::PERMISSIONS)],
@@ -104,7 +111,9 @@ class CentralStaffController extends Controller
     public function destroy(Request $request, CentralStaffAccess $staff, CentralStaffAuthorization $authorization, AuditEventWriter $audit): RedirectResponse
     {
         $this->requireSuperAdmin($request, $authorization);
-        abort_if($authorization->isSuperAdmin($staff->user()->firstOrFail()), 422, 'The super admin cannot be deleted.');
+        /** @var User $staffUser */
+        $staffUser = $staff->user()->firstOrFail();
+        abort_if($authorization->isSuperAdmin($staffUser), 422, 'The super admin cannot be deleted.');
         DB::transaction(function () use ($request, $staff, $audit): void {
             $user = $staff->user()->firstOrFail();
             $audit->append([
