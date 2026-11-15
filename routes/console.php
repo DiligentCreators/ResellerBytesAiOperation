@@ -131,11 +131,15 @@ Artisan::command('diagnostics:recover-queued {--stale-minutes=15} {--limit=100}'
     $retentionCutoff = now('UTC')->subDays(365)->format('Y-m-d H:i:s');
     $runIds = DB::table('diagnostic_runs')
         ->join('whmcs_integrations', 'whmcs_integrations.id', '=', 'diagnostic_runs.integration_id')
-        ->leftJoin('tenants', 'tenants.id', '=', 'whmcs_integrations.tenant_id')
         ->whereNotNull('whmcs_integrations.owner_user_id')
         ->where(function ($query) {
             $query->whereNull('whmcs_integrations.tenant_id')
-                ->orWhere('tenants.status', 'active');
+                ->orWhereExists(function ($tenantQuery): void {
+                    $tenantQuery->selectRaw('1')
+                        ->from('tenants')
+                        ->whereColumn('tenants.id', 'whmcs_integrations.tenant_id')
+                        ->where('tenants.status', 'active');
+                });
         })
         ->where('diagnostic_runs.received_at', '>', $retentionCutoff)
         ->where(function ($query) use ($cutoff) {
@@ -166,12 +170,16 @@ Artisan::command('diagnostics:recover-queued {--stale-minutes=15} {--limit=100}'
         $recoveryState = DB::transaction(function () use ($runId, $cutoff, $budget): string {
             $run = DB::table('diagnostic_runs')
                 ->join('whmcs_integrations', 'whmcs_integrations.id', '=', 'diagnostic_runs.integration_id')
-                ->leftJoin('tenants', 'tenants.id', '=', 'whmcs_integrations.tenant_id')
                 ->where('diagnostic_runs.id', $runId)
                 ->whereNotNull('whmcs_integrations.owner_user_id')
                 ->where(function ($query) {
                     $query->whereNull('whmcs_integrations.tenant_id')
-                        ->orWhere('tenants.status', 'active');
+                        ->orWhereExists(function ($tenantQuery): void {
+                            $tenantQuery->selectRaw('1')
+                                ->from('tenants')
+                                ->whereColumn('tenants.id', 'whmcs_integrations.tenant_id')
+                                ->where('tenants.status', 'active');
+                        });
                 })
                 ->select('diagnostic_runs.*', 'whmcs_integrations.owner_user_id', 'whmcs_integrations.tenant_id')
                 ->lockForUpdate()
