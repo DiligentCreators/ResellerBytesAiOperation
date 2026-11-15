@@ -597,3 +597,11 @@ A green CI run is necessary but does not close these release gates or authorize 
 - Repaired namespace/import declarations across all reported billing commands, events, services, contracts, models, and DTOs. Also repaired doubled global Throwable references in TenantBillingWebhookInbox. Verified representative repaired files contain valid single-separator PHP declarations and no remaining doubled separators.
 - These are [skip ci] remediation commits, as required. No workflow file or repository setting changed. The previous run's remaining jobs are not a valid green result for this head.
 - Current remediation head: 50c4c8f43ff6503f32c4815ab366c66af614c913. The next single non-[skip ci] commit will trigger the required six-job CI rerun; PR #2 remains open and Draft until that exact-head run passes.
+
+
+### Repaired-head CI rerun handoff — 2026-11-15
+
+- Confirmed run #43710503977 completed: WHMCS PHP 8.1 passed; general CI, PostgreSQL, MySQL 8.4, MariaDB 11.4, and SQL Server 2022 stopped during Composer setup because of the same doubled billing namespace declarations. No app test suite executed in those jobs.
+- Repaired every billing namespace/import declaration reported by Composer and the malformed global Throwable references. Representative files were re-fetched and verified to contain single PHP namespace separators and no doubled separators.
+- PR #2 description now records the first CI result and the remediation boundary. Current pre-rerun head: 582f084fb733ec8fe600a4053ceb4512fe7ad6c7; 65 commits ahead and 0 behind the verified handoff head; no workflow file or repository setting changes.
+- This is the final documentation entry before the one additional non-[skip ci] commit. That commit triggers the six-job rerun on the repaired head. Keep PR #2 Draft until every required job passes.
