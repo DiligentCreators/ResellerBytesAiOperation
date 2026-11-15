@@ -1,16 +1,16 @@
 <?php
 
-namespace App\\Services\\Tenancy;
+namespace App\Services\Tenancy;
 
-use App\\Models\\Tenant;
-use App\\Models\\TenantBillingAdjustment;
-use App\\Models\\TenantBillingInvoice;
-use App\\Models\\TenantBillingPayment;
-use App\\Services\\Audit\\AuditEventWriter;
-use Carbon\\CarbonImmutable;
+use App\Models\Tenant;
+use App\Models\TenantBillingAdjustment;
+use App\Models\TenantBillingInvoice;
+use App\Models\TenantBillingPayment;
+use App\Services\Audit\AuditEventWriter;
+use Carbon\CarbonImmutable;
 use DateTimeInterface;
-use Illuminate\\Database\\QueryException;
-use Illuminate\\Support\\Facades\\DB;
+use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 use RuntimeException;
 
