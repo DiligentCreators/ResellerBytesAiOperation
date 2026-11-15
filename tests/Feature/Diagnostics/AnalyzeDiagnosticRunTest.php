@@ -467,13 +467,16 @@ it('settles confirmed provider usage before surfacing an unsuccessful HTTP respo
         'error' => ['code' => 'provider_processing_error'],
     ], JSON_THROW_ON_ERROR);
 
-    Http::fake([
-        'https://api.openai.com/v1/responses' => Http::response(
-            $rawBody,
-            500,
-            ['Content-Type' => 'application/json'],
-        ),
-    ]);
+    $providerResponse = new \GuzzleHttp\Psr7\Response(
+        500,
+        ['Content-Type' => 'application/json'],
+        $rawBody,
+    );
+    $providerResponse->getBody()->rewind();
+    $response = new \Illuminate\Http\Client\Response($providerResponse);
+    expect($response->body())->toBe($rawBody);
+
+    Http::fake(fn () => $response);
 
     $settled = null;
     expect(fn () => app(WhmcsDiagnosticAnalyzer::class)->analyze(
