@@ -81,11 +81,11 @@ class AppServiceProvider extends ServiceProvider
                 return;
             }
 
-            $tracker->markStarted($event->connectionName, $event->job->getJobId());
+            $tracker->markFinished($event->connectionName, $event->job->getJobId());
         });
 
         Event::listen(JobFailed::class, static function (JobFailed $event): void {
-            app(QueueJobMetricsTracker::class)->markStarted(
+            app(QueueJobMetricsTracker::class)->markFinished(
                 $event->connectionName,
                 $event->job->getJobId(),
             );
