@@ -396,6 +396,7 @@ it('prevents integration tenant remapping after diagnostic history is captured',
 
     expect(fn () => DB::transaction(fn () => $run->integration->forceFill(['tenant_id' => $tenantB->id])->save()))
         ->toThrow(QueryException::class);
+    $run->integration->refresh();
     $service = app(AiBudgetService::class);
     $service->markSubmitted($attempt);
     $service->settle($attempt, ['input_tokens' => 1_000, 'cached_input_tokens' => 0, 'output_tokens' => 500], 'resp_captured_tenant');
