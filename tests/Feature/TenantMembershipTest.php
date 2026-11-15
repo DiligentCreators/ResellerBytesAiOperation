@@ -118,6 +118,17 @@ it('uses active tenant membership instead of historical integration ownership fo
         'status' => TenantMembership::STATUS_ACTIVE,
         'accepted_at' => now(),
     ]);
+    \App\Models\TenantSubscription::create([
+        'tenant_id' => $tenant->id,
+        'plan_code' => 'shared-workspace-test',
+        'billing_mode' => 'manual',
+        'status' => 'active',
+        'currency' => 'USD',
+        'unit_amount_minor' => 0,
+        'entitlements' => ['limits' => ['diagnostics_per_period' => 10]],
+        'current_period_starts_at' => now()->subDay(),
+        'current_period_ends_at' => now()->addMonth(),
+    ]);
     $integration = WhmcsIntegration::create([
         'owner_user_id' => $historicalOwner->id,
         'tenant_id' => $tenant->id,
@@ -128,6 +139,7 @@ it('uses active tenant membership instead of historical integration ownership fo
     ]);
     $run = DiagnosticRun::create([
         'integration_id' => $integration->id,
+        'tenant_id' => $tenant->id,
         'snapshot_uuid' => (string) Illuminate\Support\Str::uuid(),
         'schema_version' => '1.0',
         'addon_version' => '1.0.0',
