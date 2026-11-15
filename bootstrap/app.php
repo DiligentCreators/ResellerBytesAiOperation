@@ -27,6 +27,7 @@ use App\Console\Commands\VerifyAuditIntegrity;
 use App\Http\Middleware\CaptureOperationalMetrics;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\RequireCentralPermission;
 use App\Http\Middleware\SetTenantDatabaseContext;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -70,13 +71,10 @@ return Application::configure(basePath: dirname(__DIR__))
     ])
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
+        $middleware->alias(['central.permission' => RequireCentralPermission::class]);
 
-        $middleware->api(append: [
-            CaptureOperationalMetrics::class,
-        ]);
-
+        $middleware->api(append: [CaptureOperationalMetrics::class]);
         $middleware->web(remove: [SubstituteBindings::class]);
-
         $middleware->web(append: [
             SetTenantDatabaseContext::class,
             SubstituteBindings::class,
