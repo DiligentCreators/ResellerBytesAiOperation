@@ -628,3 +628,11 @@ A green CI run is necessary but does not close these release gates or authorize 
 - Wrapped checklist continuations were normalized in the remaining Markdown documents; the mail-settings and central-staff TSX pages were brought under the configured width and syntax formatting.
 - The tenant-remapping constraint assertion now runs in a nested DB transaction/savepoint and refreshes the model afterward. The analyzer now parses the raw response body, then falls back to the response decoder and normalizes object-shaped usage before invoking the after-response settlement callback.
 - These follow-up changes use [skip ci]. Current head after remediation: 24f4971747de2855700b05493049fd7c73f5b33d; 144 commits ahead and 0 behind the verified handoff head; no workflow file or repository setting changed. One final non-[skip ci] commit is required to verify the repaired head.
+
+
+### One-shot final CI handoff after #717 — 2026-11-15
+
+- PR #2 description records all five CI attempts and the fixes applied after each failed run.
+- Pre-final head: a30afb0a39bbf44acd76f3ec5b24770a02953f43; 145 commits ahead and 0 behind the verified handoff head. No workflow files or repository settings changed.
+- The final PostgreSQL savepoint/provider-body fixes and remaining Markdown/TSX normalization are complete. All remediation commits use [skip ci].
+- This is the final documentation change before the next non-[skip ci] commit. PR #2 remains open and Draft until all six jobs pass.
