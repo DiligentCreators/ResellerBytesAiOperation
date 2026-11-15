@@ -237,6 +237,64 @@ it('keeps tenant subscription plan and entitlement snapshots immutable after pro
         ->and($subscription->fresh()->entitlements['diagnostics.reanalyze'])->toBeTrue();
 });
 
+it('preserves billing identity, append-only, and audit tenant triggers after composite constraints', function () {
+    $tenant = Tenant::create(['name' => 'Trigger Workspace', 'slug' => 'trigger-workspace', 'status' => Tenant::STATUS_ACTIVE]);
+    $otherTenant = Tenant::create(['name' => 'Other Trigger Workspace', 'slug' => 'other-trigger-workspace', 'status' => Tenant::STATUS_ACTIVE]);
+    $subscription = createTenantSubscriptionFixture($tenant);
+    $invoice = TenantBillingInvoice::create([
+        'tenant_id' => $tenant->id,
+        'tenant_subscription_id' => $subscription->id,
+        'invoice_number' => 'INV-TRIGGER-0001',
+        'provider' => 'approved_gateway',
+        'provider_account_id' => 'acct_trigger_workspace',
+        'provider_invoice_id' => 'provider-invoice-trigger-0001',
+        'status' => 'open',
+        'currency' => 'USD',
+        'amount_due_minor' => 1000,
+        'amount_paid_minor' => 0,
+        'issued_at' => now(),
+    ]);
+    $operator = User::factory()->create();
+    $tenant->memberships()->create([
+        'user_id' => $operator->id,
+        'role' => TenantMembership::ROLE_BILLING,
+        'status' => TenantMembership::STATUS_ACTIVE,
+        'accepted_at' => now(),
+    ]);
+    $payment = app(TenantBillingLedgerService::class)->recordConfirmedPayment($tenant->id, $invoice->id, [
+        'collection_mode' => 'manual',
+        'idempotency_key' => 'trigger-manual-payment-001',
+        'amount_minor' => 1000,
+        'currency' => 'USD',
+        'reference' => 'TRIGGER-BANK-001',
+        'recorded_by_user_id' => $operator->id,
+        'received_at' => now(),
+    ]);
+
+    expect(fn () => \\Illuminate\\Support\\Facades\\DB::table('tenant_billing_invoices')
+        ->where('id', $invoice->id)->update(['provider_invoice_id' => 'tampered-invoice']))
+        ->toThrow(QueryException::class, 'tenant_billing_invoice_provider_identity_immutable');
+
+    expect(fn () => \\Illuminate\\Support\\Facades\\DB::table('tenant_billing_payments')
+        ->where('id', $payment->id)->update(['reference' => 'tampered-payment']))
+        ->toThrow(QueryException::class, 'tenant_billing_payment_append_only');
+
+    expect(fn () => \\Illuminate\\Support\\Facades\\DB::table('tenant_billing_payments')
+        ->where('id', $payment->id)->delete())
+        ->toThrow(QueryException::class, 'tenant_billing_payment_append_only');
+
+    expect(fn () => app(\\App\\Services\\Audit\\AuditEventWriter::class)->append([
+        'actor_type' => 'user',
+        'actor_id' => (string) $operator->id,
+        'tenant_id' => $otherTenant->id,
+        'event_type' => 'tenant.billing.payment.audit_probe',
+        'subject_type' => 'tenant_billing_payment',
+        'subject_id' => (string) $payment->id,
+        'metadata' => [],
+        'occurred_at' => now(),
+    ]))->toThrow(QueryException::class, 'audit_event_tenant_mismatch');
+});
+
 it('allows only one current tenant subscription snapshot at a time', function () {
     $tenant = Tenant::create(['name' => 'Single Plan Workspace', 'slug' => 'single-plan-workspace', 'status' => Tenant::STATUS_ACTIVE]);
     createTenantSubscriptionFixture($tenant);
