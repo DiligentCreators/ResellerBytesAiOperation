@@ -84,6 +84,12 @@ class WhmcsDiagnosticAnalyzer
             ]);
 
         $body = $response->json();
+        if (is_string($body)) {
+            $decodedBody = json_decode($body, true);
+            if (is_array($decodedBody)) {
+                $body = $decodedBody;
+            }
+        }
 
         // A provider may report billable usage alongside an unsuccessful response.
         // Settle confirmed usage before surfacing the request failure; responses
