@@ -50,7 +50,7 @@ class TenantMembership extends Model
         return $this->status === self::STATUS_ACTIVE && in_array($this->role, self::ROLES, true);
     }
 
-    public function hasAnyRole(array $roles): bool
+    /** @param array<int, string> $roles */\n    public function hasAnyRole(array $roles): bool
     {
         return $this->isActive() && in_array($this->role, $roles, true);
     }
