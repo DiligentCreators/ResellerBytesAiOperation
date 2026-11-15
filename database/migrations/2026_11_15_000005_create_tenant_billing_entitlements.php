@@ -71,6 +71,10 @@ return new class extends Migration
         });
 
         $driver = DB::connection()->getDriverName();
+        if (in_array($driver, ['pgsql', 'sqlite'], true)) {
+            DB::statement("CREATE UNIQUE INDEX tenant_subscriptions_one_current_per_tenant ON tenant_subscriptions (tenant_id) WHERE status IN ('trialing', 'active', 'past_due', 'suspended')");
+        }
+
         if ($driver === 'pgsql') {
             DB::unprepared(<<<'SQL'
 CREATE FUNCTION rb_guard_tenant_subscription_provider_identity() RETURNS trigger LANGUAGE plpgsql AS $rb$
@@ -162,6 +166,9 @@ SQL);
     public function down(): void
     {
         $driver = DB::connection()->getDriverName();
+        if (in_array($driver, ['pgsql', 'sqlite'], true)) {
+            DB::statement('DROP INDEX IF EXISTS tenant_subscriptions_one_current_per_tenant');
+        }
         if ($driver === 'pgsql') {
             DB::unprepared('DROP TRIGGER IF EXISTS rb_tenant_subscription_provider_identity ON tenant_subscriptions');
             DB::unprepared('DROP TRIGGER IF EXISTS rb_tenant_subscription_plan_snapshot_immutable ON tenant_subscriptions');
