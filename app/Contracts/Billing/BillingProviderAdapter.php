@@ -1,8 +1,8 @@
 <?php
 
-namespace App\\Contracts\\Billing;
+namespace App\Contracts\Billing;
 
-use App\\Data\\Billing\\VerifiedBillingWebhook;
+use App\Data\Billing\VerifiedBillingWebhook;
 
 interface BillingProviderAdapter
 {
