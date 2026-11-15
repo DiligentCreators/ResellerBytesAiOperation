@@ -505,3 +505,9 @@ A green CI run is necessary but does not close these release gates or authorize 
 - Sanitized local checkpoint verification failures so exception messages cannot expose database/provider configuration or infrastructure details. Monitor failures remain reason-code-only.
 - Added regression tests for oversized input across all verification entry points and for local verifier error redaction. Updated the independent review matrix and key-custody boundary notes.
 - No key format, signing protocol, workflow file, or repository setting changed. Tests remain unexecuted pending PHP 8.5 and project dependencies.
+
+
+### Backup marker input bounds — 2026-11-15
+
+- Bounded the operational backup-success marker parser to 4 KiB + 1 byte before JSON decoding. Oversized, malformed, missing, or future-dated markers remain unavailable and therefore cannot falsely satisfy the 26-hour successful-backup alert.
+- Added regression coverage for oversized marker rejection. No marker contents are logged or exposed in metrics.
