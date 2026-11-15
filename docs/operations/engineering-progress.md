@@ -1494,3 +1494,12 @@ merge, migration, or deployment.
 -  All remediation commits after the failed runs include [skip ci]. This is the
   final documentation change before the single additional non-[skip ci] commit;
   PR #2 stays Draft until all six jobs pass.
+
+
+### CI #715 findings and final test/style remediation — 2026-11-15
+
+- Run #43711132638 completed: MySQL, MariaDB, SQL Server, and WHMCS PHP 8.1 passed. The general CI job failed only at Vite Plus formatting validation (13 reported Markdown/TSX files); the PostgreSQL job reached tests and found stale tenant fixtures, outdated AnalyzeDiagnosticRun constructor calls, an unmatched full provider URL fake, and a recovery query that attempted FOR UPDATE across a nullable outer join.
+- Reformatted all 13 reported Markdown/TSX files to the repository's 80-column Vite Plus format.
+- Updated AI-budget test fixtures to copy the immutable tenant_id to diagnostic runs; updated AnalyzeDiagnosticRun tests to pass the captured owner and tenant context; corrected the provider fake to match the full HTTPS URL and asserted the intended entitlement exception.
+- Reworked stale diagnostic recovery tenant-status filtering from a LEFT JOIN to a correlated EXISTS predicate. The transactional row lock now covers only the diagnostic run and its required integration inner join, avoiding PostgreSQL's FOR UPDATE nullable-side restriction while preserving active-tenant filtering.
+- These are [skip ci] remediation commits. The next single non-[skip ci] commit will trigger one more six-job matrix; all prior run #715 failures are from the pre-remediation head.
