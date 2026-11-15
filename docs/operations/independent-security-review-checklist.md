@@ -1,13 +1,8 @@
 # Independent security review checklist
 
-Status: preparation checklist; independent review not yet performed
-Applies to: ResellerBytes AI Operations release-readiness PR #2
-Review target: exact reviewed PR head SHA, not a moving branch name
+Status: preparation checklist; independent review not yet performed Applies to: ResellerBytes AI Operations release-readiness PR #2 Review target: exact reviewed PR head SHA, not a moving branch name
 
-This checklist prepares evidence for an independent application and
-infrastructure security review. A checked implementation item is not a
-production sign-off. Reviewers must record the exact commit, test evidence,
-deployment assumptions, and unresolved findings.
+This checklist prepares evidence for an independent application and infrastructure security review. A checked implementation item is not a production sign-off. Reviewers must record the exact commit, test evidence, deployment assumptions, and unresolved findings.
 
 ## 1. Scope and trust boundaries
 
@@ -110,7 +105,7 @@ deployment assumptions, and unresolved findings.
       by locking the chain head while streaming.
 - [ ] Verify Ed25519 checkpoint tooling rejects signature tampering, environment
       mismatch, predecessor mismatch, local-prefix mismatch, and key reuse.
-- [ ]  Review the AWS CLI-backed S3-compatible checkpoint adapter: dedicated
+- [ ] Review the AWS CLI-backed S3-compatible checkpoint adapter: dedicated
       bucket/credentials, HTTPS endpoint, conditional `If-None-Match` creation, exact
       VersionId lookup/read-back, COMPLIANCE mode and 365-day retention, and
       fail-closed provider errors. Fake-store and configuration tests exist;
@@ -132,20 +127,20 @@ deployment assumptions, and unresolved findings.
 - [ ] Verify the 365-day diagnostic report uses UTC receipt time, includes the
       exact cutoff boundary, counts dependent findings/recommendations, and never
       deletes records.
-- [ ]  Confirm the report is report-only and legal holds do not extend the
+- [ ] Confirm the report is report-only and legal holds do not extend the
       absolute 365-day diagnostic retention deadline.
-- [ ]  Confirm diagnostic cleanup is not scheduled and remains disabled by
+- [ ] Confirm diagnostic cleanup is not scheduled and remains disabled by
       default; dry-run is the default and execution requires the feature flag
       plus explicit `--execute`. Confirm audit expiry and integration deletion are not
       scheduled or enabled.
-- [ ]  Confirm the Owner-authorized legal-hold placement/release workflow
+- [ ] Confirm the Owner-authorized legal-hold placement/release workflow
       records immutable audit evidence, uses fresh TOTP, and fails closed on
       audit-write failure. Confirm active holds are marked expired with
       immutable audit evidence when diagnostic content reaches 365 days; legal
       holds do not extend diagnostic retention.
 - [ ] Review nonce cleanup for bounded batches, idempotency, expiry boundary,
       and rerun behavior.
-- [ ]  Review backup scheduler gating, the 5 GB single-PutObject fail-closed
+- [ ] Review backup scheduler gating, the 5 GB single-PutObject fail-closed
       limit, conditional object creation, exact archive and manifest VersionId
       verification/read-back, manifest schema and Object Lock metadata,
       encrypted read-back, exact PostgreSQL database/host/port restore-target
@@ -153,7 +148,7 @@ deployment assumptions, and unresolved findings.
       backup, and immutable approval evidence. Separately verify audit-anchor
       conditional create, dedicated credentials/bucket, predecessor continuity,
       exact checkpoint VersionId read-back, and COMPLIANCE retention.
-- [ ]  Verify backup retention days remain unset until Shahrukh explicitly
+- [ ] Verify backup retention days remain unset until Shahrukh explicitly
       approves the retention period; no default retention period is inferred.
 - [ ] Require isolated backup restore rehearsal and compare the restored chain
       head with the newest independent external checkpoint before production
@@ -176,7 +171,7 @@ deployment assumptions, and unresolved findings.
 - [ ] Verify a worker crash leaves an in-flight sample visible and the oldest
       processing age triggers the approved alert after 15 minutes; healthy
       telemetry must resolve that alert, while missing telemetry must not.
-- [ ]  Verify queue metric logs expose exception class only and never job
+- [ ] Verify queue metric logs expose exception class only and never job
       payloads,
       serialized commands, credentials, or exception messages.
 - [ ] Review logs/errors for secrets, OTPs, raw snapshots, provider payloads,
@@ -193,22 +188,15 @@ deployment assumptions, and unresolved findings.
 Do not approve merge or deployment if any of the following remains true:
 
 - Required CI is red, pending, or was run against a different code SHA.
-- A user can reach operational data or addon actions without confirmed TOTP and
-  authorization.
-- WHMCS payloads contain customer, billing, credential, or raw configuration
-  data.
+- A user can reach operational data or addon actions without confirmed TOTP and authorization.
+- WHMCS payloads contain customer, billing, credential, or raw configuration data.
 - Package signature/fingerprint verification is missing or can be bypassed.
-- AI budget reservations can be raced, duplicated, or released after an
-  ambiguous provider outcome.
-- Audit writes bypass the central writer, verification can race with append, or
-  runtime credentials can mutate/delete audit history.
+- AI budget reservations can be raced, duplicated, or released after an ambiguous provider outcome.
+- Audit writes bypass the central writer, verification can race with append, or runtime credentials can mutate/delete audit history.
 - Production runtime and migration-owner credentials are shared.
-- Destructive retention can run without approved legal-hold policy and a
-  verified restore.
-- External anchoring or backup controls are claimed active without independent
-  provisioning and read-back evidence.
-- Any production migration, deployment, live WHMCS change, or pilot is attempted
-  without explicit operator approval and rollback readiness.
+- Destructive retention can run without approved legal-hold policy and a verified restore.
+- External anchoring or backup controls are claimed active without independent provisioning and read-back evidence.
+- Any production migration, deployment, live WHMCS change, or pilot is attempted without explicit operator approval and rollback readiness.
 
 ## 9. Review record
 
@@ -220,22 +208,17 @@ Do not approve merge or deployment if any of the following remains true:
 - Evidence links:
 - Required remediation commits:
 - Retest SHA and CI run:
-- Final disposition: Not started / In progress / Changes required / Approved
-  with conditions / Approved
+- Final disposition: Not started / In progress / Changes required / Approved with conditions / Approved
 
-A reviewer must not mark this checklist approved based solely on repository CI.
-Production identity, database grants, cloud Object Lock, backup restoration,
-external checkpoint read-back, and alert delivery require independent evidence
-from the actual deployment environment.
+A reviewer must not mark this checklist approved based solely on repository CI. Production identity, database grants, cloud Object Lock, backup restoration, external checkpoint read-back, and alert delivery require independent evidence from the actual deployment environment.
 
-
-- [ ]  Verify exact VersionId returned by each immutable backup download matches
+- [ ] Verify exact VersionId returned by each immutable backup download matches
       the requested VersionId before accepting the file.
-- [ ]  Verify malformed audit-event metadata causes a sanitized integrity
+- [ ] Verify malformed audit-event metadata causes a sanitized integrity
       failure without leaking stored payload text.
-- [ ]  Complete a real Wasabi Object Lock COMPLIANCE and exact-version read-back
+- [ ] Complete a real Wasabi Object Lock COMPLIANCE and exact-version read-back
       rehearsal in the owner-provisioned isolated environment; repository tests
       do not substitute for provider compatibility evidence.
-- [ ]  Complete backup/restore rehearsal with approved isolated PostgreSQL and
+- [ ] Complete backup/restore rehearsal with approved isolated PostgreSQL and
       WHMCS/MariaDB plus uploaded-file recovery scope; capture measured RPO/RTO
       evidence.
