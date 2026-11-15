@@ -40,7 +40,7 @@ class AiBudgetService
 
         return DB::transaction(function () use ($run, $model, $promptVersion, $card, $reservation): AiUsageAttempt {
             $lockedRun = DiagnosticRun::query()->whereKey($run->id)->with('integration')->lockForUpdate()->firstOrFail();
-            $tenantId = $lockedRun->integration?->tenant_id;
+            $tenantId = $lockedRun->integration->tenant_id;
             if ($tenantId !== null && ! Tenant::query()->whereKey($tenantId)->where('status', Tenant::STATUS_ACTIVE)->exists()) {
                 throw new RuntimeException('budget_tenant_inactive');
             }
