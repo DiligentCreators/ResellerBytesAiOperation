@@ -68,7 +68,7 @@ return new class extends Migration
             }
 
             DB::unprepared(<<<'SQL'
-CREATE FUNCTION rb_guard_tenant_billing_outbox_immutable() RETURNS trigger LANGUAGE plpgsql AS $rb$
+CREATE OR REPLACE FUNCTION rb_guard_tenant_billing_outbox_immutable() RETURNS trigger LANGUAGE plpgsql AS $rb$
 BEGIN
     IF NEW.tenant_id IS DISTINCT FROM OLD.tenant_id
         OR NEW.idempotency_key IS DISTINCT FROM OLD.idempotency_key
@@ -81,7 +81,7 @@ BEGIN
     RETURN NEW;
 END;
 $rb$;
-CREATE FUNCTION rb_check_billing_outbox_audit_tenant() RETURNS trigger LANGUAGE plpgsql AS $rb$
+CREATE OR REPLACE FUNCTION rb_check_billing_outbox_audit_tenant() RETURNS trigger LANGUAGE plpgsql AS $rb$
 DECLARE expected_tenant uuid;
 BEGIN
     IF NEW.subject_type = 'tenant_billing_outbox_message' THEN
@@ -93,7 +93,7 @@ BEGIN
     RETURN NEW;
 END;
 $rb$;
-CREATE FUNCTION rb_guard_tenant_billing_webhook_immutable() RETURNS trigger LANGUAGE plpgsql AS $rb$
+CREATE OR REPLACE FUNCTION rb_guard_tenant_billing_webhook_immutable() RETURNS trigger LANGUAGE plpgsql AS $rb$
 BEGIN
     IF NEW.tenant_id IS DISTINCT FROM OLD.tenant_id
         OR NEW.provider IS DISTINCT FROM OLD.provider
@@ -109,7 +109,7 @@ BEGIN
     RETURN NEW;
 END;
 $rb$;
-CREATE FUNCTION rb_check_billing_webhook_audit_tenant() RETURNS trigger LANGUAGE plpgsql AS $rb$
+CREATE OR REPLACE FUNCTION rb_check_billing_webhook_audit_tenant() RETURNS trigger LANGUAGE plpgsql AS $rb$
 DECLARE expected_tenant uuid;
 BEGIN
     IF NEW.subject_type = 'tenant_billing_webhook_event' THEN
