@@ -1,12 +1,22 @@
 # Security-review readiness pack
 
-Status: evidence pack prepared; independent security review not performed Review target: exact final PR #2 head SHA after the one-shot final CI run Repository: DiligentCreators/ResellerBytesAiOperation Branch: work/release-readiness-audit PR: #2 (must remain Draft until separately authorized)
+Status: evidence pack prepared; independent security review not performed Review
+target: exact final PR #2 head SHA after the one-shot final CI run Repository:
+DiligentCreators/ResellerBytesAiOperation Branch: work/release-readiness-audit
+PR: #2 (must remain Draft until separately authorized)
 
 ## 1. Purpose and reviewer instructions
 
-This pack is an evidence index and review plan, not a security certification, penetration-test report, production approval, or authorization to merge/deploy. The independent reviewer must check out the exact immutable commit SHA recorded in the review record, reproduce the required tests, inspect the actual deployment configuration and cloud controls, and report findings by severity.
+This pack is an evidence index and review plan, not a security certification,
+penetration-test report, production approval, or authorization to merge/deploy.
+The independent reviewer must check out the exact immutable commit SHA recorded
+in the review record, reproduce the required tests, inspect the actual
+deployment configuration and cloud controls, and report findings by severity.
 
-Do not approve based only on repository tests or documentation. Production identity, secret-manager access, database grants, Wasabi Object Lock, backup restoration, independent audit checkpoint read-back, and alert delivery require evidence from the real isolated environment.
+Do not approve based only on repository tests or documentation. Production
+identity, secret-manager access, database grants, Wasabi Object Lock, backup
+restoration, independent audit checkpoint read-back, and alert delivery require
+evidence from the real isolated environment.
 
 ## 2. System and trust-boundary inventory
 
@@ -124,21 +134,38 @@ Do not approve based only on repository tests or documentation. Production ident
 
 ## 6. CI and release evidence handling
 
-Intermediate commits are intentionally marked [skip ci] to conserve GitHub Actions minutes. Do not treat a previous green run as proof for a later commit. After all roadmap work and local/static validation are complete, the final commit must omit [skip ci] and the single final CI run must pass all six required jobs on that exact PR head SHA.
+Intermediate commits are intentionally marked [skip ci] to conserve GitHub
+Actions minutes. Do not treat a previous green run as proof for a later commit.
+After all roadmap work and local/static validation are complete, the final
+commit must omit [skip ci] and the single final CI run must pass all six
+required jobs on that exact PR head SHA.
 
-The last previously confirmed green run before subsequent hardening was run #43598332919 on commit 703772cc8def8f45d394ef53fc80ca582c3dae68 (six jobs; general CI 203 passed, 3 skipped, 915 assertions). Four concurrent commits landed without [skip ci] after the cost rule and triggered extra runs:
+The last previously confirmed green run before subsequent hardening was run
+#43598332919 on commit 703772cc8def8f45d394ef53fc80ca582c3dae68 (six jobs;
+general CI 203 passed, 3 skipped, 915 assertions). Four concurrent commits
+landed without [skip ci] after the cost rule and triggered extra runs:
 - Commit 555f92ef6b5c828562f3d4e19b84e63da48759a6, run #43599729637: five matrix jobs passed; general CI failed the formatting check for docs/operations/external-audit-anchor-monitoring-and-storage.md.
 - Commit a831220273d0de4387c9c84979761216ad72537e, run #43600418285: five matrix jobs passed; general CI failed 30 tests after a backup manager test changed database.default to an unreachable PostgreSQL host, causing cascading SQLite transaction failures.
 - Commit 591aeadbf5b3eecbdfa0b3dee012481397ef3a80, run #43600581151: five matrix jobs passed; general CI failed with the same test-only database.default mutation and cascading SQLite transaction errors.
 - Commit 466be2ef87e0536dded23eb6acb802f4b27ab512, run #43600781118: five matrix jobs passed; general CI failed formatting checks in the external audit-anchor document, release-readiness progress document, and security-review readiness pack. Those three Markdown files have since been reflowed.
 
-The current code changes add a pure restore-target identity check and remove the test's database-connection mutation. The current documentation formatting corrections are also included in the pending skip-ci hardening commit. These concurrent runs are not proof of a green current head. No CI run has been requested for the assistant-authored skip-ci commits. The final exact-head CI remains pending by design.
+The current code changes add a pure restore-target identity check and remove the
+test's database-connection mutation. The current documentation formatting
+corrections are also included in the pending skip-ci hardening commit. These
+concurrent runs are not proof of a green current head. No CI run has been
+requested for the assistant-authored skip-ci commits. The final exact-head CI
+remains pending by design.
 
-Local project tests have not been executed in the current assistant environment: the repository requires PHP 8.5, while the available PHP CLI is 8.4 and the repository checkout/dependencies are not mounted. Do not describe unexecuted tests as passing.
+Local project tests have not been executed in the current assistant environment:
+the repository requires PHP 8.5, while the available PHP CLI is 8.4 and the
+repository checkout/dependencies are not mounted. Do not describe unexecuted
+tests as passing.
 
 ## 7. Owner-controlled pending inputs
 
-Keep these pending until Shahrukh supplies, provisions, or explicitly approves them. Do not request secrets in chat; use the approved secret-manager/deployment process.
+Keep these pending until Shahrukh supplies, provisions, or explicitly approves
+them. Do not request secrets in chat; use the approved secret-manager/deployment
+process.
 
 - Wasabi account/billing, production backup bucket, dedicated IAM credentials, and the explicitly approved backup Object Lock retention period.
 - Production secret-manager access/policy, backup encryption key, and dedicated backup/restore credentials; no application runtime credential may inherit migration or restore privileges.
@@ -151,7 +178,8 @@ Keep these pending until Shahrukh supplies, provisions, or explicitly approves t
 - PHP 8.5 runtime/dependency environment for exact-head local validation.
 - Independent security review against the exact final PR head SHA and final release authorization.
 
-These items do not authorize a merge, deployment, production migration, or restore. Each remains a separate evidence/approval gate.
+These items do not authorize a merge, deployment, production migration, or
+restore. Each remains a separate evidence/approval gate.
 
 ## 8. Reviewer disposition
 
@@ -169,4 +197,6 @@ These items do not authorize a merge, deployment, production migration, or resto
 - Retest SHA and CI result:
 - Final disposition: Not started / In progress / Changes required / Approved with conditions / Approved
 
-Approval does not authorize merge, deployment, production migration, or a production restore. Those actions require separate explicit authorization from Shahrukh.
+Approval does not authorize merge, deployment, production migration, or a
+production restore. Those actions require separate explicit authorization from
+Shahrukh.
