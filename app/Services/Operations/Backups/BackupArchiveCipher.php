@@ -19,10 +19,14 @@ final class BackupArchiveCipher
     {
         $this->assertKey($key);
         $input = fopen($sourcePath, 'rb');
-        $output = fopen($destinationPath, 'wb');
+        if ($input === false) {
+            throw new RuntimeException('Unable to open backup archive source file.');
+        }
 
-        if ($input === false || $output === false) {
-            throw new RuntimeException('Unable to open backup archive files.');
+        $output = fopen($destinationPath, 'wb');
+        if ($output === false) {
+            fclose($input);
+            throw new RuntimeException('Unable to open backup archive destination file.');
         }
 
         try {
@@ -80,10 +84,14 @@ final class BackupArchiveCipher
     {
         $this->assertKey($key);
         $input = fopen($sourcePath, 'rb');
-        $output = fopen($destinationPath, 'wb');
+        if ($input === false) {
+            throw new RuntimeException('Unable to open encrypted backup archive source file.');
+        }
 
-        if ($input === false || $output === false) {
-            throw new RuntimeException('Unable to open encrypted backup archive files.');
+        $output = fopen($destinationPath, 'wb');
+        if ($output === false) {
+            fclose($input);
+            throw new RuntimeException('Unable to open decrypted backup archive destination file.');
         }
 
         try {
