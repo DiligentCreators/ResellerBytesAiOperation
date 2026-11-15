@@ -33,6 +33,10 @@ class TenantMembershipLifecycle
                 throw ValidationException::withMessages(['email' => 'This account already has an active, pending, or suspended membership.']);
             }
 
+            if ($existing === null || $existing->status === TenantMembership::STATUS_REVOKED) {
+                app(TenantResourceLimitService::class)->requireMemberCapacity($tenantId);
+            }
+
             if ($existing) {
                 $existing->forceFill([
                     'role' => $role,
