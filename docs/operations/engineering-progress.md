@@ -631,14 +631,12 @@ merge, migration, or deployment.
 - Pre-final head: 8c4952822ec7c7d89596db401b649c0bfa29ffa4; 135 commits ahead and 0 behind the verified handoff head. No workflow files or repository settings changed.
 - This is the final documentation change before the next single non-[skip ci] commit. The exact-head six-job matrix must be fully green before PR #2 is marked ready or merged.
 
-
 ### CI #717 findings and final follow-up — 2026-11-15
 
 - Run #43713031267 completed: MySQL, MariaDB, SQL Server, and WHMCS PHP 8.1 passed. PostgreSQL exposed two remaining issues: a tenant-remapping constraint test needed a nested savepoint, and the failed-provider usage fixture required explicit raw-body JSON normalization. Vite Plus still flagged five Markdown documents and two TSX pages.
 - Wrapped checklist continuations were normalized in the remaining Markdown documents; the mail-settings and central-staff TSX pages were brought under the configured width and syntax formatting.
 - The tenant-remapping constraint assertion now runs in a nested DB transaction/savepoint and refreshes the model afterward. The analyzer now parses the raw response body, then falls back to the response decoder and normalizes object-shaped usage before invoking the after-response settlement callback.
 - These follow-up changes use [skip ci]. Current head after remediation: 24f4971747de2855700b05493049fd7c73f5b33d; 144 commits ahead and 0 behind the verified handoff head; no workflow file or repository setting changed. One final non-[skip ci] commit is required to verify the repaired head.
-
 
 ### One-shot final CI handoff after #717 — 2026-11-15
 
