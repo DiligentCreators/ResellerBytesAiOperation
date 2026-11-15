@@ -59,11 +59,6 @@ final class RestoreOperationalBackup extends Command
                     return self::FAILURE;
                 }
 
-                if (! $this->verifyOwnerTotp($ownerEmail, $twoFactorProvider)) {
-                    $this->error('Fresh owner TOTP verification failed. No database changes were made.');
-
-                    return self::FAILURE;
-                }
             }
 
             if (! $this->confirm('This will replace data in the configured PostgreSQL database. Continue?', false)) {
@@ -72,8 +67,16 @@ final class RestoreOperationalBackup extends Command
                 return self::SUCCESS;
             }
 
-            // A verified pre-restore snapshot is mandatory before any destructive restore.
+            // Create the safety snapshot before requesting a fresh TOTP immediately
+            // ahead of the destructive restore and immutable approval record.
             $preRestore = $backups->create();
+
+            if ($production && ! $this->verifyOwnerTotp((string) $ownerEmail, $twoFactorProvider)) {
+                $this->error('Fresh owner TOTP verification failed. The pre-restore backup is preserved; no restore was performed.');
+
+                return self::FAILURE;
+            }
+
             $backups->recordRestoreApproval([
                 'schema_version' => 1,
                 'action' => 'postgresql_restore',
