@@ -7,7 +7,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Queue\Events\JobQueued;
 use Illuminate\Support\Facades\DB;
 
-it('tracks Redis queue jobs only after their delay has elapsed and clears them when processing starts', function () {
+it('tracks queued jobs separately from in-flight jobs and clears them only when processing finishes', function () {
     $queuedAt = CarbonImmutable::parse('2026-11-14T12:00:00Z');
     $tracker = app(QueueJobMetricsTracker::class);
 
@@ -23,6 +23,12 @@ it('tracks Redis queue jobs only after their delay has elapsed and clears them w
     $tracker->markStarted('redis', 'redis-job-2');
 
     expect($tracker->oldestQueuedJobAgeMinutes($queuedAt->addMinutes(10)))->toBeNull()
+        ->and($tracker->oldestProcessingJobAgeMinutes($queuedAt->addMinutes(10)))->toBe(10.0)
+        ->and(DB::table('operations_queue_job_samples')->where('job_id', 'redis-job-2')->exists())->toBeTrue();
+
+    $tracker->markFinished('redis', 'redis-job-2');
+
+    expect($tracker->oldestProcessingJobAgeMinutes($queuedAt->addMinutes(10)))->toBeNull()
         ->and(DB::table('operations_queue_job_samples')->where('job_id', 'redis-job-2')->exists())->toBeFalse();
 });
 
