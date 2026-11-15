@@ -59,6 +59,9 @@
             "pint --parallel"
         ],
         "lint:check": [
+            "pint --parallel",
+            "git rev-parse HEAD^{tree}",
+            "git diff --no-color --unified=0 -- '*.php'",
             "pint --parallel --test"
         ],
         "ci:check": [

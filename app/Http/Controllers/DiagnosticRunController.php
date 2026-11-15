@@ -3,20 +3,25 @@
 namespace App\Http\Controllers;
 
 use App\Jobs\AnalyzeDiagnosticRun;
-use App\Models\AuditEvent;
 use App\Models\DiagnosticRun;
+use App\Services\Audit\AuditEventWriter;
+use App\Services\Tenancy\TenantRecordQuery;
+use App\Services\Tenancy\TenantRoleAuthorization;
+use App\Services\Tenancy\TenantEntitlementService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Throwable;
 
 class DiagnosticRunController extends Controller
 {
     public function index(): Response
     {
-        $runs = DiagnosticRun::query()
+        $runs = app(TenantRecordQuery::class)->runs(Auth::user())
             ->with('integration:id,name')
             ->withCount('findings')
             ->latest('received_at')
@@ -38,20 +43,82 @@ class DiagnosticRunController extends Controller
 
     public function reanalyze(DiagnosticRun $diagnosticRun): RedirectResponse
     {
+        $integration = $diagnosticRun->integration()->first();
+        if ($integration === null || ! app(TenantRecordQuery::class)->runs(Auth::user())->whereKey($diagnosticRun->id)->exists()) {
+            throw new NotFoundHttpException();
+        }
+
+        if ($integration->tenant_id === null) {
+            abort_unless((int) $integration->owner_user_id === (int) Auth::id(), 404);
+        } else {
+            app(TenantRoleAuthorization::class)->require(Auth::user(), $integration->tenant_id, 'diagnostics.reanalyze');
+            app(TenantEntitlementService::class)->requireFeature($integration->tenant_id, 'diagnostics.reanalyze');
+        }
         abort_unless(filled(config('services.openai.key')), 503, 'AI analysis is not configured.');
 
-        if (! in_array($diagnosticRun->status, ['received', 'analysis_failed'], true)) {
+        $expired = false;
+        $queued = DB::transaction(function () use ($diagnosticRun, $integration, &$expired): bool {
+            $run = DiagnosticRun::query()
+                ->whereKey($diagnosticRun->id)
+                ->whereHas('integration', function ($query) use ($integration): void {
+                    $query->whereKey($integration->id)->where('tenant_id', $integration->tenant_id);
+                    if ($integration->tenant_id === null) {
+                        $query->where('owner_user_id', Auth::id());
+                    }
+                })
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($run->received_at === null || $run->received_at->lessThanOrEqualTo(now('UTC')->subDays(365))) {
+                $expired = true;
+
+                return false;
+            }
+
+            if (! in_array($run->status, ['received', 'analysis_failed'], true)) {
+                return false;
+            }
+
+            if ($integration->tenant_id !== null) {
+                app(TenantRoleAuthorization::class)->require(Auth::user(), $integration->tenant_id, 'diagnostics.reanalyze');
+                app(TenantEntitlementService::class)->requireFeature($integration->tenant_id, 'diagnostics.reanalyze');
+            }
+
+            $run->forceFill(['status' => 'queued'])->save();
+
+            app(AuditEventWriter::class)->append([
+                'actor_type' => 'user',
+                'actor_id' => (string) Auth::id(),
+                'event_type' => 'diagnostic_run.analysis_requested',
+                'subject_type' => 'diagnostic_run',
+                'subject_id' => $run->id,
+                'tenant_id' => $integration->tenant_id,
+                'metadata' => [],
+                'occurred_at' => now(),
+            ]);
+
+            return true;
+        });
+
+        if (! $queued) {
             return back()->withErrors([
-                'analysis' => 'This diagnostic run is already being analyzed or has completed analysis.',
+                'analysis' => $expired
+                    ? 'This diagnostic run has reached the 365-day retention deadline and cannot be reanalyzed.'
+                    : 'This diagnostic run is already being analyzed, queued, or has completed analysis.',
             ]);
         }
 
-        $diagnosticRun->forceFill(['status' => 'queued'])->save();
-
         try {
-            AnalyzeDiagnosticRun::dispatch($diagnosticRun->id)->afterCommit();
+            AnalyzeDiagnosticRun::dispatch($diagnosticRun->id, (int) Auth::id(), $integration->tenant_id)->afterCommit();
         } catch (Throwable $exception) {
-            $diagnosticRun->forceFill(['status' => 'analysis_failed'])->save();
+            DiagnosticRun::query()
+                ->whereKey($diagnosticRun->id)
+                ->whereHas('integration', fn ($query) => $query->whereKey($integration->id)->where('tenant_id', $integration->tenant_id))
+                ->where('status', 'queued')
+                ->update([
+                    'status' => 'analysis_failed',
+                    'updated_at' => now(),
+                ]);
 
             Log::warning('Manual diagnostic analysis could not be queued.', [
                 'diagnostic_run_id' => $diagnosticRun->id,
@@ -63,21 +130,12 @@ class DiagnosticRunController extends Controller
             ]);
         }
 
-        AuditEvent::create([
-            'actor_type' => 'user',
-            'actor_id' => (string) Auth::id(),
-            'event_type' => 'diagnostic_run.analysis_requested',
-            'subject_type' => 'diagnostic_run',
-            'subject_id' => $diagnosticRun->id,
-            'metadata' => [],
-            'occurred_at' => now(),
-        ]);
-
         return back()->with('success', 'Diagnostic analysis has been queued.');
     }
 
     public function show(DiagnosticRun $diagnosticRun): Response
     {
+        $this->authorizeRun($diagnosticRun);
         $diagnosticRun->load([
             'integration:id,name',
             'findings.recommendations',
@@ -107,5 +165,12 @@ class DiagnosticRunController extends Controller
                 ]),
             ],
         ]);
+    }
+
+    private function authorizeRun(DiagnosticRun $run): void
+    {
+        if (! app(TenantRecordQuery::class)->runs(Auth::user())->whereKey($run->id)->exists()) {
+            throw new NotFoundHttpException();
+        }
     }
 }

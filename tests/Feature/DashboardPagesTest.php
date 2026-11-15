@@ -4,7 +4,7 @@ use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
 
 beforeEach(function () {
-    $this->actingAs(User::factory()->create([
+    $this->actingAs(User::factory()->withTwoFactor()->create([
         'email_verified_at' => now(),
     ]));
 });

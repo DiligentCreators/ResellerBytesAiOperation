@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Settings;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\PasswordUpdateRequest;
 use App\Http\Requests\Settings\TwoFactorAuthenticationRequest;
+use App\Services\Audit\AuditEventWriter;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
@@ -38,6 +40,7 @@ class SecurityController extends Controller
                     ->all()
                 : [],
             'passwordRules' => Password::defaults()->toPasswordRulesString(),
+            'status' => $request->session()->get('status'),
         ];
 
         if (Features::canManageTwoFactorAuthentication()) {
@@ -55,9 +58,23 @@ class SecurityController extends Controller
      */
     public function update(PasswordUpdateRequest $request): RedirectResponse
     {
-        $request->user()->update([
-            'password' => $request->password,
-        ]);
+        $user = $request->user();
+
+        DB::transaction(function () use ($user, $request): void {
+            $user->update([
+                'password' => $request->password,
+            ]);
+
+            app(AuditEventWriter::class)->append([
+                'actor_type' => 'user',
+                'actor_id' => (string) $user->getKey(),
+                'event_type' => 'operations_user.password_changed',
+                'subject_type' => 'user',
+                'subject_id' => (string) $user->getKey(),
+                'metadata' => ['credential_changed' => true],
+                'occurred_at' => now(),
+            ]);
+        });
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Password updated.')]);
 

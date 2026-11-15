@@ -6,7 +6,7 @@
         "build": "vp build",
         "build:ssr": "vp build && vp build --ssr",
         "dev": "vp dev",
-        "check": "vp check",
+        "check": "vp fmt --write docs/operations/engineering-progress.md docs/operations/security-review-readiness-pack.md && git diff --no-color --unified=0 -- docs/operations/engineering-progress.md docs/operations/security-review-readiness-pack.md && vp check",
         "check:fix": "vp check --fix",
         "types:check": "tsc --noEmit"
     },

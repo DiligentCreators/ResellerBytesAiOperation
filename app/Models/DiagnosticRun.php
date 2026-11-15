@@ -37,6 +37,7 @@ class DiagnosticRun extends Model
 
     protected $fillable = [
         'integration_id',
+        'tenant_id',
         'snapshot_uuid',
         'schema_version',
         'addon_version',
@@ -68,6 +69,12 @@ class DiagnosticRun extends Model
             'analysis_completed_at' => 'immutable_datetime',
             'analysis_usage' => 'array',
         ];
+    }
+
+    /** @return BelongsTo<Tenant, $this> */
+    public function tenant(): BelongsTo
+    {
+        return $this->belongsTo(Tenant::class);
     }
 
     /**

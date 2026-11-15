@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\AuditEvent;
 use App\Models\User;
 
 test('profile page is displayed', function () {
@@ -91,8 +92,9 @@ test('email verification status is unchanged when the email address is unchanged
     expect($user->refresh()->email_verified_at)->not->toBeNull();
 });
 
-test('user can delete their account', function () {
+test('user can delete their account when another operator account remains', function () {
     $user = User::factory()->create();
+    User::factory()->create();
 
     $response = $this
         ->actingAs($user)
@@ -106,6 +108,25 @@ test('user can delete their account', function () {
 
     $this->assertGuest();
     expect($user->fresh())->toBeNull();
+    expect(AuditEvent::where('event_type', 'operations_user.deleted')->count())->toBe(1);
+});
+
+test('the last remaining operator cannot delete their account', function () {
+    $user = User::factory()->create();
+
+    $response = $this
+        ->actingAs($user)
+        ->from(route('profile.edit'))
+        ->delete(route('profile.destroy'), [
+            'password' => 'password',
+        ]);
+
+    $response
+        ->assertSessionHasErrors('password')
+        ->assertRedirect(route('profile.edit'));
+
+    $this->assertAuthenticatedAs($user);
+    expect($user->fresh())->not->toBeNull();
 });
 
 test('correct password must be provided to delete account', function () {
@@ -123,4 +144,39 @@ test('correct password must be provided to delete account', function () {
         ->assertRedirect(route('profile.edit'));
 
     expect($user->fresh())->not->toBeNull();
+});
+
+
+test('profile changes append audit evidence without copying profile values', function () {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)->patch(route('profile.update'), [
+        'name' => 'Updated Operator',
+        'email' => 'updated-operator@example.com',
+    ])->assertSessionHasNoErrors();
+
+    $event = AuditEvent::where('event_type', 'operations_user.profile_updated')->first();
+
+    expect($event)->not->toBeNull()
+        ->and($event->actor_id)->toBe((string) $user->id)
+        ->and($event->metadata['changed_fields'])->toContain('name', 'email', 'email_verified_at')
+        ->and(json_encode($event->metadata, JSON_THROW_ON_ERROR))->not->toContain('updated-operator@example.com');
+});
+
+
+test('password changes append audit evidence without credential material', function () {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)->put(route('user-password.update'), [
+        'current_password' => 'password',
+        'password' => 'new-operator-password',
+        'password_confirmation' => 'new-operator-password',
+    ])->assertSessionHasNoErrors();
+
+    $event = AuditEvent::where('event_type', 'operations_user.password_changed')->first();
+
+    expect($event)->not->toBeNull()
+        ->and($event->actor_id)->toBe((string) $user->id)
+        ->and($event->metadata)->toBe(['credential_changed' => true])
+        ->and(json_encode($event->metadata, JSON_THROW_ON_ERROR))->not->toContain('new-operator-password');
 });

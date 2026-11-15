@@ -2,8 +2,8 @@
 
 namespace App\Console\Commands;
 
-use App\Models\AuditEvent;
 use App\Models\WhmcsIntegration;
+use App\Services\Audit\AuditEventWriter;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 
@@ -34,11 +34,12 @@ class RotateWhmcsIntegrationSecret extends Command
                 'secret_version' => $version,
             ])->save();
 
-            AuditEvent::create([
+            app(AuditEventWriter::class)->append([
                 'actor_type' => 'system_operator',
                 'event_type' => 'whmcs_integration.secret_rotated',
                 'subject_type' => 'whmcs_integration',
                 'subject_id' => $integration->id,
+                'tenant_id' => $integration->tenant_id,
                 'metadata' => ['secret_version' => $version],
                 'occurred_at' => now(),
             ]);

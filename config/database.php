@@ -99,6 +99,21 @@ return [
             'sslmode' => env('DB_SSLMODE', 'prefer'),
         ],
 
+        'pgsql_operations' => [
+            'driver' => 'pgsql',
+            'url' => env('DB_OPERATIONS_URL'),
+            'host' => env('DB_OPERATIONS_HOST', env('DB_HOST', '127.0.0.1')),
+            'port' => env('DB_OPERATIONS_PORT', env('DB_PORT', '5432')),
+            'database' => env('DB_OPERATIONS_DATABASE', env('DB_DATABASE', 'laravel')),
+            'username' => env('DB_OPERATIONS_USERNAME', ''),
+            'password' => env('DB_OPERATIONS_PASSWORD', ''),
+            'charset' => env('DB_CHARSET', 'utf8'),
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'search_path' => 'public',
+            'sslmode' => env('DB_OPERATIONS_SSLMODE', 'require'),
+        ],
+
         'sqlsrv' => [
             'driver' => 'sqlsrv',
             'url' => env('DB_URL'),
@@ -110,8 +125,8 @@ return [
             'charset' => env('DB_CHARSET', 'utf8'),
             'prefix' => '',
             'prefix_indexes' => true,
-            // 'encrypt' => env('DB_ENCRYPT', 'yes'),
-            // 'trust_server_certificate' => env('DB_TRUST_SERVER_CERTIFICATE', 'false'),
+            'encrypt' => env('DB_ENCRYPT', 'yes'),
+            'trust_server_certificate' => env('DB_TRUST_SERVER_CERTIFICATE', 'false'),
         ],
 
     ],

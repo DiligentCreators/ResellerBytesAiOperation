@@ -2,17 +2,21 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\DiagnosticFinding;
 use App\Models\DiagnosticRun;
-use App\Models\WhmcsIntegration;
+use App\Services\Tenancy\TenantRecordQuery;
+use App\Support\WhmcsAddonPackageSigner;
+use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class DashboardController extends Controller
 {
-    public function __invoke(): Response
+    public function __invoke(WhmcsAddonPackageSigner $signer): Response
     {
-        $latestRuns = DiagnosticRun::query()
+        $user = Auth::user();
+        $tenantRecords = app(TenantRecordQuery::class);
+
+        $latestRuns = $tenantRecords->runs($user)
             ->with('integration:id,name')
             ->withCount('findings')
             ->latest('received_at')
@@ -29,12 +33,14 @@ class DashboardController extends Controller
                 'integration_name' => $run->integration->name,
             ]);
 
+        $signingConfigured = $signer->isConfigured();
+
         return Inertia::render('dashboard', [
             'stats' => [
-                'active_integrations' => WhmcsIntegration::query()->where('status', 'active')->count(),
-                'total_runs' => DiagnosticRun::query()->count(),
-                'open_findings' => DiagnosticFinding::query()->where('status', 'open')->count(),
-                'critical_findings' => DiagnosticFinding::query()
+                'active_integrations' => $tenantRecords->integrations($user)->where('status', 'active')->count(),
+                'total_runs' => $tenantRecords->runs($user)->count(),
+                'open_findings' => $tenantRecords->findings($user)->where('status', 'open')->count(),
+                'critical_findings' => $tenantRecords->findings($user)
                     ->where('status', 'open')
                     ->where('severity', 'critical')
                     ->count(),
@@ -42,7 +48,7 @@ class DashboardController extends Controller
             'latestRuns' => $latestRuns,
             'addon' => [
                 'version' => config('services.whmcs_addon.version', '1.0.0'),
-                'download_available' => class_exists(\ZipArchive::class),
+                'download_available' => class_exists(\ZipArchive::class) && $signingConfigured,
                 'ai_configured' => filled(config('services.openai.key')),
             ],
         ]);

@@ -2,8 +2,8 @@
 
 namespace App\Console\Commands;
 
-use App\Models\AuditEvent;
 use App\Models\User;
+use App\Services\Audit\AuditEventWriter;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -63,7 +63,7 @@ class CreateOperationsUser extends Command
                 'email_verified_at' => now(),
             ])->save();
 
-            AuditEvent::create([
+            app(AuditEventWriter::class)->append([
                 'actor_type' => 'system_operator',
                 'event_type' => 'operations_user.created',
                 'subject_type' => 'user',

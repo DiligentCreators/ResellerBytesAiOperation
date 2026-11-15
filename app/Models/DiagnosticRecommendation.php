@@ -21,6 +21,7 @@ class DiagnosticRecommendation extends Model
 
     protected $fillable = [
         'diagnostic_finding_id',
+        'tenant_id',
         'recommendation',
         'rationale',
         'risk_level',
@@ -32,6 +33,12 @@ class DiagnosticRecommendation extends Model
         return [
             'requires_manual_action' => 'boolean',
         ];
+    }
+
+    /** @return BelongsTo<Tenant, $this> */
+    public function tenant(): BelongsTo
+    {
+        return $this->belongsTo(Tenant::class);
     }
 
     /**

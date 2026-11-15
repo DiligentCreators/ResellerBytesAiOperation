@@ -15,7 +15,10 @@ return [
     */
 
     'postmark' => [
-        'key' => env('POSTMARK_API_KEY'),
+        'key' => env('POSTMARK_SERVER_TOKEN'),
+        'server_token' => env('POSTMARK_SERVER_TOKEN'),
+        'message_stream_id' => env('POSTMARK_MESSAGE_STREAM', 'outbound'),
+        'message_stream' => env('POSTMARK_MESSAGE_STREAM', 'outbound'),
     ],
 
     'resend' => [
@@ -44,6 +47,8 @@ return [
 
     'whmcs_addon' => [
         'version' => env('WHMCS_ADDON_VERSION', '1.0.0'),
+        'signing_secret_key' => env('WHMCS_ADDON_SIGNING_SECRET_KEY'),
+        'signing_public_key' => env('WHMCS_ADDON_SIGNING_PUBLIC_KEY'),
     ],
 
 ];

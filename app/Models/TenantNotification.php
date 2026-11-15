@@ -1,0 +1,29 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+/**
+ * @property array<string, mixed> $payload
+ * @property \Carbon\CarbonImmutable|null $read_at
+ * @property \Carbon\CarbonImmutable $created_at
+ */
+class TenantNotification extends Model
+{
+    public $timestamps = false;
+
+    protected $fillable = ['tenant_id', 'user_id', 'event_type', 'notification_key', 'payload', 'read_at', 'created_at'];
+
+    protected function casts(): array
+    {
+        return ['payload' => 'array', 'read_at' => 'immutable_datetime', 'created_at' => 'immutable_datetime'];
+    }
+
+    /** @return BelongsTo<Tenant, $this> */
+    public function tenant(): BelongsTo { return $this->belongsTo(Tenant::class); }
+
+    /** @return BelongsTo<User, $this> */
+    public function user(): BelongsTo { return $this->belongsTo(User::class); }
+}

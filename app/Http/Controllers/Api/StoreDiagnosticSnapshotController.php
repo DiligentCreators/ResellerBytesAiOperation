@@ -5,9 +5,11 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\StoreDiagnosticSnapshotRequest;
 use App\Jobs\AnalyzeDiagnosticRun;
-use App\Models\AuditEvent;
 use App\Models\DiagnosticRun;
 use App\Models\WhmcsIntegration;
+use App\Services\Audit\AuditEventWriter;
+use App\Services\Tenancy\TenantResourceLimitService;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Carbon;
@@ -32,8 +34,13 @@ class StoreDiagnosticSnapshotController extends Controller
 
         try {
             $run = DB::transaction(function () use ($integration, $validated, $payloadHash, $request): DiagnosticRun {
+                if ($integration->tenant_id !== null) {
+                    app(TenantResourceLimitService::class)->requireDiagnosticCapacity($integration->tenant_id);
+                }
+
                 $run = DiagnosticRun::create([
                     'integration_id' => $integration->id,
+                    'tenant_id' => $integration->tenant_id,
                     'snapshot_uuid' => $validated['snapshot_uuid'],
                     'schema_version' => $validated['schema_version'],
                     'addon_version' => $validated['addon_version'],
@@ -49,9 +56,10 @@ class StoreDiagnosticSnapshotController extends Controller
                     'last_seen_at' => now(),
                 ])->save();
 
-                AuditEvent::create([
+                app(AuditEventWriter::class)->append([
                     'actor_type' => 'integration',
                     'actor_id' => $integration->id,
+                    'tenant_id' => $integration->tenant_id,
                     'event_type' => 'diagnostic_snapshot.accepted',
                     'subject_type' => 'diagnostic_run',
                     'subject_id' => $run->id,
@@ -62,6 +70,15 @@ class StoreDiagnosticSnapshotController extends Controller
 
                 return $run;
             });
+        } catch (AuthorizationException $exception) {
+            // A concurrent identical delivery may have committed while this request waited on the quota lock.
+            $existing = $this->findExistingRun($integration, $validated['snapshot_uuid']);
+
+            if ($existing) {
+                return $this->idempotentResponse($existing, $payloadHash);
+            }
+
+            throw $exception;
         } catch (QueryException $exception) {
             // A concurrent retry may have inserted the same integration/snapshot pair.
             $existing = $this->findExistingRun($integration, $validated['snapshot_uuid']);
@@ -73,11 +90,11 @@ class StoreDiagnosticSnapshotController extends Controller
             return $this->idempotentResponse($existing, $payloadHash);
         }
 
-        if (filled(config('services.openai.key'))) {
+        if ($integration->owner_user_id !== null && filled(config('services.openai.key'))) {
             $run->forceFill(['status' => 'queued'])->save();
 
             try {
-                AnalyzeDiagnosticRun::dispatch($run->id)->afterCommit();
+                AnalyzeDiagnosticRun::dispatch($run->id, (int) $integration->owner_user_id, $integration->tenant_id)->afterCommit();
             } catch (Throwable $exception) {
                 $run->forceFill(['status' => 'received'])->save();
 

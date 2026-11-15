@@ -77,3 +77,241 @@ jobs:
 
       - name: Run CI Checks
         run: composer ci:check
+
+  postgres-ai-budget:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: testing
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d testing"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
+        with:
+          php-version: '8.5'
+          tools: composer:v2
+          extensions: pdo_pgsql, zip
+          coverage: none
+
+      - name: Setup Application
+        run: |
+          composer install --no-interaction --prefer-dist
+          cp .env.example .env
+          php artisan key:generate
+
+      - name: Run AI budget ledger tests against PostgreSQL
+        run: |
+          DB_CONNECTION=pgsql DB_HOST=127.0.0.1 DB_PORT=5432 DB_DATABASE=testing DB_USERNAME=postgres DB_PASSWORD=postgres vendor/bin/pest tests/Feature/Diagnostics/AiBudgetLedgerTest.php tests/Feature/Diagnostics/AiBudgetReconciliationCommandTest.php tests/Feature/Diagnostics/AnalyzeDiagnosticRunTest.php tests/Feature/Diagnostics/RecoverQueuedDiagnosticsTest.php tests/Feature/AuditEventImmutabilityTest.php tests/Feature/AuditEventHashChainTest.php tests/Postgres/AuditEventImmutabilityTest.php tests/Postgres/AuditEventHashChainTest.php tests/Postgres/WhmcsIntegrationRetentionTest.php tests/Postgres/AuditAnchorCheckpointTest.php
+
+      - name: Run multi-process audit-chain append test
+        env:
+          DB_CONNECTION: pgsql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
+          DB_DATABASE: testing
+          DB_USERNAME: postgres
+          DB_PASSWORD: postgres
+        run: |
+          php artisan migrate:fresh --force
+          php tests/Concurrency/audit_chain_append.php
+
+      - name: Run multi-process AI budget concurrency test
+        env:
+          DB_CONNECTION: pgsql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
+          DB_DATABASE: testing
+          DB_USERNAME: postgres
+          DB_PASSWORD: postgres
+          AI_DAILY_BUDGET_MICRO_USD: '967432'
+          AI_MONTHLY_BUDGET_MICRO_USD: '50000000'
+          AI_MAX_INPUT_BYTES: '65536'
+          AI_MAX_OUTPUT_TOKENS: '3000'
+        run: |
+          php artisan migrate:fresh --force
+          php tests/Concurrency/ai_budget_reservation.php
+
+      - name: Verify PostgreSQL runtime-role least privilege
+        env:
+          DB_CONNECTION: pgsql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
+          DB_DATABASE: testing
+          DB_USERNAME: postgres
+          DB_PASSWORD: postgres
+        run: |
+          RB_RUNTIME_TEST_PASSWORD="$(openssl rand -hex 24)"
+          RB_READONLY_TEST_PASSWORD="$(openssl rand -hex 24)"
+          export RB_RUNTIME_TEST_PASSWORD RB_READONLY_TEST_PASSWORD
+          cleanup_test_roles() {
+            PGPASSWORD=postgres psql -h 127.0.0.1 -U postgres -d testing -v ON_ERROR_STOP=1 -c "DROP OWNED BY rb_runtime; DROP OWNED BY rb_readonly; DROP ROLE rb_runtime; DROP ROLE rb_readonly;" >/dev/null 2>&1 || true
+          }
+          trap cleanup_test_roles EXIT
+          PGPASSWORD=postgres psql -h 127.0.0.1 -U postgres -d testing -v ON_ERROR_STOP=1 <<SQL
+          CREATE ROLE rb_runtime LOGIN PASSWORD '${RB_RUNTIME_TEST_PASSWORD}';
+          CREATE ROLE rb_readonly LOGIN PASSWORD '${RB_READONLY_TEST_PASSWORD}';
+          GRANT USAGE ON SCHEMA public TO rb_runtime, rb_readonly;
+          GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO rb_runtime;
+          REVOKE ALL PRIVILEGES ON TABLE migrations FROM rb_runtime;
+          GRANT SELECT, INSERT ON TABLE audit_events TO rb_runtime;
+          REVOKE UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON TABLE audit_events FROM rb_runtime;
+          GRANT SELECT, UPDATE ON TABLE audit_chain_heads TO rb_runtime;
+          REVOKE INSERT, DELETE, TRUNCATE, REFERENCES, TRIGGER ON TABLE audit_chain_heads FROM rb_runtime;
+          GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO rb_runtime;
+          CREATE TABLE readonly_role_probe (id integer PRIMARY KEY);
+          INSERT INTO readonly_role_probe (id) VALUES (1);
+          GRANT SELECT ON TABLE readonly_role_probe TO rb_readonly;
+          REVOKE ALL PRIVILEGES ON TABLE migrations FROM rb_readonly;
+          SQL
+          DB_USERNAME=rb_runtime DB_PASSWORD="$RB_RUNTIME_TEST_PASSWORD" php tests/Postgres/RuntimeRolePrivilegesTest.php
+          DB_USERNAME=rb_readonly DB_PASSWORD="$RB_READONLY_TEST_PASSWORD" php tests/Postgres/ReadOnlyRolePrivilegesTest.php
+
+  mysql-integration-retention:
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: password
+          MYSQL_DATABASE: testing
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -ppassword"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
+        with:
+          php-version: '8.5'
+          tools: composer:v2
+          extensions: pdo_mysql, zip
+          coverage: none
+
+      - name: Setup Application
+        run: |
+          composer install --no-interaction --prefer-dist
+          cp .env.example .env
+          php artisan key:generate
+
+      - name: Verify MySQL integration retention trigger
+        run: |
+          DB_CONNECTION=mysql DB_HOST=127.0.0.1 DB_PORT=3306 DB_DATABASE=testing DB_USERNAME=root DB_PASSWORD=password vendor/bin/pest tests/Feature/Diagnostics/WhmcsIntegrationRetentionMysqlTest.php
+
+  sqlserver-integration-retention:
+    runs-on: ubuntu-latest
+
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: Y
+          MSSQL_PID: Developer
+          MSSQL_SA_PASSWORD: "YourStrong!Passw0rd"
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P 'YourStrong!Passw0rd' -Q 'SELECT 1' || exit 1"
+          --health-interval 10s
+          --health-timeout 10s
+          --health-retries 20
+          --health-start-period 30s
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
+        with:
+          php-version: '8.5'
+          tools: composer:v2
+          extensions: pdo_sqlsrv, sqlsrv, zip
+          coverage: none
+
+      - name: Setup Application
+        run: |
+          composer install --no-interaction --prefer-dist
+          cp .env.example .env
+          php artisan key:generate
+
+      - name: Verify SQL Server integration retention trigger
+        env:
+          DB_CONNECTION: sqlsrv
+          DB_HOST: 127.0.0.1
+          DB_PORT: 1433
+          DB_DATABASE: master
+          DB_USERNAME: sa
+          DB_PASSWORD: "YourStrong!Passw0rd"
+          DB_ENCRYPT: "yes"
+          DB_TRUST_SERVER_CERTIFICATE: "true"
+        run: php tests/Integration/sqlsrv_whmcs_retention.php
+
+  mariadb-integration-retention:
+    runs-on: ubuntu-latest
+
+    services:
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_ROOT_PASSWORD: password
+          MARIADB_DATABASE: testing
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "healthcheck.sh --connect --innodb_initialized"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
+        with:
+          php-version: '8.5'
+          tools: composer:v2
+          extensions: pdo_mysql, zip
+          coverage: none
+
+      - name: Setup Application
+        run: |
+          composer install --no-interaction --prefer-dist
+          cp .env.example .env
+          php artisan key:generate
+
+      - name: Verify MariaDB integration retention trigger
+        run: |
+          DB_CONNECTION=mariadb DB_HOST=127.0.0.1 DB_PORT=3306 DB_DATABASE=testing DB_USERNAME=root DB_PASSWORD=password vendor/bin/pest tests/Feature/Diagnostics/WhmcsIntegrationRetentionMysqlTest.php

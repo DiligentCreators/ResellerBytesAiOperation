@@ -15,8 +15,11 @@ This checklist is mandatory before installing or running the WHMCS addon against
 ## Application access and AI analysis
 
 - [ ] Public self-registration is disabled; no public account-creation route is available.
+- [ ] OPERATIONS_OWNER_EMAIL identifies the single verified central super admin; the owner account has confirmed TOTP and cannot be deleted or have its configured email changed through the application.
+- [ ] Central staff accounts are created only by the super admin; each receives an explicit least-privilege permission allowlist, permission changes are audit-logged, and staff self-escalation is denied.
+- [ ] Central mail settings access is denied without the settings permission; tenant membership authorization remains independent of central staff permissions.
 - [ ] The first verified dashboard operator was created through php artisan ops:user:create "Operations Admin" operator@example.com; the password was entered through hidden terminal prompts.
-- [ ] Two-factor authentication or a passkey is enabled for every production operator.
+- [ ] Confirmed TOTP-based two-factor authentication is enabled for every production operator before operational access; passkeys are additional factors, not substitutes.
 - [ ] OPENAI_API_KEY is configured only in the Forge environment, never in source control or WHMCS.
 - [ ] The configured OpenAI model is available to the API project and the project has an appropriate spend limit.
 - [ ] The Redis queue worker is running and supervised; the scheduler is active.
@@ -69,3 +72,77 @@ After stopping, preserve relevant sanitized logs, revoke the integration secret,
 Do not change PHP versions, cron commands, file permissions, OPcache, WHMCS directory paths, module-debugging settings, 20i settings, ResellerClub settings, billing, customer accounts, domains, or hosting services based on an AI recommendation.
 
 The first pilot validates collection and transport only. It does not authorize repairs.
+
+## Deferred phase — hybrid SaaS tenant, entitlement, and white-label gates (not a blocker for this release)
+
+- [ ] Obtain Shahrukh's explicit first-tenant name/slug and per-integration ownership mapping. Keep every unmapped legacy integration quarantined with `tenant_id = NULL`; never infer a default tenant or membership.
+- [ ] Provision tenant owner membership only for the approved, verified, TOTP-enabled account. Verify invite links are signed, expire after seven days, are bound to the intended account and pending membership, and never auto-accept on GET. Verify invitation mail is queued after commit and uses the central platform mail transport.
+- [ ] Complete cross-tenant negative tests for every tenant-owned query, nested resource, export, notification, background job, audit view, billing record, and webhook resolver. Rehearse membership revocation/suspension against active sessions and queued work.
+- [ ] Validate tenant resource limits under concurrent requests. Integration provisioning, diagnostic ingestion, and member invitations must serialize on tenant/active-subscription rows; active/invited/suspended members consume seats, pending invitation resend reuses its seat, exact-limit attempts are denied, missing limits fail closed, and duplicate snapshot retries remain idempotent at quota boundaries.
+- [ ] Approve a versioned plan catalogue and immutable entitlement snapshot policy before commercial activation. Verify one current subscription per tenant, immutable plan/price/entitlement snapshots, and an explicit audited plan-replacement transition. Confirm manual invoicing and automated provider collection have distinct authorization/evidence paths; ledger recording alone is not proof that checkout, charge initiation, or provider integration is shipped.
+- [ ] Verify tenant branding is presentation-only and cannot alter platform identity, mail transport, security policy, domain routing, or another tenant's settings. Custom domains, DNS ownership, TLS issuance, and domain takeover protections require a separate reviewed implementation before activation.
+- [ ] Complete PostgreSQL RLS and composite-constraint rehearsal using the production-like non-owner runtime role, including connection-pool context reset, queue context restoration, and cross-tenant denial. SQLite tests do not substitute for PostgreSQL evidence.
+- [ ] Verify platform billing and tenant/customer billing remain separately attributable: platform/reseller subscription and operational charges must not be mixed with tenant invoice/payment ledgers or tenant AI budget caps.
+- [ ] Do not onboard external resellers, enable white-label custom domains, activate paid plans, or expose tenant billing endpoints until all preceding checks, pricing approvals, and independent review are complete.
+
+## Deferred phase — provider activation and tenant billing release gates (not a blocker for this release)
+
+The provider-neutral billing core is implemented, but no payment provider is activated and no public tenant billing webhook route or charge-initiation path is enabled. Treat these as separate release gates:
+
+- [ ] Select the payment provider, verify merchant-account ownership, approve the provider's webhook signature contract/event mapping, and provision provider credentials through the secret manager. No provider secret belongs in Git or chat.
+- [ ] Implement and independently review the selected provider adapter; verify signatures against the exact raw request body, enforce the five-minute timestamp window, and prove tenant/provider/account-scoped reference resolution.
+- [ ] Confirm invoices, subscriptions, automated payments, refunds/disputes, and provider-account bindings remain tenant/provider/account consistent; verify payment and adjustment ledgers remain append-only and refund/lost-dispute totals cannot exceed the original payment.
+- [ ] Provision the separate PostgreSQL billing-operations login and complete the RLS rehearsal. The operations login must be same-database, non-superuser, BYPASSRLS, non-owner, non-inheriting, and SELECT-only on the exact provider-account, webhook-inbox, and outbox allowlist.
+- [ ] Rehearse webhook/outbox delivery under duplicate events, changed-payload replay, concurrent delivery, worker crash, transient failure, retry exhaustion, and dead-letter recovery. Outbox consumers must deduplicate by stable outbox ID because delivery is at-least-once.
+- [ ] Verify manual dead-letter recovery requires tenant `billing.manage`, a constrained reason code, explicit `--confirm`, a still-active/verified provider mapping for webhook replay, and a maximum of three manual replays. Confirm every replay is transactionally audit-recorded without payload or secret disclosure.
+- [ ] Run `php artisan billing:operations:report --json` and verify aggregate-only output, dead-letter/retry/backlog metrics, and fail-closed behavior when the operations role or tables are unavailable.
+- [ ] Verify billing dead letters, processing leases older than five minutes, and due pending backlog older than 15 minutes trigger the existing alert evaluator. Configure and delivery-test approved destinations before enabling production notifications.
+- [ ] Approve the final payment-failure grace policy, provider pricing, price-card version, and production activation plan. The current seven-day grace default is provisional and must not be treated as a final commercial approval.
+- [ ] Do not enable live charges, public webhook ingress, tenant billing, or provider credentials until the preceding checks and independent review are complete.
+
+## Audit, database, and retention release gates
+
+See [`legal-hold-and-diagnostic-retention-runbook.md`](legal-hold-and-diagnostic-retention-runbook.md) for Owner CLI procedures, TOTP requirements, dry-run/execute gates, and fail-closed behavior.
+
+- [ ] The exact PR head SHA has all six required CI jobs green: general CI, PostgreSQL AI-budget/audit concurrency, MySQL 8.4 retention, MariaDB 11.4 retention, SQL Server 2022 retention, and WHMCS PHP 8.1 compatibility.
+- [ ] PostgreSQL migration, runtime, and read-only reporting principals are separate; runtime has DML only and no DDL, migration-ledger read, or audit-event mutation; read-only is SELECT-only on an explicit approved view/table allowlist; migration credentials are deploy-only.
+- [ ] Runtime-role negative privilege tests prove audit UPDATE/DELETE/TRUNCATE, migration-ledger reads, schema CREATE, and integration hard DELETE are rejected; normal audit append and chain verification still work under the runtime login. The read-only role must prove SELECT only on an explicit reporting allowlist and deny unapproved sensitive-table SELECT plus all writes and DDL. PostgreSQL CI runs `tests/Postgres/RuntimeRolePrivilegesTest.php` and `tests/Postgres/ReadOnlyRolePrivilegesTest.php` under disposable roles.
+- [ ] The WHMCS integration retention trigger has passed PostgreSQL and MySQL 8.4 tests; MariaDB 11.4 and SQL Server 2022 dedicated CI jobs must also pass on the exact release SHA. The SQL Server job directly exercises the migration against an isolated SQL Server table.
+- [ ] The report-only diagnostic retention command `php artisan diagnostics:retention:report --days=365` has been run against a restored non-production copy and its candidate/dependent counts reviewed. It does not delete records; legal holds do not change the absolute 365-day cutoff.
+- [x] Legal-hold authority is approved: project Owner authorizes placement and release; every action requires an append-only audit event with owner identity, UTC timestamp, affected scope, reason, and controlled evidence/case reference.
+- [x] Legal-hold schema and Owner-only CLI placement/release commands implemented; `OPERATIONS_OWNER_EMAIL` selects the sole Owner, with verified email, enrolled MFA, and fresh TOTP per action.
+- [x] Placement/release audit events are transactionally coupled to hold-state changes; audit-write failure rolls back the hold change.
+- [x] Diagnostic cleanup is bounded, dry-run by default, disabled by default, requires explicit `--execute`, and marks active direct/descendant holds `expired_by_retention` with immutable audit events before deleting diagnostic content at 365 days.
+- [x] Each diagnostic deletion appends an immutable audit event in the same transaction; audit-write failure rolls back deletion.
+- [ ] Exact PR-head CI, production backup/restore rehearsal, and operational approval must pass before setting `DIAGNOSTICS_RETENTION_CLEANUP_ENABLED=true`.
+- [ ] The external audit anchor is provisioned in a separate security account with **365-day immutable retention**, independent Ed25519 signing key, read-only verifier, alert routing, and a successful restore/read-back drill.
+- [ ] The latest database head matches the newest external signed checkpoint; any unanchored tail and checkpoint age are documented.
+- [x] A standalone public-key-only checkpoint verifier is available at `tools/verify-audit-anchor.php`; it validates the signed envelope, expected environment, optional predecessor digest, strict UTC calendar timestamp, future-clock bound, optional maximum age, and checkpoint SHA-256 without database or private-key access. Tests cover tampering, environment/predecessor mismatch, malformed calendar dates, future timestamps, and stale checkpoints.
+- [x] `php artisan audit:anchor:monitor` fails closed for missing/invalid/stale checkpoints, database-prefix mismatch, future timestamps, and unanchored-tail threshold breaches; automated tests cover healthy, stale, missing, and excessive-tail cases.
+- [x] Provider-neutral `AuditCheckpointPublisher` verifies the signed checkpoint against the local chain, uses a deterministic environment/sequence/digest key, and reports success only after exact-version checksum and 365-day COMPLIANCE retention read-back; after a failed create response it performs lookup-only reconciliation (never retries the write) and accepts success only after exact-version read-back. Fake-store tests cover duplicate, ambiguous, unresolved, version, checksum, and retention failures.
+- [ ] Approve the checkpoint cadence, freshness/tail thresholds, external scheduler identity, and security alert destination; production scheduling and alert delivery are not enabled by this repository.
+- [ ] Complete the provider-specific Wasabi/S3-compatible rehearsal after the independent storage provider and non-production integration-test account are provisioned; prove conditional-create race handling, exact-version checksum read-back, and Object Lock COMPLIANCE retention metadata against the real service before reporting production anchoring ready.
+- [ ] A database backup has been restored in isolation and compared against the newest external checkpoint before any production migration or pilot.
+- [ ] Complete the isolated PostgreSQL backup/restore rehearsal in [`backup-restore-rehearsal-runbook.md`](backup-restore-rehearsal-runbook.md), including Object Lock read-back, runtime-role probes, audit-chain verification, and signed external checkpoint comparison.
+- [x] External immutable audit-backup retention period: **365 days**, approved by the project owner on 2026-11-14.
+- [x] Diagnostic retention policy: absolute 365-day expiry with no exceptions; legal holds remain audited governance metadata and do not extend diagnostic content retention.
+- [x] Legal-hold enforcement and guarded 365-day diagnostic cleanup safeguards are implemented with automated tests. Cleanup remains disabled by default; no schedule is registered and explicit deployment approval is still required.
+- [x] Audit events are explicitly excluded from all automated cleanup under the approved indefinite-retention policy.
+
+## Shahrukh setup checklist — owner-run, not a code-completion blocker
+
+Shahrukh has already granted security-review and release approval. The remaining owner-run environment setup is not a reason to stop repository work:
+
+- [ ] Create the separate Wasabi/security account and bucket; enable S3 Object Lock with COMPLIANCE mode and the approved 365-day retention. Perform the non-production conditional-create, exact-VersionId checksum read-back, and retention metadata rehearsal.
+- [ ] Add the dedicated audit-anchor bucket name, HTTPS endpoint, region, and separate audit credentials to the secret-managed .env using the AUDIT_ANCHOR_* entries in .env.example. Do not reuse the ordinary backup bucket or credentials.
+- [ ] Generate the production Ed25519 signing keypair, retain the private key only in the approved secret manager, configure AUDIT_ANCHOR_PRIVATE_KEY and the matching public key reference/value, and verify the public-key fingerprint. Shahrukh remains the sole signing operator.
+- [ ] Provision the production PostgreSQL identities using the PostgreSQL role separation runbook: rb_migrator (deploy-only DDL/schema owner), rb_runtime (application DML, no DDL or migration-ledger access), rb_readonly (SELECT only on explicitly approved reporting objects), and the separate rb_billing_ops identity (BYPASSRLS, non-superuser/non-owner, SELECT only on the three billing queue/account tables). Configure DB_USERNAME/DB_PASSWORD, DB_MIGRATION_*, DB_READONLY_*, and DB_OPERATIONS_* from the generated credentials. Reconcile grants after migrations and retain sanitized privilege-probe output.
+- [ ] Configure the central mail transport through the platform setting or secret-managed PLATFORM_MAIL_* environment fallbacks. Current default is Log; SMTP is the first production transport; Postmark is the launch transport. Keep all credentials out of Git and chat, and test delivery after configuration.
+- [ ] Run the complete PHP 8.5 test suite on Shahrukh's PC against the final approved SHA and retain the result.
+- [ ] Complete the isolated backup/restore rehearsal using the approved recovery environment and confirm RPO 24 hours / RTO 4 hours.
+
+The exact-head GitHub CI gate, application tests, code review, and release documentation are repository work and must be completed independently of these owner-run tasks. Do not wait for credentials or production infrastructure to continue repository engineering. The approved monitoring thresholds, alert-routing policy, recovery objectives, 365-day Object Lock target, indefinite live audit retention, sole signing operator, and database role model are decisions already made. Live audit events are never automatically deleted; external checkpoint objects use the separately approved 365-day Object Lock period. Never share private keys or database passwords in this repository or chat.
+
+### Deferred separate phase (not a blocker for this release)
+
+First-tenant onboarding/mapping, commercial plan catalogue and pricing, payment-provider selection/activation, tenant billing UI, white-label, and custom domains remain outside this release-readiness scope. No tenant provisioning, provider activation, custom-domain work, or deployment is authorized by this checklist.

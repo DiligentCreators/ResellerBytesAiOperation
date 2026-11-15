@@ -5,6 +5,7 @@ use App\Models\AuditEvent;
 use App\Models\DiagnosticRun;
 use App\Models\IntegrationRequestNonce;
 use App\Models\WhmcsIntegration;
+use App\Models\User;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 
@@ -284,11 +285,12 @@ test('rejects unsigned query parameters on the ingestion endpoint', function () 
         ->and(IntegrationRequestNonce::count())->toBe(0);
 });
 
-test('queues AI analysis after a snapshot is committed when an API key is configured', function () {
+test('defers AI analysis dispatch until the surrounding snapshot transaction commits', function () {
     config(['services.openai.key' => 'test-api-key']);
     Queue::fake();
 
-    $integration = createSignedTestIntegration();
+    $owner = User::factory()->create();
+    $integration = createSignedTestIntegration(['owner_user_id' => $owner->id]);
     $signed = makeSignedSnapshot($integration);
 
     $this->call(
@@ -302,7 +304,8 @@ test('queues AI analysis after a snapshot is committed when an API key is config
     )->assertAccepted()
         ->assertJsonPath('data.status', 'queued');
 
-    Queue::assertPushed(AnalyzeDiagnosticRun::class, function (AnalyzeDiagnosticRun $job) {
+    // This fixture has an owner and API key, so analysis is eligible for dispatch.
+    Queue::assertPushed(AnalyzeDiagnosticRun::class, function (AnalyzeDiagnosticRun $job): bool {
         return DiagnosticRun::whereKey($job->diagnosticRunId)->exists();
     });
 });

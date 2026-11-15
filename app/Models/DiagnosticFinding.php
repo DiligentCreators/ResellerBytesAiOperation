@@ -28,6 +28,7 @@ class DiagnosticFinding extends Model
 
     protected $fillable = [
         'diagnostic_run_id',
+        'tenant_id',
         'fingerprint',
         'category',
         'severity',
@@ -44,6 +45,12 @@ class DiagnosticFinding extends Model
             'evidence' => 'array',
             'confidence' => 'decimal:4',
         ];
+    }
+
+    /** @return BelongsTo<Tenant, $this> */
+    public function tenant(): BelongsTo
+    {
+        return $this->belongsTo(Tenant::class);
     }
 
     /**

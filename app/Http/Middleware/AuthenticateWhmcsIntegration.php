@@ -4,6 +4,8 @@ namespace App\Http\Middleware;
 
 use App\Models\IntegrationRequestNonce;
 use App\Models\WhmcsIntegration;
+use App\Models\Tenant;
+use App\Services\Tenancy\TenantDatabaseContext;
 use Closure;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
@@ -43,10 +45,15 @@ class AuthenticateWhmcsIntegration
             return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
-        $integration = WhmcsIntegration::query()
-            ->whereKey($integrationId)
-            ->where('status', 'active')
-            ->first();
+        $integration = app(TenantDatabaseContext::class)->run(
+            null,
+            null,
+            fn (): ?WhmcsIntegration => WhmcsIntegration::query()
+                ->whereKey($integrationId)
+                ->where('status', 'active')
+                ->first(),
+            $integrationId,
+        );
 
         if (! $integration) {
             return response()->json(['message' => 'Unauthenticated.'], 401);
@@ -88,6 +95,18 @@ class AuthenticateWhmcsIntegration
 
         $request->attributes->set('whmcs_integration', $integration);
 
-        return $next($request);
+        return app(TenantDatabaseContext::class)->run(
+            $integration->tenant_id,
+            $integration->owner_user_id === null ? null : (int) $integration->owner_user_id,
+            function () use ($integration, $next, $request): Response {
+                if ($integration->tenant_id !== null
+                    && ! Tenant::query()->whereKey($integration->tenant_id)->where('status', Tenant::STATUS_ACTIVE)->exists()) {
+                    return response()->json(['message' => 'Integration unavailable.'], 403);
+                }
+
+                return $next($request);
+            },
+            $integration->id,
+        );
     }
 }
