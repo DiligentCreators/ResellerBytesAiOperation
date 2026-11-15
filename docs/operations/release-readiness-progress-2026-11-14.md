@@ -10,7 +10,8 @@
 
 ## Previously verified CI baseline
 
-GitHub Actions run [43506527149](https://github.com/DiligentCreators/ResellerBytesAiOperation/actions/runs/43506527149) passed on the earlier PR head `4d461b08a1a3f95890acbf078e88a394dd36d674`. All four jobs were individually confirmed successful:
+GitHub Actions run [43506527149](https://github.com/DiligentCreators/ResellerBytesAiOperation/actions/runs/43506527149) passed on the earlier PR head `4d461b08a1a3f95890acbf078e88a394dd36d674`. All four jobs were
+individually confirmed successful:
 
 - General CI
 - PostgreSQL AI-budget and audit-chain concurrency
@@ -54,7 +55,8 @@ This run does not verify the later SQL Server/MariaDB additions in this branch.
 
 ## Shahrukh-approved operational decisions — 2026-11-14
 
-The following decisions are approved and are now implementation requirements, not owner-pending decisions:
+The following decisions are approved and are now implementation requirements,
+not owner-pending decisions:
 
 - Monitoring: error rate greater than 2% over 5 minutes; API p95 latency greater than 1.5 seconds; no successful backup for 26 hours; disk at 80% warning and 90% critical; queue jobs older than 15 minutes alert.
 - Routing: owner email plus one Slack or Discord channel; critical notifications additionally through WhatsApp/SMS. All destinations and credentials are runtime environment/secret-manager configuration; no real endpoints or tokens belong in Git.
@@ -63,7 +65,10 @@ The following decisions are approved and are now implementation requirements, no
 - Signing and verifier operations: Shahrukh is the sole initial operator; operator identity model must permit a second trusted operator later.
 - PostgreSQL: separate runtime (read/write, no DDL), deploy-only migration (DDL), and read-only reporting (SELECT only on an explicit approved allowlist) roles.
 
-The config and runbooks record these approved values. Alert delivery, provider adapters, storage provisioning, actual PostgreSQL production roles, and production recovery remain unprovisioned until their external dependencies are supplied.
+The config and runbooks record these approved values. Alert delivery, provider
+adapters, storage provisioning, actual PostgreSQL production roles, and
+production recovery remain unprovisioned until their external dependencies are
+supplied.
 
 ## Latest branch validation and implementation batch
 
@@ -86,7 +91,10 @@ Do not mark these complete until Shahrukh provides or authorizes them:
 6. Arrange and complete the independent security review against the exact reviewed SHA.
 7. Provide final release authorization.
 
-Approved monitoring, alert-routing, recovery, retention, signing-operator, and PostgreSQL role decisions are not pending. No production resource, secret, provider pricing approval, backup access, independent review, or release authorization is inferred from the repository changes.
+Approved monitoring, alert-routing, recovery, retention, signing-operator, and
+PostgreSQL role decisions are not pending. No production resource, secret,
+provider pricing approval, backup access, independent review, or release
+authorization is inferred from the repository changes.
 
 ## Exact-head CI confirmation — 2026-11-14
 
