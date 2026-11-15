@@ -1,14 +1,14 @@
 <?php
 
-namespace App\\Services\\Tenancy;
+namespace App\Services\Tenancy;
 
-use App\\Models\\Tenant;
-use App\\Models\\TenantBillingWebhookEvent;
-use App\\Services\\Audit\\AuditEventWriter;
-use Carbon\\CarbonImmutable;
+use App\Models\Tenant;
+use App\Models\TenantBillingWebhookEvent;
+use App\Services\Audit\AuditEventWriter;
+use Carbon\CarbonImmutable;
 use DateTimeInterface;
-use Illuminate\\Database\\QueryException;
-use Illuminate\\Support\\Facades\\DB;
+use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 use RuntimeException;
 
@@ -66,7 +66,7 @@ class TenantBillingWebhookInbox
 
         try {
             $receivedAt = CarbonImmutable::parse($receivedAt)->utc();
-        } catch (\\Throwable) {
+        } catch (\Throwable) {
             throw new InvalidArgumentException('billing_webhook_received_at_invalid');
         }
 
@@ -221,7 +221,7 @@ class TenantBillingWebhookInbox
             try {
                 $periodStart = CarbonImmutable::parse($payload['period_starts_at']);
                 $periodEnd = CarbonImmutable::parse($payload['period_ends_at']);
-            } catch (\\Throwable) {
+            } catch (\Throwable) {
                 throw new InvalidArgumentException('tenant_subscription_renewal_payload_invalid');
             }
 
