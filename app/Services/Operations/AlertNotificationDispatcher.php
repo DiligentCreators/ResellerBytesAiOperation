@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Operations;
 
 use App\Mail\OperationalAlertMail;
+use App\Models\PlatformMailSettings;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
