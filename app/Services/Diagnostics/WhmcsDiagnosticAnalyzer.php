@@ -147,7 +147,7 @@ class WhmcsDiagnosticAnalyzer
 
         return [
             ...$validated,
-            'response_id' => isset($body['id']) && is_string($body['id']) ? substr($body['id'], 0, 80) : null,
+            'response_id' => isset($body['id']) ? substr($body['id'], 0, 80) : null,
             'usage' => [
                 'input_tokens' => max(0, (int) data_get($body, 'usage.input_tokens', 0)),
                 'output_tokens' => max(0, (int) data_get($body, 'usage.output_tokens', 0)),
