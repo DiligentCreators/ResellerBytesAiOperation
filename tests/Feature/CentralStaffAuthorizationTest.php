@@ -128,3 +128,23 @@ it('lets only the super admin remove a staff account and records the removal', f
         ->and(DB::table('audit_events')->where('event_type', 'central_staff.deleted')
             ->where('subject_id', (string) $staff->id)->exists())->toBeTrue();
 });
+
+it('rolls back a staff permission change when its audit event cannot be appended', function () {
+    $owner = User::factory()->withTwoFactor()->create(['email' => 'owner@example.test']);
+    $staff = User::factory()->withTwoFactor()->create();
+    $access = CentralStaffAccess::query()->create([
+        'user_id' => $staff->id,
+        'permissions' => ['tenants'],
+        'granted_by_user_id' => $owner->id,
+    ]);
+
+    $writer = Mockery::mock(\App\Services\Audit\AuditEventWriter::class);
+    $writer->shouldReceive('append')->once()->andThrow(new RuntimeException('audit_write_failed'));
+    app()->instance(\App\Services\Audit\AuditEventWriter::class, $writer);
+
+    expect(fn () => $this->actingAs($owner)->put('/platform/staff/'.$access->id, [
+        'permissions' => ['billing', 'support'],
+    ]))->toThrow(RuntimeException::class, 'audit_write_failed');
+
+    expect($access->fresh()->permissions)->toBe(['tenants']);
+});
