@@ -6,6 +6,13 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * @property int $amount_due_minor
+ * @property int $amount_paid_minor
+ * @property \\Carbon\\CarbonImmutable|null $issued_at
+ * @property \\Carbon\\CarbonImmutable|null $due_at
+ * @property \\Carbon\\CarbonImmutable|null $paid_at
+ */
 class TenantBillingInvoice extends Model
 {
     protected $fillable = ['tenant_id', 'tenant_subscription_id', 'invoice_number', 'provider', 'provider_account_id', 'provider_invoice_id', 'status', 'currency', 'amount_due_minor', 'amount_paid_minor', 'issued_at', 'due_at', 'paid_at'];
