@@ -1,4 +1,5 @@
 import { Form, Head } from '@inertiajs/react';
+
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
@@ -18,6 +19,11 @@ type Props = {
     staff: Staff[];
     status?: string;
 };
+
+const staffDescription = [
+    'Create separate central admin accounts and grant least-privilege feature permissions.',
+    'The configured super admin always retains full access.',
+].join(' ');
 
 function PermissionChoices({
     permissions,
@@ -57,11 +63,7 @@ export default function CentralStaffPage({
             <div className="space-y-8">
                 <Heading
                     title="Central staff access"
-                    description={
-                        'Create separate central admin accounts and grant ' +
-                        'least-privilege feature permissions. The configured ' +
-                        'super admin always retains full access.'
-                    }
+                    description={staffDescription}
                 />
                 {status && (
                     <p role="status" className="text-sm text-green-700">
@@ -79,14 +81,8 @@ export default function CentralStaffPage({
                         {({ errors, processing }) => (
                             <>
                                 <div className="grid gap-2">
-                                    <Label htmlFor="staff-name">
-                                        Full name
-                                    </Label>
-                                    <Input
-                                        id="staff-name"
-                                        name="name"
-                                        required
-                                    />
+                                    <Label htmlFor="staff-name">Full name</Label>
+                                    <Input id="staff-name" name="name" required />
                                     <InputError message={errors.name} />
                                 </div>
                                 <div className="grid gap-2">
@@ -111,7 +107,9 @@ export default function CentralStaffPage({
                                         autoComplete="new-password"
                                         required
                                     />
-                                    <InputError message={errors.password} />
+                                    <InputError
+                                        message={errors.password}
+                                    />
                                 </div>
                                 <div className="space-y-2">
                                     <Label>Permissions</Label>
