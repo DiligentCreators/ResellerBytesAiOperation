@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 const AUDIT_ANCHOR_DOMAIN = "resellerbytes.audit-anchor.v1\n";
+const AUDIT_ANCHOR_MAX_CHECKPOINT_BYTES = 65536;
 
 function fail(string $reason): never
 {
@@ -29,9 +30,12 @@ if (! is_string($publicKey) || strlen($publicKey) !== SODIUM_CRYPTO_SIGN_PUBLICK
     fail('public key encoding or length is invalid');
 }
 
-$bytes = file_get_contents($checkpointPath);
+$bytes = file_get_contents($checkpointPath, false, null, 0, AUDIT_ANCHOR_MAX_CHECKPOINT_BYTES + 1);
 if (! is_string($bytes)) {
     fail('checkpoint file could not be read');
+}
+if (strlen($bytes) > AUDIT_ANCHOR_MAX_CHECKPOINT_BYTES) {
+    fail('checkpoint file exceeds the 64 KiB size limit');
 }
 
 try {
