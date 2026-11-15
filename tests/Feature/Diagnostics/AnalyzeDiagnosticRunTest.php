@@ -12,6 +12,7 @@ use App\Services\Diagnostics\AiBudgetService;
 use App\Services\Diagnostics\WhmcsDiagnosticAnalyzer;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use RuntimeException;
@@ -527,7 +528,7 @@ it('prevents tenant reassignment after diagnostic history exists', function () {
         'payload_sha256' => str_repeat('e', 64),
     ]);
 
-    expect(fn () => $integration->forceFill(['tenant_id' => $replacementTenant->id])->save())
+    expect(fn () => DB::transaction(fn () => $integration->forceFill(['tenant_id' => $replacementTenant->id])->save()))
         ->toThrow(QueryException::class);
 
     expect($integration->fresh()->tenant_id)->toBe($tenant->id)
