@@ -107,15 +107,16 @@ class TenantSubscriptionLifecycle
 
                 $now = CarbonImmutable::now('UTC');
                 $grace = $graceEndsAt === null
-                    ? $subscription->grace_ends_at
+                    ? ($subscription->grace_ends_at === null ? null : CarbonImmutable::parse($subscription->grace_ends_at)->utc())
                     : CarbonImmutable::instance($graceEndsAt)->utc();
 
                 if ($targetStatus === 'past_due' && ($grace === null || ! $grace->greaterThan($now))) {
                     throw new InvalidArgumentException('tenant_subscription_grace_period_required');
                 }
 
+                $currentPeriodEndsAt = CarbonImmutable::parse($subscription->current_period_ends_at)->utc();
                 if ($targetStatus === 'expired'
-                    && ($subscription->current_period_ends_at->greaterThan($now)
+                    && ($currentPeriodEndsAt->greaterThan($now)
                         || ($subscription->status === 'past_due' && $grace !== null && $grace->greaterThan($now)))) {
                     throw new InvalidArgumentException('tenant_subscription_expiry_before_period_end');
                 }
@@ -212,12 +213,14 @@ class TenantSubscriptionLifecycle
 
                 $this->requireSettledInvoice($tenantId, $subscription, $invoiceId, $provider, $providerAccountId);
 
-                if ($periodStart->startOfSecond()->equalTo($subscription->current_period_starts_at->startOfSecond())
-                    && $periodEnd->startOfSecond()->equalTo($subscription->current_period_ends_at->startOfSecond())) {
+                $currentPeriodStartsAt = CarbonImmutable::parse($subscription->current_period_starts_at)->utc();
+                $currentPeriodEndsAt = CarbonImmutable::parse($subscription->current_period_ends_at)->utc();
+                if ($periodStart->startOfSecond()->equalTo($currentPeriodStartsAt->startOfSecond())
+                    && $periodEnd->startOfSecond()->equalTo($currentPeriodEndsAt->startOfSecond())) {
                     return $subscription;
                 }
 
-                if (! $periodStart->startOfSecond()->equalTo($subscription->current_period_ends_at->startOfSecond())) {
+                if (! $periodStart->startOfSecond()->equalTo($currentPeriodEndsAt->startOfSecond())) {
                     throw new InvalidArgumentException('tenant_subscription_renewal_period_gap');
                 }
 
