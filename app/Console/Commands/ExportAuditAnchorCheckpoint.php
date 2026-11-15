@@ -20,7 +20,7 @@ class ExportAuditAnchorCheckpoint extends Command
             $this->output->write($anchors->createCheckpoint($previousDigest));
         } catch (Throwable) {
             // Database and key-provider exceptions may contain sensitive infrastructure details.
-            $this->error('Audit anchor export failed. Check the sanitized operational logs and configuration.')
+            $this->error('Audit anchor export failed. Check the sanitized operational logs and configuration.');
 
             return self::FAILURE;
         }
