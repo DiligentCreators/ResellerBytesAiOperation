@@ -26,7 +26,9 @@ export default function MailSettings(props: Props) {
             <div className="space-y-6">
                 <Heading
                     title="Platform outbound email"
-                    description="One central mail configuration for platform and tenant system messages."
+                    description={
+                        'One central mail configuration for platform and tenant system messages.'
+                    }
                 />
                 {props.status && (
                     <p role="status" className="text-sm text-green-700">
@@ -55,7 +57,9 @@ export default function MailSettings(props: Props) {
                                 <InputError message={errors.driver} />
                             </div>
 
-                            <p className="text-sm text-muted-foreground">SMTP fields</p>
+                            <p className="text-sm text-muted-foreground">
+                                SMTP fields
+                            </p>
                             <div className="grid gap-2">
                                 <Label htmlFor="smtp_host">SMTP host</Label>
                                 <Input
@@ -76,7 +80,9 @@ export default function MailSettings(props: Props) {
                                 <InputError message={errors.smtp_port} />
                             </div>
                             <div className="grid gap-2">
-                                <Label htmlFor="smtp_encryption">SMTP encryption</Label>
+                                <Label htmlFor="smtp_encryption">
+                                    SMTP encryption
+                                </Label>
                                 <select
                                     id="smtp_encryption"
                                     name="smtp_encryption"
@@ -147,7 +153,9 @@ export default function MailSettings(props: Props) {
                                 )}
                             </div>
 
-                            <p className="text-sm text-muted-foreground">Postmark fields</p>
+                            <p className="text-sm text-muted-foreground">
+                                Postmark fields
+                            </p>
                             <div className="grid gap-2">
                                 <Label htmlFor="postmark_server_token">
                                     Postmark server token
@@ -166,7 +174,9 @@ export default function MailSettings(props: Props) {
                                             : 'Enter server token'
                                     }
                                 />
-                                <InputError message={errors.postmark_server_token} />
+                                <InputError
+                                    message={errors.postmark_server_token}
+                                />
                                 {props.postmark_token_set && (
                                     <label className="flex items-center gap-2 text-sm">
                                         <input
@@ -193,7 +203,9 @@ export default function MailSettings(props: Props) {
                                 Sender identity (required for SMTP/Postmark)
                             </p>
                             <div className="grid gap-2">
-                                <Label htmlFor="from_address">From address</Label>
+                                <Label htmlFor="from_address">
+                                    From address
+                                </Label>
                                 <Input
                                     id="from_address"
                                     name="from_address"
@@ -211,7 +223,9 @@ export default function MailSettings(props: Props) {
                                 />
                                 <InputError message={errors.from_name} />
                             </div>
-                            <Button disabled={processing}>Save mail settings</Button>
+                            <Button disabled={processing}>
+                                Save mail settings
+                            </Button>
                         </>
                     )}
                 </Form>
@@ -224,7 +238,9 @@ export default function MailSettings(props: Props) {
                     {({ processing, errors }) => (
                         <>
                             <div className="grid flex-1 gap-2">
-                                <Label htmlFor="recipient">Send test email to</Label>
+                                <Label htmlFor="recipient">
+                                    Send test email to
+                                </Label>
                                 <Input
                                     id="recipient"
                                     name="recipient"
