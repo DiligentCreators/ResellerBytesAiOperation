@@ -105,11 +105,11 @@ evidence from the real isolated environment.
 - Verify transactional outbox/inbox identity and payload immutability,
   provider-accountbinding, idempotent reconciliation, at-least-once outbox
   delivery,and consumer deduplication by stable outbox ID.
-- Dead-letter replay must require tenant `billing.manage`, explicit command confirmation,
-  constrainedreason code, and a maximum of three manual replays. Webhook replay
-  additionallyrequires the original provider-account mapping to remain active
-  andverified; that mapping is row-locked with the tenant and event during
-  replay.
+- Dead-letter replay must require tenant `billing.manage`, explicit command
+  confirmation, constrainedreason code, and a maximum of three manual replays.
+  Webhook replay additionallyrequires the original provider-account mapping to
+  remain active andverified; that mapping is row-locked with the tenant and
+  event during replay.
 - Verify replay state changes and audit evidence are atomic, and logs/reports
   excludetenant/provider/event identifiers, signatures, payloads, and raw
   exceptiontext.
@@ -223,9 +223,9 @@ evidence from the real isolated environment.
 - **Legal hold:** Wrong Owner, missing MFA, stale TOTP, duplicate hold, expiry
   atthe 365-day boundary and audit append failure. Evidence: LegalHoldTest and
   auditevents.
-- **Retention:** UTC inclusive cutoff, expired `received`/`queued`/`analyzing` states, bounded
-  batch,audit failure rollback and held target still expiring. Evidence:
-  retentionand queue-recovery tests.
+- **Retention:** UTC inclusive cutoff, expired `received`/`queued`/`analyzing`
+  states, bounded batch,audit failure rollback and held target still expiring.
+  Evidence: retentionand queue-recovery tests.
 - **Checkpoint:** Signature tamper, environment/predecessor mismatch,
   stale/futuretimestamp, duplicate key, missing version, checksum and retention
   mismatch,plus rejection of checkpoint files larger than 64 KiB before
@@ -251,19 +251,19 @@ evidence from the real isolated environment.
    remaindisabled until Shahrukh supplies the retention period; do not assume
    365days for backups.
 3. Secret-manager access, backup encryption key, and dedicated production
-   backup/restorecredentials are pending.
+   backup/restore credentials are pending.
 4. Isolated backup/restore rehearsal access is pending. RPO is 24 hours and RTO
    is4 hours; no rehearsal evidence exists yet.
 5. The PostgreSQL backup tool does not cover the separate WHMCS/MariaDB
-   database,uploaded files, or external provider state.
+   database, uploaded files, or external provider state.
 6. Backups above 5 GB fail closed until a multipart Object Lock adapter is
    implemented.
 7. Production alert destinations and provider-specific WhatsApp/SMS bridges are
-   notprovisioned or delivery-tested.
+   not provisioned or delivery-tested.
 8. External audit checkpoint production bucket, actual Object Lock
    configuration/read-back rehearsal, independent verifier schedule, and
-   productionalerting are not provisioned. The S3-compatible adapter and manual
-   publisherare implemented.
+   production alerting are not provisioned. The S3-compatible adapter and manual
+   publisher are implemented.
 9. Production Ed25519 key custody and key-rotation transition support remain
    pending.
 10. AI provider pricing and production price-card approval remain pending.
@@ -285,19 +285,19 @@ The last previously confirmed green run before subsequent hardening was run
 general CI 203 passed, 3 skipped, 915 assertions). Four concurrent commits
 landed without [skip ci] after the cost rule and triggered extra runs:
 - Commit 555f92ef6b5c828562f3d4e19b84e63da48759a6, run #43599729637: five matrix
-  jobspassed; general CI failed the formatting check for
+  jobs passed; general CI failed the formatting check for
   docs/operations/external-audit-anchor-monitoring-and-storage.md.
 - Commit a831220273d0de4387c9c84979761216ad72537e, run #43600418285: five matrix
-  jobspassed; general CI failed 30 tests after a backup manager test changed
-  database.defaultto an unreachable PostgreSQL host, causing cascading SQLite
-  transactionfailures.
+  jobs passed; general CI failed 30 tests after a backup manager test changed
+  database.default to an unreachable PostgreSQL host, causing cascading SQLite
+  transaction failures.
 - Commit 591aeadbf5b3eecbdfa0b3dee012481397ef3a80, run #43600581151: five matrix
-  jobspassed; general CI failed with the same test-only database.default
-  mutationand cascading SQLite transaction errors.
+  jobs passed; general CI failed with the same test-only database.default
+  mutation and cascading SQLite transaction errors.
 - Commit 466be2ef87e0536dded23eb6acb802f4b27ab512, run #43600781118: five matrix
-  jobspassed; general CI failed formatting checks in the external audit-anchor
-  document,release-readiness progress document, and security-review readiness
-  pack.Those three Markdown files have since been reflowed.
+  jobs passed; general CI failed formatting checks in the external audit-anchor
+  document, release-readiness progress document, and security-review readiness
+  pack. Those three Markdown files have since been reflowed.
 
 The current code changes add a pure restore-target identity check and remove the
 test's database-connection mutation. The current documentation formatting
@@ -318,31 +318,31 @@ them. Do not request secrets in chat; use the approved secret-manager/deployment
 process.
 
 - Wasabi account/billing, production backup bucket, dedicated IAM credentials,
-  andthe explicitly approved backup Object Lock retention period.
+  and the explicitly approved backup Object Lock retention period.
 - Production secret-manager access/policy, backup encryption key, and dedicated
-  backup/restorecredentials; no application runtime credential may inherit
-  migrationor restore privileges.
+  backup/restore credentials; no application runtime credential may inherit
+  migration or restore privileges.
 - Production PostgreSQL provisioning and evidence for separate runtime,
-  migration-owner,and billing-operations roles, including the exact least-
-  privilegegrants and independent negative-privilege rehearsal.
+  migration-owner, and billing-operations roles, including the exact least-
+  privilege grants and independent negative-privilege rehearsal.
 - Production Ed25519 private-key custody, trusted public-key distribution,
-  rotation-transitionapproval, external audit checkpoint bucket/Object Lock,
-  cross-accountaccess, exact-version read-back, and independent verifier
-  schedule/alertrouting.
+  rotation-transition approval, external audit checkpoint bucket/Object Lock,
+  cross-account access, exact-version read-back, and independent verifier
+  schedule/alert routing.
 - Isolated backup/restore rehearsal environment and access, including the
-  separateWHMCS/MariaDB database and uploaded-file recovery scope; RPO is 24
-  hoursand RTO is 4 hours. No rehearsal evidence exists yet.
+  separate WHMCS/MariaDB database and uploaded-file recovery scope; RPO is 24
+  hours and RTO is 4 hours. No rehearsal evidence exists yet.
 - AI provider pricing verification, approved production price card, and
-  provider-account/credentialactivation. No live billable provider call is
-  authorizedby this checklist.
+  provider-account/credential activation. No live billable provider call is
+  authorized by this checklist.
 - Production SMTP account/configuration and approved secret delivery. SMTP is
-  thefirst live transport, Postmark is reserved for launch, and Log remains the
-  currentdefault; never place mail credentials in chat or source control.
+  the first live transport, Postmark is reserved for launch, and Log remains the
+  current default; never place mail credentials in chat or source control.
 - Production alert delivery configuration and delivery test for the approved
-  Shahrukhdestination, including any separately approved WhatsApp/SMS bridge.
+  Shahrukh destination, including any separately approved WhatsApp/SMS bridge.
 - PHP 8.5 runtime/dependency environment for exact-head local validation.
 - Independent security review against the exact final PR head SHA and final
-  releaseauthorization.
+  release authorization.
 
 These items do not authorize a merge, deployment, production migration, or
 restore. Each remains a separate evidence/approval gate.
