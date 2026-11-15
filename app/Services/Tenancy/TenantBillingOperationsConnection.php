@@ -96,8 +96,9 @@ SQL);
             }
 
             foreach (['tenant_billing_provider_accounts', 'tenant_billing_webhook_events', 'tenant_billing_outbox'] as $requiredTable) {
-                if (! $operations->selectOne('SELECT to_regclass(?) AS table_name', ['public.'.$requiredTable])?->table_name
-                    || ! $operations->selectOne('SELECT has_table_privilege(current_user, ?, \'SELECT\') AS can_select', ['public.'.$requiredTable])?->can_select) {
+                $tableExists = $operations->selectOne('SELECT to_regclass(?) AS table_name', ['public.'.$requiredTable]);
+                $readPrivilege = $operations->selectOne('SELECT has_table_privilege(current_user, ?, \'SELECT\') AS can_select', ['public.'.$requiredTable]);
+                if (! is_string($tableExists?->table_name) || ! filter_var($readPrivilege?->can_select, FILTER_VALIDATE_BOOLEAN)) {
                     throw new RuntimeException('billing_operations_database_required_read_privilege_missing');
                 }
             }
