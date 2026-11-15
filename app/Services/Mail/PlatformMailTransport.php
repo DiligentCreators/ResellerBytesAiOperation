@@ -20,8 +20,8 @@ class PlatformMailTransport extends AbstractTransport
             throw new \RuntimeException('platform_mail_message_type_unsupported');
         }
 
-        $html = $email->getHtmlBody() ?? '';
-        $text = $email->getTextBody() ?? strip_tags($html);
+        $html = (string) ($email->getHtmlBody() ?? '');
+        $text = (string) ($email->getTextBody() ?? strip_tags($html));
         foreach ($email->getTo() as $recipient) {
             $this->mailer->send($recipient->getAddress(), (string) $email->getSubject(), $html, $text);
         }
