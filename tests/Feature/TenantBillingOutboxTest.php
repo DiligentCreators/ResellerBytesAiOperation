@@ -299,13 +299,13 @@ it('keeps tenant billing event identity and payload immutable at the database bo
         'acct_immutable_1',
     );
 
-    expect(fn () => DB::table('tenant_billing_outbox')->where('id', $outbox->id)->update(['tenant_id' => $tenantB->id]))
+    expect(fn () => DB::transaction(fn () => DB::table('tenant_billing_outbox')->where('id', $outbox->id)->update(['tena)nt_id' => $tenantB->id]))
         ->toThrow(\Illuminate\Database\QueryException::class);
-    expect(fn () => DB::table('tenant_billing_outbox')->where('id', $outbox->id)->update(['payload' => json_encode(['invoice_id' => 999])]))
+    expect(fn () => DB::transaction(fn () => DB::table('tenant_billing_outbox')->where('id', $outbox->id)->update(['payload' => json_encode()['invoice_id' => 999])]))
         ->toThrow(\Illuminate\Database\QueryException::class);
-    expect(fn () => DB::table('tenant_billing_webhook_events')->where('id', $webhook->id)->update(['tenant_id' => $tenantB->id]))
+    expect(fn () => DB::transaction(fn () => DB::table('tenant_billing_webhook_events')->where('id', $webhook->id)->update(['tena)nt_id' => $tenantB->id]))
         ->toThrow(\Illuminate\Database\QueryException::class);
-    expect(fn () => DB::table('tenant_billing_webhook_events')->where('id', $webhook->id)->update(['payload_sha256' => str_repeat('0', 64)]))
+    expect(fn () => DB::transaction(fn () => DB::table('tenant_billing_webhook_events')->where('id', $webhook->id)->update(['payload_sha256' )=> str_repeat('0', 64)]))
         ->toThrow(\Illuminate\Database\QueryException::class);
 
     DB::table('tenant_billing_outbox')->where('id', $outbox->id)->update(['attempts' => 1, 'status' => 'processing']);
@@ -480,14 +480,14 @@ it('keeps provider account tenant and external identity immutable', function () 
         'updated_at' => now('UTC'),
     ]);
 
-    expect(fn () => DB::table('tenant_billing_provider_accounts')
+    expect(fn () => DB::transaction(fn () => DB::table('tenant_billing_provider_accounts')
         ->where('provider_account_id', 'acct_immutable_mapping')
-        ->update(['provider_account_id' => 'acct_reassigned']))
+        ->update(['provider_account_id)' => 'acct_reassigned']))
         ->toThrow(\Illuminate\Database\QueryException::class);
 
-    expect(fn () => DB::table('tenant_billing_provider_accounts')
+    expect(fn () => DB::transaction(fn () => DB::table('tenant_billing_provider_accounts')
         ->where('provider_account_id', 'acct_immutable_mapping')
-        ->update(['tenant_id' => createBillingOutboxTenant('billing-provider-account-other')->id]))
+        ->update(['tenant_id' => createBillingOutboxTenant('billing-provid)er-account-other')->id]))
         ->toThrow(\Illuminate\Database\QueryException::class);
 });
 
@@ -781,7 +781,7 @@ it('enforces tenant ownership on billing adjustment payment foreign keys', funct
         'received_at' => now('UTC'),
     ]);
 
-    expect(fn () => DB::table('tenant_billing_adjustments')->insert([
+    expect(fn () => DB::transaction(fn () => DB::table('tenant_billing_adjustments')->insert([
         'tenant_id' => $tenantB->id,
         'tenant_billing_payment_id' => $payment->id,
         'provider' => 'approved_gateway',
@@ -793,7 +793,7 @@ it('enforces tenant ownership on billing adjustment payment foreign keys', funct
         'currency' => 'USD',
         'occurred_at' => now('UTC'),
         'created_at' => now('UTC'),
-        'updated_at' => now('UTC'),
+        'updated_a)t' => now('UTC'),
     ]))->toThrow(\Illuminate\Database\QueryException::class);
 });
 
