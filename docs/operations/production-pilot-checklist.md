@@ -73,7 +73,7 @@ Do not change PHP versions, cron commands, file permissions, OPcache, WHMCS dire
 
 The first pilot validates collection and transport only. It does not authorize repairs.
 
-## Hybrid SaaS tenant, entitlement, and white-label release gates
+## Deferred phase — hybrid SaaS tenant, entitlement, and white-label gates (not a blocker for this release)
 
 - [ ] Obtain Shahrukh's explicit first-tenant name/slug and per-integration ownership mapping. Keep every unmapped legacy integration quarantined with `tenant_id = NULL`; never infer a default tenant or membership.
 - [ ] Provision tenant owner membership only for the approved, verified, TOTP-enabled account. Verify invite links are signed, expire after seven days, are bound to the intended account and pending membership, and never auto-accept on GET. Verify invitation mail is queued after commit and uses the central platform mail transport.
@@ -85,7 +85,7 @@ The first pilot validates collection and transport only. It does not authorize r
 - [ ] Verify platform billing and tenant/customer billing remain separately attributable: platform/reseller subscription and operational charges must not be mixed with tenant invoice/payment ledgers or tenant AI budget caps.
 - [ ] Do not onboard external resellers, enable white-label custom domains, activate paid plans, or expose tenant billing endpoints until all preceding checks, pricing approvals, and independent review are complete.
 
-## Tenant billing and recovery release gates
+## Deferred phase — provider activation and tenant billing release gates (not a blocker for this release)
 
 The provider-neutral billing core is implemented, but no payment provider is activated and no public tenant billing webhook route or charge-initiation path is enabled. Treat these as separate release gates:
 
