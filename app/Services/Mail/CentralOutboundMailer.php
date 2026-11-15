@@ -47,7 +47,7 @@ class CentralOutboundMailer
         $driver = $settings?->driver ?? config('platform_mail.driver', 'log');
 
         if ($driver === 'log') {
-            Log::info('outbound_mail.preview', ['driver' => 'log', 'subject' => $subject]);
+            Log::info('outbound_mail.preview', ['driver' => 'log']);
             return;
         }
 
@@ -68,7 +68,7 @@ class CentralOutboundMailer
             $username = (string) ($config['username'] ?? '');
             $password = (string) ($config['password'] ?? '');
 
-            if (! in_array($encryption, ['none', 'tls', 'ssl'], true)) {
+            if (! in_array($encryption, ['tls', 'ssl'], true)) {
                 throw new RuntimeException('platform_mail_smtp_configuration_invalid');
             }
             if (($username === '') !== ($password === '')) {
@@ -86,10 +86,6 @@ class CentralOutboundMailer
                     'timeout' => 10,
                     'local_domain' => parse_url((string) config('app.url'), PHP_URL_HOST) ?: 'localhost',
                 ]);
-
-                if ($encryption === 'none') {
-                    $mailer->getSymfonyTransport()->setAutoTls(false);
-                }
 
                 $mailer->html($html, function ($message) use ($to, $subject, $from, $name, $text): void {
                     $message->to($to)->from($from, $name)->subject($subject)->text($text);
