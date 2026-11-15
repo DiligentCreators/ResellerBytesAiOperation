@@ -8,6 +8,7 @@ use App\Jobs\AnalyzeDiagnosticRun;
 use App\Models\DiagnosticRun;
 use App\Models\WhmcsIntegration;
 use App\Services\Audit\AuditEventWriter;
+use App\Services\Tenancy\TenantResourceLimitService;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Carbon;
@@ -32,6 +33,10 @@ class StoreDiagnosticSnapshotController extends Controller
 
         try {
             $run = DB::transaction(function () use ($integration, $validated, $payloadHash, $request): DiagnosticRun {
+                if ($integration->tenant_id !== null) {
+                    app(TenantResourceLimitService::class)->requireDiagnosticCapacity($integration->tenant_id);
+                }
+
                 $run = DiagnosticRun::create([
                     'integration_id' => $integration->id,
                     'tenant_id' => $integration->tenant_id,
