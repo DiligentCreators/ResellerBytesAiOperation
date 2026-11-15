@@ -162,6 +162,71 @@ class PlatformMailSettingsTest extends TestCase
         Http::assertNothingSent();
     }
 
+
+    public function test_clearing_postmark_token_blocks_environment_fallback(): void
+    {
+        config([
+            'operations.owner_email' => 'owner@example.test',
+            'platform_mail.postmark.server_token' => 'environment-token',
+        ]);
+        $user = User::factory()->create(['email' => 'owner@example.test']);
+        PlatformMailSettings::query()->create(['id' => 1, 'driver' => 'postmark', 'configuration' => [
+            'server_token' => 'saved-token',
+            'message_stream' => 'outbound',
+            'from_address' => 'mail@example.test',
+            'from_name' => 'ResellerBytes',
+        ]]);
+
+        $this->actingAs($user)->put('/platform/mail-settings', [
+            'driver' => 'postmark',
+            'from_address' => 'mail@example.test',
+            'from_name' => 'ResellerBytes',
+            'postmark_message_stream' => 'outbound',
+            'clear_postmark_token' => '1',
+        ])->assertSessionHasErrors('postmark_server_token');
+
+        $this->assertSame('saved-token', PlatformMailSettings::query()->findOrFail(1)->configuration['server_token']);
+    }
+
+    public function test_cleared_smtp_credentials_do_not_reappear_from_environment(): void
+    {
+        config([
+            'operations.owner_email' => 'owner@example.test',
+            'platform_mail.smtp.username' => 'environment-user',
+            'platform_mail.smtp.password' => 'environment-password',
+        ]);
+        $user = User::factory()->create(['email' => 'owner@example.test']);
+        PlatformMailSettings::query()->create(['id' => 1, 'driver' => 'smtp', 'configuration' => [
+            'host' => 'smtp.example.test',
+            'port' => 587,
+            'encryption' => 'tls',
+            'username' => 'saved-user',
+            'password' => 'saved-password',
+            'from_address' => 'mail@example.test',
+            'from_name' => 'ResellerBytes',
+        ]]);
+
+        $this->actingAs($user)->put('/platform/mail-settings', [
+            'driver' => 'smtp',
+            'from_address' => 'mail@example.test',
+            'from_name' => 'ResellerBytes',
+            'smtp_host' => 'smtp.example.test',
+            'smtp_port' => 587,
+            'smtp_encryption' => 'tls',
+            'clear_smtp_username' => '1',
+            'clear_smtp_password' => '1',
+        ])->assertRedirect();
+
+        $fakeMailer = \\Mockery::mock();
+        $fakeMailer->shouldReceive('html')->once();
+        Mail::shouldReceive('build')->once()
+            ->with(\\Mockery::on(fn (array $config): bool => $config['username'] === null
+                && $config['password'] === null))
+            ->andReturn($fakeMailer);
+
+        app(CentralOutboundMailer::class)->send('recipient@example.test', 'Test', '<p>test</p>', 'test');
+    }
+
     public function test_log_driver_never_contacts_external_transport(): void
     {
         PlatformMailSettings::query()->create(['id' => 1, 'driver' => 'log', 'configuration' => []]);
