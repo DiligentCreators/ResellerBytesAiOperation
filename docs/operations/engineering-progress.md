@@ -456,3 +456,10 @@ A green CI run is necessary but does not close these release gates or authorize 
 - Removed unencrypted SMTP (`none`) from the settings UI and server-side validation. SMTP now requires STARTTLS or implicit TLS; the transport no longer disables automatic TLS negotiation.
 - Added regression coverage for redacted Log-mode output and rejection of unencrypted SMTP configuration. The tests are authored but not executed; PHP 8.5 and the project runtime dependencies are still required.
 - SMTP remains the first live transport, Postmark remains the launch transport, and Log remains the active default. No mail credentials were requested or changed. All commits use `[skip ci]`; no workflow file or repository setting was changed.
+
+### Audit checkpoint command output hardening — 2026-11-15
+
+- Sanitized checkpoint export and publication command failures. Raw exception messages are no longer written to terminal output, preventing database, key-provider, object-storage endpoint, account, or CLI diagnostic details from leaking through operator command output.
+- Added a regression test for export failure output when the independent signing key is not configured.
+- Existing local hash-chain verification, PostgreSQL append-only trigger/privilege boundary, signed external checkpoint verification, and immutable Object Lock publisher remain in place. Production anchoring and provider rehearsal remain owner-controlled gates.
+- Tests are authored but not executed; PHP 8.5 and the project runtime dependencies are still required. All commits use `[skip ci]`; no workflow file or repository setting was changed.
