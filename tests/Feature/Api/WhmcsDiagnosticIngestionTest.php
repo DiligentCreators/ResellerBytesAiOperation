@@ -5,6 +5,7 @@ use App\Models\AuditEvent;
 use App\Models\DiagnosticRun;
 use App\Models\IntegrationRequestNonce;
 use App\Models\WhmcsIntegration;
+use App\Models\User;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 
@@ -288,7 +289,8 @@ test('defers AI analysis dispatch until the surrounding snapshot transaction com
     config(['services.openai.key' => 'test-api-key']);
     Queue::fake();
 
-    $integration = createSignedTestIntegration();
+    $owner = User::factory()->create();
+    $integration = createSignedTestIntegration(['owner_user_id' => $owner->id]);
     $signed = makeSignedSnapshot($integration);
 
     $this->call(
