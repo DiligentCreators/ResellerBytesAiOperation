@@ -54,3 +54,19 @@ it('refuses to restore a backup unless database name host and port all match', f
     expect(fn () => $backups->assertRestoreTargetMatches($matchingIdentity))
         ->not->toThrow(RuntimeException::class);
 });
+
+it('requires backup and manifest read-back to confirm the exact immutable version', function () {
+    $backups = app(BackupArchiveManager::class);
+
+    expect(fn () => $backups->assertExactVersionReadBack('version-123', 'version-123', 'Backup'))
+        ->not->toThrow(RuntimeException::class);
+
+    expect(fn () => $backups->assertExactVersionReadBack('version-123', null, 'Backup'))
+        ->toThrow(RuntimeException::class, 'exact-version read-back could not be confirmed');
+
+    expect(fn () => $backups->assertExactVersionReadBack('version-123', '', 'Backup manifest'))
+        ->toThrow(RuntimeException::class, 'exact-version read-back could not be confirmed');
+
+    expect(fn () => $backups->assertExactVersionReadBack('version-123', 'version-456', 'Backup manifest'))
+        ->toThrow(RuntimeException::class, 'exact-version read-back could not be confirmed');
+});
