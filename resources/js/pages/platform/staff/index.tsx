@@ -101,8 +101,8 @@ export default function CentralStaffPage({
                                 </div>
                                 <div className="grid gap-2">
                                     <Label htmlFor="staff-password">
-                                        {'Temporary password (14+ characters; mixed case, ' +
-                                            'number and symbol)'}
+                                        {'Temporary password (14+ characters; ' +
+                                            'mixed case, number and symbol)'}
                                     </Label>
                                     <Input
                                         id="staff-password"
@@ -119,8 +119,8 @@ export default function CentralStaffPage({
                                         permissions={permissions}
                                     />
                                     <InputError
-                                            message={errors.permissions}
-                                        />
+                                        message={errors.permissions}
+                                    />
                                 </div>
                                 <Button disabled={processing}>
                                     Create staff account
