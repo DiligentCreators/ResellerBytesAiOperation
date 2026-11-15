@@ -475,6 +475,7 @@ it('settles confirmed provider usage before surfacing an unsuccessful HTTP respo
     $providerResponse->getBody()->rewind();
     $response = new \Illuminate\Http\Client\Response($providerResponse);
     expect($response->body())->toBe($rawBody);
+    $providerResponse->getBody()->rewind();
 
     Http::fake(fn () => $response);
 
