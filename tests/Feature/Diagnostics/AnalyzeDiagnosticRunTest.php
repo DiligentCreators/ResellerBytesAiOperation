@@ -497,6 +497,7 @@ it('settles confirmed provider usage before surfacing an unsuccessful HTTP respo
             'total_tokens' => 130,
         ],
     ]);
+    Http::assertSentCount(1);
 });
 
 
