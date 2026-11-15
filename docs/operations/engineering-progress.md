@@ -556,3 +556,15 @@ A green CI run is necessary but does not close these release gates or authorize 
 - Additional entitlement integrity: database triggers now make each tenant subscription's commercial snapshot immutable after provisioning (plan code, billing mode, currency, unit price, and entitlement JSON); period/status transitions remain available for renewals. Added regression coverage for attempted entitlement and price mutation. `requireLimit` also rejects negative requested quantities.
 - Extended quota enforcement to tenant member seats: active, invited, and suspended memberships consume the configured `members` allowance; revoked memberships do not. A pending invitation resend reuses its seat, while new or revoked-member invitations fail at the exact limit. Tenant row locking serializes invite/seat allocation. Lifecycle and invitation fixtures now include explicit seat entitlements, with exact-capacity and resend coverage.
 - Subscription integrity follow-up: PostgreSQL and SQLite now enforce a single current subscription snapshot per tenant across trialing/active/past_due/suspended states. Plan replacement must terminalize the prior snapshot before inserting the next; a regression test rejects overlapping current subscriptions. Updated the reactivation lifecycle test to supply the fully settled invoice/payment evidence required by the implementation rather than attempting an unbacked status flip.
+
+
+### Central staff RBAC implementation — 2026-11-15
+
+- Added a dedicated central staff access table with a fixed permission allowlist: tenants, billing, support, settings, and audit. This application authorization is separate from PostgreSQL runtime, migration, read-only, and billing-operations roles.
+- The configured OPERATIONS_OWNER_EMAIL identity is the sole super admin and always receives all permissions without a staff row. Staff creation, permission changes, and removal are super-admin-only; staff cannot escalate themselves.
+- Added immutable, transactional audit evidence for staff creation, before/after permission changes, and removal. Password material is excluded from audit metadata.
+- Added central staff administration UI and permission-based access to platform mail settings. Existing tenant membership routes retain their independent tenant-scoped authorization and are not accidentally gated by central staff permissions.
+- Protected the configured super admin from profile deletion and changing the configured email identity.
+- Added feature coverage for super-admin all-permission behavior, explicit staff allowlists, denied self-escalation, settings permission enforcement, audit events, and super-admin profile protection.
+- Documented OPERATIONS_OWNER_EMAIL bootstrap and central RBAC operations in docs/operations/central-staff-rbac.md. Empty permissions are supported for newly created or existing staff.
+- Current branch head: 5462ac5669df0e4c0dcbaa0ab68ff7e998e291a0 at the time of this entry. All continuation commits use [skip ci]. PHP 8.5 test execution and exact-head CI remain deferred until the final one-shot commit. No workflow file, repository setting, production resource, or deployment was changed.
