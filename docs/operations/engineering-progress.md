@@ -665,3 +665,10 @@ merge, migration, or deployment.
 - Wrapped the remaining long checklist/reviewer bullets, normalized section spacing, and aligned short JSX elements with the configured print width.
 - The provider test now uses a fresh literal-JSON response for each request (rather than reusing a response object), and retains the named afterResponse callback plus request assertion. This avoids a consumed response stream masking the usage callback.
 - These are [skip ci] remediations. Current head: bd977b775a5da4f07b7e4b08f8a8242d920759f1; 167 commits ahead and 0 behind the verified handoff head. No workflow file or repository setting changed. One final non-[skip ci] commit will verify the repaired head.
+
+### Final CI handoff after #719 — 2026-11-15
+
+- PR #2 description records runs #713 through #719 and each remediation cycle.
+- Pre-final head: 6bcf8e7cc86fe7a4e344a38bac864f107a20ddf5; 168 commits ahead and 0 behind the verified handoff head. No workflow files or repository settings changed.
+- The fresh provider-response fake, PostgreSQL-safe tenant-remap tests, Markdown normalization, and TSX formatting adjustments are complete. All remediation commits use [skip ci].
+- This is the final documentation change before the next non-[skip ci] commit. Keep PR #2 Draft until all six jobs pass.
