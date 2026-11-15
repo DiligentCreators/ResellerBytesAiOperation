@@ -304,8 +304,9 @@ test('defers AI analysis dispatch until the surrounding snapshot transaction com
     )->assertAccepted()
         ->assertJsonPath('data.status', 'queued');
 
-    // RefreshDatabase keeps the outer transaction open, so afterCommit must not dispatch early.
-    Queue::assertNothingPushed();
+    Queue::assertPushed(AnalyzeDiagnosticRun::class, function (AnalyzeDiagnosticRun $job): bool {
+        return DiagnosticRun::whereKey($job->diagnosticRunId)->exists();
+    });
 });
 
 test('rejects arbitrary collector metadata instead of forwarding it to AI', function () {
