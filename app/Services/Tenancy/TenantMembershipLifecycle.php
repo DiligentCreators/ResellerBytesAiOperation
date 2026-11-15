@@ -3,6 +3,7 @@
 namespace App\Services\Tenancy;
 
 use App\Models\Tenant;
+use App\Jobs\SendTenantMembershipInvitation;
 use App\Models\TenantMembership;
 use App\Models\User;
 use App\Services\Audit\AuditEventWriter;
@@ -52,6 +53,8 @@ class TenantMembershipLifecycle
             }
 
             $this->audit($actor, $tenantId, 'tenant.membership.invited', $membership, ['target_user_id' => $target->getKey(), 'role' => $role], $ip);
+            SendTenantMembershipInvitation::dispatch($tenantId, $membership->id, (int) $target->getKey())->afterCommit();
+
             return $membership;
         });
     }
