@@ -114,18 +114,14 @@ export default function CentralStaffPage({
                                         autoComplete="new-password"
                                         required
                                     />
-                                    <InputError
-                                        message={errors.password}
-                                    />
+                                    <InputError message={errors.password} />
                                 </div>
                                 <div className="space-y-2">
                                     <Label>Permissions</Label>
                                     <PermissionChoices
                                         permissions={permissions}
                                     />
-                                    <InputError
-                                        message={errors.permissions}
-                                    />
+                                    <InputError message={errors.permissions} />
                                 </div>
                                 <Button disabled={processing}>
                                     Create staff account
