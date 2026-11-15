@@ -26,11 +26,11 @@ function signedWhmcsSnapshotRequest(
             ],
             'php' => [
                 'memory_limit' => '256M',
-                'extensions' => [],
+                'extensions' => ['curl'],
             ],
             'collector' => [
-                'capabilities' => [],
-                'limitations' => [],
+                'capabilities' => ['snapshot_v1'],
+                'limitations' => ['none'],
             ],
         ],
     ];
