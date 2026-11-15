@@ -76,6 +76,12 @@ $provider = $adjustment->provider;
 $account = $adjustment->provider_account_id;
 $now = now('UTC');
 
+$mappingId = null;
+$outboxId = null;
+$webhookId = null;
+$createdMapping = false;
+
+try {
 $mapping = $operations->table('tenant_billing_provider_accounts')
     ->where('provider', $provider)
     ->where('provider_account_id', $account)
@@ -133,7 +139,6 @@ $webhookId = $operations->table('tenant_billing_webhook_events')->insertGetId([
 ]);
 
 
-try {
     $runtime->statement("SELECT set_config('app.current_tenant_id', ?, false)", [$tenantA]);
     $runtime->statement("SELECT set_config('app.current_user_id', '', false)");
 
@@ -189,9 +194,13 @@ try {
         'adjustment_fixture_id' => $adjustmentId,
     ], JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR).PHP_EOL);
 } finally {
-    $operations->table('tenant_billing_webhook_events')->where('id', $webhookId)->delete();
-    $operations->table('tenant_billing_outbox')->where('id', $outboxId)->delete();
-    if ($createdMapping) {
+    if ($webhookId !== null) {
+        $operations->table('tenant_billing_webhook_events')->where('id', $webhookId)->delete();
+    }
+    if ($outboxId !== null) {
+        $operations->table('tenant_billing_outbox')->where('id', $outboxId)->delete();
+    }
+    if ($createdMapping && $mappingId !== null) {
         $operations->table('tenant_billing_provider_accounts')->where('id', $mappingId)->delete();
     }
 }
