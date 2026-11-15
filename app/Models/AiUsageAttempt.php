@@ -7,6 +7,12 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use LogicException;
 
+/**
+ * @property \\Carbon\\CarbonImmutable|null $submitted_at
+ * @property \\Carbon\\CarbonImmutable|null $settled_at
+ * @property \\Carbon\\CarbonImmutable|null $reconciled_at
+ * @property \\Carbon\\CarbonImmutable|null $reconciliation_approved_at
+ */
 class AiUsageAttempt extends Model
 {
     use HasUuids;
