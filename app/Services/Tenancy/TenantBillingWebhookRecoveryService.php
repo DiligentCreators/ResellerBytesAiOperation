@@ -46,6 +46,7 @@ class TenantBillingWebhookRecoveryService
                 ->where('provider_account_id', $event->provider_account_id)
                 ->where('status', 'active')
                 ->whereNotNull('verified_at')
+                ->lockForUpdate()
                 ->first();
 
             if ($mapping === null) {
