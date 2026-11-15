@@ -463,3 +463,11 @@ A green CI run is necessary but does not close these release gates or authorize 
 - Added a regression test for export failure output when the independent signing key is not configured.
 - Existing local hash-chain verification, PostgreSQL append-only trigger/privilege boundary, signed external checkpoint verification, and immutable Object Lock publisher remain in place. Production anchoring and provider rehearsal remain owner-controlled gates.
 - Tests are authored but not executed; PHP 8.5 and the project runtime dependencies are still required. All commits use `[skip ci]`; no workflow file or repository setting was changed.
+
+
+### Queue worker crash visibility — 2026-11-15
+
+- Queue telemetry now retains explicit queued/processing state and UTC processing start time. A worker crash no longer erases the in-flight sample at job start.
+- Successful completion and terminal failure clear the sample; delayed retries return it to queued state with the new availability time. Queue age reporting excludes processing jobs, while a separate processing-age metric feeds the approved 15-minute alert threshold.
+- Added regression coverage for queued → processing → finished lifecycle, processing-age telemetry, and stale-worker alert evaluation. Runtime tests remain unexecuted pending PHP 8.5 and dependencies.
+- Every intermediate commit uses [skip ci]. No workflow file or repository setting changed; PR #2 remains Open + Draft, with no merge or deployment.
