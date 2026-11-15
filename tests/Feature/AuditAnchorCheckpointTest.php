@@ -142,3 +142,16 @@ it('does not expose key or infrastructure exception details from checkpoint expo
         ->and(Artisan::output())->toContain('Audit anchor export failed.')
         ->and(Artisan::output())->not->toContain('AUDIT_ANCHOR_PRIVATE_KEY_not_configured');
 });
+
+
+it('rejects an oversized local checkpoint before JSON parsing', function () {
+    $path = tempnam(sys_get_temp_dir(), 'rb-anchor-large-');
+    file_put_contents($path, str_repeat('x', 65537));
+
+    try {
+        expect(Artisan::call('audit:anchor:verify', ['checkpoint' => $path]))->toBe(1)
+            ->and(Artisan::output())->toContain('exceeds the 64 KiB size limit');
+    } finally {
+        @unlink($path);
+    }
+});
