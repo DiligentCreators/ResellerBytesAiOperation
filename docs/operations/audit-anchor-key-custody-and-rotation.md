@@ -17,7 +17,7 @@ Scope: Ed25519 key pair used only to sign external audit-chain checkpoints
 
 The application reads base64-encoded `AUDIT_ANCHOR_PRIVATE_KEY` and `AUDIT_ANCHOR_PUBLIC_KEY`. Export fails closed if the pair is missing, malformed, mismatched, or equal to the configured WHMCS addon signing key. Verification requires only the public key and validates the detached signature and environment.
 
-The current checkpoint envelope does not carry a key identifier and the verifier supports one configured public key at a time. Therefore, production key rotation is **not yet a routine zero-downtime operation**. Do not replace the configured public key until a versioned key registry / key-id transition and historical verification workflow have been implemented and tested. Retain the old public key and fingerprint indefinitely for verification of checkpoints signed by that key.
+The current checkpoint envelope does not carry a key identifier and the verifier supports one configured public key at a time. All three verification entry points (independent verifier, local verify command, and monitor command) now reject checkpoint files larger than 64 KiB before JSON parsing. Therefore, production key rotation is **not yet a routine zero-downtime operation**. Do not replace the configured public key until a versioned key registry / key-id transition and historical verification workflow have been implemented and tested. Retain the old public key and fingerprint indefinitely for verification of checkpoints signed by that key.
 
 ## Initial key generation
 
