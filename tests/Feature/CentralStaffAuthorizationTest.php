@@ -88,3 +88,16 @@ it('protects the configured super admin from self-deletion and identity changes'
 
     expect(User::query()->whereKey($owner->id)->exists())->toBeTrue();
 });
+
+it('allows staff to use only the central settings area explicitly granted to them', function () {
+    $owner = User::factory()->withTwoFactor()->create(['email' => 'owner@example.test']);
+    $staff = User::factory()->withTwoFactor()->create();
+    CentralStaffAccess::query()->create([
+        'user_id' => $staff->id,
+        'permissions' => ['settings'],
+        'granted_by_user_id' => $owner->id,
+    ]);
+
+    $this->actingAs($staff)->get('/platform/mail-settings')->assertOk();
+    $this->actingAs($staff)->get('/platform/staff')->assertForbidden();
+});
