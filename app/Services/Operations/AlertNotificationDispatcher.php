@@ -24,7 +24,10 @@ class AlertNotificationDispatcher
         $deliveries = [];
 
         $email = config('operations.alerts.email');
-        $mailDriver = PlatformMailSettings::query()->find(1)?->driver ?? config('platform_mail.driver', 'log');
+        $mailSettings = PlatformMailSettings::query()->find(1);
+        $mailDriver = $mailSettings instanceof PlatformMailSettings
+            ? $mailSettings->driver
+            : config('platform_mail.driver', 'log');
         if ($mailDriver === 'log') {
             $deliveries['email'] = 'not_sent';
         } elseif (is_string($email) && filter_var($email, FILTER_VALIDATE_EMAIL) !== false) {
