@@ -2,6 +2,10 @@
 
 use App\Models\Tenant;
 use App\Models\TenantBillingInvoice;
+use App\Models\DiagnosticRun;
+use App\Models\WhmcsIntegration;
+use App\Services\Tenancy\TenantResourceLimitService;
+use Illuminate\Support\Str;
 use App\Models\TenantMembership;
 use App\Models\TenantSubscription;
 use App\Models\User;
@@ -166,4 +170,49 @@ it('rejects cross-tenant invoice payment and overpayment without ledger mutation
 
     expect($invoice->fresh()->amount_paid_minor)->toBe(0)
         ->and($invoice->payments()->count())->toBe(0);
+});
+
+
+it('enforces tenant diagnostic quota at the exact inclusive limit', function () {
+    $tenant = Tenant::create(['name' => 'Quota Workspace', 'slug' => 'quota-workspace', 'status' => Tenant::STATUS_ACTIVE]);
+    createTenantSubscriptionFixture($tenant, [
+        'entitlements' => ['limits' => ['diagnostics_per_period' => 1]],
+    ]);
+
+    $owner = User::factory()->create();
+    $integration = WhmcsIntegration::create([
+        'owner_user_id' => $owner->id,
+        'tenant_id' => $tenant->id,
+        'name' => 'Quota integration',
+        'status' => 'active',
+        'secret' => bin2hex(random_bytes(32)),
+        'secret_version' => 1,
+    ]);
+
+    expect(app(TenantResourceLimitService::class)->requireDiagnosticCapacity($tenant->id)->tenant_id)
+        ->toBe($tenant->id);
+
+    DiagnosticRun::create([
+        'integration_id' => $integration->id,
+        'tenant_id' => $tenant->id,
+        'snapshot_uuid' => (string) Str::uuid(),
+        'schema_version' => '1.0',
+        'addon_version' => '1.0.0',
+        'status' => 'received',
+        'collected_at' => now(),
+        'received_at' => now(),
+        'payload' => ['system' => ['whmcs_version' => '8.13.7']],
+        'payload_sha256' => str_repeat('a', 64),
+    ]);
+
+    expect(fn () => app(TenantResourceLimitService::class)->requireDiagnosticCapacity($tenant->id))
+        ->toThrow(AuthorizationException::class, 'tenant diagnostic allowance');
+});
+
+it('fails closed when the active tenant plan omits a diagnostic quota', function () {
+    $tenant = Tenant::create(['name' => 'Unmetered Quota Workspace', 'slug' => 'unmetered-quota-workspace', 'status' => Tenant::STATUS_ACTIVE]);
+    createTenantSubscriptionFixture($tenant, ['entitlements' => ['diagnostics.analysis' => true]]);
+
+    expect(fn () => app(TenantResourceLimitService::class)->requireDiagnosticCapacity($tenant->id))
+        ->toThrow(AuthorizationException::class, 'resource limit is not configured');
 });
