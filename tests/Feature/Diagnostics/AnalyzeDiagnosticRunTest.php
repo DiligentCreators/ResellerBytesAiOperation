@@ -455,29 +455,19 @@ it('settles confirmed provider usage before surfacing an unsuccessful HTTP respo
     ]);
 
     config()->set('services.openai.key', 'test-provider-key');
-    $rawBody = json_encode([
-        'id' => 'resp_confirmed_usage_error',
-        'status' => 'failed',
-        'usage' => [
-            'input_tokens' => 100,
-            'input_tokens_details' => ['cached_tokens' => 20],
-            'output_tokens' => 30,
-            'total_tokens' => 130,
-        ],
-        'error' => ['code' => 'provider_processing_error'],
-    ], JSON_THROW_ON_ERROR);
-
-    $providerResponse = new \GuzzleHttp\Psr7\Response(
-        500,
-        ['Content-Type' => 'application/json'],
-        $rawBody,
-    );
-    $providerResponse->getBody()->rewind();
-    $response = new \Illuminate\Http\Client\Response($providerResponse);
-    expect($response->body())->toBe($rawBody);
-    $providerResponse->getBody()->rewind();
-
-    Http::fake(fn () => $response);
+    Http::fake([
+        '*' => Http::response([
+            'id' => 'resp_confirmed_usage_error',
+            'status' => 'failed',
+            'usage' => [
+                'input_tokens' => 100,
+                'input_tokens_details' => ['cached_tokens' => 20],
+                'output_tokens' => 30,
+                'total_tokens' => 130,
+            ],
+            'error' => ['code' => 'provider_processing_error'],
+        ], 500, ['Content-Type' => 'application/json']),
+    ]);
 
     $settled = null;
     expect(fn () => app(WhmcsDiagnosticAnalyzer::class)->analyze(
