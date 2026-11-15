@@ -2,13 +2,14 @@
 
 use App\Models\Tenant;
 use App\Models\TenantMembership;
+use App\Models\TenantSubscription;
 use App\Models\User;
 use App\Services\Tenancy\TenantMembershipLifecycle;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\DB;
 
-function membershipLifecycleFixture(): array
+function membershipLifecycleFixture(int $memberLimit = 10): array
 {
     $tenant = Tenant::create([
         'name' => 'Membership Lifecycle Workspace',
@@ -29,6 +30,17 @@ function membershipLifecycleFixture(): array
         'role' => TenantMembership::ROLE_ADMIN,
         'status' => TenantMembership::STATUS_ACTIVE,
         'accepted_at' => now(),
+    ]);
+    TenantSubscription::create([
+        'tenant_id' => $tenant->id,
+        'plan_code' => 'membership-test-plan',
+        'billing_mode' => 'manual',
+        'status' => 'active',
+        'currency' => 'USD',
+        'unit_amount_minor' => 0,
+        'entitlements' => ['limits' => ['members' => $memberLimit]],
+        'current_period_starts_at' => now()->subDay(),
+        'current_period_ends_at' => now()->addMonth(),
     ]);
 
     return [$tenant, $owner, $admin, $invitee];
@@ -146,4 +158,18 @@ it('reissues a pending invitation without creating a duplicate membership', func
         ->and($resent->role)->toBe(TenantMembership::ROLE_OPERATOR)
         ->and($tenant->memberships()->where('user_id', $invitee->id)->count())->toBe(1)
         ->and(DB::table('audit_events')->where('tenant_id', $tenant->id)->where('event_type', 'tenant.membership.invited')->count())->toBe(2);
+});
+
+it('enforces tenant member seats while allowing pending invitation resend in the same seat', function () {
+    [$tenant, $owner, $admin, $invitee] = membershipLifecycleFixture(3);
+    $lifecycle = app(TenantMembershipLifecycle::class);
+    $first = $lifecycle->invite($admin, $tenant->id, $invitee->email, TenantMembership::ROLE_VIEWER);
+    $resent = $lifecycle->invite($owner, $tenant->id, $invitee->email, TenantMembership::ROLE_OPERATOR);
+
+    expect($resent->id)->toBe($first->id)
+        ->and($resent->role)->toBe(TenantMembership::ROLE_OPERATOR);
+
+    $another = User::factory()->create(['email_verified_at' => now()]);
+    expect(fn () => $lifecycle->invite($admin, $tenant->id, $another->email, TenantMembership::ROLE_VIEWER))
+        ->toThrow(AuthorizationException::class, 'member limit has been reached');
 });
