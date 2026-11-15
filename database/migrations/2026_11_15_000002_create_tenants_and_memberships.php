@@ -66,6 +66,7 @@ return new class extends Migration
         }
     }
 
+    // SQLite table rebuilds drop triggers created by earlier retention migrations.
     private function restoreSqliteIntegrationRetentionTrigger(): void
     {
         DB::unprepared(<<<'SQL'
