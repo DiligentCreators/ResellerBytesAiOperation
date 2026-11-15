@@ -527,3 +527,11 @@ A green CI run is necessary but does not close these release gates or authorize 
 - Production Wasabi compatibility still requires a real owner-provisioned COMPLIANCE-mode rehearsal; this code-level guard does not claim provider validation.
 
 - Backup manifest persistence now verifies the complete byte count and applies private file permissions before hashing/upload. The secretstream file cipher also closes an already-open source stream if destination creation fails; regression coverage now includes truncated and trailing archive data rejection.
+
+
+### Billing recovery and external audit-anchor edge-case review — 2026-11-15
+
+- Webhook dead-letter recovery now locks the active, verified provider-account mapping inside the same tenant-scoped transaction that locks the tenant and webhook event. This serializes replay authorization against concurrent provider-account deactivation; tenant identity, provider/event identity, and payload remain immutable.
+- External audit-anchor exact-version downloads now read at most 64 KiB + 1 byte before returning content, matching the independent/application checkpoint verifier limit and preventing an unexpectedly oversized remote object from causing an unbounded memory read.
+- Added an S3-adapter regression test for oversized exact-version downloads. Existing billing recovery tests already cover inactive/unverified mapping rejection, tenant authorization, replay ceiling, state reset, and immutable audit evidence; publisher tests cover ambiguous-create lookup-only recovery, exact-version read-back, checksum, and COMPLIANCE retention failures.
+- Tests remain unexecuted pending PHP 8.5 and project dependencies. No provider/cloud rehearsal was run. No workflow file or repository setting was changed; all commits in this batch include [skip ci].
