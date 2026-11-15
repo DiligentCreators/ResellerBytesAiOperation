@@ -11,3 +11,4 @@ parameters:
         - routes/
 
     level: 7
+    treatPhpDocTypesAsCertain: false
