@@ -148,6 +148,11 @@ final class BackupArchiveManager
             if (! is_string($manifestVersionId) || trim($manifestVersionId) === '') {
                 throw new RuntimeException('Wasabi did not return a version ID for the backup manifest.');
             }
+            $manifestSize = filesize($manifestPath);
+            if (! is_int($manifestSize) || $manifestSize < 2 || $manifestSize > 1_048_576) {
+                throw new RuntimeException('Backup manifest exceeds the 1 MiB validation limit.');
+            }
+
             $manifestContents = file_get_contents($manifestPath);
             if (! is_string($manifestContents)) {
                 throw new RuntimeException('Unable to read backup manifest.');
@@ -162,10 +167,14 @@ final class BackupArchiveManager
                 || ! is_string($manifest['object_key'] ?? null)
                 || ! str_starts_with($manifest['object_key'], 'backups/')
                 || ! is_string($manifest['encrypted_sha256'] ?? null)
+                || preg_match('/^[a-f0-9]{64}$/D', $manifest['encrypted_sha256']) !== 1
                 || ! is_string($manifest['plaintext_sha256'] ?? null)
+                || preg_match('/^[a-f0-9]{64}$/D', $manifest['plaintext_sha256']) !== 1
                 || ! is_string($manifest['object_version_id'] ?? null)
                 || trim($manifest['object_version_id']) === ''
                 || ! is_numeric($manifest['encrypted_bytes'] ?? null)
+                || (int) $manifest['encrypted_bytes'] < 1
+                || (int) $manifest['encrypted_bytes'] > 5_000_000_000
                 || ! is_string($manifest['retention_until'] ?? null)
                 || ! is_string($manifest['database_host'] ?? null)
                 || trim($manifest['database_host']) === ''
@@ -189,6 +198,11 @@ final class BackupArchiveManager
             );
 
             $createdAt = CarbonImmutable::parse($manifest['created_at'])->utc();
+            $expectedObjectKey = 'backups/'.$createdAt->format('Y/m/d').'/'.$backupId.'.rbbackup';
+            if (! hash_equals($expectedObjectKey, $manifest['object_key'])) {
+                throw new RuntimeException('Backup manifest object key does not match its backup identity.');
+            }
+
             $expectedRetention = $createdAt->addDays($settings['retention_days']);
             $manifestRetention = CarbonImmutable::parse($manifest['retention_until'])->utc();
             if ($manifestRetention->lessThan($expectedRetention->subMinute())) {
@@ -638,11 +652,14 @@ final class BackupArchiveManager
         }
 
         try {
-            file_put_contents($temporary, json_encode([
+            $contents = json_encode([
                 'backup_id' => $backupId,
                 'created_at' => $createdAt->toIso8601String(),
-            ], JSON_THROW_ON_ERROR));
-            chmod($temporary, 0600);
+            ], JSON_THROW_ON_ERROR);
+            if (file_put_contents($temporary, $contents, LOCK_EX) !== strlen($contents)
+                || ! chmod($temporary, 0600)) {
+                throw new RuntimeException('Unable to write the complete private backup success marker.');
+            }
 
             if (! rename($temporary, $path)) {
                 throw new RuntimeException('Unable to atomically update backup success marker.');
