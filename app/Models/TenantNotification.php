@@ -5,6 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property array<string, mixed> $payload
+ * @property \\Carbon\\CarbonImmutable|null $read_at
+ * @property \\Carbon\\CarbonImmutable $created_at
+ */
 class TenantNotification extends Model
 {
     public $timestamps = false;
