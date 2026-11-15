@@ -86,7 +86,14 @@ final class OperationalMetricsSource
      * Aggregate billing queue health under the separately guarded operations role.
      * Null metrics preserve active alerts when telemetry or role configuration is unavailable.
      *
-     * @return array<string, int|float|null>
+     * @return array{
+     *   billing_webhook_dead_letter_count: int|null,
+     *   billing_outbox_dead_letter_count: int|null,
+     *   billing_webhook_stale_processing_count: int|null,
+     *   billing_outbox_stale_processing_count: int|null,
+     *   billing_webhook_oldest_pending_age_minutes: float|null,
+     *   billing_outbox_oldest_pending_age_minutes: float|null
+     * }
      */
     private function billingQueueMetrics(CarbonImmutable $observedAt): array
     {
@@ -150,7 +157,7 @@ final class OperationalMetricsSource
             }
 
             $createdAt = CarbonImmutable::createFromFormat('!Y-m-d\\TH:i:sP', $marker['created_at']);
-            if ($createdAt === false
+            if ($createdAt === null
                 || $createdAt->toIso8601String() !== $marker['created_at']
                 || $createdAt->greaterThan($observedAt->addMinutes(5))) {
                 return null;
