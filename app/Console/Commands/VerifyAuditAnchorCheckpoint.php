@@ -8,6 +8,7 @@ use Throwable;
 
 class VerifyAuditAnchorCheckpoint extends Command
 {
+    private const MAX_CHECKPOINT_BYTES = 65536;
     protected $signature = 'audit:anchor:verify {checkpoint : Path to the downloaded signed checkpoint JSON} {--expected-previous= : Expected prior checkpoint SHA-256 digest}';
 
     protected $description = 'Verify an external signed audit checkpoint against the local audit-chain prefix';
@@ -21,9 +22,14 @@ class VerifyAuditAnchorCheckpoint extends Command
             return self::FAILURE;
         }
 
-        $bytes = file_get_contents($path);
+        $bytes = file_get_contents($path, false, null, 0, self::MAX_CHECKPOINT_BYTES + 1);
         if ($bytes === false) {
             $this->error('Unable to read the checkpoint file.');
+
+            return self::FAILURE;
+        }
+        if (strlen($bytes) > self::MAX_CHECKPOINT_BYTES) {
+            $this->error('Audit checkpoint exceeds the 64 KiB size limit.');
 
             return self::FAILURE;
         }
