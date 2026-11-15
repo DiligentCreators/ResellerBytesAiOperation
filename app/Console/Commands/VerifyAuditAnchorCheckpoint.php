@@ -40,7 +40,7 @@ class VerifyAuditAnchorCheckpoint extends Command
         try {
             $result = $anchors->verifyCheckpoint($bytes, $expectedPrevious);
         } catch (Throwable $exception) {
-            $this->error('Audit anchor verification failed: '.$exception->getMessage());
+            $this->error('Audit anchor verification failed. Check sanitized operational logs and configuration.');
 
             return self::FAILURE;
         }
