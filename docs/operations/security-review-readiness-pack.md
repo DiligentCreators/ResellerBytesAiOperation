@@ -243,16 +243,39 @@ checkout/dependencies are not mounted. Do not describe unexecuted tests as passi
 
 ## 7. Owner-controlled pending inputs
 
-Keep these pending until Shahrukh supplies or approves them:
+Keep these pending until Shahrukh supplies, provisions, or explicitly approves them.
+Do not request secrets in chat; use the approved secret-manager/deployment process.
 
-- Wasabi account and billing, bucket provisioning, and backup retention days.
-- Production Ed25519 key custody and trusted public-key distribution.
-- Secret-manager access and access policy.
-- AI provider pricing verification and production price-card approval.
-- Isolated backup/restore rehearsal environment and access.
-- Independent security review against the exact final SHA.
-- Final release authorization.
+- Wasabi account/billing, production backup bucket, dedicated IAM credentials,
+  and the explicitly approved backup Object Lock retention period.
+- Production secret-manager access/policy, backup encryption key, and dedicated
+  backup/restore credentials; no application runtime credential may inherit
+  migration or restore privileges.
+- Production PostgreSQL provisioning and evidence for separate runtime,
+  migration-owner, and billing-operations roles, including the exact least-
+  privilege grants and independent negative-privilege rehearsal.
+- Production Ed25519 private-key custody, trusted public-key distribution,
+  rotation-transition approval, external audit checkpoint bucket/Object Lock,
+  cross-account access, exact-version read-back, and independent verifier
+  schedule/alert routing.
+- Isolated backup/restore rehearsal environment and access, including the
+  separate WHMCS/MariaDB database and uploaded-file recovery scope; RPO is
+  24 hours and RTO is 4 hours. No rehearsal evidence exists yet.
+- AI provider pricing verification, approved production price card, and
+  provider-account/credential activation. No live billable provider call is
+  authorized by this checklist.
+- Production SMTP account/configuration and approved secret delivery. SMTP is
+  the first live transport, Postmark is reserved for launch, and Log remains
+  the current default; never place mail credentials in chat or source control.
+- Production alert delivery configuration and delivery test for the approved
+  Shahrukh destination, including any separately approved WhatsApp/SMS bridge.
+- PHP 8.5 runtime/dependency environment for exact-head local validation.
+- Independent security review against the exact final PR head SHA and final
+  release authorization.
 
+These items do not authorize a merge, deployment, production migration, or
+restore. Each remains a separate evidence/approval gate.
+ 
 ## 8. Reviewer disposition
 
 - Exact reviewed PR head SHA:
