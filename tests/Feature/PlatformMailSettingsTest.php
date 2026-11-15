@@ -218,10 +218,10 @@ class PlatformMailSettingsTest extends TestCase
             'clear_smtp_password' => '1',
         ])->assertRedirect();
 
-        $fakeMailer = \\Mockery::mock();
+        $fakeMailer = \Mockery::mock();
         $fakeMailer->shouldReceive('html')->once();
         Mail::shouldReceive('build')->once()
-            ->with(\\Mockery::on(fn (array $config): bool => $config['username'] === null
+            ->with(\Mockery::on(fn (array $config): bool => $config['username'] === null
                 && $config['password'] === null))
             ->andReturn($fakeMailer);
 
