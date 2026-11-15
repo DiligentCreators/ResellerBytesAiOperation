@@ -71,12 +71,6 @@ final class RestoreOperationalBackup extends Command
             // ahead of the destructive restore and immutable approval record.
             $preRestore = $backups->create();
 
-            if ($production && ! $this->verifyOwnerTotp((string) $ownerEmail, $twoFactorProvider)) {
-                $this->error('Fresh owner TOTP verification failed. The pre-restore backup is preserved; no restore was performed.');
-
-                return self::FAILURE;
-            }
-
             $backups->recordRestoreApproval([
                 'schema_version' => 1,
                 'action' => 'postgresql_restore',
@@ -87,6 +81,14 @@ final class RestoreOperationalBackup extends Command
                 'approved_at' => now()->toImmutable()->utc()->toIso8601String(),
                 'environment' => app()->environment(),
             ]);
+
+            // Verify the second factor only after remote approval evidence is durable,
+            // immediately before the destructive database operation.
+            if ($production && ! $this->verifyOwnerTotp((string) $ownerEmail, $twoFactorProvider)) {
+                $this->error('Fresh owner TOTP verification failed. The pre-restore backup and approval evidence are preserved; no restore was performed.');
+
+                return self::FAILURE;
+            }
 
             $backups->restore($artifact);
 
