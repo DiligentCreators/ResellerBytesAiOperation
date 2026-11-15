@@ -9,6 +9,7 @@ use Throwable;
 class VerifyAuditAnchorCheckpoint extends Command
 {
     private const MAX_CHECKPOINT_BYTES = 65536;
+
     protected $signature = 'audit:anchor:verify {checkpoint : Path to the downloaded signed checkpoint JSON} {--expected-previous= : Expected prior checkpoint SHA-256 digest}';
 
     protected $description = 'Verify an external signed audit checkpoint against the local audit-chain prefix';
@@ -39,7 +40,7 @@ class VerifyAuditAnchorCheckpoint extends Command
 
         try {
             $result = $anchors->verifyCheckpoint($bytes, $expectedPrevious);
-        } catch (Throwable $exception) {
+        } catch (Throwable) {
             $this->error('Audit anchor verification failed. Check sanitized operational logs and configuration.');
 
             return self::FAILURE;
