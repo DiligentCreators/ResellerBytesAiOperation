@@ -1503,3 +1503,11 @@ merge, migration, or deployment.
 - Updated AI-budget test fixtures to copy the immutable tenant_id to diagnostic runs; updated AnalyzeDiagnosticRun tests to pass the captured owner and tenant context; corrected the provider fake to match the full HTTPS URL and asserted the intended entitlement exception.
 - Reworked stale diagnostic recovery tenant-status filtering from a LEFT JOIN to a correlated EXISTS predicate. The transactional row lock now covers only the diagnostic run and its required integration inner join, avoiding PostgreSQL's FOR UPDATE nullable-side restriction while preserving active-tenant filtering.
 - These are [skip ci] remediation commits. The next single non-[skip ci] commit will trigger one more six-job matrix; all prior run #715 failures are from the pre-remediation head.
+
+
+### One-shot final CI after PostgreSQL and formatting fixes — 2026-11-15
+
+- PR #2 description records all three earlier CI attempts, their exact failures, and the remediation evidence.
+- Current pre-final head: 50e66e56babac8d7579b79ba6b2bc622f581ca5e; 96 commits ahead and 0 behind the verified handoff head. No workflow files or repository settings changed.
+- The source/migration repairs, 13-file formatter pass, tenant-context test corrections, and PostgreSQL-safe recovery locking are complete. All intermediate remediation commits use [skip ci].
+- This is the final documentation change before the next single non-[skip ci] commit. Keep PR #2 open and Draft until every required CI job passes.
