@@ -535,3 +535,11 @@ A green CI run is necessary but does not close these release gates or authorize 
 - External audit-anchor exact-version downloads now read at most 64 KiB + 1 byte before returning content, matching the independent/application checkpoint verifier limit and preventing an unexpectedly oversized remote object from causing an unbounded memory read.
 - Added an S3-adapter regression test for oversized exact-version downloads. Existing billing recovery tests already cover inactive/unverified mapping rejection, tenant authorization, replay ceiling, state reset, and immutable audit evidence; publisher tests cover ambiguous-create lookup-only recovery, exact-version read-back, checksum, and COMPLIANCE retention failures.
 - Tests remain unexecuted pending PHP 8.5 and project dependencies. No provider/cloud rehearsal was run. No workflow file or repository setting was changed; all commits in this batch include [skip ci].
+
+
+### Consolidated release-readiness checklist update — 2026-11-15
+
+- Extended the production-pilot checklist with explicit provider selection/adapter, tenant/provider/account binding, append-only payment/adjustment ledger, PostgreSQL billing-operations RLS, at-least-once consumer deduplication, bounded audited replay, aggregate operations reporting, and alert-delivery gates.
+- Extended the independent security-review pack with billing webhook/outbox recovery trust boundaries and adversarial cases, including concurrent provider-account deactivation during replay. Provider activation remains disabled.
+- Consolidated owner-controlled release inputs in the pilot checklist: cloud/Wasabi and Object Lock provisioning; secret-manager and Ed25519 key custody; PostgreSQL role provisioning; isolated PostgreSQL + WHMCS/MariaDB + uploaded-file recovery rehearsal; payment-provider/merchant ownership/grace/pricing decisions; production SMTP and alert delivery; PHP 8.5 validation; independent review; and final release authorization.
+- No workflow file or repository setting was changed. Tests remain unexecuted because PHP 8.5 and project dependencies are unavailable in this environment; no CI run has been triggered. PR #2 remains Open + Draft, unmerged and undeployed.
