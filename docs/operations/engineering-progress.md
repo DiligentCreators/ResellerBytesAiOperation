@@ -449,3 +449,10 @@ A green CI run is necessary but does not close these release gates or authorize 
 - Defined DBA provisioning for the dedicated `rb_billing_ops` role and added sanitized verification queries in the PostgreSQL role-separation runbook.
 - Changed PostgreSQL RLS rehearsal fixture creation and cleanup to use the tenant-scoped runtime role after setting tenant context, not the RLS-bypass operations role. The rehearsal now checks the operations role's effective read allowlist and role inheritance and search-path boundaries.
 - No production role was provisioned and no PostgreSQL rehearsal was executed. PHP 8.5 runtime validation and isolated PostgreSQL credentials remain pending. All commits use `[skip ci]`; workflow files and repository settings were not changed.
+
+### Central mail transport hardening — 2026-11-15
+
+- Removed message subjects from Log-driver preview records; the Log transport now records only the transport event and driver, not recipient, subject, or message content.
+- Removed unencrypted SMTP (`none`) from the settings UI and server-side validation. SMTP now requires STARTTLS or implicit TLS; the transport no longer disables automatic TLS negotiation.
+- Added regression coverage for redacted Log-mode output and rejection of unencrypted SMTP configuration. The tests are authored but not executed; PHP 8.5 and the project runtime dependencies are still required.
+- SMTP remains the first live transport, Postmark remains the launch transport, and Log remains the active default. No mail credentials were requested or changed. All commits use `[skip ci]`; no workflow file or repository setting was changed.
