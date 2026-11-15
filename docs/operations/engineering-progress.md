@@ -511,3 +511,11 @@ A green CI run is necessary but does not close these release gates or authorize 
 
 - Bounded the operational backup-success marker parser to 4 KiB + 1 byte before JSON decoding. Oversized, malformed, missing, or future-dated markers remain unavailable and therefore cannot falsely satisfy the 26-hour successful-backup alert.
 - Added regression coverage for oversized marker rejection. No marker contents are logged or exposed in metrics.
+
+
+### Backup and audit verification review — 2026-11-15
+
+- Exact-version backup downloads now compare the VersionId returned by the object store with the immutable VersionId requested; a mismatch fails closed before checksum/decryption/restore can proceed.
+- Audit-chain verification now treats malformed stored metadata/canonicalization errors as a sanitized integrity failure rather than allowing an uncaught exception to escape. A regression test checks that malformed payload text is not echoed.
+- Backup/restore review confirms manifest size is capped at 1 MiB, encrypted archive size is capped at 5 GB, endpoint identity is bound to database name/host/port, archive authentication and both checksums are verified, and production restore requires durable approval evidence plus a fresh owner TOTP immediately before restore.
+- Tests are authored but not run in this environment; PHP 8.5 and project dependencies are unavailable. Cloud Object Lock and restore rehearsal remain owner/infrastructure gates.
