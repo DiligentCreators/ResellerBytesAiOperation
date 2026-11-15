@@ -93,7 +93,9 @@ class PlatformMailSettingsTest extends TestCase
 
         app(CentralOutboundMailer::class)->send('recipient@example.test', 'Test', '<p>test</p>', 'test');
 
-        Http::assertSent(fn ($request) => $request->hasHeader('X-Postmark-Server-Token', 'environment-token')
+        Http::assertSentCount(1);
+        Http::assertSent(fn ($request) => $request->url() === 'https://api.postmarkapp.com/email');
+        Http::assertSent(fn ($request) => $request->hasHeader('X-Postmark-Server-Token')
             && $request['From'] === '"Environment Sender" <env-mail@example.test>');
     }
 
