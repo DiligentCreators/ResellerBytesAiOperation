@@ -13,6 +13,7 @@ use App\Services\Diagnostics\AiBudgetService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
 function makeBudgetDiagnosticRun(int $attempts = 1, ?Tenant $tenant = null): DiagnosticRun
@@ -393,7 +394,7 @@ it('prevents integration tenant remapping after diagnostic history is captured',
     $run = makeBudgetDiagnosticRun(1, $tenantA);
     $attempt = app(AiBudgetService::class)->reserve($run, 'gpt-5.6-sol', '2026-11-12.1');
 
-    expect(fn () => $run->integration->forceFill(['tenant_id' => $tenantB->id])->save())
+    expect(fn () => DB::transaction(fn () => $run->integration->forceFill(['tenant_id' => $tenantB->id])->save()))
         ->toThrow(QueryException::class);
     $service = app(AiBudgetService::class);
     $service->markSubmitted($attempt);
