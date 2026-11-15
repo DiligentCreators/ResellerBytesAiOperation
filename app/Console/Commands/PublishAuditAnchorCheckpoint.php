@@ -17,7 +17,7 @@ final class PublishAuditAnchorCheckpoint extends Command
     public function handle(AuditCheckpointPublisher $publisher): int
     {
         $path = $this->argument('checkpoint');
-        if (! is_string($path) || $path === '' || ! is_file($path) || ! is_readable($path)) {
+        if ($path === '' || ! is_file($path) || ! is_readable($path)) {
             $this->error('A readable signed checkpoint file path is required.');
 
             return self::FAILURE;
