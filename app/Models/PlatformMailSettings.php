@@ -4,7 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class PlatformMailSettings extends Model
+/** @property array<string, mixed> $configuration */\nclass PlatformMailSettings extends Model
 {
     protected $table = 'platform_mail_settings';
 
