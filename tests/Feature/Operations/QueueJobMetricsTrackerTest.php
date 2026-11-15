@@ -20,10 +20,10 @@ it('tracks queued jobs separately from in-flight jobs and clears them only when 
         ->and($tracker->oldestQueuedJobAgeMinutes($queuedAt->addMinutes(10)))->toBe(5.0)
         ->and(DB::table('operations_queue_job_samples')->count())->toBe(2);
 
-    $tracker->markStarted('redis', 'redis-job-2');
+    $tracker->markStarted('redis', 'redis-job-2', $queuedAt->addMinutes(5));
 
     expect($tracker->oldestQueuedJobAgeMinutes($queuedAt->addMinutes(10)))->toBeNull()
-        ->and($tracker->oldestProcessingJobAgeMinutes($queuedAt->addMinutes(10)))->toBe(10.0)
+        ->and($tracker->oldestProcessingJobAgeMinutes($queuedAt->addMinutes(10)))->toBe(5.0)
         ->and(DB::table('operations_queue_job_samples')->where('job_id', 'redis-job-2')->exists())->toBeTrue();
 
     $tracker->markFinished('redis', 'redis-job-2');
