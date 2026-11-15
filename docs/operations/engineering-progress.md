@@ -525,3 +525,5 @@ A green CI run is necessary but does not close these release gates or authorize 
 - Backup creation now requires the object-store `get-object` response to return the exact VersionId requested for both the encrypted archive and its manifest. Missing, blank, or mismatched VersionIds fail the backup before the success marker can be advanced.
 - Added focused regression coverage for matching, missing, blank, and mismatched immutable version identifiers.
 - Production Wasabi compatibility still requires a real owner-provisioned COMPLIANCE-mode rehearsal; this code-level guard does not claim provider validation.
+
+- Backup manifest persistence now verifies the complete byte count and applies private file permissions before hashing/upload. The secretstream file cipher also closes an already-open source stream if destination creation fails; regression coverage now includes truncated and trailing archive data rejection.
