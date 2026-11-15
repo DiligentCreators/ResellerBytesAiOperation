@@ -21,8 +21,9 @@ type Props = {
 };
 
 const staffDescription = [
-    'Create separate central admin accounts and grant least-privilege feature permissions.',
-    'The configured super admin always retains full access.',
+    'Create separate central admin accounts and grant least-privilege',
+    'feature permissions. The configured super admin always retains full',
+    'access.',
 ].join(' ');
 
 function PermissionChoices({
@@ -81,8 +82,14 @@ export default function CentralStaffPage({
                         {({ errors, processing }) => (
                             <>
                                 <div className="grid gap-2">
-                                    <Label htmlFor="staff-name">Full name</Label>
-                                    <Input id="staff-name" name="name" required />
+                                    <Label htmlFor="staff-name">
+                                        Full name
+                                    </Label>
+                                    <Input
+                                        id="staff-name"
+                                        name="name"
+                                        required
+                                    />
                                     <InputError message={errors.name} />
                                 </div>
                                 <div className="grid gap-2">
