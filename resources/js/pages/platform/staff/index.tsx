@@ -79,8 +79,14 @@ export default function CentralStaffPage({
                         {({ errors, processing }) => (
                             <>
                                 <div className="grid gap-2">
-                                    <Label htmlFor="staff-name">\n                                        Full name\n                                    </Label>
-                                    <Input\n                                        id="staff-name"\n                                        name="name"\n                                        required\n                                    />
+                                    <Label htmlFor="staff-name">
+                                        Full name
+                                    </Label>
+                                    <Input
+                                        id="staff-name"
+                                        name="name"
+                                        required
+                                    />
                                     <InputError message={errors.name} />
                                 </div>
                                 <div className="grid gap-2">
@@ -95,8 +101,8 @@ export default function CentralStaffPage({
                                 </div>
                                 <div className="grid gap-2">
                                     <Label htmlFor="staff-password">
-                                        Temporary password (14+ characters; mixed case,
-                                        number and symbol)
+                                        {'Temporary password (14+ characters; mixed case, ' +
+                                            'number and symbol)'}
                                     </Label>
                                     <Input
                                         id="staff-password"
@@ -109,10 +115,16 @@ export default function CentralStaffPage({
                                 </div>
                                 <div className="space-y-2">
                                     <Label>Permissions</Label>
-                                    <PermissionChoices\n                                        permissions={permissions}\n                                    />
-                                    <InputError\n                                            message={errors.permissions}\n                                        />
+                                    <PermissionChoices
+                                        permissions={permissions}
+                                    />
+                                    <InputError
+                                            message={errors.permissions}
+                                        />
                                 </div>
-                                <Button disabled={processing}>\n                                    Create staff account\n                                </Button>
+                                <Button disabled={processing}>
+                                    Create staff account
+                                </Button>
                             </>
                         )}
                     </Form>
@@ -147,7 +159,9 @@ export default function CentralStaffPage({
                                             permissions={permissions}
                                             selected={person.permissions}
                                         />
-                                        <InputError message={errors.permissions} />
+                                        <InputError
+                                            message={errors.permissions}
+                                        />
                                         <Button
                                             variant="secondary"
                                             disabled={processing}
