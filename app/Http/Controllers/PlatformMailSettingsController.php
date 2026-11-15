@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\PlatformMailSettings;
+use App\Services\CentralStaffAuthorization;
 use App\Services\Mail\CentralOutboundMailer;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -16,10 +17,7 @@ class PlatformMailSettingsController extends Controller
 {
     private function authorizePlatformAdmin(Request $request): void
     {
-        $owner = mb_strtolower(trim((string) config('operations.owner_email')));
-        if ($owner === '' || ! hash_equals($owner, mb_strtolower((string) $request->user()->email))) {
-            abort(403);
-        }
+        abort_unless(app(CentralStaffAuthorization::class)->can($request->user(), 'settings'), 403);
     }
 
     private function effectiveConfiguration(?PlatformMailSettings $settings): array
@@ -36,19 +34,16 @@ class PlatformMailSettingsController extends Controller
             'message_stream' => config('platform_mail.postmark.message_stream'),
         ];
         $saved = $settings?->configuration ?? [];
-
         foreach ($saved as $key => $value) {
             if ($value !== null && $value !== '') {
                 $fallback[$key] = $value;
             }
         }
-
         foreach (($saved['_cleared'] ?? []) as $key => $cleared) {
             if ($cleared === true) {
                 $fallback[$key] = '';
             }
         }
-
         return $fallback;
     }
 
@@ -57,7 +52,6 @@ class PlatformMailSettingsController extends Controller
         $this->authorizePlatformAdmin($request);
         $settings = PlatformMailSettings::query()->find(1);
         $config = $this->effectiveConfiguration($settings);
-
         return Inertia::render('platform/mail-settings', [
             'driver' => $settings?->driver ?? config('platform_mail.driver', 'log'),
             'from_address' => $config['from_address'] ?? '',
@@ -95,12 +89,8 @@ class PlatformMailSettingsController extends Controller
         $config = $existing?->configuration ?? [];
         $config['from_address'] = $data['from_address'] ?? '';
         $config['from_name'] = $data['from_name'] ?? '';
-
-        $clearSmtpPassword = filter_var($data['clear_smtp_password'] ?? false, FILTER_VALIDATE_BOOLEAN);
-        $clearPostmarkToken = filter_var($data['clear_postmark_token'] ?? false, FILTER_VALIDATE_BOOLEAN);
-
         $cleared = $config['_cleared'] ?? [];
-        if ($clearSmtpPassword) {
+        if (filter_var($data['clear_smtp_password'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
             unset($config['password']);
             $cleared['password'] = true;
         }
@@ -108,7 +98,7 @@ class PlatformMailSettingsController extends Controller
             unset($config['username']);
             $cleared['username'] = true;
         }
-        if ($clearPostmarkToken) {
+        if (filter_var($data['clear_postmark_token'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
             unset($config['server_token']);
             $cleared['server_token'] = true;
         }
@@ -120,7 +110,6 @@ class PlatformMailSettingsController extends Controller
                 'encryption' => $data['smtp_encryption'],
                 'username' => (($data['smtp_username'] ?? '') !== '') ? $data['smtp_username'] : ($config['username'] ?? (empty($cleared['username']) ? (config('platform_mail.smtp.username') ?? '') : '')),
             ]);
-
             if (($data['smtp_username'] ?? '') !== '') {
                 unset($cleared['username']);
             }
@@ -128,48 +117,33 @@ class PlatformMailSettingsController extends Controller
                 $config['password'] = $data['smtp_password'];
                 unset($cleared['password']);
             }
-
             $effectivePassword = $config['password'] ?? (empty($cleared['password']) ? config('platform_mail.smtp.password') : '');
             if (($config['username'] ?? '') !== '' && empty($effectivePassword)) {
-                throw ValidationException::withMessages([
-                    'smtp_password' => 'A password is required when SMTP authentication is enabled.',
-                ]);
+                throw ValidationException::withMessages(['smtp_password' => 'A password is required when SMTP authentication is enabled.']);
             }
             if (($config['username'] ?? '') === '' && ! empty($effectivePassword)) {
-                throw ValidationException::withMessages([
-                    'smtp_username' => 'A username is required when an SMTP password is configured.',
-                ]);
+                throw ValidationException::withMessages(['smtp_username' => 'A username is required when an SMTP password is configured.']);
             }
         }
 
         if ($data['driver'] === 'postmark') {
             $config['message_stream'] = $data['postmark_message_stream'];
-
             if (($data['postmark_server_token'] ?? '') !== '') {
                 $config['server_token'] = $data['postmark_server_token'];
-            }
-
-            if (($data['postmark_server_token'] ?? '') !== '') {
                 unset($cleared['server_token']);
             }
-
             if (empty($config['server_token']) && (empty($cleared['server_token']) && empty(config('platform_mail.postmark.server_token')))) {
-                throw ValidationException::withMessages([
-                    'postmark_server_token' => 'A Postmark server token is required.',
-                ]);
+                throw ValidationException::withMessages(['postmark_server_token' => 'A Postmark server token is required.']);
             }
         }
-
         $config['_cleared'] = $cleared;
 
         DB::transaction(function () use ($data, $config, $request): void {
             PlatformMailSettings::query()->updateOrCreate(['id' => 1], [
-                'driver' => $data['driver'],
-                'configuration' => $config,
+                'driver' => $data['driver'], 'configuration' => $config,
                 'updated_by_user_id' => $request->user()->getKey(),
             ]);
         });
-
         return back()->with('status', 'Platform mail settings saved. Secrets are encrypted and will not be shown again.');
     }
 
@@ -177,25 +151,17 @@ class PlatformMailSettingsController extends Controller
     {
         $this->authorizePlatformAdmin($request);
         $data = $request->validate(['recipient' => ['required', 'email:rfc', 'max:255']]);
-
         try {
-            $mailer->send(
-                $data['recipient'],
-                'ResellerBytes mail configuration test',
+            $mailer->send($data['recipient'], 'ResellerBytes mail configuration test',
                 '<p>Your central outbound email configuration is working.</p>',
-                'Your central outbound email configuration is working.',
-            );
+                'Your central outbound email configuration is working.');
         } catch (Throwable) {
-            throw ValidationException::withMessages([
-                'recipient' => 'Test delivery failed. Check the selected transport configuration and connectivity.',
-            ]);
+            throw ValidationException::withMessages(['recipient' => 'Test delivery failed. Check the selected transport configuration and connectivity.']);
         }
-
         $driver = PlatformMailSettings::query()->find(1)?->driver ?? config('platform_mail.driver', 'log');
         $status = $driver === 'log'
             ? 'Log driver is active; a redacted preview was recorded and no email was sent.'
             : 'Test email accepted by the configured mail driver.';
-
         return back()->with('status', $status);
     }
 }
