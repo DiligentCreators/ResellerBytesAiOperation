@@ -304,6 +304,7 @@ test('defers AI analysis dispatch until the surrounding snapshot transaction com
     )->assertAccepted()
         ->assertJsonPath('data.status', 'queued');
 
+    // This fixture has an owner and API key, so analysis is eligible for dispatch.
     Queue::assertPushed(AnalyzeDiagnosticRun::class, function (AnalyzeDiagnosticRun $job): bool {
         return DiagnosticRun::whereKey($job->diagnosticRunId)->exists();
     });
