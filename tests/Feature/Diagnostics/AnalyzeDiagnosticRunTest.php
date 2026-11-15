@@ -455,6 +455,7 @@ it('settles confirmed provider usage before surfacing an unsuccessful HTTP respo
     ]);
 
     config()->set('services.openai.key', 'test-provider-key');
+    // Prevent a fake registered by an earlier test from intercepting this response.
     Http::swap(new \Illuminate\Http\Client\Factory());
     Http::fake([
         '*' => Http::response([
