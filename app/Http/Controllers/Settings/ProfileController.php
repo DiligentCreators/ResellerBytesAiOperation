@@ -34,13 +34,30 @@ class ProfileController extends Controller
      */
     public function update(ProfileUpdateRequest $request): RedirectResponse
     {
-        $request->user()->fill($request->validated());
+        $user = $request->user();
+        $user->fill($request->validated());
+        $changedFields = array_keys($user->getDirty());
 
-        if ($request->user()->isDirty('email')) {
-            $request->user()->email_verified_at = null;
+        if ($user->isDirty('email')) {
+            $user->email_verified_at = null;
+            $changedFields[] = 'email_verified_at';
         }
 
-        $request->user()->save();
+        DB::transaction(function () use ($user, $changedFields): void {
+            $user->save();
+
+            if ($changedFields !== []) {
+                app(AuditEventWriter::class)->append([
+                    'actor_type' => 'user',
+                    'actor_id' => (string) $user->getKey(),
+                    'event_type' => 'operations_user.profile_updated',
+                    'subject_type' => 'user',
+                    'subject_id' => (string) $user->getKey(),
+                    'metadata' => ['changed_fields' => array_values(array_unique($changedFields))],
+                    'occurred_at' => now(),
+                ]);
+            }
+        });
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Profile updated.')]);
 
