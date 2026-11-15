@@ -45,16 +45,19 @@ if ($runtimeRole->name === $operationsRole->name || $runtimeDatabase->name !== $
 }
 
 $role = $runtime->selectOne('SELECT rolbypassrls, rolsuper FROM pg_roles WHERE rolname = current_user');
-$operationsRoleFlags = $operations->selectOne('SELECT rolbypassrls, rolsuper, rolcreatedb, rolcreaterole FROM pg_roles WHERE rolname = current_user');
+$operationsRoleFlags = $operations->selectOne('SELECT rolbypassrls, rolsuper, rolcreatedb, rolcreaterole, rolinherit, rolcanlogin, rolreplication FROM pg_roles WHERE rolname = current_user');
 if ($role === null || filter_var($role->rolbypassrls, FILTER_VALIDATE_BOOLEAN) || filter_var($role->rolsuper, FILTER_VALIDATE_BOOLEAN)
     || $operationsRoleFlags === null || ! filter_var($operationsRoleFlags->rolbypassrls, FILTER_VALIDATE_BOOLEAN)
     || filter_var($operationsRoleFlags->rolsuper, FILTER_VALIDATE_BOOLEAN)
     || filter_var($operationsRoleFlags->rolcreatedb, FILTER_VALIDATE_BOOLEAN)
-    || filter_var($operationsRoleFlags->rolcreaterole, FILTER_VALIDATE_BOOLEAN)) {
+    || filter_var($operationsRoleFlags->rolcreaterole, FILTER_VALIDATE_BOOLEAN)
+    || filter_var($operationsRoleFlags->rolinherit, FILTER_VALIDATE_BOOLEAN)
+    || ! filter_var($operationsRoleFlags->rolcanlogin, FILTER_VALIDATE_BOOLEAN)
+    || filter_var($operationsRoleFlags->rolreplication, FILTER_VALIDATE_BOOLEAN)) {
     throw new RuntimeException('billing_rls_runtime_role_must_not_bypass_rls_and_operations_role_must_bypass_without_superuser');
 }
 
-$operationsSchema = $operations->selectOne("SELECT has_schema_privilege(current_user, 'public', 'USAGE') AS can_use, has_schema_privilege(current_user, 'public', 'CREATE') AS can_create");
+$operationsSchema = $operations->selectOne("SELECT has_schema_privilege(current_user, 'public', 'USAGE') AS can_use, has_schema_privilege(current_user, 'public', 'CREATE') AS can_create, EXISTS (SELECT 1 FROM pg_roles AS migrator WHERE migrator.rolname = 'rb_migrator' AND pg_has_role(current_user, migrator.oid, 'MEMBER')) AS is_migrator_member");
 $operationsUnexpectedPrivileges = $operations->selectOne(<<<'SQL'
 SELECT COUNT(*) AS unexpected_count
 FROM pg_class AS relation
@@ -83,6 +86,7 @@ WHERE namespace.nspname = 'public'
 SQL);
 if ($operationsSchema === null || ! filter_var($operationsSchema->can_use, FILTER_VALIDATE_BOOLEAN)
     || filter_var($operationsSchema->can_create, FILTER_VALIDATE_BOOLEAN)
+    || filter_var($operationsSchema->is_migrator_member, FILTER_VALIDATE_BOOLEAN)
     || (int) $operationsUnexpectedPrivileges->unexpected_count !== 0) {
     throw new RuntimeException('billing_rls_operations_role_privileges_not_least_privilege');
 }
