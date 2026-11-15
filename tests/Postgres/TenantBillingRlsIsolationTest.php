@@ -88,7 +88,7 @@ try {
         ->first();
 
     if ($mapping === null) {
-        $mappingId = $operations->table('tenant_billing_provider_accounts')->insertGetId([
+        $mappingId = $runtime->table('tenant_billing_provider_accounts')->insertGetId([
             'tenant_id' => $tenantA,
             'provider' => $provider,
             'provider_account_id' => $account,
