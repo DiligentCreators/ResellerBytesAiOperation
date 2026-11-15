@@ -15,6 +15,9 @@ This checklist is mandatory before installing or running the WHMCS addon against
 ## Application access and AI analysis
 
 - [ ] Public self-registration is disabled; no public account-creation route is available.
+- [ ] OPERATIONS_OWNER_EMAIL identifies the single verified central super admin; the owner account has confirmed TOTP and cannot be deleted or have its configured email changed through the application.
+- [ ] Central staff accounts are created only by the super admin; each receives an explicit least-privilege permission allowlist, permission changes are audit-logged, and staff self-escalation is denied.
+- [ ] Central mail settings access is denied without the settings permission; tenant membership authorization remains independent of central staff permissions.
 - [ ] The first verified dashboard operator was created through php artisan ops:user:create "Operations Admin" operator@example.com; the password was entered through hidden terminal prompts.
 - [ ] Confirmed TOTP-based two-factor authentication is enabled for every production operator before operational access; passkeys are additional factors, not substitutes.
 - [ ] OPENAI_API_KEY is configured only in the Forge environment, never in source control or WHMCS.
