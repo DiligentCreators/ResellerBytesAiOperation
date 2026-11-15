@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-use Illuminate\\Contracts\\Console\\Kernel;
-use Illuminate\\Database\\QueryException;
-use Illuminate\\Support\\Facades\\DB;
-use Illuminate\\Support\\Str;
+use Illuminate\Contracts\Console\Kernel;
+use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 require dirname(__DIR__, 2).'/vendor/autoload.php';
 
