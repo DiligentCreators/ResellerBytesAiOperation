@@ -94,7 +94,7 @@ class TenantSubscriptionLifecycle
                         return $subscription;
                     }
 
-                    if ($graceEndsAt !== null || $settledInvoiceId !== null) {
+                    if ($graceEndsAt !== null) {
                         throw new InvalidArgumentException('tenant_subscription_transition_already_applied');
                     }
 
