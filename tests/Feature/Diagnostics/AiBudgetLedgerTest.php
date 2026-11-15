@@ -26,6 +26,7 @@ function makeBudgetDiagnosticRun(int $attempts = 1, ?Tenant $tenant = null): Dia
 
     return DiagnosticRun::create([
         'integration_id' => $integration->id,
+        'tenant_id' => $tenant?->id,
         'snapshot_uuid' => (string) Str::uuid(),
         'schema_version' => '1.0',
         'addon_version' => '1.0.0',
