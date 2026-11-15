@@ -271,19 +271,19 @@ it('preserves billing identity, append-only, and audit tenant triggers after com
         'received_at' => now(),
     ]);
 
-    expect(fn () => \\Illuminate\\Support\\Facades\\DB::table('tenant_billing_invoices')
+    expect(fn () => \Illuminate\Support\Facades\DB::table('tenant_billing_invoices')
         ->where('id', $invoice->id)->update(['provider_invoice_id' => 'tampered-invoice']))
         ->toThrow(QueryException::class, 'tenant_billing_invoice_provider_identity_immutable');
 
-    expect(fn () => \\Illuminate\\Support\\Facades\\DB::table('tenant_billing_payments')
+    expect(fn () => \Illuminate\Support\Facades\DB::table('tenant_billing_payments')
         ->where('id', $payment->id)->update(['reference' => 'tampered-payment']))
         ->toThrow(QueryException::class, 'tenant_billing_payment_append_only');
 
-    expect(fn () => \\Illuminate\\Support\\Facades\\DB::table('tenant_billing_payments')
+    expect(fn () => \Illuminate\Support\Facades\DB::table('tenant_billing_payments')
         ->where('id', $payment->id)->delete())
         ->toThrow(QueryException::class, 'tenant_billing_payment_append_only');
 
-    expect(fn () => app(\\App\\Services\\Audit\\AuditEventWriter::class)->append([
+    expect(fn () => app(\App\Services\Audit\AuditEventWriter::class)->append([
         'actor_type' => 'user',
         'actor_id' => (string) $operator->id,
         'tenant_id' => $otherTenant->id,
