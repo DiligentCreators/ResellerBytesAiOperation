@@ -8,7 +8,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-/** @property array<string, mixed> $settings */\nclass Tenant extends Model
+/** @property array<string, mixed> $settings */
+class Tenant extends Model
 {
     use HasUuids;
 
