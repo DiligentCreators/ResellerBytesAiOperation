@@ -8,8 +8,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * @property array<string, mixed> $entitlements
- * @property \Carbon\CarbonImmutable|null $current_period_starts_at
- * @property \Carbon\CarbonImmutable|null $current_period_ends_at
+ * @property \Carbon\CarbonImmutable $current_period_starts_at
+ * @property \Carbon\CarbonImmutable $current_period_ends_at
  * @property \Carbon\CarbonImmutable|null $grace_ends_at
  * @property \Carbon\CarbonImmutable|null $canceled_at
  */
