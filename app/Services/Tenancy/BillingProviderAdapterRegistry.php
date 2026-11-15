@@ -1,8 +1,8 @@
 <?php
 
-namespace App\\Services\\Tenancy;
+namespace App\Services\Tenancy;
 
-use App\\Contracts\\Billing\\BillingProviderAdapter;
+use App\Contracts\Billing\BillingProviderAdapter;
 use InvalidArgumentException;
 use RuntimeException;
 
