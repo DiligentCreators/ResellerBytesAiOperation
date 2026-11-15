@@ -12,7 +12,7 @@ use InvalidArgumentException;
 class TenantNotificationService
 {
     /**
-     * @param array<string, scalar|null> $payload
+     * @param array<string, mixed> $payload
      */
     public function publish(string $tenantId, int $userId, string $eventType, array $payload, string $notificationKey): TenantNotification
     {
