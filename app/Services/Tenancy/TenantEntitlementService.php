@@ -47,7 +47,7 @@ class TenantEntitlementService
     {
         $subscription = $this->activeSubscription($tenantId);
         $maximum = $subscription->entitlements['limits'][$limit] ?? null;
-        if (! is_int($maximum) || $maximum < 0 || $requested > $maximum) {
+        if (! is_int($maximum) || $maximum < 0 || $requested < 0 || $requested > $maximum) {
             throw new AuthorizationException('The current tenant subscription limit does not permit this operation.');
         }
         return $subscription;
