@@ -46,14 +46,22 @@ function PermissionChoices({
     );
 }
 
-export default function CentralStaffPage({ permissions, staff, status }: Props) {
+export default function CentralStaffPage({
+    permissions,
+    staff,
+    status,
+}: Props) {
     return (
         <>
             <Head title="Central staff access" />
             <div className="space-y-8">
                 <Heading
                     title="Central staff access"
-                    description="Create separate central admin accounts and grant least-privilege feature permissions. The configured super admin always retains full access."
+                    description={
+                        'Create separate central admin accounts and grant ' +
+                        'least-privilege feature permissions. The configured ' +
+                        'super admin always retains full access.'
+                    }
                 />
                 {status && (
                     <p role="status" className="text-sm text-green-700">
@@ -71,8 +79,8 @@ export default function CentralStaffPage({ permissions, staff, status }: Props) 
                         {({ errors, processing }) => (
                             <>
                                 <div className="grid gap-2">
-                                    <Label htmlFor="staff-name">Full name</Label>
-                                    <Input id="staff-name" name="name" required />
+                                    <Label htmlFor="staff-name">\n                                        Full name\n                                    </Label>
+                                    <Input\n                                        id="staff-name"\n                                        name="name"\n                                        required\n                                    />
                                     <InputError message={errors.name} />
                                 </div>
                                 <div className="grid gap-2">
@@ -101,10 +109,10 @@ export default function CentralStaffPage({ permissions, staff, status }: Props) 
                                 </div>
                                 <div className="space-y-2">
                                     <Label>Permissions</Label>
-                                    <PermissionChoices permissions={permissions} />
-                                    <InputError message={errors.permissions} />
+                                    <PermissionChoices\n                                        permissions={permissions}\n                                    />
+                                    <InputError\n                                            message={errors.permissions}\n                                        />
                                 </div>
-                                <Button disabled={processing}>Create staff account</Button>
+                                <Button disabled={processing}>\n                                    Create staff account\n                                </Button>
                             </>
                         )}
                     </Form>
