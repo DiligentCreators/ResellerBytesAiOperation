@@ -33,7 +33,7 @@ class TenantBrandingSettings
                     'subject_type' => 'tenant',
                     'subject_id' => $tenantId,
                     'metadata' => [
-                        'changed_fields' => array_values(array_keys($branding)),
+                        'changed_fields' => array_keys($branding),
                     ],
                     'ip_address' => $ip,
                     'occurred_at' => now(),
