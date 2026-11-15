@@ -1,6 +1,6 @@
 # Engineering progress — release readiness
 
-Last reviewed: 2026-11-12
+Last reviewed: 2026-11-15
 
 ## Verified repository baseline
 
@@ -440,3 +440,12 @@ A green CI run is necessary but does not close these release gates or authorize 
 - Backup manifest intake now enforces a 1 MiB size ceiling, strict SHA-256 syntax, a positive encrypted archive size within the 5 GB single-PutObject limit, and an archive object key derived exactly from the manifest creation date and backup UUID.
 - Backup-success marker updates now fail closed on incomplete writes or permission-setting failures before the atomic rename.
 - Updated the recovery runbook with these validation and approval-order guarantees. No cloud backup or restore was run; runtime tests remain pending PHP 8.5, cloud account, secret-manager access, and isolated recovery infrastructure. All commits continue to include [skip ci].
+
+
+### PostgreSQL billing operations least-privilege boundary — 2026-11-15
+
+- Hardened `TenantBillingOperationsConnection` to fail closed unless the billing operations login is distinct from runtime, BYPASSRLS but not superuser, non-inheriting, login-capable, not a database/role creator or replication role, not a member of `rb_migrator`, and has schema USAGE without CREATE.
+- Added an effective privilege audit: the operations login may SELECT exactly provider-account registry, webhook inbox, and outbox; any other public table privilege or any DML/sequence/schema-creation capability is rejected. Required tables must exist and be readable before cross-tenant operations run.
+- Defined DBA provisioning for the dedicated `rb_billing_ops` role and added sanitized verification queries in the PostgreSQL role-separation runbook.
+- Changed PostgreSQL RLS rehearsal fixture creation and cleanup to use the tenant-scoped runtime role after setting tenant context, not the RLS-bypass operations role. The rehearsal now checks the operations role's effective read allowlist and role inheritance boundary.
+- No production role was provisioned and no PostgreSQL rehearsal was executed. PHP 8.5 runtime validation and isolated PostgreSQL credentials remain pending. All commits use `[skip ci]`; workflow files and repository settings were not changed.
