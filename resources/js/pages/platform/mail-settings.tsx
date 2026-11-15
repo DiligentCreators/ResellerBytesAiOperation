@@ -1,4 +1,5 @@
 import { Form, Head } from '@inertiajs/react';
+
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
@@ -21,6 +22,8 @@ type Props = {
 
 const selectClassName = 'rounded-md border bg-background p-2';
 const checkboxLabelClassName = 'flex items-center gap-2 text-sm';
+const mailSettingsDescription =
+    'One central mail configuration for platform and tenant system messages.';
 
 export default function MailSettings(props: Props) {
     return (
@@ -29,10 +32,7 @@ export default function MailSettings(props: Props) {
             <div className="space-y-6">
                 <Heading
                     title="Platform outbound email"
-                    description={
-                        'One central mail configuration for platform ' +
-                        'and tenant system messages.'
-                    }
+                    description={mailSettingsDescription}
                 />
                 {props.status && (
                     <p role="status" className="text-sm text-green-700">
@@ -150,7 +150,9 @@ export default function MailSettings(props: Props) {
                                 />
                                 <InputError message={errors.smtp_password} />
                                 {props.smtp_password_set && (
-                                    <label className={checkboxLabelClassName}>
+                                    <label
+                                        className={checkboxLabelClassName}
+                                    >
                                         <input
                                             type="checkbox"
                                             name="clear_smtp_password"
@@ -257,7 +259,10 @@ export default function MailSettings(props: Props) {
                                 />
                                 <InputError message={errors.recipient} />
                             </div>
-                            <Button variant="secondary" disabled={processing}>
+                            <Button
+                                variant="secondary"
+                                disabled={processing}
+                            >
                                 Send test email
                             </Button>
                         </>
