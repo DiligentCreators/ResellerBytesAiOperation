@@ -605,3 +605,11 @@ A green CI run is necessary but does not close these release gates or authorize 
 - Repaired every billing namespace/import declaration reported by Composer and the malformed global Throwable references. Representative files were re-fetched and verified to contain single PHP namespace separators and no doubled separators.
 - PR #2 description now records the first CI result and the remediation boundary. Current pre-rerun head: 582f084fb733ec8fe600a4053ceb4512fe7ad6c7; 65 commits ahead and 0 behind the verified handoff head; no workflow file or repository setting changes.
 - This is the final documentation entry before the one additional non-[skip ci] commit. That commit triggers the six-job rerun on the repaired head. Keep PR #2 Draft until every required job passes.
+
+
+### CI #714 findings and second remediation — 2026-11-15
+
+- Repaired-head run #43710796467 completed with failures: CI Setup Application found a missing closing SidebarMenu JSX tag; MySQL/MariaDB retention tests and PostgreSQL AI-budget tests found three billing migrations with doubled Illuminate import separators; PostgreSQL also exposed non-idempotent CREATE FUNCTION statements because the test workflow runs fresh migrations more than once. SQL Server retention and WHMCS PHP 8.1 jobs passed.
+- Fixed the sidebar JSX closing tag and all three billing migration import declarations.
+- Changed PostgreSQL trigger-function DDL to CREATE OR REPLACE FUNCTION in migrations 000005, 000007, 000009, 000010, and 000011 so repeated fresh-migration setup is idempotent while preserving trigger function identity.
+- These remediation commits use [skip ci]. No workflow or repository setting changed. The next final non-[skip ci] commit will trigger one more six-job run on the fully repaired head.
