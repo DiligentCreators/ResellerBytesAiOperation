@@ -108,7 +108,8 @@ real isolated environment.
   successful backup for 26 hours; disk 80% warning / 90% critical; queued jobs older
   than 15 minutes.
 - Metric capture avoids request/response payloads and queue job payloads. Missing
-  metrics must remain unavailable/null, not fabricated.
+  metrics must remain unavailable/null, not fabricated. The backup-success marker is
+  bounded to 4 KiB before JSON parsing; malformed or oversized markers remain missing.
 - Alert scheduling is one-minute with overlap protection, deduplication and repeat
   suppression. It is disabled by default.
 - Standard routing requires owner email plus exactly one Slack or Discord destination.
