@@ -134,7 +134,8 @@ class PlatformMailSettingsController extends Controller
                 $config['server_token'] = $data['postmark_server_token'];
                 unset($cleared['server_token']);
             }
-            if (empty($config['server_token']) && (empty($cleared['server_token']) && empty(config('platform_mail.postmark.server_token')))) {
+            $effectiveToken = $config['server_token'] ?? (empty($cleared['server_token']) ? config('platform_mail.postmark.server_token') : null);
+            if (! is_string($effectiveToken) || trim($effectiveToken) === '') {
                 throw ValidationException::withMessages(['postmark_server_token' => 'A Postmark server token is required.']);
             }
         }
