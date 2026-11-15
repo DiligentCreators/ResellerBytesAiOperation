@@ -613,3 +613,12 @@ A green CI run is necessary but does not close these release gates or authorize 
 - Fixed the sidebar JSX closing tag and all three billing migration import declarations.
 - Changed PostgreSQL trigger-function DDL to CREATE OR REPLACE FUNCTION in migrations 000005, 000007, 000009, 000010, and 000011 so repeated fresh-migration setup is idempotent while preserving trigger function identity.
 - These remediation commits use [skip ci]. No workflow or repository setting changed. The next final non-[skip ci] commit will trigger one more six-job run on the fully repaired head.
+
+
+### Final CI rerun handoff after second remediation — 2026-11-15
+
+- Corrected the app-sidebar JSX structure and the three billing migration imports found by run #714.
+- PostgreSQL migrations 000005, 000007, 000009, 000010, and 000011 now use CREATE OR REPLACE FUNCTION for all guard/audit trigger functions, preventing collisions when the CI setup and RefreshDatabase each run fresh migrations in the same database.
+- PR description records both failed CI attempts and their exact causes. Shahrukh's setup checklist and approval status remain unchanged.
+- Pre-final head: d3062bebbecf604426636390b02f1f6d4f7d0e69; 76 commits ahead and 0 behind the handoff head; no workflow or repository settings changed.
+- All remediation commits after the failed runs include [skip ci]. This is the final documentation change before the single additional non-[skip ci] commit; PR #2 stays Draft until all six jobs pass.
