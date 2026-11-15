@@ -55,6 +55,7 @@ class TenantBillingOperationsConnection
             $schemaPrivileges = $operations->selectOne(<<<'SQL'
 SELECT has_schema_privilege(current_user, 'public', 'USAGE') AS can_use_schema,
        has_schema_privilege(current_user, 'public', 'CREATE') AS can_create_schema,
+       array_to_string(current_schemas(false), ',') AS effective_search_path,
        EXISTS (
            SELECT 1 FROM pg_roles AS migrator
            WHERE migrator.rolname = 'rb_migrator'
@@ -64,7 +65,8 @@ SQL);
             if ($schemaPrivileges === null
                 || ! filter_var($schemaPrivileges->can_use_schema, FILTER_VALIDATE_BOOLEAN)
                 || filter_var($schemaPrivileges->can_create_schema, FILTER_VALIDATE_BOOLEAN)
-                || filter_var($schemaPrivileges->is_migrator_member, FILTER_VALIDATE_BOOLEAN)) {
+                || filter_var($schemaPrivileges->is_migrator_member, FILTER_VALIDATE_BOOLEAN)
+                || $schemaPrivileges->effective_search_path !== 'public') {
                 throw new RuntimeException('billing_operations_database_schema_privileges_invalid');
             }
 
