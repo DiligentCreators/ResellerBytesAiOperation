@@ -491,7 +491,7 @@ it('settles confirmed provider usage before surfacing an unsuccessful HTTP respo
         ],
     ]);
     Http::assertSentCount(1);
-    Http::assertSent(fn (\\Illuminate\\Http\\Client\\Request $request): bool => $request->url() === 'https://api.openai.com/v1/responses');
+    Http::assertSent(fn (\Illuminate\Http\Client\Request $request): bool => $request->url() === 'https://api.openai.com/v1/responses');
 });
 
 
