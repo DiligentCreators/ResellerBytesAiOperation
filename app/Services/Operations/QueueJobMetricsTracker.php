@@ -54,7 +54,7 @@ final class QueueJobMetricsTracker
         }
     }
 
-    public function markStarted(string $connectionName, string|int|null $jobId): void
+    public function markStarted(string $connectionName, string|int|null $jobId, ?CarbonImmutable $startedAt = null): void
     {
         $jobId = $jobId !== null ? (string) $jobId : '';
 
@@ -72,7 +72,7 @@ final class QueueJobMetricsTracker
                 ->where('job_id', $jobId)
                 ->update([
                     'status' => 'processing',
-                    'started_at' => CarbonImmutable::now()->utc(),
+                    'started_at' => ($startedAt ?? CarbonImmutable::now())->utc(),
                     'updated_at' => CarbonImmutable::now()->utc(),
                 ]);
         } catch (Throwable $exception) {
