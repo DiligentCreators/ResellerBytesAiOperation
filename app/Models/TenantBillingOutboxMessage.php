@@ -5,7 +5,14 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-/**\n * @property array<string, mixed> $payload\n * @property \Carbon\CarbonImmutable $available_at\n * @property \Carbon\CarbonImmutable|null $locked_at\n * @property \Carbon\CarbonImmutable|null $delivered_at\n * @property \Carbon\CarbonImmutable|null $failed_at\n */\nclass TenantBillingOutboxMessage extends Model
+/**
+ * @property array<string, mixed> $payload
+ * @property \Carbon\CarbonImmutable $available_at
+ * @property \Carbon\CarbonImmutable|null $locked_at
+ * @property \Carbon\CarbonImmutable|null $delivered_at
+ * @property \Carbon\CarbonImmutable|null $failed_at
+ */
+class TenantBillingOutboxMessage extends Model
 {
     protected $table = 'tenant_billing_outbox';
 
