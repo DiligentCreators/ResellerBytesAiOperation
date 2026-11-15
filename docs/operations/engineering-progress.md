@@ -412,3 +412,11 @@ A green CI run is necessary but does not close these release gates or authorize 
 - Missing billing tables or unavailable/invalid operations-role configuration yields null metrics; unavailable telemetry cannot falsely clear an active alert.
 - Metrics expose aggregate counts and age only; no tenant IDs, provider/account IDs, event IDs, payloads, or secrets. Notifications remain disabled by default until Shahrukh configures approved destinations.
 - Added feature coverage for metric aggregation, non-disclosure, alert evaluation, and fail-closed resolution behavior. Runtime execution remains pending PHP 8.5 and PostgreSQL operations-role provisioning.
+
+### Central mail secret-clear semantics — 2026-11-15
+
+- Fixed an environment-fallback edge case: explicitly cleared SMTP username/password and Postmark server token now remain cleared even when corresponding environment values exist.
+- Persisted encrypted clear-state markers alongside the encrypted mail configuration; the settings page continues to expose only set/not-set booleans and never returns secret values.
+- SMTP credential-pair validation now respects explicit clears, and Postmark cannot be re-enabled using a fallback token after the owner clears it.
+- Added regression coverage for clearing Postmark tokens despite an environment fallback and clearing SMTP credentials without environment values reappearing.
+- Tests are authored but not executed in this environment; PHP 8.5 is required by the repository and only PHP 8.4 is available. All commits in this follow-up use [skip ci]. No workflow file or repository setting was changed.
