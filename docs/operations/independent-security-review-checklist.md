@@ -39,6 +39,10 @@ deployment assumptions, and unresolved findings.
       run, finding, and download identifiers.
 - [ ] Test the last-operator deletion guard under concurrent deletion attempts
       and verify successful deletion is audited.
+- [ ] Verify operator profile changes and password changes append transactional,
+      privacy-safe audit events containing changed-field names or a credential-
+      changed marker only; no profile values, passwords, hashes, reset tokens,
+      or OTP material may enter audit metadata.
 - [ ] Review password reset, password confirmation, session rotation, cookie
       flags, CSRF, rate limiting, and TOTP replay protection.
 - [ ] Verify two-person no-charge reconciliation rejects same-operator approval,
@@ -145,6 +149,14 @@ deployment assumptions, and unresolved findings.
       timeout/retry-after ordering.
 - [ ] Verify stale queued-run recovery is bounded, row-locked, idempotent, and
       preserves ambiguous provider reservations.
+- [ ] Verify queue telemetry tracks queued and in-flight jobs separately,
+      resets delayed retries to their new availability time, and clears samples
+      only on successful completion or terminal failure.
+- [ ] Verify a worker crash leaves an in-flight sample visible and the oldest
+      processing age triggers the approved alert after 15 minutes; healthy
+      telemetry must resolve that alert, while missing telemetry must not.
+- [ ] Verify queue metric logs expose exception class only and never job payloads,
+      serialized commands, credentials, or exception messages.
 - [ ] Review logs/errors for secrets, OTPs, raw snapshots, provider payloads,
       and unnecessary personal data.
 - [ ] Review dependency lockfiles, Composer/npm advisories, pinned GitHub
