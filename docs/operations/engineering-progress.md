@@ -519,3 +519,9 @@ A green CI run is necessary but does not close these release gates or authorize 
 - Audit-chain verification now treats malformed stored metadata/canonicalization errors as a sanitized integrity failure rather than allowing an uncaught exception to escape. A regression test checks that malformed payload text is not echoed.
 - Backup/restore review confirms manifest size is capped at 1 MiB, encrypted archive size is capped at 5 GB, endpoint identity is bound to database name/host/port, archive authentication and both checksums are verified, and production restore requires durable approval evidence plus a fresh owner TOTP immediately before restore.
 - Tests are authored but not run in this environment; PHP 8.5 and project dependencies are unavailable. Cloud Object Lock and restore rehearsal remain owner/infrastructure gates.
+
+### Exact-version backup creation gate — 2026-11-15
+
+- Backup creation now requires the object-store `get-object` response to return the exact VersionId requested for both the encrypted archive and its manifest. Missing, blank, or mismatched VersionIds fail the backup before the success marker can be advanced.
+- Added focused regression coverage for matching, missing, blank, and mismatched immutable version identifiers.
+- Production Wasabi compatibility still requires a real owner-provisioned COMPLIANCE-mode rehearsal; this code-level guard does not claim provider validation.
