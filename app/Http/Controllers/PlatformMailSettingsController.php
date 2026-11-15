@@ -81,7 +81,7 @@ class PlatformMailSettingsController extends Controller
             'from_name' => ['required_if:driver,smtp,postmark', 'nullable', 'string', 'max:120'],
             'smtp_host' => ['required_if:driver,smtp', 'nullable', 'string', 'max:255'],
             'smtp_port' => ['required_if:driver,smtp', 'nullable', 'integer', 'between:1,65535'],
-            'smtp_encryption' => ['required_if:driver,smtp', 'nullable', 'in:none,tls,ssl'],
+            'smtp_encryption' => ['required_if:driver,smtp', 'nullable', 'in:tls,ssl'],
             'smtp_username' => ['nullable', 'string', 'max:255'],
             'smtp_password' => ['nullable', 'string', 'max:4096'],
             'clear_smtp_password' => ['sometimes', 'boolean'],
