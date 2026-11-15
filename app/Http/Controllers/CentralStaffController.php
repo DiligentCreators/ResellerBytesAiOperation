@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -44,7 +45,7 @@ class CentralStaffController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email:rfc', 'max:255', 'unique:users,email'],
-            'password' => ['required', 'string', 'min:14', 'max:255'],
+            'password' => ['required', 'string', 'max:255', Password::min(14)->letters()->mixedCase()->numbers()->symbols()],
             'permissions' => ['sometimes', 'array'],
             'permissions.*' => ['required', 'string', Rule::in(CentralStaffAuthorization::PERMISSIONS)],
         ]);
