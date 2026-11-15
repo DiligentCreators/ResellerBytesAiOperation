@@ -6,10 +6,8 @@ Status: Ed25519 signer/verifier, local freshness/tail monitor, redacted JSON ale
 
 Two checks serve different trust boundaries:
 
-- `php tools/verify-audit-anchor.php /secure/path/checkpoint.json
-[EXPECTED_PREVIOUS_SHA256] [--max-age-minutes=60]` verifies the checkpoint envelope, Ed25519 signature, expected environment, strict canonical UTC timestamp, and checkpoint digest using only `AUDIT_ANCHOR_PUBLIC_KEY`. It always rejects timestamps more than five minutes in the future. Set `AUDIT_ANCHOR_EXPECTED_ENVIRONMENT` to the exact signed environment. Optionally pass the expected prior checkpoint SHA-256 to enforce continuity and/or `--max-age-minutes=N` to enforce freshness independently of the application database. Historical signature verification can omit the max-age option; production monitoring should set an approved freshness threshold.
-- `php artisan audit:anchor:monitor /secure/path/checkpoint.json --max-age-minutes=60
---max-unanchored-tail=0` verifies the signature and database chain prefix, then fails if the checkpoint is stale, more than five minutes in the future, or the local chain has more than the permitted unanchored events. It requires the application database and configured public key.
+- `php tools/verify-audit-anchor.php /secure/path/checkpoint.json [EXPECTED_PREVIOUS_SHA256] [--max-age-minutes=60]` verifies the checkpoint envelope, Ed25519 signature, expected environment, strict canonical UTC timestamp, and checkpoint digest using only `AUDIT_ANCHOR_PUBLIC_KEY`. It always rejects timestamps more than five minutes in the future. Set `AUDIT_ANCHOR_EXPECTED_ENVIRONMENT` to the exact signed environment. Optionally pass the expected prior checkpoint SHA-256 to enforce continuity and/or `--max-age-minutes=N` to enforce freshness independently of the application database. Historical signature verification can omit the max-age option; production monitoring should set an approved freshness threshold.
+- `php artisan audit:anchor:monitor /secure/path/checkpoint.json --max-age-minutes=60 --max-unanchored-tail=0` verifies the signature and database chain prefix, then fails if the checkpoint is stale, more than five minutes in the future, or the local chain has more than the permitted unanchored events. It requires the application database and configured public key.
 
 The standalone verifier intentionally does not claim to validate the database chain prefix. It now strictly validates calendar timestamps, rejects timestamps more than five minutes in the future, and optionally enforces a maximum age without database access. Run it from a separate security account or verifier host with only the public key. Run the application monitor from the application trust boundary. A successful standalone signature/freshness check is not proof that the checkpoint matches the current database.
 
@@ -38,8 +36,7 @@ Route standard alerts to the configured owner email and one configured team chan
 - [ ] Alert on every non-zero exit, missing checkpoint, stale checkpoint,
       signature
   failure, chain mismatch, or unanchored-tail threshold breach.
-- [ ] Capture `php artisan audit:anchor:monitor /secure/path/checkpoint.json
---max-age-minutes=N --max-unanchored-tail=N --json` stdout as the structured alert evidence; send only the allowlisted fields to the approved security/on-call route.
+- [ ] Capture `php artisan audit:anchor:monitor /secure/path/checkpoint.json --max-age-minutes=N --max-unanchored-tail=N --json` stdout as the structured alert evidence; send only the allowlisted fields to the approved security/on-call route.
 - [ ] Do not include private keys, checkpoint signing secrets, audit event
       metadata,
 customer data, database connection strings, or raw exception traces in notifications.
@@ -84,10 +81,8 @@ The provider-neutral publisher has fake-store tests for duplicate-key rejection,
 Required environment configuration:
 
 - `AUDIT_ANCHOR_BUCKET`: dedicated Object Lock bucket; do not reuse the backup bucket.
-- `AUDIT_ANCHOR_ENDPOINT`, `AUDIT_ANCHOR_REGION`, and
-`AUDIT_ANCHOR_AWS_CLI_BINARY`: S3-compatible endpoint and client configuration.
-- `AUDIT_ANCHOR_AWS_ACCESS_KEY_ID` and `AUDIT_ANCHOR_AWS_SECRET_ACCESS_KEY`:
-dedicated least-privilege credentials from the deployment secret manager. They are intentionally separate from the backup bucket credentials and never stored in Git.
+- `AUDIT_ANCHOR_ENDPOINT`, `AUDIT_ANCHOR_REGION`, and `AUDIT_ANCHOR_AWS_CLI_BINARY`: S3-compatible endpoint and client configuration.
+- `AUDIT_ANCHOR_AWS_ACCESS_KEY_ID` and `AUDIT_ANCHOR_AWS_SECRET_ACCESS_KEY`: dedicated least-privilege credentials from the deployment secret manager. They are intentionally separate from the backup bucket credentials and never stored in Git.
 - `AUDIT_ANCHOR_PRIVATE_KEY` and `AUDIT_ANCHOR_PUBLIC_KEY`: independent Ed25519 keys provisioned outside the application environment.
 
 The adapter requires HTTPS, dedicated credentials, and a bucket distinct from the configured backup bucket. It does not create buckets, enable versioning/Object Lock, configure IAM, or create credentials. No upload is attempted unless the explicit audit bucket, endpoint, region, credentials, and signing keys are configured. Production Object Lock setup, provider compatibility, key custody, and isolated rehearsal remain owner-controlled release gates.
@@ -97,14 +92,12 @@ The adapter requires HTTPS, dedicated credentials, and a bucket distinct from th
 - Keep the prior checkpoint SHA-256 outside the application database and pass it as the expected predecessor when independently verifying the next checkpoint.
 - Preserve all historical checkpoint bytes and public-key fingerprints. Never replace an existing immutable object.
 - If a checkpoint is missing or continuity fails, stop checkpoint advancement, preserve evidence, and investigate. Do not create a new chain root to conceal a gap.
-- After restoring a database backup, verify the restored chain against the latest
-externally retained checkpoint and document any legitimate unanchored tail created after that checkpoint.
+- After restoring a database backup, verify the restored chain against the latest externally retained checkpoint and document any legitimate unanchored tail created after that checkpoint.
 
 ## Pending for Shahrukh
 
 - Create and fund the independent cloud/security account and approve its billing; then provision the 365-day Object Lock COMPLIANCE bucket and provide actual configuration/read-back evidence.
-- Generate and retain custody of the production Ed25519 signing/anchor keys. Shahrukh is
-the sole initial signing/verifier operator; keep future second-operator enrollment possible. Provide only non-secret public-key references/fingerprints through the approved secure channel.
+- Generate and retain custody of the production Ed25519 signing/anchor keys. Shahrukh is the sole initial signing/verifier operator; keep future second-operator enrollment possible. Provide only non-secret public-key references/fingerprints through the approved secure channel.
 - Provide approved secret-manager access and access policy so alert destinations and production key references can be configured securely.
 
 No cloud resource, production signing key, credential, or production alert route was created or accessed by this implementation.
