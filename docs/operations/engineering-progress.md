@@ -395,3 +395,11 @@ A green CI run is necessary but does not close these release gates or authorize 
 - The script verifies RLS is enabled, runtime and operations roles are distinct on the same database, the runtime role is neither BYPASSRLS nor superuser, the operations role has BYPASSRLS but is neither superuser nor table owner, and cleans up only mutable test fixtures.
 - Global reconciliation now fails closed unless the dedicated operations role has the expected privilege boundary and does not own the protected billing/audit tables.
 - The script is authored but not run; it requires provisioned PostgreSQL runtime/operations roles, two test tenant UUIDs, and an existing tenant-A adjustment fixture. These remain infrastructure rehearsal gates.
+
+
+### Billing operations visibility — 2026-11-15
+
+- Added the redacted `billing:operations:report` command with human-readable and JSON output for webhook/outbox due backlog, stale processing leases, dead letters, retry exhaustion, manual replay ceiling, and oldest due age.
+- The report executes through the dedicated PostgreSQL operations-role guard and emits aggregate metrics only; tenant IDs, provider/account IDs, event IDs, payloads, signatures, and exception messages are excluded.
+- Added feature coverage for the JSON contract, backlog/dead-letter/replay counters, oldest-due age, and non-disclosure of tenant/provider/payload identifiers. Runtime execution remains pending the PHP 8.5 environment.
+- No provider activation, credentials, workflow changes, repository settings, merge, or deployment.

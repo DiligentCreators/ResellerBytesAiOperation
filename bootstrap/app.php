@@ -59,7 +59,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ReleaseLegalHold::class,
         ReportDiagnosticRetentionCandidates::class,
         DispatchTenantBillingOutbox::class,
-        ReconcileTenantBillingWebhooks::class,
+        ReconcileTenantBillingWebhooks::class,\n        ReportTenantBillingOperations::class,
         RetryTenantBillingWebhookDeadLetter::class,
         RetryTenantBillingOutboxDeadLetter::class,
         RestoreOperationalBackup::class,

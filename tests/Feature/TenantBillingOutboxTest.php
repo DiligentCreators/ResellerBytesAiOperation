@@ -1044,3 +1044,55 @@ it('requeues dead-lettered outbox messages with tenant authorization and bounded
     expect(fn () => $recovery->requeueDeadLetter($tenant->id, $message->id, $user->id, 'consumer_configuration_corrected'))
         ->toThrow(RuntimeException::class, 'billing_outbox_manual_replay_limit_reached');
 });
+
+
+it('reports redacted billing backlog, retry and dead-letter metrics', function () {
+    $tenant = createBillingOutboxTenant('billing-operations-report');
+    $now = now('UTC');
+
+    $webhook = app(TenantBillingWebhookInbox::class)->acceptVerifiedEvent(
+        $tenant->id,
+        'approved_gateway',
+        'evt_operations_report',
+        'invoice.payment_succeeded',
+        ['invoice_id' => 7, 'payment_id' => 'pay_operations_report', 'amount_minor' => 100, 'currency' => 'USD'],
+        $now->copy()->subMinutes(10),
+        'acct_operations_report',
+    );
+    $webhook->forceFill([
+        'status' => 'dead_lettered',
+        'attempts' => 12,
+        'manual_replay_count' => 3,
+        'dead_lettered_at' => $now,
+    ])->save();
+
+    $outbox = DB::transaction(fn () => app(TenantBillingOutbox::class)->enqueue(
+        $tenant->id,
+        'operations-report-outbox',
+        'billing.invoice.issued',
+        'billing_invoice',
+        7,
+        ['invoice_id' => 7, 'private_payload_marker' => 'never-output'],
+    ));
+    DB::table('tenant_billing_outbox')->where('id', $outbox->id)->update([
+        'status' => 'pending',
+        'attempts' => 2,
+        'available_at' => $now->copy()->subMinutes(3),
+    ]);
+
+    expect(Artisan::call('billing:operations:report', ['--json' => true]))->toBe(0);
+    $report = json_decode(Artisan::output(), true, flags: JSON_THROW_ON_ERROR);
+
+    expect($report)->toHaveKeys(['schema_version', 'observed_at', 'webhooks', 'outbox'])
+        ->and($report['webhooks'])->toMatchArray([
+            'pending_due' => 0,
+            'dead_lettered' => 1,
+            'retry_exhausted' => 1,
+            'manual_replay_limit_reached' => 1,
+        ])
+        ->and($report['outbox']['pending_due'])->toBe(1)
+        ->and($report['outbox']['oldest_due_age_seconds'])->toBeGreaterThanOrEqual(180)
+        ->and(Artisan::output())->not->toContain('private_payload_marker')
+        ->and(Artisan::output())->not->toContain('acct_operations_report')
+        ->and(Artisan::output())->not->toContain($tenant->id);
+});

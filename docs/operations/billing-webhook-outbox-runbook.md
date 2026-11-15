@@ -78,3 +78,8 @@ Before any provider is activated:
 7. Complete independent security review and obtain explicit release authorization before any production activation.
 
 No production charge, webhook endpoint, database migration, or deployment is authorized by this runbook.
+
+
+## Redacted billing operations report
+
+Run `php artisan billing:operations:report` for a compact aggregate view, or add `--json` for machine-readable evidence. The report contains only schema version, UTC observation time, and aggregate counts/ages for due pending work, processing leases older than five minutes, dead letters, retry-exhausted records, and records at the three-manual-replay ceiling. It intentionally omits tenant IDs, provider/account identifiers, event IDs, payloads, signatures, and exception text. On PostgreSQL it runs only through the separately provisioned operations role and fails closed if that role boundary is invalid. This is report-only telemetry; alert thresholds and delivery routing are not inferred or enabled by this command.
