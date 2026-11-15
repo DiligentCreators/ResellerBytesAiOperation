@@ -25,27 +25,14 @@ Shahrukh approved the following operational thresholds on 2026-11-14; treat thes
 
 Route standard alerts to the configured owner email and one configured team channel (Slack or Discord). Critical alerts must additionally be sent through configured WhatsApp and/or SMS delivery adapters. Destinations and provider credentials are runtime environment/secret-manager configuration only; repository templates contain blank values and no real addresses, webhook URLs, phone numbers, or tokens. Delivery adapters must redact secrets and must not treat an HTTP request being queued as confirmed delivery without provider acknowledgement.
 
-- [ ] Configure the owner email and exactly one primary team channel (Slack or
-      Discord)
-  in the deployment secret manager.
-- [ ] Configure and test critical WhatsApp/SMS provider adapters and delivery
-      receipts.
-- [ ] Run the monitor from an external scheduler/monitoring agent at a cadence
-      shorter
-  than the configured checkpoint freshness threshold.
-- [ ] Alert on every non-zero exit, missing checkpoint, stale checkpoint,
-      signature
-  failure, chain mismatch, or unanchored-tail threshold breach.
+- [ ] Configure the owner email and exactly one primary team channel (Slack or Discord) in the deployment secret manager.
+- [ ] Configure and test critical WhatsApp/SMS provider adapters and delivery receipts.
+- [ ] Run the monitor from an external scheduler/monitoring agent at a cadence shorter than the configured checkpoint freshness threshold.
+- [ ] Alert on every non-zero exit, missing checkpoint, stale checkpoint, signature failure, chain mismatch, or unanchored-tail threshold breach.
 - [ ] Capture `php artisan audit:anchor:monitor /secure/path/checkpoint.json --max-age-minutes=N --max-unanchored-tail=N --json` stdout as the structured alert evidence; send only the allowlisted fields to the approved security/on-call route.
-- [ ] Do not include private keys, checkpoint signing secrets, audit event
-      metadata,
-customer data, database connection strings, or raw exception traces in notifications.
-- [ ] Treat an alert as an incident until the last known-good external
-      checkpoint and
-  local chain prefix are independently verified.
-- [ ] Preserve alert delivery receipts and incident disposition in the external
-      audit
-  evidence store.
+- [ ] Do not include private keys, checkpoint signing secrets, audit event metadata, customer data, database connection strings, or raw exception traces in notifications.
+- [ ] Treat an alert as an incident until the last known-good external checkpoint and local chain prefix are independently verified.
+- [ ] Preserve alert delivery receipts and incident disposition in the external audit evidence store.
 
 The approved alert thresholds and destination policy are recorded in `config/operations.php` and `.env.example`. The application now includes the operations:check-alerts command, an alert-state/deduplication store, email and Slack/Discord delivery, and provider-neutral critical WhatsApp/SMS HTTPS webhook adapters. Laravel Scheduler evaluates every minute with withoutOverlapping, but the schedule is disabled by default and requires OPERATIONS_ALERTS_ENABLED=true after the owner email, exactly one team route, at least one critical route, secret-manager configuration, and non-production delivery tests are complete. A webhook counts as delivered only on a 2xx acknowledgement. Provider-specific WhatsApp/SMS bridge provisioning and production credentials remain external owner-controlled gates; do not claim alerts are live until delivery evidence exists. Checkpoint cadence and maximum unanchored window remain explicit operational configuration decisions.
 
