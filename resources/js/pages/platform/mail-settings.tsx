@@ -11,7 +11,7 @@ type Props = {
     from_name: string;
     smtp_host: string;
     smtp_port: number;
-    smtp_encryption: 'none' | 'tls' | 'ssl';
+    smtp_encryption: 'tls' | 'ssl';
     smtp_username_set: boolean;
     smtp_password_set: boolean;
     postmark_token_set: boolean;
@@ -41,7 +41,7 @@ export default function MailSettings(props: Props) {
                             <p className="text-sm text-muted-foreground">SMTP fields</p>
                             <div className="grid gap-2"><Label htmlFor="smtp_host">SMTP host</Label><Input id="smtp_host" name="smtp_host" defaultValue={props.smtp_host} /><InputError message={errors.smtp_host} /></div>
                             <div className="grid gap-2"><Label htmlFor="smtp_port">SMTP port</Label><Input id="smtp_port" name="smtp_port" type="number" defaultValue={props.smtp_port} /><InputError message={errors.smtp_port} /></div>
-                            <div className="grid gap-2"><Label htmlFor="smtp_encryption">SMTP encryption</Label><select id="smtp_encryption" name="smtp_encryption" defaultValue={props.smtp_encryption} className="rounded-md border bg-background p-2"><option value="tls">STARTTLS</option><option value="ssl">Implicit TLS</option><option value="none">None</option></select></div>
+                            <div className="grid gap-2"><Label htmlFor="smtp_encryption">SMTP encryption</Label><select id="smtp_encryption" name="smtp_encryption" defaultValue={props.smtp_encryption} className="rounded-md border bg-background p-2"><option value="tls">STARTTLS</option><option value="ssl">Implicit TLS</option></select></div>
                             <div className="grid gap-2"><Label htmlFor="smtp_username">SMTP username {props.smtp_username_set ? "(saved; leave blank to keep)" : ""}</Label><Input id="smtp_username" name="smtp_username" type="password" autoComplete="new-password" placeholder={props.smtp_username_set ? "••••••••••••" : "Enter SMTP username"} />{props.smtp_username_set && <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="clear_smtp_username" value="1" /> Clear saved SMTP username</label>}</div>
                             <div className="grid gap-2"><Label htmlFor="smtp_password">SMTP password {props.smtp_password_set ? '(saved; leave blank to keep)' : ''}</Label><Input id="smtp_password" name="smtp_password" type="password" autoComplete="new-password" placeholder={props.smtp_password_set ? '••••••••••••' : 'Enter SMTP password'} /><InputError message={errors.smtp_password} />{props.smtp_password_set && <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="clear_smtp_password" value="1" /> Clear saved SMTP password</label>}</div>
                             <p className="text-sm text-muted-foreground">Postmark fields</p>
