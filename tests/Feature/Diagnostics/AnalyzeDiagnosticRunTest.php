@@ -469,6 +469,7 @@ it('settles confirmed provider usage before surfacing an unsuccessful HTTP respo
         'error' => ['code' => 'provider_processing_error'],
     ], JSON_THROW_ON_ERROR);
 
+    // Keep the provider's usage-bearing HTTP 500 deterministic while asserting settlement ordering.
     $response = Mockery::mock(\Illuminate\Http\Client\Response::class);
     $response->shouldReceive('body')->once()->andReturn($rawBody);
     $response->shouldReceive('successful')->once()->andReturnFalse();
