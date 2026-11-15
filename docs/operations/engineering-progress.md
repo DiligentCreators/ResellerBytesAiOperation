@@ -568,3 +568,15 @@ A green CI run is necessary but does not close these release gates or authorize 
 - Added feature coverage for super-admin all-permission behavior, explicit staff allowlists, denied self-escalation, settings permission enforcement, audit events, and super-admin profile protection.
 - Documented OPERATIONS_OWNER_EMAIL bootstrap and central RBAC operations in docs/operations/central-staff-rbac.md. Empty permissions are supported for newly created or existing staff.
 - Current branch head: 5462ac5669df0e4c0dcbaa0ab68ff7e998e291a0 at the time of this entry. All continuation commits use [skip ci]. PHP 8.5 test execution and exact-head CI remain deferred until the final one-shot commit. No workflow file, repository setting, production resource, or deployment was changed.
+
+
+### Final release-readiness implementation pass — 2026-11-15
+
+- Completed central staff RBAC implementation and added strong-password validation, staff create/update/delete lifecycle tests, permission allowlist tests for all five central areas, settings-route authorization tests, transactional audit-failure rollback coverage, and configured-super-admin self-protection tests.
+- Added missing operations-user lifecycle tests for hidden password prompts, strong password enforcement, confirmation mismatch, duplicate email rejection, password hashing, and immutable creation audit evidence.
+- Rechecked diagnostic queue recovery: five-minute scheduler, bounded batches, queue retry/visibility plus analysis lease guard, expired-record suppression, reserved-attempt release, ambiguous submitted-attempt hold, and settled-attempt no-recharge behavior are covered by feature tests.
+- Rechecked retention: UTC inclusive 365-day received_at cutoff, report-only mode, dry-run default, explicit execute + disabled-by-default guard, transactional deletion evidence, active-hold expiry, and indefinite audit retention are covered/documented. No cleanup schedule is registered.
+- Updated the production checklist to separate deferred tenant onboarding/provider activation/white-label/custom-domain work from this release. Replaced stale owner-pending list with Shahrukh's explicit environment setup checklist: Wasabi Object Lock COMPLIANCE, signing keys, production DB roles, mail credentials, PHP 8.5 local test, and backup/restore rehearsal. Shahrukh's security-review and release approval are recorded as received.
+- Updated deployment mail guidance to the central Log/SMTP/Postmark configuration and documented OPERATIONS_OWNER_EMAIL and the four PostgreSQL application/service identities.
+- Compared the actual branch against handoff head 8364f4ac8815aa75422e26a5db72ef7f5fb5e411: 38 commits ahead, zero behind; changed-file comparison confirms no workflow file or repository setting changed in this implementation pass.
+- Current exact branch head: cc95d2570e64af1a040d3db2a921a38840a4f01f. All 38 commits in this pass include [skip ci]. Exact-head CI has intentionally not been triggered yet; it will run once on the final non-[skip ci] commit after remaining review/documentation is complete. PHP 8.5 test execution is not available in this environment.
