@@ -4,6 +4,8 @@ import { EmptyState } from '@/components/empty-state';
 import { PageHeader } from '@/components/page-header';
 import { Pagination } from '@/components/pagination';
 import { StatusBadge } from '@/components/status-badge';
+import { useWorkspaceTimezone } from '@/hooks/use-workspace-timezone';
+import { formatDateTime } from '@/lib/dates';
 
 type Run = {
     id: string;
@@ -21,16 +23,9 @@ type Props = {
     };
 };
 
-function date(value: string | null) {
-    return value
-        ? new Intl.DateTimeFormat(undefined, {
-              dateStyle: 'medium',
-              timeStyle: 'short',
-          }).format(new Date(value))
-        : 'Not available';
-}
-
 export default function DiagnosticRunsIndex({ runs }: Props) {
+    const timezone = useWorkspaceTimezone();
+
     return (
         <>
             <Head title="Diagnostic Runs" />
@@ -87,7 +82,10 @@ export default function DiagnosticRunsIndex({ runs }: Props) {
                                             {run.whmcs_version}
                                         </td>
                                         <td className="px-4 text-muted-foreground">
-                                            {date(run.received_at)}
+                                            {formatDateTime(
+                                                run.received_at,
+                                                timezone,
+                                            )}
                                         </td>
                                         <td className="px-4 tabular-nums">
                                             {run.findings_count}

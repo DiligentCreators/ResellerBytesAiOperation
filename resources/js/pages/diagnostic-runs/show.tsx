@@ -3,6 +3,8 @@ import { ArrowLeft, FileJson } from 'lucide-react';
 import { PageHeader } from '@/components/page-header';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
+import { useWorkspaceTimezone } from '@/hooks/use-workspace-timezone';
+import { formatDateTime } from '@/lib/dates';
 
 type Finding = {
     id: string;
@@ -29,16 +31,9 @@ type Run = {
 };
 type Props = { run: Run };
 
-function date(value: string | null) {
-    return value
-        ? new Intl.DateTimeFormat(undefined, {
-              dateStyle: 'full',
-              timeStyle: 'medium',
-          }).format(new Date(value))
-        : 'Not available';
-}
-
 export default function DiagnosticRunShow({ run }: Props) {
+    const timezone = useWorkspaceTimezone();
+
     return (
         <>
             <Head title="Diagnostic Snapshot" />
@@ -75,13 +70,17 @@ export default function DiagnosticRunShow({ run }: Props) {
                         <p className="text-xs text-muted-foreground">
                             Collected
                         </p>
-                        <p className="mt-1 text-sm">{date(run.collected_at)}</p>
+                        <p className="mt-1 text-sm">
+                            {formatDateTime(run.collected_at, timezone)}
+                        </p>
                     </div>
                     <div>
                         <p className="text-xs text-muted-foreground">
                             Received
                         </p>
-                        <p className="mt-1 text-sm">{date(run.received_at)}</p>
+                        <p className="mt-1 text-sm">
+                            {formatDateTime(run.received_at, timezone)}
+                        </p>
                     </div>
                 </section>
 

@@ -1,6 +1,8 @@
 import { Head, Link } from '@inertiajs/react';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
+import { useWorkspaceTimezone } from '@/hooks/use-workspace-timezone';
+import { formatDate } from '@/lib/dates';
 import { formatMoney } from '@/lib/money';
 
 type Invoice = {
@@ -35,6 +37,8 @@ type Props = {
 };
 
 export default function InvoiceShow({ tenant, invoice, seller }: Props) {
+    const timezone = useWorkspaceTimezone();
+
     return (
         <>
             <Head title={`Invoice ${invoice.invoice_number}`} />
@@ -73,7 +77,7 @@ export default function InvoiceShow({ tenant, invoice, seller }: Props) {
                             <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
                                 Invoice
                             </p>
-                            <p className="mt-1 font-mono text-lg font-semibold">
+                            <p className="mt-1 text-lg font-semibold tabular-nums">
                                 {invoice.invoice_number}
                             </p>
                             <div className="mt-2 flex justify-end">
@@ -100,7 +104,9 @@ export default function InvoiceShow({ tenant, invoice, seller }: Props) {
                                 Issued
                             </p>
                             <p className="mt-1 text-sm">
-                                {invoice.issued_at ?? '—'}
+                                {formatDate(invoice.issued_at, {
+                                    timeZone: timezone,
+                                })}
                             </p>
                         </div>
                         <div>
@@ -108,7 +114,9 @@ export default function InvoiceShow({ tenant, invoice, seller }: Props) {
                                 Due
                             </p>
                             <p className="mt-1 text-sm">
-                                {invoice.due_at ?? '—'}
+                                {formatDate(invoice.due_at, {
+                                    timeZone: timezone,
+                                })}
                             </p>
                         </div>
                         <div>
@@ -194,7 +202,10 @@ export default function InvoiceShow({ tenant, invoice, seller }: Props) {
 
                     {invoice.paid_at ? (
                         <p className="mt-8 text-sm text-muted-foreground">
-                            Paid on {invoice.paid_at}
+                            Paid on{' '}
+                            {formatDate(invoice.paid_at, {
+                                timeZone: timezone,
+                            })}
                             {seller.email ? ` · Support: ${seller.email}` : ''}
                         </p>
                     ) : null}

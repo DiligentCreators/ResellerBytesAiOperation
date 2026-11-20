@@ -2,17 +2,22 @@ import { Form, Head, Link } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { StatusBadge } from '@/components/status-badge';
 import InputError from '@/components/input-error';
+import { formatDate, formatDateTime } from '@/lib/dates';
 import { formatMoney } from '@/lib/money';
 
 type Props = {
     tenant: { id: string; name: string };
+    timezone?: string;
     subscription: {
         id: number;
         plan_code: string;
+        plan_name: string;
         status: string;
         currency: string;
         unit_amount_minor: number;
+        billing_period: string;
         cancel_at_period_end: boolean;
         current_period_ends_at: string | null;
         entitlements: { limits?: Record<string, number> };
@@ -47,9 +52,47 @@ type Props = {
     status?: string;
 };
 
+function usagePercent(used: number, limit: number | undefined): number {
+    if (!limit || limit <= 0) {
+        return 0;
+    }
+
+    return Math.min(100, Math.round((used / limit) * 100));
+}
+
+function UsageBar({
+    label,
+    used,
+    limit,
+}: {
+    label: string;
+    used: number;
+    limit: number | undefined;
+}) {
+    const percent = usagePercent(used, limit);
+
+    return (
+        <div className="space-y-1.5">
+            <div className="flex items-center justify-between text-sm">
+                <span>{label}</span>
+                <span className="text-muted-foreground tabular-nums">
+                    {used}/{limit ?? '—'}
+                </span>
+            </div>
+            <div className="h-2 overflow-hidden rounded-full bg-muted">
+                <div
+                    className="h-full rounded-full bg-primary transition-[width]"
+                    style={{ width: `${percent}%` }}
+                />
+            </div>
+        </div>
+    );
+}
+
 export default function BillingSettingsPage(props: Props) {
     const {
         tenant,
+        timezone,
         subscription,
         usage,
         invoices,
@@ -61,6 +104,8 @@ export default function BillingSettingsPage(props: Props) {
         status,
     } = props;
     const limits = subscription?.entitlements?.limits ?? {};
+    const periodLabel =
+        subscription?.billing_period === 'yearly' ? 'year' : 'month';
 
     return (
         <>
@@ -86,41 +131,48 @@ export default function BillingSettingsPage(props: Props) {
                 <section className="rounded-lg border border-border bg-white p-5">
                     <h2 className="text-base font-semibold">Current plan</h2>
                     {subscription ? (
-                        <div className="mt-4 space-y-2 text-sm">
-                            <p>
-                                <span className="font-medium">
-                                    {subscription.plan_code}
-                                </span>{' '}
-                                · {subscription.status}
-                            </p>
-                            <p className="tabular-nums">
+                        <div className="mt-4 space-y-4 text-sm">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <span className="text-base font-semibold">
+                                    {subscription.plan_name}
+                                </span>
+                                <StatusBadge status={subscription.status} />
+                            </div>
+                            <p className="text-muted-foreground tabular-nums">
                                 {formatMoney(
                                     subscription.unit_amount_minor,
                                     subscription.currency,
-                                )}
+                                )}{' '}
+                                / {periodLabel}
                             </p>
                             <p className="text-muted-foreground">
                                 Renews / period ends:{' '}
-                                {subscription.current_period_ends_at ?? '—'}
+                                {formatDate(
+                                    subscription.current_period_ends_at,
+                                    { timeZone: timezone },
+                                )}
                             </p>
                             {subscription.cancel_at_period_end && (
                                 <p className="text-warning-fg">
                                     Cancels at period end
                                 </p>
                             )}
-                            <div className="mt-4 grid gap-2 md:grid-cols-3">
-                                <p>
-                                    Members: {usage.members} /{' '}
-                                    {limits.members ?? '—'}
-                                </p>
-                                <p>
-                                    Integrations: {usage.integrations} /{' '}
-                                    {limits.integrations ?? '—'}
-                                </p>
-                                <p>
-                                    Diagnostics: {usage.diagnostics} /{' '}
-                                    {limits.diagnostics_per_period ?? '—'}
-                                </p>
+                            <div className="mt-2 grid gap-4 md:grid-cols-3">
+                                <UsageBar
+                                    label="Members"
+                                    used={usage.members}
+                                    limit={limits.members}
+                                />
+                                <UsageBar
+                                    label="Integrations"
+                                    used={usage.integrations}
+                                    limit={limits.integrations}
+                                />
+                                <UsageBar
+                                    label="Diagnostics"
+                                    used={usage.diagnostics}
+                                    limit={limits.diagnostics_per_period}
+                                />
                             </div>
                             {canManage && (
                                 <div className="mt-4 flex flex-wrap gap-3">
@@ -308,15 +360,19 @@ export default function BillingSettingsPage(props: Props) {
                                         key={invoice.id}
                                         className="border-t border-border"
                                     >
-                                        <td className="py-2 font-mono">
+                                        <td className="py-2">
                                             <Link
                                                 href={`/tenants/${tenant.id}/billing/invoices/${invoice.id}`}
-                                                className="text-primary"
+                                                className="font-medium text-primary tabular-nums hover:underline"
                                             >
                                                 {invoice.invoice_number}
                                             </Link>
                                         </td>
-                                        <td>{invoice.status}</td>
+                                        <td>
+                                            <StatusBadge
+                                                status={invoice.status}
+                                            />
+                                        </td>
                                         <td className="text-right tabular-nums">
                                             {formatMoney(
                                                 invoice.amount_due_minor,
@@ -336,15 +392,20 @@ export default function BillingSettingsPage(props: Props) {
                         {payments.map((payment) => (
                             <div
                                 key={payment.id}
-                                className="flex justify-between border-t border-border py-2"
+                                className="flex flex-wrap items-center justify-between gap-2 border-t border-border py-2"
                             >
-                                <span>{payment.received_at ?? '—'}</span>
-                                <span className="tabular-nums">
+                                <span className="text-muted-foreground">
+                                    {formatDateTime(
+                                        payment.received_at,
+                                        timezone,
+                                    )}
+                                </span>
+                                <span className="flex items-center gap-2 tabular-nums">
                                     {formatMoney(
                                         payment.amount_minor,
                                         payment.currency,
-                                    )}{' '}
-                                    · {payment.status}
+                                    )}
+                                    <StatusBadge status={payment.status} />
                                 </span>
                             </div>
                         ))}

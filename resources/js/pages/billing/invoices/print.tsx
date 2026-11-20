@@ -1,5 +1,7 @@
 import { Head } from '@inertiajs/react';
 import { useEffect } from 'react';
+import { useWorkspaceTimezone } from '@/hooks/use-workspace-timezone';
+import { formatDate } from '@/lib/dates';
 import { formatMoney } from '@/lib/money';
 
 type Props = {
@@ -25,6 +27,8 @@ type Props = {
 };
 
 export default function InvoicePrint({ tenant, invoice, seller }: Props) {
+    const timezone = useWorkspaceTimezone();
+
     useEffect(() => {
         const timer = window.setTimeout(() => window.print(), 250);
         return () => window.clearTimeout(timer);
@@ -47,7 +51,7 @@ export default function InvoicePrint({ tenant, invoice, seller }: Props) {
                         </p>
                     </div>
                     <div className="text-right">
-                        <p className="font-mono text-lg font-semibold">
+                        <p className="text-lg font-semibold tabular-nums">
                             {invoice.invoice_number}
                         </p>
                         <p className="text-sm text-muted-foreground">
@@ -110,8 +114,11 @@ export default function InvoicePrint({ tenant, invoice, seller }: Props) {
                     </p>
                 </div>
                 <p className="mt-10 text-xs text-muted-foreground">
-                    Issued {invoice.issued_at ?? '—'}
-                    {invoice.paid_at ? ` · Paid ${invoice.paid_at}` : ''}
+                    Issued{' '}
+                    {formatDate(invoice.issued_at, { timeZone: timezone })}
+                    {invoice.paid_at
+                        ? ` · Paid ${formatDate(invoice.paid_at, { timeZone: timezone })}`
+                        : ''}
                 </p>
                 <button
                     type="button"

@@ -4,6 +4,8 @@ import { EmptyState } from '@/components/empty-state';
 import { PageHeader } from '@/components/page-header';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
+import { useWorkspaceTimezone } from '@/hooks/use-workspace-timezone';
+import { formatDate } from '@/lib/dates';
 import { formatMoney } from '@/lib/money';
 
 type Props = {
@@ -22,6 +24,8 @@ type Props = {
 };
 
 export default function InvoicesIndex({ tenant, invoices }: Props) {
+    const timezone = useWorkspaceTimezone();
+
     return (
         <>
             <Head title="Invoices" />
@@ -78,10 +82,10 @@ export default function InvoicesIndex({ tenant, invoices }: Props) {
                                         key={invoice.id}
                                         className="h-11 border-b border-border last:border-0 hover:bg-surface/70"
                                     >
-                                        <td className="px-4 font-mono text-[13px]">
+                                        <td className="px-4">
                                             <Link
                                                 href={`/tenants/${tenant.id}/billing/invoices/${invoice.id}`}
-                                                className="font-medium text-primary hover:underline"
+                                                className="font-medium text-primary tabular-nums hover:underline"
                                             >
                                                 {invoice.invoice_number}
                                             </Link>
@@ -92,7 +96,9 @@ export default function InvoicesIndex({ tenant, invoices }: Props) {
                                             />
                                         </td>
                                         <td className="px-4 text-muted-foreground">
-                                            {invoice.issued_at ?? '—'}
+                                            {formatDate(invoice.issued_at, {
+                                                timeZone: timezone,
+                                            })}
                                         </td>
                                         <td className="px-4 text-right font-medium tabular-nums">
                                             {formatMoney(

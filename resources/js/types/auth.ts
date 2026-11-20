@@ -15,6 +15,7 @@ export type AuthTenant = {
     name: string;
     slug: string;
     role: string;
+    timezone?: string;
 };
 
 export type Auth = {

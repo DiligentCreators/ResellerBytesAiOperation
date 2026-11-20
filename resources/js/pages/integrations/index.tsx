@@ -9,6 +9,8 @@ import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useWorkspaceTimezone } from '@/hooks/use-workspace-timezone';
+import { formatDateTime } from '@/lib/dates';
 import type { IntegrationCredentialsFlash } from '@/types/auth';
 
 type Integration = {
@@ -28,13 +30,12 @@ type Props = {
     };
 };
 
-function date(value: string | null) {
-    return value
-        ? new Intl.DateTimeFormat(undefined, {
-              dateStyle: 'medium',
-              timeStyle: 'short',
-          }).format(new Date(value))
-        : 'Never connected';
+function formatLastSeen(value: string | null, timeZone?: string): string {
+    if (!value) {
+        return 'Never connected';
+    }
+
+    return formatDateTime(value, timeZone);
 }
 
 function credentialsJson(credentials: IntegrationCredentialsFlash): string {
@@ -50,6 +51,7 @@ function credentialsJson(credentials: IntegrationCredentialsFlash): string {
 
 export default function IntegrationsIndex({ integrations }: Props) {
     const { auth, flash } = usePage().props;
+    const timezone = useWorkspaceTimezone();
     const credentials = flash?.integration_credentials ?? null;
     const canManage = auth.can_manage_integrations;
     const isPlatformOperator = auth.is_platform_operator;
@@ -345,7 +347,10 @@ export default function IntegrationsIndex({ integrations }: Props) {
                                                 'Not reported'}
                                         </td>
                                         <td className="px-4 text-muted-foreground">
-                                            {date(item.last_seen_at)}
+                                            {formatLastSeen(
+                                                item.last_seen_at,
+                                                timezone,
+                                            )}
                                         </td>
                                         <td className="px-4 tabular-nums">
                                             {item.diagnostic_runs_count}

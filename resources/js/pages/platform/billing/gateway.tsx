@@ -1,5 +1,7 @@
 import { Form, Head, Link } from '@inertiajs/react';
+import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
+import { formatDateTime } from '@/lib/dates';
 
 type GatewayStatus = {
     driver: string;
@@ -104,7 +106,7 @@ export default function PlatformBillingGatewayPage({
                             Last webhook received
                         </p>
                         <p className="mt-2 text-sm tabular-nums">
-                            {gateway.last_webhook_received_at ?? '—'}
+                            {formatDateTime(gateway.last_webhook_received_at)}
                         </p>
                     </div>
                     <div className="rounded-lg border border-border bg-white p-4">
@@ -156,10 +158,10 @@ export default function PlatformBillingGatewayPage({
                                             {row.event_type}
                                         </td>
                                         <td className="px-3 py-2">
-                                            {row.status}
+                                            <StatusBadge status={row.status} />
                                         </td>
                                         <td className="px-3 py-2 tabular-nums">
-                                            {row.received_at ?? '—'}
+                                            {formatDateTime(row.received_at)}
                                         </td>
                                         <td className="px-3 py-2 tabular-nums">
                                             {row.attempts}
