@@ -45,11 +45,13 @@ class TenantBillingWebhookInbox
         $allowedPayloadKeys = match ($eventType) {
             'invoice.payment_succeeded' => ['invoice_id', 'payment_id', 'amount_minor', 'currency'],
             'invoice.payment_failed' => ['invoice_id', 'failure_code'],
+            'invoice.mirrored' => ['invoice_id', 'remote_invoice_id', 'amount_minor', 'currency', 'status', 'payment_link'],
             'payment.refunded', 'payment.dispute_opened', 'payment.dispute_won', 'payment.dispute_lost' => ['payment_id', 'adjustment_id', 'amount_minor', 'currency'],
             'subscription.renewed' => ['subscription_id', 'settled_invoice_id', 'period_starts_at', 'period_ends_at'],
             'subscription.past_due' => ['subscription_id'],
-            'subscription.canceled', 'subscription.expired' => ['subscription_id'],
+            'subscription.canceled', 'subscription.expired', 'subscription.paused', 'subscription.resumed' => ['subscription_id'],
             'subscription.reactivated' => ['subscription_id', 'settled_invoice_id'],
+            'webhook.ignored' => ['kelviq_type', 'note'],
             default => throw new InvalidArgumentException('billing_webhook_event_type_unsupported'),
         };
 
@@ -200,6 +202,27 @@ class TenantBillingWebhookInbox
                 || ! is_string($payload['currency'] ?? null)
                 || ! preg_match('/^[A-Z]{3}$/', $payload['currency'])) {
                 throw new InvalidArgumentException('billing_webhook_payment_payload_invalid');
+            }
+
+            return;
+        }
+
+        if ($eventType === 'invoice.mirrored') {
+            $invoiceId = filter_var($payload['invoice_id'] ?? null, FILTER_VALIDATE_INT);
+            $amount = filter_var($payload['amount_minor'] ?? null, FILTER_VALIDATE_INT);
+            if ($invoiceId === false || $invoiceId < 1 || $amount === false || $amount < 0
+                || ! is_string($payload['remote_invoice_id'] ?? null) || trim($payload['remote_invoice_id']) === ''
+                || ! is_string($payload['currency'] ?? null) || ! preg_match('/^[A-Z]{3}$/', $payload['currency'])
+                || ! is_string($payload['status'] ?? null) || ! is_string($payload['payment_link'] ?? null)) {
+                throw new InvalidArgumentException('billing_webhook_invoice_mirror_payload_invalid');
+            }
+
+            return;
+        }
+
+        if ($eventType === 'webhook.ignored') {
+            if (! is_string($payload['kelviq_type'] ?? null) || ! is_string($payload['note'] ?? null)) {
+                throw new InvalidArgumentException('billing_webhook_ignored_payload_invalid');
             }
 
             return;

@@ -60,9 +60,25 @@ export default function PlatformBillingIndex({
                             </p>
                         )}
                     </div>
-                    <Button asChild className="bg-[#0779A8] hover:bg-[#066A93]">
-                        <Link href="/platform/billing/plans">Manage plans</Link>
-                    </Button>
+                    <div className="flex flex-wrap gap-2">
+                        <Button
+                            asChild
+                            variant="outline"
+                            className="border-[#E3E8EE] text-[#0779A8]"
+                        >
+                            <Link href="/platform/billing/gateway">
+                                Gateway status
+                            </Link>
+                        </Button>
+                        <Button
+                            asChild
+                            className="bg-[#0779A8] hover:bg-[#066A93]"
+                        >
+                            <Link href="/platform/billing/plans">
+                                Manage plans
+                            </Link>
+                        </Button>
+                    </div>
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-4">

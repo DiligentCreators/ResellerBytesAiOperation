@@ -1,5 +1,6 @@
 <?php
 
+use App\Billing\Kelviq\KelviqBillingProviderAdapter;
 use App\Billing\Sandbox\SandboxBillingProviderAdapter;
 
 return [
@@ -8,7 +9,7 @@ return [
     'payment_failure_grace_days' => (int) env('BILLING_PAYMENT_FAILURE_GRACE_DAYS', 7),
 
     /*
-    | Active checkout gateway driver. C3 will add Kelviq; sandbox is for local/dev.
+    | Active checkout gateway driver: sandbox (local) or kelviq.
     | Sandbox is blocked in production unless BILLING_SANDBOX_ALLOW_IN_PRODUCTION=true.
     */
     'default_gateway' => env('BILLING_GATEWAY', 'sandbox'),
@@ -17,6 +18,16 @@ return [
         'enabled' => filter_var(env('BILLING_SANDBOX_ENABLED', true), FILTER_VALIDATE_BOOLEAN),
         'allow_in_production' => filter_var(env('BILLING_SANDBOX_ALLOW_IN_PRODUCTION', false), FILTER_VALIDATE_BOOLEAN),
         'signing_secret' => env('BILLING_SANDBOX_SIGNING_SECRET', 'local-sandbox-billing-secret'),
+    ],
+
+    'kelviq' => [
+        'mode' => env('KELVIQ_MODE', 'sandbox'),
+        'api_key' => env('KELVIQ_API_KEY', ''),
+        'webhook_secret' => env('KELVIQ_WEBHOOK_SECRET', ''),
+        'sandbox_base_url' => env('KELVIQ_SANDBOX_BASE_URL', 'https://sandboxapi.kelviq.com/api/v1'),
+        'live_base_url' => env('KELVIQ_LIVE_BASE_URL', 'https://api.kelviq.com/api/v1'),
+        'timeout' => (int) env('KELVIQ_TIMEOUT', 15),
+        'connect_timeout' => (int) env('KELVIQ_CONNECT_TIMEOUT', 5),
     ],
 
     'seller' => array_filter([
@@ -30,9 +41,9 @@ return [
 
     /*
     | Provider adapters for webhook verification (BillingProviderAdapterRegistry).
-    | Sandbox is registered for local checkout settlement; Kelviq arrives in C3.
     */
     'providers' => [
         'sandbox' => SandboxBillingProviderAdapter::class,
+        'kelviq' => KelviqBillingProviderAdapter::class,
     ],
 ];

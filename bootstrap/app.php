@@ -1,6 +1,7 @@
 <?php
 
 use App\Console\Commands\AssignWhmcsIntegrationTenant;
+use App\Console\Commands\CheckKelviqBilling;
 use App\Console\Commands\CheckOperationalAlerts;
 use App\Console\Commands\CollectOperationalMetrics;
 use App\Console\Commands\CreateOperationalBackup;
@@ -44,6 +45,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withCommands([
+        CheckKelviqBilling::class,
         CheckOperationalAlerts::class,
         CreateOperationalBackup::class,
         CollectOperationalMetrics::class,
@@ -71,6 +73,9 @@ return Application::configure(basePath: dirname(__DIR__))
     ])
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
+        $middleware->validateCsrfTokens(except: [
+            'webhooks/kelviq',
+        ]);
         $middleware->alias(['central.permission' => RequireCentralPermission::class]);
 
         $middleware->api(append: [CaptureOperationalMetrics::class]);

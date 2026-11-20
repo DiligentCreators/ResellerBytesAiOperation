@@ -2,6 +2,7 @@
 
 namespace App\Services\Billing;
 
+use App\Billing\Kelviq\KelviqPaymentGateway;
 use App\Billing\Sandbox\SandboxPaymentGateway;
 use App\Contracts\Billing\PaymentGateway;
 use InvalidArgumentException;
@@ -15,6 +16,7 @@ class PaymentGatewayManager
 
         $gateway = match ($name) {
             'sandbox' => app(SandboxPaymentGateway::class),
+            'kelviq' => app(KelviqPaymentGateway::class),
             default => throw new InvalidArgumentException('billing_gateway_unknown'),
         };
 
