@@ -40,7 +40,8 @@ class PlanFactory extends Factory
             'is_active' => true,
             'is_public' => true,
             'is_contact_sales' => false,
-            'kelviq_plan_identifier' => null,
+            'kelviq_plan_identifier_monthly' => null,
+            'kelviq_plan_identifier_yearly' => null,
         ];
     }
 }

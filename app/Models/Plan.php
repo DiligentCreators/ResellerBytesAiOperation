@@ -29,7 +29,8 @@ class Plan extends Model
         'is_active',
         'is_public',
         'is_contact_sales',
-        'kelviq_plan_identifier',
+        'kelviq_plan_identifier_monthly',
+        'kelviq_plan_identifier_yearly',
     ];
 
     protected function casts(): array
@@ -55,6 +56,15 @@ class Plan extends Model
     public function priceForPeriod(string $period): int
     {
         return $period === 'yearly' ? $this->price_yearly_minor : $this->price_monthly_minor;
+    }
+
+    public function kelviqPlanIdentifierForPeriod(string $period): ?string
+    {
+        $identifier = $period === 'yearly'
+            ? $this->kelviq_plan_identifier_yearly
+            : $this->kelviq_plan_identifier_monthly;
+
+        return is_string($identifier) && $identifier !== '' ? $identifier : null;
     }
 
     /**

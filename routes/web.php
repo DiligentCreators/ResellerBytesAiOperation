@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Billing\BillingSettingsController;
 use App\Http\Controllers\Billing\CheckoutController;
+use App\Http\Controllers\Billing\CheckoutReturnController;
 use App\Http\Controllers\Billing\InvoiceController;
 use App\Http\Controllers\Billing\SandboxCheckoutController;
 use App\Http\Controllers\BillingPlansController;
@@ -11,6 +12,7 @@ use App\Http\Controllers\DiagnosticRunController;
 use App\Http\Controllers\FindingController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\Platform\PlatformBillingController;
+use App\Http\Controllers\Platform\PlatformBillingGatewayController;
 use App\Http\Controllers\Platform\PlatformPlanController;
 use App\Http\Controllers\PlatformAiSettingsController;
 use App\Http\Controllers\PlatformMailSettingsController;
@@ -19,6 +21,7 @@ use App\Http\Controllers\TenantAuditExportController;
 use App\Http\Controllers\TenantMembershipController;
 use App\Http\Controllers\TenantNotificationController;
 use App\Http\Controllers\TenantSettingsController;
+use App\Http\Controllers\Webhooks\KelviqWebhookController;
 use App\Http\Controllers\WhmcsAddonDownloadController;
 use App\Http\Controllers\WhmcsAddonSetupController;
 use App\Http\Controllers\WhmcsAddonSigningFingerprintController;
@@ -29,6 +32,10 @@ use Illuminate\Support\Facades\Route;
 Route::inertia('/', 'welcome')->name('home');
 Route::get('pricing', PricingController::class)->name('pricing');
 
+Route::post('webhooks/kelviq', KelviqWebhookController::class)
+    ->middleware('throttle:120,1')
+    ->name('webhooks.kelviq');
+
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('onboarding', [OnboardingController::class, 'show'])->name('onboarding.show');
     Route::put('onboarding/workspace', [OnboardingController::class, 'updateWorkspace'])->middleware('throttle:20,1')->name('onboarding.workspace');
@@ -38,6 +45,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('tenants/{tenant}/billing/checkout/{plan}', [CheckoutController::class, 'show'])->name('billing.checkout.show');
     Route::post('tenants/{tenant}/billing/checkout/{plan}', [CheckoutController::class, 'store'])->middleware('throttle:10,1')->name('billing.checkout.store');
+    Route::get('tenants/{tenant}/billing/checkout-return/{invoice}', CheckoutReturnController::class)->name('billing.checkout.return');
     Route::get('tenants/{tenant}/billing/sandbox/{invoice}', [SandboxCheckoutController::class, 'show'])->name('billing.sandbox.checkout.show');
     Route::post('tenants/{tenant}/billing/sandbox/{invoice}/approve', [SandboxCheckoutController::class, 'approve'])->middleware('throttle:20,1')->name('billing.sandbox.checkout.approve');
     Route::post('tenants/{tenant}/billing/sandbox/{invoice}/decline', [SandboxCheckoutController::class, 'decline'])->middleware('throttle:20,1')->name('billing.sandbox.checkout.decline');
@@ -60,6 +68,8 @@ Route::middleware(['auth', 'verified', EnsureTwoFactorEnabled::class])->group(fu
 
     Route::middleware('central.permission:billing')->group(function () {
         Route::get('platform/billing', [PlatformBillingController::class, 'index'])->name('platform.billing.index');
+        Route::get('platform/billing/gateway', [PlatformBillingGatewayController::class, 'show'])->name('platform.billing.gateway');
+        Route::post('platform/billing/gateway/webhooks/{webhook}/replay', [PlatformBillingGatewayController::class, 'replay'])->middleware('throttle:20,1')->name('platform.billing.gateway.replay');
         Route::get('platform/billing/tenants/{tenant}', [PlatformBillingController::class, 'tenant'])->name('platform.billing.tenant');
         Route::put('platform/billing/seller', [PlatformBillingController::class, 'updateSeller'])->middleware('throttle:10,1')->name('platform.billing.seller.update');
         Route::get('platform/billing/plans', [PlatformPlanController::class, 'index'])->name('platform.billing.plans.index');

@@ -11,7 +11,6 @@ use App\Services\Audit\AuditEventWriter;
 use App\Services\Tenancy\TenantBillingOutbox;
 use App\Services\Tenancy\TenantDatabaseContext;
 use App\Services\Tenancy\TenantRoleAuthorization;
-use App\Services\Tenancy\TenantSubscriptionLifecycle;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -63,11 +62,12 @@ class SubscriptionManagementService
     }
 
     /**
-     * Plan changes replace the current subscription (plan snapshots are immutable).
-     * Creates a new open invoice and redirects through the active payment gateway.
+     * Plan changes keep the current subscription active until the new plan's
+     * payment is confirmed via webhook, then switch atomically. The pending
+     * subscription uses status `incomplete` (outside the one-current unique index).
      *
      * @param  array<string, mixed>  $billingDetails
-     * @return array{subscription: TenantSubscription, invoice: TenantBillingInvoice, checkout_url: string}
+     * @return array{subscription: TenantSubscription, invoice: TenantBillingInvoice, checkout_url: string, current_subscription: TenantSubscription}
      */
     public function changePlan(
         string $tenantId,
@@ -100,33 +100,39 @@ class SubscriptionManagementService
                     throw new InvalidArgumentException('billing_plan_unchanged');
                 }
 
-                app(TenantSubscriptionLifecycle::class)->transition(
-                    $tenantId,
-                    (int) $current->id,
-                    'canceled',
-                    null,
-                    (int) $actor->id,
-                );
+                $pending = TenantSubscription::query()
+                    ->where('tenant_id', $tenantId)
+                    ->where('status', 'incomplete')
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($pending !== null) {
+                    throw new RuntimeException('billing_plan_change_already_pending');
+                }
 
                 $provider = $gateway->driver();
                 $providerAccountId = $current->provider_account_id ?? ('acct_'.$provider.'_'.str_replace('-', '', $tenantId));
                 $now = CarbonImmutable::now('UTC');
                 $periodEnds = $billingPeriod === 'yearly' ? $now->addYear() : $now->addMonth();
                 $amount = $plan->priceForPeriod($billingPeriod);
+                $providerSubscriptionId = $provider === 'kelviq'
+                    ? null
+                    : 'sub_'.$provider.'_'.Str::lower(Str::random(18));
 
                 $subscription = TenantSubscription::query()->create([
                     'tenant_id' => $tenantId,
                     'plan_id' => $plan->id,
                     'plan_code' => $plan->code,
                     'billing_mode' => 'automated',
-                    'status' => 'trialing',
+                    'status' => 'incomplete',
                     'billing_provider' => $provider,
                     'provider_account_id' => $providerAccountId,
-                    'provider_subscription_id' => 'sub_'.$provider.'_'.Str::lower(Str::random(18)),
+                    'provider_subscription_id' => $providerSubscriptionId,
                     'currency' => $plan->currency,
                     'unit_amount_minor' => $amount,
                     'entitlements' => $plan->entitlements,
                     'cancel_at_period_end' => false,
+                    'replaces_subscription_id' => $current->id,
                     'current_period_starts_at' => $now,
                     'current_period_ends_at' => $periodEnds,
                     'created_by_user_id' => $actor->id,
@@ -158,10 +164,13 @@ class SubscriptionManagementService
 
                 $checkoutUrl = $gateway->startCheckout($subscription, $invoice, $actor, $billingDetails);
 
+                $this->audit($tenantId, $actor->id, $subscription, 'tenant_subscription.plan_change_started');
+
                 return [
                     'subscription' => $subscription,
                     'invoice' => $invoice,
                     'checkout_url' => $checkoutUrl,
+                    'current_subscription' => $current->refresh(),
                 ];
             }, 3),
         );
@@ -194,6 +203,7 @@ class SubscriptionManagementService
             'metadata' => [
                 'cancel_at_period_end' => $subscription->cancel_at_period_end,
                 'status' => $subscription->status,
+                'replaces_subscription_id' => $subscription->replaces_subscription_id,
             ],
             'occurred_at' => now('UTC'),
         ]);
@@ -204,7 +214,10 @@ class SubscriptionManagementService
             $eventType,
             'tenant_subscription',
             $subscription->id,
-            ['cancel_at_period_end' => $subscription->cancel_at_period_end],
+            [
+                'cancel_at_period_end' => $subscription->cancel_at_period_end,
+                'replaces_subscription_id' => $subscription->replaces_subscription_id,
+            ],
         );
     }
 }

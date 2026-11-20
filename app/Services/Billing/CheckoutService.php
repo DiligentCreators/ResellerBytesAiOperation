@@ -92,6 +92,11 @@ class CheckoutService
                 }
 
                 $amount = $plan->priceForPeriod($billingPeriod);
+                $providerSubscriptionId = $provider === 'kelviq'
+                    ? null
+                    : 'sub_'.$provider.'_'.Str::lower(Str::random(18));
+                $providerInvoiceId = 'inv_'.$provider.'_'.Str::lower(Str::random(18));
+
                 $subscription = TenantSubscription::query()->create([
                     'tenant_id' => $tenantId,
                     'plan_id' => $plan->id,
@@ -100,7 +105,7 @@ class CheckoutService
                     'status' => 'trialing',
                     'billing_provider' => $provider,
                     'provider_account_id' => $providerAccountId,
-                    'provider_subscription_id' => 'sub_'.$provider.'_'.Str::lower(Str::random(18)),
+                    'provider_subscription_id' => $providerSubscriptionId,
                     'currency' => $plan->currency,
                     'unit_amount_minor' => $amount,
                     'entitlements' => $plan->entitlements,
@@ -123,7 +128,7 @@ class CheckoutService
                     'invoice_number' => app(InvoiceNumberGenerator::class)->next(),
                     'provider' => $provider,
                     'provider_account_id' => $providerAccountId,
-                    'provider_invoice_id' => 'inv_'.$provider.'_'.Str::lower(Str::random(18)),
+                    'provider_invoice_id' => $providerInvoiceId,
                     'status' => 'open',
                     'currency' => $plan->currency,
                     'subtotal_minor' => $amount,

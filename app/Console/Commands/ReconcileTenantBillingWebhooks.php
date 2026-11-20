@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\TenantBillingInvoice;
 use App\Models\TenantBillingWebhookEvent;
+use App\Models\TenantSubscription;
 use App\Services\Tenancy\TenantBillingAdjustmentService;
 use App\Services\Tenancy\TenantBillingFailureReconciler;
 use App\Services\Tenancy\TenantBillingLedgerService;
@@ -170,6 +171,32 @@ class ReconcileTenantBillingWebhooks extends Command
     {
         $payload = $event->payload ?? [];
 
+        if ($event->event_type === 'webhook.ignored') {
+            return;
+        }
+
+        if ($event->event_type === 'invoice.mirrored') {
+            $invoiceId = filter_var($payload['invoice_id'] ?? null, FILTER_VALIDATE_INT);
+            if ($invoiceId === false || $invoiceId < 1) {
+                throw new InvalidArgumentException('billing_webhook_invoice_mirror_payload_invalid');
+            }
+
+            $invoice = TenantBillingInvoice::query()
+                ->where('tenant_id', $event->tenant_id)
+                ->whereKey($invoiceId)
+                ->firstOrFail();
+
+            $invoice->forceFill([
+                'provider_remote_invoice_id' => is_string($payload['remote_invoice_id'] ?? null) ? $payload['remote_invoice_id'] : null,
+                'provider_remote_status' => is_string($payload['status'] ?? null) ? substr($payload['status'], 0, 40) : null,
+                'payment_link' => is_string($payload['payment_link'] ?? null) && $payload['payment_link'] !== ''
+                    ? substr($payload['payment_link'], 0, 500)
+                    : null,
+            ])->save();
+
+            return;
+        }
+
         if (in_array($event->event_type, ['payment.refunded', 'payment.dispute_opened', 'payment.dispute_won', 'payment.dispute_lost'], true)) {
             $amount = filter_var($payload['amount_minor'] ?? null, FILTER_VALIDATE_INT);
             $paymentId = $payload['payment_id'] ?? null;
@@ -259,9 +286,26 @@ class ReconcileTenantBillingWebhooks extends Command
                     ->first();
 
                 if ($subscription !== null
-                    && $subscription->status === 'trialing'
+                    && in_array($subscription->status, ['trialing', 'incomplete'], true)
                     && $subscription->billing_provider === $event->provider
                     && $subscription->provider_account_id === $event->provider_account_id) {
+                    if ($subscription->status === 'incomplete'
+                        && $subscription->replaces_subscription_id !== null) {
+                        $previous = TenantSubscription::query()
+                            ->where('tenant_id', $event->tenant_id)
+                            ->whereKey($subscription->replaces_subscription_id)
+                            ->whereIn('status', ['trialing', 'active', 'past_due', 'suspended'])
+                            ->first();
+
+                        if ($previous !== null) {
+                            app(TenantSubscriptionLifecycle::class)->transition(
+                                $event->tenant_id,
+                                (int) $previous->id,
+                                'canceled',
+                            );
+                        }
+                    }
+
                     app(TenantSubscriptionLifecycle::class)->transition(
                         $event->tenant_id,
                         (int) $subscription->id,
@@ -317,6 +361,10 @@ class ReconcileTenantBillingWebhooks extends Command
             $lifecycle->transition($event->tenant_id, $subscriptionId, 'canceled', null, null, null, $event->provider, $event->provider_account_id);
         } elseif ($event->event_type === 'subscription.expired') {
             $lifecycle->transition($event->tenant_id, $subscriptionId, 'expired', null, null, null, $event->provider, $event->provider_account_id);
+        } elseif ($event->event_type === 'subscription.paused') {
+            $lifecycle->transition($event->tenant_id, $subscriptionId, 'suspended', null, null, null, $event->provider, $event->provider_account_id);
+        } elseif ($event->event_type === 'subscription.resumed') {
+            $lifecycle->transition($event->tenant_id, $subscriptionId, 'active', null, null, null, $event->provider, $event->provider_account_id);
         } elseif ($event->event_type === 'subscription.reactivated') {
             $invoiceId = filter_var($payload['settled_invoice_id'] ?? null, FILTER_VALIDATE_INT);
             if ($invoiceId === false || $invoiceId < 1) {

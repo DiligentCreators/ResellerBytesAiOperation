@@ -23,7 +23,9 @@ return new class extends Migration
             $table->boolean('is_active')->default(true);
             $table->boolean('is_public')->default(true);
             $table->boolean('is_contact_sales')->default(false);
-            $table->string('kelviq_plan_identifier', 160)->nullable();
+            // Per-plan, per-period Kelviq plan identifiers (admin-editable).
+            $table->string('kelviq_plan_identifier_monthly', 160)->nullable();
+            $table->string('kelviq_plan_identifier_yearly', 160)->nullable();
             $table->timestampsTz();
         });
 
@@ -52,9 +54,23 @@ return new class extends Migration
 
         Schema::table('tenant_subscriptions', function (Blueprint $table): void {
             $table->foreign('plan_id')->references('id')->on('plans')->nullOnDelete();
+            // Pending plan-change checkout; outside the "one current" partial unique index.
+            $table->unsignedBigInteger('replaces_subscription_id')->nullable()->index();
+        });
+
+        Schema::table('tenant_billing_invoices', function (Blueprint $table): void {
+            $table->string('provider_remote_invoice_id', 180)->nullable();
+            $table->string('payment_link', 500)->nullable();
+            $table->string('provider_remote_status', 40)->nullable();
         });
 
         if ($driver === 'sqlite') {
+            // Schema::table rebuilds can turn the partial unique index into a full
+            // UNIQUE(tenant_id). Recreate the partial form so incomplete plan-change
+            // rows can coexist with the current subscription.
+            DB::statement('DROP INDEX IF EXISTS tenant_subscriptions_one_current_per_tenant');
+            DB::statement("CREATE UNIQUE INDEX tenant_subscriptions_one_current_per_tenant ON tenant_subscriptions (tenant_id) WHERE status IN ('trialing', 'active', 'past_due', 'suspended')");
+
             DB::unprepared(<<<'SQL'
 CREATE TRIGGER rb_tenant_subscription_provider_identity BEFORE UPDATE ON tenant_subscriptions
 WHEN NEW.tenant_id IS NOT OLD.tenant_id
@@ -75,7 +91,12 @@ SQL);
 
     public function down(): void
     {
+        Schema::table('tenant_billing_invoices', function (Blueprint $table): void {
+            $table->dropColumn(['provider_remote_invoice_id', 'payment_link', 'provider_remote_status']);
+        });
+
         Schema::table('tenant_subscriptions', function (Blueprint $table): void {
+            $table->dropColumn('replaces_subscription_id');
             $table->dropForeign(['plan_id']);
         });
 

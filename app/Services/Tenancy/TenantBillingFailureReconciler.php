@@ -52,10 +52,10 @@ class TenantBillingFailureReconciler
                     }
                 }
 
-                // Declined first-checkout invoices (still trialing, never paid) mark failed
-                // and cancel the provisional subscription. Renewal failures stay past_due.
+                // Declined first-checkout / abandoned plan-change invoices mark failed
+                // and cancel only the provisional subscription. Current plan stays active.
                 $isProvisionalCheckout = $subscription !== null
-                    && $subscription->status === 'trialing'
+                    && in_array($subscription->status, ['trialing', 'incomplete'], true)
                     && $invoice->amount_paid_minor === 0
                     && in_array($invoice->status, ['open', 'draft'], true);
 

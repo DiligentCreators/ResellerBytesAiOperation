@@ -18,7 +18,8 @@ type Plan = {
     is_active: boolean;
     is_public: boolean;
     is_contact_sales: boolean;
-    kelviq_plan_identifier: string | null;
+    kelviq_plan_identifier_monthly: string | null;
+    kelviq_plan_identifier_yearly: string | null;
     entitlements: {
         limits?: Record<string, number>;
         support_level?: string;
@@ -217,12 +218,24 @@ export default function PlatformPlansPage({
                                         </div>
                                         <div className="space-y-2">
                                             <Label>
-                                                Kelviq plan identifier
+                                                Kelviq plan id (monthly)
                                             </Label>
                                             <Input
-                                                name="kelviq_plan_identifier"
+                                                name="kelviq_plan_identifier_monthly"
                                                 defaultValue={
-                                                    plan.kelviq_plan_identifier ??
+                                                    plan.kelviq_plan_identifier_monthly ??
+                                                    ''
+                                                }
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>
+                                                Kelviq plan id (yearly)
+                                            </Label>
+                                            <Input
+                                                name="kelviq_plan_identifier_yearly"
+                                                defaultValue={
+                                                    plan.kelviq_plan_identifier_yearly ??
                                                     ''
                                                 }
                                             />

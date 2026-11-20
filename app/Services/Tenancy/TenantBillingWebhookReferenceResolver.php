@@ -18,7 +18,11 @@ class TenantBillingWebhookReferenceResolver
     public function resolve(string $tenantId, string $provider, string $providerAccountId, string $eventType, array $payload): array
     {
         return app(TenantDatabaseContext::class)->run($tenantId, null, function () use ($tenantId, $provider, $providerAccountId, $eventType, $payload): array {
-            if (in_array($eventType, ['invoice.payment_succeeded', 'invoice.payment_failed'], true)) {
+            if ($eventType === 'webhook.ignored') {
+                return $payload;
+            }
+
+            if (in_array($eventType, ['invoice.payment_succeeded', 'invoice.payment_failed', 'invoice.mirrored'], true)) {
                 $providerInvoiceId = $payload['provider_invoice_id'] ?? null;
                 if (! is_string($providerInvoiceId) || trim($providerInvoiceId) === '' || strlen($providerInvoiceId) > 180) {
                     throw new InvalidArgumentException('billing_provider_invoice_reference_invalid');

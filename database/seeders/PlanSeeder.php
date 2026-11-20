@@ -112,7 +112,8 @@ class PlanSeeder extends Seeder
                     'currency' => 'USD',
                     'is_active' => true,
                     'is_public' => true,
-                    'kelviq_plan_identifier' => null,
+                    'kelviq_plan_identifier_monthly' => null,
+                    'kelviq_plan_identifier_yearly' => null,
                 ],
             );
         }

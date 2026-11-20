@@ -33,6 +33,7 @@ class TenantSubscription extends Model
         'current_period_ends_at',
         'grace_ends_at',
         'canceled_at',
+        'replaces_subscription_id',
         'created_by_user_id',
     ];
 
