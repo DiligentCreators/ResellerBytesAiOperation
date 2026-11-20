@@ -86,9 +86,9 @@ Route::middleware(['auth', 'verified', EnsureTwoFactorEnabled::class])->group(fu
     Route::post('tenants/{tenant}/memberships', [TenantMembershipController::class, 'invite'])->middleware('throttle:10,1')->name('tenants.memberships.invite');
     Route::get('tenants/{tenantId}/membership/invitation/{membershipId}', [TenantMembershipController::class, 'showInvitation'])->middleware(['signed', 'throttle:20,1'])->name('tenants.memberships.invitation.show');
     Route::post('tenants/{tenantId}/membership/accept', [TenantMembershipController::class, 'accept'])->middleware('throttle:10,1')->name('tenants.memberships.accept');
-    Route::patch('tenants/{tenant}/memberships/{membership}/role', [TenantMembershipController::class, 'updateRole'])->name('tenants.memberships.role');
-    Route::post('tenants/{tenant}/memberships/{membership}/suspend', [TenantMembershipController::class, 'suspend'])->name('tenants.memberships.suspend');
-    Route::post('tenants/{tenant}/memberships/{membership}/revoke', [TenantMembershipController::class, 'revoke'])->name('tenants.memberships.revoke');
+    Route::patch('tenants/{tenant}/memberships/{membership}/role', [TenantMembershipController::class, 'updateRole'])->middleware('throttle:20,1')->name('tenants.memberships.role');
+    Route::post('tenants/{tenant}/memberships/{membership}/suspend', [TenantMembershipController::class, 'suspend'])->middleware('throttle:20,1')->name('tenants.memberships.suspend');
+    Route::post('tenants/{tenant}/memberships/{membership}/revoke', [TenantMembershipController::class, 'revoke'])->middleware('throttle:20,1')->name('tenants.memberships.revoke');
     Route::get('tenants/{tenant}/notifications', [TenantNotificationController::class, 'index'])->middleware('throttle:30,1')->name('tenants.notifications.index');
     Route::post('tenants/{tenant}/notifications/{notification}/read', [TenantNotificationController::class, 'markRead'])->middleware('throttle:30,1')->name('tenants.notifications.read');
     Route::get('tenants/{tenant}/audit-events/export', TenantAuditExportController::class)->middleware('throttle:3,1')->name('tenants.audit-events.export');

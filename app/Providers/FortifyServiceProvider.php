@@ -110,5 +110,18 @@ class FortifyServiceProvider extends ServiceProvider
         RateLimiter::for('register', function (Request $request) {
             return Limit::perMinute(5)->by((string) $request->ip());
         });
+
+        RateLimiter::for('password-reset', function (Request $request) {
+            $email = Str::transliterate(Str::lower((string) $request->input('email', '')));
+
+            return [
+                Limit::perMinute(5)->by($email.'|'.$request->ip()),
+                Limit::perMinute(20)->by($request->ip()),
+            ];
+        });
+
+        RateLimiter::for('verification', function (Request $request) {
+            return Limit::perMinute(6)->by(($request->user()?->getAuthIdentifier() ?? $request->ip()).'|verify');
+        });
     }
 }

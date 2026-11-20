@@ -29,7 +29,9 @@ use App\Http\Middleware\CaptureOperationalMetrics;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\RequireCentralPermission;
+use App\Http\Middleware\SecurityHeadersMiddleware;
 use App\Http\Middleware\SetTenantDatabaseContext;
+use App\Http\Middleware\ThrottleSensitiveAuthRequests;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -80,14 +82,19 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
         $middleware->alias(['central.permission' => RequireCentralPermission::class]);
 
-        $middleware->api(append: [CaptureOperationalMetrics::class]);
+        $middleware->api(append: [
+            CaptureOperationalMetrics::class,
+            SecurityHeadersMiddleware::class,
+        ]);
         $middleware->web(remove: [SubstituteBindings::class]);
         $middleware->web(append: [
+            ThrottleSensitiveAuthRequests::class,
             SetTenantDatabaseContext::class,
             SubstituteBindings::class,
             HandleAppearance::class,
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
+            SecurityHeadersMiddleware::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

@@ -11,6 +11,7 @@ use App\Services\Tenancy\TenantRoleAuthorization;
 use App\Support\CountryCodes;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -61,12 +62,14 @@ class CheckoutController extends Controller
     {
         $user = $request->user();
         abort_unless($user instanceof User, 403);
+        app(TenantRoleAuthorization::class)->require($user, $tenant->id, 'billing.manage');
+        abort_unless($plan->is_active && ! $plan->is_contact_sales, 404);
 
         $data = $request->validate([
             'period' => ['required', Rule::in(['monthly', 'yearly'])],
             'company_name' => ['required', 'string', 'max:160'],
             'billing_email' => ['required', 'email:rfc', 'max:255'],
-            'country' => ['required', 'string', 'size:2'],
+            'country' => ['required', 'string', 'size:2', Rule::in(CountryCodes::codes())],
             'address_line1' => ['required', 'string', 'max:255'],
             'address_line2' => ['nullable', 'string', 'max:255'],
             'city' => ['nullable', 'string', 'max:120'],
@@ -101,6 +104,56 @@ class CheckoutController extends Controller
             ]);
         }
 
-        return redirect()->away($result['checkout_url']);
+        $checkoutUrl = (string) $result['checkout_url'];
+        abort_unless($this->checkoutUrlIsAllowed($checkoutUrl), 500, 'Checkout redirect was rejected.');
+
+        return redirect()->away($checkoutUrl);
+    }
+
+    /**
+     * Only allow redirects to our own app (sandbox signed URLs) or Kelviq-hosted checkout pages.
+     */
+    private function checkoutUrlIsAllowed(string $url): bool
+    {
+        if ($url === '' || ! filter_var($url, FILTER_VALIDATE_URL)) {
+            return false;
+        }
+
+        $scheme = strtolower((string) parse_url($url, PHP_URL_SCHEME));
+        if (! in_array($scheme, ['http', 'https'], true)) {
+            return false;
+        }
+
+        $urlHost = parse_url($url, PHP_URL_HOST);
+        if (! is_string($urlHost) || $urlHost === '') {
+            return false;
+        }
+
+        $appHost = parse_url((string) config('app.url'), PHP_URL_HOST);
+        if (is_string($appHost) && strcasecmp($appHost, $urlHost) === 0) {
+            return true;
+        }
+
+        $allowedSuffixes = [
+            'kelviq.com',
+            parse_url((string) config('billing.kelviq.sandbox_base_url'), PHP_URL_HOST),
+            parse_url((string) config('billing.kelviq.live_base_url'), PHP_URL_HOST),
+        ];
+
+        foreach ($allowedSuffixes as $suffix) {
+            if (! is_string($suffix) || $suffix === '') {
+                continue;
+            }
+            if (strcasecmp($urlHost, $suffix) === 0 || Str::endsWith(strtolower($urlHost), '.'.strtolower($suffix))) {
+                return true;
+            }
+        }
+
+        // Sandbox temporary signed routes may use the current request host in tests.
+        if (Str::endsWith(strtolower($urlHost), ['.test', 'localhost']) || $urlHost === '127.0.0.1') {
+            return str_contains($url, '/billing/sandbox/');
+        }
+
+        return false;
     }
 }

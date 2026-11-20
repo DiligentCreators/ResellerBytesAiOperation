@@ -10,7 +10,13 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             PlanSeeder::class,
-            DemoAccountsSeeder::class,
         ]);
+
+        // DemoAccountsSeeder self-guards in production; skip the call entirely there too.
+        if (! app()->environment('production')) {
+            $this->call([
+                DemoAccountsSeeder::class,
+            ]);
+        }
     }
 }

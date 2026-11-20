@@ -12,9 +12,11 @@ use App\Models\User;
 use App\Services\Billing\SubscriptionManagementService;
 use App\Services\Tenancy\TenantRoleAuthorization;
 use App\Support\CountryCodes;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 use Throwable;
@@ -94,7 +96,7 @@ class BillingSettingsController extends Controller
         $data = $request->validate([
             'company_name' => ['required', 'string', 'max:160'],
             'billing_email' => ['required', 'email:rfc', 'max:255'],
-            'country' => ['required', 'string', 'size:2'],
+            'country' => ['required', 'string', 'size:2', Rule::in(CountryCodes::codes())],
             'address_line1' => ['required', 'string', 'max:255'],
             'address_line2' => ['nullable', 'string', 'max:255'],
             'city' => ['nullable', 'string', 'max:120'],
@@ -118,9 +120,12 @@ class BillingSettingsController extends Controller
         $user = $request->user();
         abort_unless($user instanceof User, 403);
         abort_unless($subscription->tenant_id === $tenant->id, 404);
+        app(TenantRoleAuthorization::class)->require($user, $tenant->id, 'billing.manage');
 
         try {
             app(SubscriptionManagementService::class)->cancelAtPeriodEnd($tenant->id, (int) $subscription->id, $user);
+        } catch (AuthorizationException $exception) {
+            throw $exception;
         } catch (Throwable $exception) {
             report($exception);
 
@@ -135,9 +140,12 @@ class BillingSettingsController extends Controller
         $user = $request->user();
         abort_unless($user instanceof User, 403);
         abort_unless($subscription->tenant_id === $tenant->id, 404);
+        app(TenantRoleAuthorization::class)->require($user, $tenant->id, 'billing.manage');
 
         try {
             app(SubscriptionManagementService::class)->resume($tenant->id, (int) $subscription->id, $user);
+        } catch (AuthorizationException $exception) {
+            throw $exception;
         } catch (Throwable $exception) {
             report($exception);
 

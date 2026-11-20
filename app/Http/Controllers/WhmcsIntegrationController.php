@@ -80,8 +80,9 @@ class WhmcsIntegrationController extends Controller
             ->whereKey($integration->id)
             ->exists();
 
+        // Fail closed with 404 so foreign/hidden integrations do not reveal existence.
         if (! $visible || $integration->tenant_id === null) {
-            abort(403);
+            abort(404);
         }
 
         try {
