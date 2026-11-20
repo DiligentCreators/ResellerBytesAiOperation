@@ -1,5 +1,8 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { ArrowLeft, FileJson } from 'lucide-react';
+import { PageHeader } from '@/components/page-header';
+import { StatusBadge } from '@/components/status-badge';
+import { Button } from '@/components/ui/button';
 
 type Finding = {
     id: string;
@@ -39,22 +42,21 @@ export default function DiagnosticRunShow({ run }: Props) {
     return (
         <>
             <Head title="Diagnostic Snapshot" />
-            <div className="flex flex-1 flex-col gap-6">
-                <div>
-                    <Link
-                        href="/diagnostic-runs"
-                        className="mb-3 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
-                    >
-                        <ArrowLeft className="size-4" /> All diagnostic runs
-                    </Link>
-                    <h1 className="text-2xl font-semibold tracking-tight">
-                        Diagnostic snapshot
-                    </h1>
-                    <p className="mt-1 font-mono text-xs break-all text-muted-foreground">
-                        {run.snapshot_uuid}
-                    </p>
-                </div>
-                <section className="grid gap-4 rounded-xl border bg-card p-5 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="space-y-6">
+                <Link
+                    href="/diagnostic-runs"
+                    className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+                >
+                    <ArrowLeft className="size-4" aria-hidden />
+                    All diagnostic runs
+                </Link>
+                <PageHeader
+                    title="Diagnostic snapshot"
+                    description={run.snapshot_uuid}
+                    actions={<StatusBadge status={run.status} />}
+                />
+
+                <section className="grid gap-4 rounded-lg border border-border bg-card p-5 shadow-xs sm:grid-cols-2 xl:grid-cols-4">
                     <div>
                         <p className="text-xs text-muted-foreground">
                             Installation
@@ -65,8 +67,8 @@ export default function DiagnosticRunShow({ run }: Props) {
                     </div>
                     <div>
                         <p className="text-xs text-muted-foreground">Status</p>
-                        <p className="mt-1 font-medium capitalize">
-                            {run.status}
+                        <p className="mt-1">
+                            <StatusBadge status={run.status} />
                         </p>
                     </div>
                     <div>
@@ -82,10 +84,11 @@ export default function DiagnosticRunShow({ run }: Props) {
                         <p className="mt-1 text-sm">{date(run.received_at)}</p>
                     </div>
                 </section>
-                <section className="rounded-xl border bg-card p-5">
+
+                <section className="rounded-lg border border-border bg-card p-5 shadow-xs">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div>
-                            <h2 className="font-semibold">
+                            <h2 className="text-sm font-semibold">
                                 AI diagnostic analysis
                             </h2>
                             <p className="mt-1 text-sm text-muted-foreground">
@@ -104,8 +107,9 @@ export default function DiagnosticRunShow({ run }: Props) {
                             ['received', 'analysis_failed'].includes(
                                 run.status,
                             ) && (
-                                <button
+                                <Button
                                     type="button"
+                                    size="sm"
                                     onClick={() =>
                                         router.post(
                                             '/diagnostic-runs/' +
@@ -115,41 +119,41 @@ export default function DiagnosticRunShow({ run }: Props) {
                                             { preserveScroll: true },
                                         )
                                     }
-                                    className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90"
                                 >
                                     {run.status === 'analysis_failed'
                                         ? 'Retry analysis'
                                         : 'Analyze snapshot'}
-                                </button>
+                                </Button>
                             )}
                     </div>
-                    {run.analysis_error_code && (
+                    {run.analysis_error_code ? (
                         <p className="mt-3 text-xs text-destructive">
                             Safe error code: {run.analysis_error_code}
                         </p>
-                    )}
-                    {run.analysis_summary && (
+                    ) : null}
+                    {run.analysis_summary ? (
                         <p className="mt-4 text-sm leading-7 whitespace-pre-wrap">
                             {run.analysis_summary}
                         </p>
-                    )}
+                    ) : null}
                     {run.status === 'analyzed' &&
-                        run.findings.length === 0 &&
-                        run.no_findings_reason && (
-                            <p className="mt-3 text-sm text-muted-foreground">
-                                {run.no_findings_reason}
-                            </p>
-                        )}
-                    {!run.ai_configured && run.status === 'received' && (
-                        <p className="mt-3 text-xs text-amber-600">
+                    run.findings.length === 0 &&
+                    run.no_findings_reason ? (
+                        <p className="mt-3 text-sm text-muted-foreground">
+                            {run.no_findings_reason}
+                        </p>
+                    ) : null}
+                    {!run.ai_configured && run.status === 'received' ? (
+                        <p className="mt-3 text-xs text-warning-fg">
                             AI analysis is unavailable until the platform
                             operator configures the OpenAI API key.
                         </p>
-                    )}
+                    ) : null}
                 </section>
-                <section className="rounded-xl border bg-card">
-                    <div className="border-b p-5">
-                        <h2 className="font-semibold">
+
+                <section className="overflow-hidden rounded-lg border border-border bg-card shadow-xs">
+                    <div className="border-b border-border px-5 py-4">
+                        <h2 className="text-sm font-semibold">
                             Findings from this run
                         </h2>
                     </div>
@@ -160,20 +164,20 @@ export default function DiagnosticRunShow({ run }: Props) {
                             healthy until analysis completes.
                         </p>
                     ) : (
-                        <div className="divide-y">
+                        <div className="divide-y divide-border">
                             {run.findings.map((finding) => (
                                 <Link
                                     key={finding.id}
                                     href={'/findings/' + finding.id}
-                                    className="block p-5 hover:bg-muted/40"
+                                    className="block p-5 hover:bg-surface/70"
                                 >
                                     <div className="flex flex-wrap items-center gap-2">
                                         <p className="font-medium">
                                             {finding.title}
                                         </p>
-                                        <span className="rounded-full border px-2 py-0.5 text-xs capitalize">
-                                            {finding.severity}
-                                        </span>
+                                        <StatusBadge
+                                            status={finding.severity}
+                                        />
                                     </div>
                                     <p className="mt-1 text-sm text-muted-foreground">
                                         {finding.summary}
@@ -183,11 +187,15 @@ export default function DiagnosticRunShow({ run }: Props) {
                         </div>
                     )}
                 </section>
-                <section className="overflow-hidden rounded-xl border bg-card">
-                    <div className="flex items-center gap-2 border-b p-5">
-                        <FileJson className="size-5" />
+
+                <section className="overflow-hidden rounded-lg border border-border bg-card shadow-xs">
+                    <div className="flex items-center gap-2 border-b border-border px-5 py-4">
+                        <FileJson
+                            className="size-4 text-slate-brand"
+                            aria-hidden
+                        />
                         <div>
-                            <h2 className="font-semibold">
+                            <h2 className="text-sm font-semibold">
                                 Sanitized diagnostic payload
                             </h2>
                             <p className="text-xs text-muted-foreground">

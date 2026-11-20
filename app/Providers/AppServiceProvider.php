@@ -9,6 +9,7 @@ use App\Services\Mail\PlatformMailTransport;
 use App\Services\Operations\QueueJobMetricsTracker;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\Middleware\TrustProxies;
 use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Queue\Events\JobProcessed;
 use Illuminate\Queue\Events\JobProcessing;
@@ -38,8 +39,30 @@ class AppServiceProvider extends ServiceProvider
     {
         Mail::extend('platform', fn () => new PlatformMailTransport(app(CentralOutboundMailer::class)));
 
+        $this->configureTrustedProxies();
         $this->configureDefaults();
         $this->registerQueueMetricsListeners();
+    }
+
+    /**
+     * Empty TRUSTED_PROXIES keeps forwarded headers untrusted (safe default).
+     * Set comma-separated IPs/CIDRs or * behind Cloudflare/load balancers.
+     */
+    private function configureTrustedProxies(): void
+    {
+        $trustedProxies = trim((string) config('app.trusted_proxies', ''));
+        if ($trustedProxies === '') {
+            return;
+        }
+
+        TrustProxies::at(
+            $trustedProxies === '*'
+                ? '*'
+                : array_values(array_filter(array_map(
+                    static fn (string $proxy): string => trim($proxy),
+                    explode(',', $trustedProxies),
+                ))),
+        );
     }
 
     private function registerQueueMetricsListeners(): void

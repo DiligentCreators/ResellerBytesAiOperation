@@ -238,7 +238,15 @@ class PlatformMailSettingsTest extends TestCase
         PlatformMailSettings::query()->create(['id' => 1, 'driver' => 'log', 'configuration' => []]);
         Http::swap(new Factory);
         Http::fake();
-        Log::shouldReceive('info')->once()->with('outbound_mail.preview', ['driver' => 'log']);
+        Log::shouldReceive('info')->once()->withArgs(function (string $message, array $context): bool {
+            return $message === 'outbound_mail.preview'
+                && ($context['driver'] ?? null) === 'log'
+                && ($context['to'] ?? null) === 'recipient@example.test'
+                && ($context['subject'] ?? null) === 'sensitive-subject'
+                && ! array_key_exists('html', $context)
+                && ! array_key_exists('text', $context)
+                && ! array_key_exists('verification_url', $context);
+        });
         app(CentralOutboundMailer::class)->send('recipient@example.test', 'sensitive-subject', '<p>private body</p>', 'private body');
         Http::assertNothingSent();
     }

@@ -2,6 +2,8 @@ import { Form, Head } from '@inertiajs/react';
 import { Bot, KeyRound, Sparkles } from 'lucide-react';
 
 import InputError from '@/components/input-error';
+import { PageHeader } from '@/components/page-header';
+import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -25,27 +27,20 @@ export default function AiSettings(props: Props) {
     return (
         <>
             <Head title="AI & addon settings" />
-            <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 p-4 md:p-6">
-                <div>
-                    <h1 className="text-2xl font-semibold tracking-tight">
-                        AI & addon signing
-                    </h1>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                        Configure OpenAI for diagnostic analysis and the Ed25519
-                        key pair used to sign customer WHMCS addon downloads.
-                        Values are stored encrypted — no need to edit `.env` for
-                        routine changes.
-                    </p>
-                </div>
+            <div className="space-y-6">
+                <PageHeader
+                    title="AI & addon signing"
+                    description="Configure OpenAI for diagnostic analysis and the Ed25519 key pair used to sign customer WHMCS addon downloads. Values are stored encrypted — no need to edit `.env` for routine changes."
+                />
 
-                {props.status && (
+                {props.status ? (
                     <p
                         role="status"
-                        className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-300"
+                        className="rounded-md border border-success/20 bg-success-soft px-3 py-2 text-sm text-success-fg"
                     >
                         {props.status}
                     </p>
-                )}
+                ) : null}
 
                 <Form
                     action="/platform/ai-settings"
@@ -54,10 +49,13 @@ export default function AiSettings(props: Props) {
                 >
                     {({ errors, processing }) => (
                         <>
-                            <section className="rounded-xl border bg-card p-5">
-                                <div className="flex items-center gap-2">
-                                    <Sparkles className="size-5" />
-                                    <h2 className="font-semibold">
+                            <section className="rounded-lg border border-border bg-card p-5 shadow-xs">
+                                <div className="mb-4 flex items-center gap-2">
+                                    <Sparkles
+                                        className="size-4 text-slate-brand"
+                                        aria-hidden
+                                    />
+                                    <h2 className="text-sm font-semibold">
                                         OpenAI analysis
                                     </h2>
                                 </div>
@@ -162,25 +160,33 @@ export default function AiSettings(props: Props) {
                                 </div>
                             </section>
 
-                            <section className="rounded-xl border bg-card p-5">
-                                <div className="flex items-center gap-2">
-                                    <KeyRound className="size-5" />
-                                    <h2 className="font-semibold">
+                            <section className="rounded-lg border border-border bg-card p-5 shadow-xs">
+                                <div className="mb-4 flex items-center gap-2">
+                                    <KeyRound
+                                        className="size-4 text-slate-brand"
+                                        aria-hidden
+                                    />
+                                    <h2 className="text-sm font-semibold">
                                         WHMCS addon signing
                                     </h2>
                                 </div>
-                                <p className="mt-1 text-sm text-muted-foreground">
+                                <p className="text-sm text-muted-foreground">
                                     Customers download a signed ZIP from Setup.
                                     Generate a key pair here, or paste an
                                     existing base64 Ed25519 pair.
                                 </p>
-                                <div className="mt-3 rounded-lg border bg-muted/40 px-3 py-2 text-sm">
-                                    Status:{' '}
-                                    <span className="font-medium">
-                                        {props.signing_configured
-                                            ? 'Configured'
-                                            : 'Not configured'}
+                                <div className="mt-3 flex items-center gap-2 text-sm">
+                                    <span className="text-muted-foreground">
+                                        Status
                                     </span>
+                                    <StatusBadge
+                                        status={
+                                            props.signing_configured
+                                                ? 'configured'
+                                                : 'incomplete'
+                                        }
+                                        showDot
+                                    />
                                 </div>
                                 <div className="mt-4 grid gap-4">
                                     <div className="grid gap-2">
@@ -244,10 +250,12 @@ export default function AiSettings(props: Props) {
                     )}
                 </Form>
 
-                <section className="rounded-xl border bg-card p-5">
-                    <div className="flex items-center gap-2">
-                        <Bot className="size-5" />
-                        <h2 className="font-semibold">Generate signing keys</h2>
+                <section className="rounded-lg border border-border bg-card p-5 shadow-xs">
+                    <div className="mb-4 flex items-center gap-2">
+                        <Bot className="size-4 text-slate-brand" aria-hidden />
+                        <h2 className="text-sm font-semibold">
+                            Generate signing keys
+                        </h2>
                     </div>
                     <p className="mt-1 text-sm text-muted-foreground">
                         Creates a fresh Ed25519 pair and saves it encrypted.
