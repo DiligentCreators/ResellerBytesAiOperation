@@ -16,9 +16,17 @@ class ProcessBillingWebhookReconcile implements ShouldQueue
     use Queueable;
     use SerializesModels;
 
-    public int $tries = 3;
+    public int $tries = 5;
 
     public int $timeout = 60;
+
+    /**
+     * @return list<int>
+     */
+    public function backoff(): array
+    {
+        return [10, 30, 60, 120];
+    }
 
     public function handle(): void
     {

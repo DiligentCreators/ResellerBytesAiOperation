@@ -14,13 +14,23 @@ use App\Services\Billing\InvoiceNumberGenerator;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Laravel\Fortify\Contracts\TwoFactorAuthenticationProvider;
+use RuntimeException;
 
 class DemoAccountsSeeder extends Seeder
 {
     public function run(): void
     {
+        if (app()->environment('production')) {
+            return;
+        }
+
         // Local demo password: config/operations.php → demo_accounts.password (DEMO_ACCOUNTS_PASSWORD).
-        $password = (string) config('operations.demo_accounts.password', 'Local-Test-Passw0rd!');
+        // No hard-coded fallback here — production already returns early; non-production uses config default.
+        $password = (string) config('operations.demo_accounts.password');
+        if ($password === '') {
+            throw new RuntimeException('DEMO_ACCOUNTS_PASSWORD / operations.demo_accounts.password is required outside production.');
+        }
+
         $recoveryCodes = [
             'LOCAL-TEST-RECOVERY-01',
             'LOCAL-TEST-RECOVERY-02',

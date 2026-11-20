@@ -119,6 +119,8 @@ return [
         'two-factor' => 'two-factor',
         'passkeys' => 'passkeys',
         'register' => 'register',
+        'verification' => 'verification',
+        'password-reset' => 'password-reset',
     ],
 
     /*
