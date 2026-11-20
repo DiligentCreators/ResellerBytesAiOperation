@@ -3,13 +3,14 @@
 namespace App\Jobs;
 
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Artisan;
 
-class ProcessBillingWebhookReconcile implements ShouldQueue
+class ProcessBillingWebhookReconcile implements ShouldBeUnique, ShouldQueue
 {
     use Dispatchable;
     use InteractsWithQueue;
@@ -19,6 +20,8 @@ class ProcessBillingWebhookReconcile implements ShouldQueue
     public int $tries = 5;
 
     public int $timeout = 60;
+
+    public int $uniqueFor = 60;
 
     /**
      * @return list<int>

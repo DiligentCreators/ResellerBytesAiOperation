@@ -14,6 +14,9 @@ use Illuminate\Database\Eloquent\Builder;
  * Applies the transitional account boundary to unassigned legacy records and
  * the membership boundary to tenant-assigned records. Tenant ownership always
  * takes precedence over the historical integration owner field.
+ *
+ * Tenant-scoped diagnostics/integrations visibility follows diagnostics.read
+ * so billing-only members cannot read operational data.
  */
 class TenantRecordQuery
 {
@@ -25,12 +28,7 @@ class TenantRecordQuery
                 $legacy->whereNull('tenant_id')->where('owner_user_id', $user->getKey());
             })->orWhere(function (Builder $tenantOwned) use ($user): void {
                 $tenantOwned->whereNotNull('tenant_id')->whereHas('tenant', function (Builder $tenant) use ($user): void {
-                    $tenant->where('status', Tenant::STATUS_ACTIVE)
-                        ->whereHas('memberships', function (Builder $membership) use ($user): void {
-                            $membership->where('user_id', $user->getKey())
-                                ->where('status', TenantMembership::STATUS_ACTIVE)
-                                ->whereIn('role', TenantMembership::ROLES);
-                        });
+                    $this->constrainActiveDiagnosticMembership($tenant, $user);
                 });
             });
         });
@@ -45,12 +43,7 @@ class TenantRecordQuery
                     $legacy->whereNull('tenant_id')->where('owner_user_id', $user->getKey());
                 })->orWhere(function (Builder $tenantOwned) use ($user): void {
                     $tenantOwned->whereNotNull('tenant_id')->whereHas('tenant', function (Builder $tenant) use ($user): void {
-                        $tenant->where('status', Tenant::STATUS_ACTIVE)
-                            ->whereHas('memberships', function (Builder $membership) use ($user): void {
-                                $membership->where('user_id', $user->getKey())
-                                    ->where('status', TenantMembership::STATUS_ACTIVE)
-                                    ->whereIn('role', TenantMembership::ROLES);
-                            });
+                        $this->constrainActiveDiagnosticMembership($tenant, $user);
                     });
                 });
             });
@@ -66,15 +59,25 @@ class TenantRecordQuery
                     $legacy->whereNull('tenant_id')->where('owner_user_id', $user->getKey());
                 })->orWhere(function (Builder $tenantOwned) use ($user): void {
                     $tenantOwned->whereNotNull('tenant_id')->whereHas('tenant', function (Builder $tenant) use ($user): void {
-                        $tenant->where('status', Tenant::STATUS_ACTIVE)
-                            ->whereHas('memberships', function (Builder $membership) use ($user): void {
-                                $membership->where('user_id', $user->getKey())
-                                    ->where('status', TenantMembership::STATUS_ACTIVE)
-                                    ->whereIn('role', TenantMembership::ROLES);
-                            });
+                        $this->constrainActiveDiagnosticMembership($tenant, $user);
                     });
                 });
             });
         });
+    }
+
+    /**
+     * @param  Builder<Tenant>  $tenant
+     */
+    private function constrainActiveDiagnosticMembership(Builder $tenant, User $user): void
+    {
+        $roles = app(TenantRoleAuthorization::class)->rolesFor('diagnostics.read');
+
+        $tenant->where('status', Tenant::STATUS_ACTIVE)
+            ->whereHas('memberships', function (Builder $membership) use ($user, $roles): void {
+                $membership->where('user_id', $user->getKey())
+                    ->where('status', TenantMembership::STATUS_ACTIVE)
+                    ->whereIn('role', $roles);
+            });
     }
 }

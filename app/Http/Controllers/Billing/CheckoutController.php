@@ -62,6 +62,8 @@ class CheckoutController extends Controller
     {
         $user = $request->user();
         abort_unless($user instanceof User, 403);
+        app(TenantRoleAuthorization::class)->require($user, $tenant->id, 'billing.manage');
+        abort_unless($plan->is_active && ! $plan->is_contact_sales, 404);
 
         $data = $request->validate([
             'period' => ['required', Rule::in(['monthly', 'yearly'])],
