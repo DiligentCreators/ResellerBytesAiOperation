@@ -3,24 +3,30 @@ type FormatOptions = {
     withTime?: boolean;
 };
 
-function resolveTimeZone(timeZone?: string | null): string | undefined {
+/** Fixed locale so SSR Node and the browser render identical strings. */
+const DISPLAY_LOCALE = 'en-US';
+
+/** Fallback when no workspace/user zone is provided (SSR-stable). */
+const DEFAULT_TIME_ZONE = 'UTC';
+
+function resolveTimeZone(timeZone?: string | null): string {
     if (!timeZone || timeZone.trim() === '') {
-        return undefined;
+        return DEFAULT_TIME_ZONE;
     }
 
     try {
         // Throws RangeError for invalid IANA zones.
-        new Intl.DateTimeFormat(undefined, { timeZone }).format(0);
+        new Intl.DateTimeFormat(DISPLAY_LOCALE, { timeZone }).format(0);
 
         return timeZone;
     } catch {
-        return undefined;
+        return DEFAULT_TIME_ZONE;
     }
 }
 
 /**
- * Format an ISO/API timestamp for display using the user locale.
- * Prefer the workspace timezone when provided.
+ * Format an ISO/API timestamp for display.
+ * Always uses en-US + an explicit timeZone so SSR and client match.
  */
 export function formatDate(
     value: string | null | undefined,
@@ -38,10 +44,14 @@ export function formatDate(
 
     const timeZone = resolveTimeZone(options.timeZone);
 
-    return new Intl.DateTimeFormat(undefined, {
-        dateStyle: 'medium',
-        ...(options.withTime ? { timeStyle: 'short' as const } : {}),
-        ...(timeZone ? { timeZone } : {}),
+    return new Intl.DateTimeFormat(DISPLAY_LOCALE, {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        ...(options.withTime
+            ? { hour: 'numeric', minute: '2-digit' as const }
+            : {}),
+        timeZone,
     }).format(date);
 }
 
