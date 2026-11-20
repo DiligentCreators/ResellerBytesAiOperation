@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Services\Ai\OpenAiConfiguration;
 use RuntimeException;
 
 class WhmcsAddonPackageSigner
@@ -47,8 +48,9 @@ class WhmcsAddonPackageSigner
             throw new RuntimeException('The PHP Sodium extension is required for addon package signing.');
         }
 
-        $secretKey = base64_decode((string) config('services.whmcs_addon.signing_secret_key'), true);
-        $publicKey = base64_decode((string) config('services.whmcs_addon.signing_public_key'), true);
+        $configuration = app(OpenAiConfiguration::class);
+        $secretKey = base64_decode($configuration->signingSecretKey(), true);
+        $publicKey = base64_decode($configuration->signingPublicKey(), true);
 
         if ($secretKey === false || $secretKey === '' || strlen($secretKey) !== SODIUM_CRYPTO_SIGN_SECRETKEYBYTES
             || $publicKey === false || strlen($publicKey) !== SODIUM_CRYPTO_SIGN_PUBLICKEYBYTES) {

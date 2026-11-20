@@ -12,7 +12,13 @@ class CentralStaffAuthorization
     public function isSuperAdmin(?User $user): bool
     {
         $owner = mb_strtolower(trim((string) config('operations.owner_email')));
+
         return $user !== null && $owner !== '' && hash_equals($owner, mb_strtolower((string) $user->email));
+    }
+
+    public function isPlatformOperator(?User $user): bool
+    {
+        return $this->isSuperAdmin($user) || $this->permissions($user) !== [];
     }
 
     public function can(?User $user, string $permission): bool

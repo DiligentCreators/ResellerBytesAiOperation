@@ -4,10 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Jobs\AnalyzeDiagnosticRun;
 use App\Models\DiagnosticRun;
+use App\Services\Ai\OpenAiConfiguration;
 use App\Services\Audit\AuditEventWriter;
+use App\Services\Tenancy\TenantEntitlementService;
 use App\Services\Tenancy\TenantRecordQuery;
 use App\Services\Tenancy\TenantRoleAuthorization;
-use App\Services\Tenancy\TenantEntitlementService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -45,7 +46,7 @@ class DiagnosticRunController extends Controller
     {
         $integration = $diagnosticRun->integration()->first();
         if ($integration === null || ! app(TenantRecordQuery::class)->runs(Auth::user())->whereKey($diagnosticRun->id)->exists()) {
-            throw new NotFoundHttpException();
+            throw new NotFoundHttpException;
         }
 
         if ($integration->tenant_id === null) {
@@ -54,7 +55,7 @@ class DiagnosticRunController extends Controller
             app(TenantRoleAuthorization::class)->require(Auth::user(), $integration->tenant_id, 'diagnostics.reanalyze');
             app(TenantEntitlementService::class)->requireFeature($integration->tenant_id, 'diagnostics.reanalyze');
         }
-        abort_unless(filled(config('services.openai.key')), 503, 'AI analysis is not configured.');
+        abort_unless(app(OpenAiConfiguration::class)->isConfigured(), 503, 'AI analysis is not configured.');
 
         $expired = false;
         $queued = DB::transaction(function () use ($diagnosticRun, $integration, &$expired): bool {
@@ -152,7 +153,7 @@ class DiagnosticRunController extends Controller
                 'received_at' => $diagnosticRun->received_at?->toIso8601String(),
                 'payload' => $diagnosticRun->payload,
                 'integration_name' => $diagnosticRun->integration->name,
-                'ai_configured' => filled(config('services.openai.key')),
+                'ai_configured' => app(OpenAiConfiguration::class)->isConfigured(),
                 'analysis_summary' => $diagnosticRun->analysis_summary,
                 'analysis_error_code' => $diagnosticRun->analysis_error_code,
                 'no_findings_reason' => $diagnosticRun->no_findings_reason,
@@ -170,7 +171,7 @@ class DiagnosticRunController extends Controller
     private function authorizeRun(DiagnosticRun $run): void
     {
         if (! app(TenantRecordQuery::class)->runs(Auth::user())->whereKey($run->id)->exists()) {
-            throw new NotFoundHttpException();
+            throw new NotFoundHttpException;
         }
     }
 }

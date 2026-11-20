@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\DiagnosticRun;
+use App\Services\Ai\OpenAiConfiguration;
 use App\Services\Tenancy\TenantRecordQuery;
 use App\Support\WhmcsAddonPackageSigner;
 use Illuminate\Support\Facades\Auth;
@@ -11,7 +12,7 @@ use Inertia\Response;
 
 class DashboardController extends Controller
 {
-    public function __invoke(WhmcsAddonPackageSigner $signer): Response
+    public function __invoke(WhmcsAddonPackageSigner $signer, OpenAiConfiguration $openAi): Response
     {
         $user = Auth::user();
         $tenantRecords = app(TenantRecordQuery::class);
@@ -49,7 +50,7 @@ class DashboardController extends Controller
             'addon' => [
                 'version' => config('services.whmcs_addon.version', '1.0.0'),
                 'download_available' => class_exists(\ZipArchive::class) && $signingConfigured,
-                'ai_configured' => filled(config('services.openai.key')),
+                'ai_configured' => $openAi->isConfigured(),
             ],
         ]);
     }

@@ -142,8 +142,8 @@ export default function DiagnosticRunShow({ run }: Props) {
                         )}
                     {!run.ai_configured && run.status === 'received' && (
                         <p className="mt-3 text-xs text-amber-600">
-                            Configure OPENAI_API_KEY in the Forge environment
-                            before requesting analysis.
+                            AI analysis is unavailable until the platform
+                            operator configures the OpenAI API key.
                         </p>
                     )}
                 </section>
