@@ -6,8 +6,8 @@ use App\Models\TenantSubscription;
 use App\Models\User;
 use App\Services\Tenancy\TenantMembershipLifecycle;
 use Illuminate\Auth\Access\AuthorizationException;
-use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 function membershipLifecycleFixture(int $memberLimit = 10): array
 {
@@ -67,7 +67,7 @@ it('supports audited invitation acceptance role changes suspension and revocatio
     $revoked = $lifecycle->revoke($admin, $tenant->id, $accepted->id);
     expect($revoked->status)->toBe(TenantMembership::STATUS_REVOKED);
 
-    expect(\Illuminate\Support\Facades\DB::table('audit_events')
+    expect(DB::table('audit_events')
         ->where('tenant_id', $tenant->id)
         ->whereIn('event_type', [
             'tenant.membership.invited',
@@ -130,7 +130,6 @@ it('requires a verified existing account and a non-owner invitation role', funct
         TenantMembership::ROLE_OWNER,
     ))->toThrow(ValidationException::class);
 });
-
 
 it('reissues a revoked membership using its existing unique tenant-user row', function () {
     [$tenant, $owner, $admin, $invitee] = membershipLifecycleFixture();

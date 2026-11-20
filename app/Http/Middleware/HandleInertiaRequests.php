@@ -36,6 +36,8 @@ class HandleInertiaRequests extends Middleware
             ->values()
             ->all();
 
+        $twoFactorEnabled = $user instanceof User && $user->hasEnabledTwoFactorAuthentication();
+
         return [
             ...parent::share($request),
             'name' => config('app.name'),
@@ -48,9 +50,12 @@ class HandleInertiaRequests extends Middleware
                 'can_manage_integrations' => $memberships->contains(
                     fn (TenantMembership $membership): bool => $roleAuthorization->allows($membership, 'integrations.manage')
                 ),
+                'two_factor_enabled' => $twoFactorEnabled,
+                'encourage_two_factor' => $user instanceof User && ! $twoFactorEnabled,
             ],
             'flash' => [
                 'integration_credentials' => fn () => $request->session()->get('integration_credentials'),
+                'status' => fn () => $request->session()->get('status'),
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];

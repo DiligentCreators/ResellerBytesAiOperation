@@ -12,7 +12,7 @@ class TenantBillingWebhookReferenceResolver
      * Translate verified provider references into local IDs only after the
      * signed provider account has been mapped to this tenant.
      *
-     * @param array<string, mixed> $payload
+     * @param  array<string, mixed>  $payload
      * @return array<string, mixed>
      */
     public function resolve(string $tenantId, string $provider, string $providerAccountId, string $eventType, array $payload): array

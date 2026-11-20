@@ -28,8 +28,7 @@ class SendTenantMembershipInvitation implements ShouldQueue
         public readonly string $tenantId,
         public readonly string $membershipId,
         public readonly int $inviteeUserId,
-    ) {
-    }
+    ) {}
 
     /** @return array<int, int> */
     public function backoff(): array

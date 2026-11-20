@@ -146,7 +146,6 @@ test('correct password must be provided to delete account', function () {
     expect($user->fresh())->not->toBeNull();
 });
 
-
 test('profile changes append audit evidence without copying profile values', function () {
     $user = User::factory()->create();
 
@@ -162,7 +161,6 @@ test('profile changes append audit evidence without copying profile values', fun
         ->and($event->metadata['changed_fields'])->toContain('name', 'email', 'email_verified_at')
         ->and(json_encode($event->metadata, JSON_THROW_ON_ERROR))->not->toContain('updated-operator@example.com');
 });
-
 
 test('password changes append audit evidence without credential material', function () {
     $user = User::factory()->create();

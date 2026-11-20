@@ -8,6 +8,7 @@ use App\Models\TenantMembership;
 use App\Models\TenantSubscription;
 use App\Models\User;
 use App\Services\Mail\TenantInvitationMailer;
+use App\Services\Tenancy\TenantDatabaseContext;
 use App\Services\Tenancy\TenantMembershipLifecycle;
 use Illuminate\Http\Client\Factory;
 use Illuminate\Support\Facades\Bus;
@@ -80,7 +81,7 @@ it('sends an invitation through the centrally configured Postmark transport with
             'from_name' => 'ResellerBytes',
         ],
     ]);
-    Http::swap(new Factory());
+    Http::swap(new Factory);
     Http::fake(['https://api.postmarkapp.com/email' => Http::response(['MessageID' => 'postmark-message-id'], 200)]);
 
     app(TenantInvitationMailer::class)->sendTenantInvitation($membership->fresh());
@@ -207,7 +208,7 @@ it('does not send an invitation after the membership has been revoked', function
         'tenantId' => $tenant->id,
         'membershipId' => $membership->id,
         'inviteeUserId' => $invitee->id,
-    ])->handle(app(\App\Services\Tenancy\TenantDatabaseContext::class), app(TenantInvitationMailer::class));
+    ])->handle(app(TenantDatabaseContext::class), app(TenantInvitationMailer::class));
 
     Http::assertNothingSent();
 });

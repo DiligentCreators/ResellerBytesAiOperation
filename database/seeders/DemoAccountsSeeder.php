@@ -2,11 +2,15 @@
 
 namespace Database\Seeders;
 
+use App\Models\Plan;
 use App\Models\Tenant;
+use App\Models\TenantBillingInvoice;
+use App\Models\TenantBillingPayment;
 use App\Models\TenantMembership;
 use App\Models\TenantSubscription;
 use App\Models\User;
 use App\Services\Audit\AuditEventWriter;
+use App\Services\Billing\InvoiceNumberGenerator;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Laravel\Fortify\Contracts\TwoFactorAuthenticationProvider;
@@ -15,7 +19,8 @@ class DemoAccountsSeeder extends Seeder
 {
     public function run(): void
     {
-        $password = 'password';
+        // Local demo password: config/operations.php → demo_accounts.password (DEMO_ACCOUNTS_PASSWORD).
+        $password = (string) config('operations.demo_accounts.password', 'Local-Test-Passw0rd!');
         $recoveryCodes = [
             'LOCAL-TEST-RECOVERY-01',
             'LOCAL-TEST-RECOVERY-02',
@@ -75,10 +80,29 @@ class DemoAccountsSeeder extends Seeder
                     'name' => 'Demo Customer Workspace',
                     'slug' => 'demo-customer',
                     'status' => Tenant::STATUS_ACTIVE,
+                    'country_code' => 'US',
+                    'timezone' => 'UTC',
+                    'require_two_factor' => false,
+                    'onboarding_completed_at' => now(),
                     'created_by_user_id' => $platform->id,
                     'settings' => [
                         'branding' => [
                             'display_name' => 'Demo Customer',
+                        ],
+                        'onboarding' => [
+                            'workspace_completed_at' => now()->toIso8601String(),
+                            'plan_completed_at' => now()->toIso8601String(),
+                            'whmcs_completed_at' => now()->toIso8601String(),
+                        ],
+                        'billing' => [
+                            'company_name' => 'Demo Customer LLC',
+                            'billing_email' => 'billing@demo-tenant.test',
+                            'country' => 'US',
+                            'address_line1' => '100 Demo Street',
+                            'city' => 'Austin',
+                            'state' => 'TX',
+                            'postal_code' => '78701',
+                            'tax_id' => null,
                         ],
                     ],
                 ]);
@@ -94,24 +118,72 @@ class DemoAccountsSeeder extends Seeder
                 ]);
             }
 
+            if (Plan::query()->where('code', 'growth')->doesntExist()) {
+                $this->call(PlanSeeder::class);
+            }
+
+            $growth = Plan::query()->where('code', 'growth')->firstOrFail();
+
             if (! TenantSubscription::query()->where('tenant_id', $tenant->id)->exists()) {
-                TenantSubscription::create([
+                $amount = $growth->price_monthly_minor;
+                $entitlements = $growth->entitlements;
+
+                $subscription = TenantSubscription::create([
                     'tenant_id' => $tenant->id,
-                    'plan_code' => 'local-demo-plan',
+                    'plan_id' => $growth->id,
+                    'plan_code' => $growth->code,
                     'billing_mode' => 'manual',
                     'status' => 'active',
                     'currency' => 'USD',
-                    'unit_amount_minor' => 0,
-                    'entitlements' => [
-                        'limits' => [
-                            'members' => 10,
-                            'integrations' => 5,
-                        ],
-                    ],
+                    'unit_amount_minor' => $amount,
+                    'entitlements' => $entitlements,
+                    'cancel_at_period_end' => false,
                     'current_period_starts_at' => now()->subDay(),
                     'current_period_ends_at' => now()->addYear(),
                     'created_by_user_id' => $platform->id,
                 ]);
+
+                foreach ([1, 2] as $index) {
+                    $invoiceNumber = app(InvoiceNumberGenerator::class)->next();
+                    $invoice = TenantBillingInvoice::create([
+                        'tenant_id' => $tenant->id,
+                        'tenant_subscription_id' => $subscription->id,
+                        'invoice_number' => $invoiceNumber,
+                        'status' => 'paid',
+                        'currency' => 'USD',
+                        'subtotal_minor' => $amount,
+                        'tax_minor' => 0,
+                        'amount_due_minor' => $amount,
+                        'amount_paid_minor' => $amount,
+                        'line_items' => [[
+                            'description' => $growth->name.' monthly',
+                            'quantity' => 1,
+                            'unit_amount_minor' => $amount,
+                            'amount_minor' => $amount,
+                        ]],
+                        'billing_details' => $tenant->settings['billing'] ?? [
+                            'company_name' => 'Demo Customer LLC',
+                            'billing_email' => 'billing@demo-tenant.test',
+                            'country' => 'US',
+                            'address_line1' => '100 Demo Street',
+                        ],
+                        'issued_at' => now()->subMonths(3 - $index),
+                        'paid_at' => now()->subMonths(3 - $index)->addHour(),
+                    ]);
+
+                    TenantBillingPayment::create([
+                        'tenant_id' => $tenant->id,
+                        'tenant_billing_invoice_id' => $invoice->id,
+                        'collection_mode' => 'manual',
+                        'idempotency_key' => 'demo-seed-payment-'.$index,
+                        'status' => 'succeeded',
+                        'currency' => 'USD',
+                        'amount_minor' => $amount,
+                        'reference' => 'demo-seed-settlement-'.$index,
+                        'recorded_by_user_id' => $platform->id,
+                        'received_at' => $invoice->paid_at,
+                    ]);
+                }
             }
         });
     }

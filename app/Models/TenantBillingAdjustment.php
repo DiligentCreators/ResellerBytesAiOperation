@@ -2,12 +2,13 @@
 
 namespace App\Models;
 
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * @property int $amount_minor
- * @property \Carbon\CarbonImmutable|null $occurred_at
+ * @property CarbonImmutable|null $occurred_at
  */
 class TenantBillingAdjustment extends Model
 {

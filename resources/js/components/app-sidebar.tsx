@@ -3,6 +3,7 @@ import {
     Activity,
     BookOpen,
     Bot,
+    CreditCard,
     Download,
     LayoutDashboard,
     Mail,
@@ -38,8 +39,7 @@ export function AppSidebar() {
     const { auth } = usePage().props;
     const permissions = auth.central_permissions ?? [];
     const hasWorkspace = (auth.tenants?.length ?? 0) > 0;
-    const isCustomerWorkspace =
-        hasWorkspace || !auth.is_platform_operator;
+    const isCustomerWorkspace = hasWorkspace || !auth.is_platform_operator;
 
     const workspaceNavItems: NavItem[] = [
         { title: 'Overview', href: dashboard(), icon: LayoutDashboard },
@@ -56,7 +56,24 @@ export function AppSidebar() {
         });
     }
 
+    const primaryTenantId = auth.tenants?.[0]?.id;
+    if (primaryTenantId) {
+        workspaceNavItems.push({
+            title: 'Billing',
+            href: `/tenants/${primaryTenantId}/billing`,
+            icon: CreditCard,
+        });
+    }
+
     const platformItems: NavItem[] = [];
+
+    if (permissions.includes('billing')) {
+        platformItems.push({
+            title: 'Billing',
+            href: '/platform/billing',
+            icon: CreditCard,
+        });
+    }
 
     if (permissions.includes('settings')) {
         platformItems.push(

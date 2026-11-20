@@ -1,8 +1,8 @@
 <?php
 
+use App\Models\Tenant;
 use App\Services\Audit\AuditEventCanonicalizer;
 use App\Services\Audit\AuditEventWriter;
-use App\Models\Tenant;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 
@@ -115,7 +115,6 @@ it('detects a modified event payload even when the chain head remains unchanged'
     expect(Artisan::call('audit:verify-integrity'))->toBe(1)
         ->and(Artisan::output())->toContain('event digest mismatch');
 });
-
 
 it('preserves version-one canonical hashes and binds tenant identity into version-two hashes', function () {
     $canonicalizer = app(AuditEventCanonicalizer::class);

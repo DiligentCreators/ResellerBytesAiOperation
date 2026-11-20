@@ -1,15 +1,31 @@
 <?php
 
+use App\Contracts\Billing\BillingProviderAdapter;
+use App\Data\Billing\VerifiedBillingWebhook;
 use App\Events\TenantBillingOutboxPublished;
-use App\Services\Audit\AuditEventWriter;
 use App\Models\Tenant;
+use App\Models\TenantBillingAdjustment;
 use App\Models\TenantBillingInvoice;
 use App\Models\TenantBillingOutboxMessage;
 use App\Models\TenantBillingWebhookEvent;
+use App\Models\TenantMembership;
 use App\Models\TenantSubscription;
-use App\Services\Tenancy\TenantBillingOutbox;
+use App\Models\User;
+use App\Services\Audit\AuditEventWriter;
+use App\Services\Tenancy\BillingProviderAdapterRegistry;
+use App\Services\Tenancy\TenantBillingAdjustmentService;
 use App\Services\Tenancy\TenantBillingLedgerService;
+use App\Services\Tenancy\TenantBillingOutbox;
+use App\Services\Tenancy\TenantBillingOutboxRecoveryService;
+use App\Services\Tenancy\TenantBillingProviderAccountResolver;
+use App\Services\Tenancy\TenantBillingProviderAccountService;
+use App\Services\Tenancy\TenantBillingWebhookGateway;
 use App\Services\Tenancy\TenantBillingWebhookInbox;
+use App\Services\Tenancy\TenantBillingWebhookRecoveryService;
+use App\Services\Tenancy\TenantBillingWebhookReferenceResolver;
+use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
@@ -303,13 +319,13 @@ it('keeps tenant billing event identity and payload immutable at the database bo
     );
 
     expect(fn () => DB::transaction(fn () => DB::table('tenant_billing_outbox')->where('id', $outbox->id)->update(['tenant_id' => $tenantB->id])))
-        ->toThrow(\Illuminate\Database\QueryException::class);
+        ->toThrow(QueryException::class);
     expect(fn () => DB::transaction(fn () => DB::table('tenant_billing_outbox')->where('id', $outbox->id)->update(['payload' => json_encode(['invoice_id' => 999])])))
-        ->toThrow(\Illuminate\Database\QueryException::class);
+        ->toThrow(QueryException::class);
     expect(fn () => DB::transaction(fn () => DB::table('tenant_billing_webhook_events')->where('id', $webhook->id)->update(['tenant_id' => $tenantB->id])))
-        ->toThrow(\Illuminate\Database\QueryException::class);
+        ->toThrow(QueryException::class);
     expect(fn () => DB::transaction(fn () => DB::table('tenant_billing_webhook_events')->where('id', $webhook->id)->update(['payload_sha256' => str_repeat('0', 64)])))
-        ->toThrow(\Illuminate\Database\QueryException::class);
+        ->toThrow(QueryException::class);
 
     DB::table('tenant_billing_outbox')->where('id', $outbox->id)->update(['attempts' => 1, 'status' => 'processing']);
     DB::table('tenant_billing_webhook_events')->where('id', $webhook->id)->update(['attempts' => 1, 'status' => 'processing']);
@@ -353,7 +369,7 @@ it('binds webhook receipt audit evidence to the webhook tenant without retaining
         'subject_id' => (string) $event->id,
         'metadata' => ['provider' => 'approved_gateway'],
         'occurred_at' => now('UTC'),
-    ]))->toThrow(\Illuminate\Database\QueryException::class);
+    ]))->toThrow(QueryException::class);
 });
 
 it('verifies and maps provider webhooks through the provider-neutral gateway', function () {
@@ -369,7 +385,8 @@ it('verifies and maps provider webhooks through the provider-neutral gateway', f
     ]);
     $invoice = createBillingOutboxInvoice($tenant, 4900, 'acct_gateway_001');
 
-    $adapter = new class($invoice->provider_invoice_id) implements \App\Contracts\Billing\BillingProviderAdapter {
+    $adapter = new class($invoice->provider_invoice_id) implements BillingProviderAdapter
+    {
         public function __construct(private readonly string $providerInvoiceId) {}
 
         public function provider(): string
@@ -377,23 +394,23 @@ it('verifies and maps provider webhooks through the provider-neutral gateway', f
             return 'approved_gateway';
         }
 
-        public function verifyAndNormalize(string $rawBody, array $headers): \App\Data\Billing\VerifiedBillingWebhook
+        public function verifyAndNormalize(string $rawBody, array $headers): VerifiedBillingWebhook
         {
             expect($rawBody)->toBe('signed-provider-body');
             expect($headers)->toHaveKey('x-provider-signature');
 
-            return new \App\Data\Billing\VerifiedBillingWebhook(
+            return new VerifiedBillingWebhook(
                 'acct_gateway_001',
                 'evt_gateway_001',
                 'invoice.payment_succeeded',
                 ['provider_invoice_id' => $this->providerInvoiceId, 'payment_id' => 'pay_gateway_001', 'amount_minor' => 303, 'currency' => 'USD'],
-                \Carbon\CarbonImmutable::now('UTC'),
-                \Carbon\CarbonImmutable::now('UTC'),
+                CarbonImmutable::now('UTC'),
+                CarbonImmutable::now('UTC'),
             );
         }
     };
 
-    $event = app(\App\Services\Tenancy\TenantBillingWebhookGateway::class)->ingest(
+    $event = app(TenantBillingWebhookGateway::class)->ingest(
         'approved_gateway',
         $adapter,
         'signed-provider-body',
@@ -408,45 +425,47 @@ it('verifies and maps provider webhooks through the provider-neutral gateway', f
 });
 
 it('rejects provider adapter mismatch and stale signature timestamps before tenant lookup', function () {
-    $adapter = new class implements \App\Contracts\Billing\BillingProviderAdapter {
+    $adapter = new class implements BillingProviderAdapter
+    {
         public function provider(): string
         {
             return 'different_gateway';
         }
 
-        public function verifyAndNormalize(string $rawBody, array $headers): \App\Data\Billing\VerifiedBillingWebhook
+        public function verifyAndNormalize(string $rawBody, array $headers): VerifiedBillingWebhook
         {
             throw new RuntimeException('must_not_be_called');
         }
     };
 
-    expect(fn () => app(\App\Services\Tenancy\TenantBillingWebhookGateway::class)->ingest(
+    expect(fn () => app(TenantBillingWebhookGateway::class)->ingest(
         'approved_gateway',
         $adapter,
         'body',
         [],
     ))->toThrow(InvalidArgumentException::class, 'billing_webhook_provider_adapter_mismatch');
 
-    $staleAdapter = new class implements \App\Contracts\Billing\BillingProviderAdapter {
+    $staleAdapter = new class implements BillingProviderAdapter
+    {
         public function provider(): string
         {
             return 'approved_gateway';
         }
 
-        public function verifyAndNormalize(string $rawBody, array $headers): \App\Data\Billing\VerifiedBillingWebhook
+        public function verifyAndNormalize(string $rawBody, array $headers): VerifiedBillingWebhook
         {
-            return new \App\Data\Billing\VerifiedBillingWebhook(
+            return new VerifiedBillingWebhook(
                 'unmapped_account',
                 'evt_stale_001',
                 'invoice.payment_succeeded',
                 ['invoice_id' => 1, 'payment_id' => 'pay_stale_001', 'amount_minor' => 1, 'currency' => 'USD'],
-                \Carbon\CarbonImmutable::now('UTC')->subMinutes(10),
-                \Carbon\CarbonImmutable::now('UTC')->subMinutes(10),
+                CarbonImmutable::now('UTC')->subMinutes(10),
+                CarbonImmutable::now('UTC')->subMinutes(10),
             );
         }
     };
 
-    expect(fn () => app(\App\Services\Tenancy\TenantBillingWebhookGateway::class)->ingest(
+    expect(fn () => app(TenantBillingWebhookGateway::class)->ingest(
         'approved_gateway',
         $staleAdapter,
         'body',
@@ -466,7 +485,7 @@ it('rejects inactive or unverified provider account mappings', function () {
         'updated_at' => now('UTC'),
     ]);
 
-    expect(fn () => app(\App\Services\Tenancy\TenantBillingProviderAccountResolver::class)->resolve(
+    expect(fn () => app(TenantBillingProviderAccountResolver::class)->resolve(
         'approved_gateway',
         'acct_unverified_001',
     ))->toThrow(RuntimeException::class, 'billing_provider_account_unmapped');
@@ -486,12 +505,12 @@ it('keeps provider account tenant and external identity immutable', function () 
     expect(fn () => DB::transaction(fn () => DB::table('tenant_billing_provider_accounts')
         ->where('provider_account_id', 'acct_immutable_mapping')
         ->update(['provider_account_id' => 'acct_reassigned'])))
-        ->toThrow(\Illuminate\Database\QueryException::class);
+        ->toThrow(QueryException::class);
 
     expect(fn () => DB::transaction(fn () => DB::table('tenant_billing_provider_accounts')
         ->where('provider_account_id', 'acct_immutable_mapping')
         ->update(['tenant_id' => createBillingOutboxTenant('billing-provider-account-other')->id])))
-        ->toThrow(\Illuminate\Database\QueryException::class);
+        ->toThrow(QueryException::class);
 });
 
 it('marks an invoice and subscription past due after a verified payment failure', function () {
@@ -617,7 +636,7 @@ it('records refunds idempotently and reduces the invoice net paid balance', func
         ->and($duplicate->fresh()->status)->toBe('processed')
         ->and($invoice->fresh()->amount_paid_minor)->toBe(3700)
         ->and($invoice->fresh()->status)->toBe('partially_paid')
-        ->and(\App\Models\TenantBillingAdjustment::query()->where('tenant_id', $tenant->id)->where('kind', 'refund')->count())->toBe(1);
+        ->and(TenantBillingAdjustment::query()->where('tenant_id', $tenant->id)->where('kind', 'refund')->count())->toBe(1);
 });
 
 it('records dispute opening and applies a lost dispute once without changing a won dispute balance', function () {
@@ -667,7 +686,7 @@ it('records dispute opening and applies a lost dispute once without changing a w
         ->and($lostOpen->fresh()->status)->toBe('processed')
         ->and($lost->fresh()->status)->toBe('processed')
         ->and($invoice->fresh()->amount_paid_minor)->toBe(3400)
-        ->and(\App\Models\TenantBillingAdjustment::query()->where('tenant_id', $tenant->id)->where('kind', 'dispute_lost')->count())->toBe(1);
+        ->and(TenantBillingAdjustment::query()->where('tenant_id', $tenant->id)->where('kind', 'dispute_lost')->count())->toBe(1);
 });
 
 it('keeps billing adjustments append-only after insertion', function () {
@@ -683,7 +702,7 @@ it('keeps billing adjustments append-only after insertion', function () {
         'provider_payment_id' => 'pay_immutable_adjustment',
         'received_at' => now('UTC'),
     ]);
-    $adjustment = app(\App\Services\Tenancy\TenantBillingAdjustmentService::class)->recordProviderAdjustment(
+    $adjustment = app(TenantBillingAdjustmentService::class)->recordProviderAdjustment(
         $tenant->id,
         'approved_gateway',
         'acct_adjustment_immutable',
@@ -698,21 +717,21 @@ it('keeps billing adjustments append-only after insertion', function () {
 
     expect($adjustment->tenant_billing_payment_id)->toBe($payment->id)
         ->and(fn () => DB::table('tenant_billing_payments')->where('id', $payment->id)->update(['amount_minor' => 200]))
-        ->toThrow(\Illuminate\Database\QueryException::class)
+        ->toThrow(QueryException::class)
         ->and(fn () => DB::table('tenant_billing_payments')->where('id', $payment->id)->delete())
-        ->toThrow(\Illuminate\Database\QueryException::class)
+        ->toThrow(QueryException::class)
         ->and(fn () => DB::table('tenant_subscriptions')->where('id', $invoice->tenant_subscription_id)->update(['provider_account_id' => 'acct_rebound']))
-        ->toThrow(\Illuminate\Database\QueryException::class)
+        ->toThrow(QueryException::class)
         ->and(fn () => DB::table('tenant_billing_invoices')->where('id', $invoice->id)->update(['provider_invoice_id' => 'provider-invoice-rebound']))
-        ->toThrow(\Illuminate\Database\QueryException::class)
+        ->toThrow(QueryException::class)
         ->and(fn () => DB::table('tenant_billing_adjustments')->where('id', $adjustment->id)->update(['amount_minor' => 200]))
-        ->toThrow(\Illuminate\Database\QueryException::class)
+        ->toThrow(QueryException::class)
         ->and(fn () => DB::table('tenant_billing_adjustments')->where('id', $adjustment->id)->delete())
-        ->toThrow(\Illuminate\Database\QueryException::class);
+        ->toThrow(QueryException::class);
 });
 
 it('keeps provider adapters disabled until a provider is explicitly configured', function () {
-    expect(fn () => app(\App\Services\Tenancy\BillingProviderAdapterRegistry::class)->resolve('approved_gateway'))
+    expect(fn () => app(BillingProviderAdapterRegistry::class)->resolve('approved_gateway'))
         ->toThrow(RuntimeException::class, 'billing_provider_adapter_not_configured');
 });
 
@@ -752,7 +771,7 @@ it('does not allow a refund from another provider account to mutate a payment', 
         'received_at' => now('UTC'),
     ]);
 
-    expect(fn () => app(\App\Services\Tenancy\TenantBillingAdjustmentService::class)->recordProviderAdjustment(
+    expect(fn () => app(TenantBillingAdjustmentService::class)->recordProviderAdjustment(
         $tenant->id,
         'approved_gateway',
         'acct_other_tenant_account_002',
@@ -763,10 +782,10 @@ it('does not allow a refund from another provider account to mutate a payment', 
         100,
         'USD',
         now('UTC'),
-    ))->toThrow(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
+    ))->toThrow(ModelNotFoundException::class);
 
     expect($invoice->fresh()->amount_paid_minor)->toBe(4900)
-        ->and(\App\Models\TenantBillingAdjustment::query()->where('tenant_id', $tenant->id)->count())->toBe(0);
+        ->and(TenantBillingAdjustment::query()->where('tenant_id', $tenant->id)->count())->toBe(0);
 });
 
 it('enforces tenant ownership on billing adjustment payment foreign keys', function () {
@@ -797,17 +816,18 @@ it('enforces tenant ownership on billing adjustment payment foreign keys', funct
         'occurred_at' => now('UTC'),
         'created_at' => now('UTC'),
         'updated_at' => now('UTC'),
-    ])))->toThrow(\Illuminate\Database\QueryException::class);
+    ])))->toThrow(QueryException::class);
 });
 
 it('resolves a provider adapter only through the explicit billing provider registry', function () {
-    $adapter = new class implements \App\Contracts\Billing\BillingProviderAdapter {
+    $adapter = new class implements BillingProviderAdapter
+    {
         public function provider(): string
         {
             return 'configured_gateway';
         }
 
-        public function verifyAndNormalize(string $rawBody, array $headers): \App\Data\Billing\VerifiedBillingWebhook
+        public function verifyAndNormalize(string $rawBody, array $headers): VerifiedBillingWebhook
         {
             throw new RuntimeException('not_called_in_registry_test');
         }
@@ -815,7 +835,7 @@ it('resolves a provider adapter only through the explicit billing provider regis
     app()->instance($adapter::class, $adapter);
     config()->set('billing.providers.configured_gateway', $adapter::class);
 
-    expect(app(\App\Services\Tenancy\BillingProviderAdapterRegistry::class)->resolve('configured_gateway'))
+    expect(app(BillingProviderAdapterRegistry::class)->resolve('configured_gateway'))
         ->toBe($adapter);
 });
 
@@ -895,7 +915,7 @@ it('resolves provider invoice and subscription references only within the verifi
     $tenant = createBillingOutboxTenant('billing-provider-reference-scope');
     $invoice = createBillingOutboxInvoice($tenant, 4900, 'acct_reference_scope');
 
-    $mapped = app(\App\Services\Tenancy\TenantBillingWebhookReferenceResolver::class)->resolve(
+    $mapped = app(TenantBillingWebhookReferenceResolver::class)->resolve(
         $tenant->id,
         'approved_gateway',
         'acct_reference_scope',
@@ -905,7 +925,7 @@ it('resolves provider invoice and subscription references only within the verifi
     expect($mapped['invoice_id'])->toBe($invoice->id)
         ->and($mapped)->not->toHaveKey('provider_invoice_id');
 
-    expect(fn () => app(\App\Services\Tenancy\TenantBillingWebhookReferenceResolver::class)->resolve(
+    expect(fn () => app(TenantBillingWebhookReferenceResolver::class)->resolve(
         $tenant->id,
         'approved_gateway',
         'acct_other_reference_scope',
@@ -914,7 +934,7 @@ it('resolves provider invoice and subscription references only within the verifi
     ))->toThrow(InvalidArgumentException::class, 'billing_provider_invoice_unmapped');
 
     $subscription = $invoice->subscription;
-    $mappedSubscription = app(\App\Services\Tenancy\TenantBillingWebhookReferenceResolver::class)->resolve(
+    $mappedSubscription = app(TenantBillingWebhookReferenceResolver::class)->resolve(
         $tenant->id,
         'approved_gateway',
         'acct_reference_scope',
@@ -927,24 +947,24 @@ it('resolves provider invoice and subscription references only within the verifi
 
 it('registers and deactivates provider accounts with tenant authorization and audit evidence', function () {
     $tenant = createBillingOutboxTenant('billing-provider-account-service');
-    $user = \App\Models\User::factory()->create();
+    $user = User::factory()->create();
     $tenant->memberships()->create([
         'user_id' => $user->id,
-        'role' => \App\Models\TenantMembership::ROLE_BILLING,
-        'status' => \App\Models\TenantMembership::STATUS_ACTIVE,
+        'role' => TenantMembership::ROLE_BILLING,
+        'status' => TenantMembership::STATUS_ACTIVE,
         'accepted_at' => now('UTC'),
     ]);
 
-    $service = app(\App\Services\Tenancy\TenantBillingProviderAccountService::class);
+    $service = app(TenantBillingProviderAccountService::class);
     $mapping = $service->registerVerifiedAccount($tenant->id, 'approved_gateway', 'acct_verified_service', $user->id);
 
     expect($mapping->status)->toBe('active')
         ->and($mapping->verified_at)->not->toBeNull()
-        ->and(app(\App\Services\Tenancy\TenantBillingProviderAccountResolver::class)->resolve('approved_gateway', 'acct_verified_service'))->toBe($tenant->id);
+        ->and(app(TenantBillingProviderAccountResolver::class)->resolve('approved_gateway', 'acct_verified_service'))->toBe($tenant->id);
 
     $deactivated = $service->deactivateAccount($tenant->id, $mapping->id, $user->id);
     expect($deactivated->status)->toBe('inactive')
-        ->and(fn () => app(\App\Services\Tenancy\TenantBillingProviderAccountResolver::class)->resolve('approved_gateway', 'acct_verified_service'))
+        ->and(fn () => app(TenantBillingProviderAccountResolver::class)->resolve('approved_gateway', 'acct_verified_service'))
         ->toThrow(RuntimeException::class, 'billing_provider_account_unmapped');
 
     expect(DB::table('audit_events')
@@ -956,14 +976,14 @@ it('registers and deactivates provider accounts with tenant authorization and au
 
 it('requeues dead-lettered webhooks only with tenant authorization and a verified active provider account', function () {
     $tenant = createBillingOutboxTenant('billing-webhook-recovery');
-    $user = \App\Models\User::factory()->create();
+    $user = User::factory()->create();
     $tenant->memberships()->create([
         'user_id' => $user->id,
-        'role' => \App\Models\TenantMembership::ROLE_BILLING,
-        'status' => \App\Models\TenantMembership::STATUS_ACTIVE,
+        'role' => TenantMembership::ROLE_BILLING,
+        'status' => TenantMembership::STATUS_ACTIVE,
         'accepted_at' => now('UTC'),
     ]);
-    $mapping = app(\App\Services\Tenancy\TenantBillingProviderAccountService::class)
+    $mapping = app(TenantBillingProviderAccountService::class)
         ->registerVerifiedAccount($tenant->id, 'approved_gateway', 'acct_recovery_001', $user->id);
 
     $event = app(TenantBillingWebhookInbox::class)->acceptVerifiedEvent(
@@ -982,7 +1002,7 @@ it('requeues dead-lettered webhooks only with tenant authorization and a verifie
         'last_error_code' => 'billing_webhook_processing_failed',
     ])->save();
 
-    $recovery = app(\App\Services\Tenancy\TenantBillingWebhookRecoveryService::class);
+    $recovery = app(TenantBillingWebhookRecoveryService::class);
     $requeued = $recovery->requeueDeadLetter($tenant->id, $event->id, $user->id, 'provider_configuration_corrected');
 
     expect($requeued->status)->toBe('pending')
@@ -995,7 +1015,7 @@ it('requeues dead-lettered webhooks only with tenant authorization and a verifie
     expect(fn () => $recovery->requeueDeadLetter($tenant->id, $event->id, $user->id, 'provider_configuration_corrected'))
         ->toThrow(RuntimeException::class, 'billing_webhook_manual_replay_limit_reached');
 
-    app(\App\Services\Tenancy\TenantBillingProviderAccountService::class)
+    app(TenantBillingProviderAccountService::class)
         ->deactivateAccount($tenant->id, $mapping->id, $user->id);
     $requeued->forceFill(['manual_replay_count' => 1])->save();
     expect(fn () => $recovery->requeueDeadLetter($tenant->id, $event->id, $user->id, 'provider_configuration_corrected'))
@@ -1012,11 +1032,11 @@ it('requeues dead-lettered webhooks only with tenant authorization and a verifie
 
 it('requeues dead-lettered outbox messages with tenant authorization and bounded replay audit', function () {
     $tenant = createBillingOutboxTenant('billing-outbox-recovery');
-    $user = \App\Models\User::factory()->create();
+    $user = User::factory()->create();
     $tenant->memberships()->create([
         'user_id' => $user->id,
-        'role' => \App\Models\TenantMembership::ROLE_BILLING,
-        'status' => \App\Models\TenantMembership::STATUS_ACTIVE,
+        'role' => TenantMembership::ROLE_BILLING,
+        'status' => TenantMembership::STATUS_ACTIVE,
         'accepted_at' => now('UTC'),
     ]);
     $message = DB::transaction(fn () => app(TenantBillingOutbox::class)->enqueue(
@@ -1034,7 +1054,7 @@ it('requeues dead-lettered outbox messages with tenant authorization and bounded
         'last_error_code' => 'billing_outbox_publish_failed',
     ])->save();
 
-    $recovery = app(\App\Services\Tenancy\TenantBillingOutboxRecoveryService::class);
+    $recovery = app(TenantBillingOutboxRecoveryService::class);
     $requeued = $recovery->requeueDeadLetter($tenant->id, $message->id, $user->id, 'consumer_configuration_corrected');
 
     expect($requeued->status)->toBe('pending')
@@ -1047,7 +1067,6 @@ it('requeues dead-lettered outbox messages with tenant authorization and bounded
     expect(fn () => $recovery->requeueDeadLetter($tenant->id, $message->id, $user->id, 'consumer_configuration_corrected'))
         ->toThrow(RuntimeException::class, 'billing_outbox_manual_replay_limit_reached');
 });
-
 
 it('reports redacted billing backlog, retry and dead-letter metrics', function () {
     $tenant = createBillingOutboxTenant('billing-operations-report');

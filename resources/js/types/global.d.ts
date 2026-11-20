@@ -13,6 +13,7 @@ declare module '@inertiajs/core' {
             auth: Auth;
             flash: {
                 integration_credentials?: IntegrationCredentialsFlash | null;
+                status?: string | null;
             };
             sidebarOpen: boolean;
             [key: string]: unknown;

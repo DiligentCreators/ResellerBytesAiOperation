@@ -33,8 +33,8 @@ export default function AiSettings(props: Props) {
                     <p className="mt-1 text-sm text-muted-foreground">
                         Configure OpenAI for diagnostic analysis and the Ed25519
                         key pair used to sign customer WHMCS addon downloads.
-                        Values are stored encrypted — no need to edit `.env`
-                        for routine changes.
+                        Values are stored encrypted — no need to edit `.env` for
+                        routine changes.
                     </p>
                 </div>
 
@@ -247,9 +247,7 @@ export default function AiSettings(props: Props) {
                 <section className="rounded-xl border bg-card p-5">
                     <div className="flex items-center gap-2">
                         <Bot className="size-5" />
-                        <h2 className="font-semibold">
-                            Generate signing keys
-                        </h2>
+                        <h2 className="font-semibold">Generate signing keys</h2>
                     </div>
                     <p className="mt-1 text-sm text-muted-foreground">
                         Creates a fresh Ed25519 pair and saves it encrypted.

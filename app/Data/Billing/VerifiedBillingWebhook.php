@@ -7,7 +7,7 @@ use Carbon\CarbonImmutable;
 final readonly class VerifiedBillingWebhook
 {
     /**
-     * @param array<string, mixed> $normalizedPayload
+     * @param  array<string, mixed>  $normalizedPayload
      */
     public function __construct(
         public string $providerAccountId,
@@ -16,6 +16,5 @@ final readonly class VerifiedBillingWebhook
         public array $normalizedPayload,
         public CarbonImmutable $signatureTimestamp,
         public CarbonImmutable $occurredAt,
-    ) {
-    }
+    ) {}
 }

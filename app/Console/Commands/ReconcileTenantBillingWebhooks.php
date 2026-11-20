@@ -2,12 +2,13 @@
 
 namespace App\Console\Commands;
 
+use App\Models\TenantBillingInvoice;
 use App\Models\TenantBillingWebhookEvent;
-use App\Services\Tenancy\TenantBillingLedgerService;
-use App\Services\Tenancy\TenantBillingFailureReconciler;
 use App\Services\Tenancy\TenantBillingAdjustmentService;
-use App\Services\Tenancy\TenantDatabaseContext;
+use App\Services\Tenancy\TenantBillingFailureReconciler;
+use App\Services\Tenancy\TenantBillingLedgerService;
 use App\Services\Tenancy\TenantBillingOperationsConnection;
+use App\Services\Tenancy\TenantDatabaseContext;
 use App\Services\Tenancy\TenantSubscriptionLifecycle;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Command;
@@ -242,6 +243,37 @@ class ReconcileTenantBillingWebhooks extends Command
                 'provider_payment_id' => $paymentId,
                 'received_at' => $event->received_at,
             ]);
+
+            // Checkout path: provisional trialing subscriptions become active only after
+            // the same webhook ledger settlement that marks the invoice paid.
+            $invoice = TenantBillingInvoice::query()
+                ->where('tenant_id', $event->tenant_id)
+                ->whereKey($invoiceId)
+                ->first();
+
+            if ($invoice !== null
+                && $invoice->status === 'paid'
+                && $invoice->tenant_subscription_id !== null) {
+                $subscription = $invoice->subscription()
+                    ->where('tenant_id', $event->tenant_id)
+                    ->first();
+
+                if ($subscription !== null
+                    && $subscription->status === 'trialing'
+                    && $subscription->billing_provider === $event->provider
+                    && $subscription->provider_account_id === $event->provider_account_id) {
+                    app(TenantSubscriptionLifecycle::class)->transition(
+                        $event->tenant_id,
+                        (int) $subscription->id,
+                        'active',
+                        null,
+                        null,
+                        null,
+                        $event->provider,
+                        $event->provider_account_id,
+                    );
+                }
+            }
 
             return;
         }

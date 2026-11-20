@@ -77,7 +77,6 @@ it('enforces the previous checkpoint digest when the verifier supplies one', fun
     expect($anchors->verifyCheckpoint($checkpoint, $previous)['anchor_sequence'])->toBe(1);
 });
 
-
 it('requires an expected predecessor when verifying a chained checkpoint', function () {
     appendAuditAnchorFixtureEvent(app(AuditEventWriter::class), 'test.anchor.required-previous');
 
@@ -100,7 +99,6 @@ it('exposes the checkpoint export artisan command', function () {
     expect($envelope['payload']['chain_sequence'])->toBe(1)
         ->and($envelope['signature'])->toBeString();
 });
-
 
 it('rejects a correctly signed checkpoint with an impossible calendar timestamp', function () {
     appendAuditAnchorFixtureEvent(app(AuditEventWriter::class), 'test.anchor.invalid-timestamp');
@@ -143,7 +141,6 @@ it('does not expose key or infrastructure exception details from checkpoint expo
         ->and(Artisan::output())->not->toContain('AUDIT_ANCHOR_PRIVATE_KEY_not_configured');
 });
 
-
 it('rejects an oversized local checkpoint before JSON parsing', function () {
     $path = tempnam(sys_get_temp_dir(), 'rb-anchor-large-');
     file_put_contents($path, str_repeat('x', 65537));
@@ -155,7 +152,6 @@ it('rejects an oversized local checkpoint before JSON parsing', function () {
         @unlink($path);
     }
 });
-
 
 it('does not expose infrastructure exception details from local checkpoint verification', function () {
     $path = tempnam(sys_get_temp_dir(), 'rb-anchor-invalid-');

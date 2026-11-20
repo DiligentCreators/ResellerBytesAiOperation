@@ -47,11 +47,18 @@ Requirements: PHP 8.5, Composer, Node 22, PostgreSQL, Redis, and the PHP extensi
 5. Install frontend dependencies: npm ci
 6. Start development services: composer dev
 
-Create an operator account through the hidden password prompts:
+Public registration is enabled. Customers can create an account at `/register`
+(name, email, password, workspace name, country, terms). Email verification is
+required before onboarding. After verification, owners complete a short
+workspace → plan → WHMCS onboarding flow.
+
+Create a verified operations/platform operator through the hidden password prompts
+(still available for bootstrap and break-glass):
 
     php artisan ops:user:create "Operations Admin" operator@example.com
 
-Public registration is disabled. Do not seed a default production user.
+Do not seed a default production user. Local `php artisan migrate:fresh --seed`
+creates demo accounts only (see `DemoAccountsSeeder` / `DEMO_ACCOUNTS_PASSWORD`).
 
 ## WHMCS integration lifecycle
 

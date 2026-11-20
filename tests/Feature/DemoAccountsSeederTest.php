@@ -6,12 +6,14 @@ use App\Models\TenantMembership;
 use App\Models\TenantSubscription;
 use App\Models\User;
 use Database\Seeders\DemoAccountsSeeder;
+use Database\Seeders\PlanSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 
 uses(RefreshDatabase::class);
 
 it('seeds the platform super admin, demo tenant owner, workspace, and subscription', function () {
+    $this->seed(PlanSeeder::class);
     $this->seed(DemoAccountsSeeder::class);
 
     $platform = User::query()->where('email', 'admin@resellerbytes.test')->sole();
@@ -34,13 +36,14 @@ it('seeds the platform super admin, demo tenant owner, workspace, and subscripti
         ])->exists())->toBeTrue()
         ->and(TenantSubscription::query()->where([
             'tenant_id' => $tenant->id,
-            'plan_code' => 'local-demo-plan',
+            'plan_code' => 'growth',
             'status' => 'active',
         ])->exists())->toBeTrue()
         ->and(AuditEvent::query()->where('event_type', 'operations_user.created')->count())->toBe(1);
 });
 
 it('is idempotent when demo accounts already exist', function () {
+    $this->seed(PlanSeeder::class);
     $this->seed(DemoAccountsSeeder::class);
     $this->seed(DemoAccountsSeeder::class);
 

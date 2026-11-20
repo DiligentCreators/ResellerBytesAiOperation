@@ -239,10 +239,7 @@ export default function IntegrationsIndex({ integrations }: Props) {
                                             value={manageableTenants[0].id}
                                         />
                                     )}
-                                    <Button
-                                        type="submit"
-                                        disabled={processing}
-                                    >
+                                    <Button type="submit" disabled={processing}>
                                         Create integration
                                     </Button>
                                 </>
@@ -356,8 +353,7 @@ export default function IntegrationsIndex({ integrations }: Props) {
                                             </td>
                                             {canManage && (
                                                 <td className="px-5 py-4">
-                                                    {item.status ===
-                                                        'active' &&
+                                                    {item.status === 'active' &&
                                                         item.tenant_id && (
                                                             <Form
                                                                 action={`/integrations/${item.id}/rotate`}

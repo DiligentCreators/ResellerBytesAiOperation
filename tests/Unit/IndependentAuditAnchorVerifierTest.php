@@ -143,7 +143,6 @@ it('enforces the expected previous checkpoint digest when supplied', function ()
     }
 });
 
-
 it('rejects an oversized checkpoint before parsing it', function () {
     $path = tempnam(sys_get_temp_dir(), 'rb-anchor-large-');
     file_put_contents($path, str_repeat('x', 65537));

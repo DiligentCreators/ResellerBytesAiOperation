@@ -24,7 +24,7 @@ class TenantAccess
             ->first();
 
         if ($tenant === null) {
-            throw (new ModelNotFoundException())->setModel(Tenant::class, [$tenantId]);
+            throw (new ModelNotFoundException)->setModel(Tenant::class, [$tenantId]);
         }
 
         $membership = $tenant->memberships()
@@ -33,7 +33,7 @@ class TenantAccess
             ->first();
 
         if ($membership === null || ! $membership->isActive()) {
-            throw (new ModelNotFoundException())->setModel(TenantMembership::class, [$tenantId, $user->getKey()]);
+            throw (new ModelNotFoundException)->setModel(TenantMembership::class, [$tenantId, $user->getKey()]);
         }
 
         if ($allowedRoles !== [] && ! $membership->hasAnyRole($allowedRoles)) {

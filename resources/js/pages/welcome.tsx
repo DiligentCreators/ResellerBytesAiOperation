@@ -1,6 +1,6 @@
 import { Head, Link, usePage } from '@inertiajs/react';
 import { Activity, ArrowRight, ShieldCheck } from 'lucide-react';
-import { dashboard, login } from '@/routes';
+import { dashboard, login, register } from '@/routes';
 
 export default function Welcome() {
     const { auth } = usePage().props;
@@ -18,13 +18,23 @@ export default function Welcome() {
                             AI Operations Engineer
                         </p>
                     </div>
-                    <Link
-                        href={auth.user ? dashboard() : login()}
-                        className="inline-flex h-10 items-center gap-2 rounded-md border px-4 text-sm font-medium hover:bg-muted"
-                    >
-                        {auth.user ? 'Open dashboard' : 'Sign in'}{' '}
-                        <ArrowRight className="size-4" />
-                    </Link>
+                    <div className="flex items-center gap-2">
+                        {!auth.user && (
+                            <Link
+                                href={register()}
+                                className="inline-flex h-10 items-center gap-2 rounded-md px-4 text-sm font-medium hover:bg-muted"
+                            >
+                                Create account
+                            </Link>
+                        )}
+                        <Link
+                            href={auth.user ? dashboard() : login()}
+                            className="inline-flex h-10 items-center gap-2 rounded-md border px-4 text-sm font-medium hover:bg-muted"
+                        >
+                            {auth.user ? 'Open dashboard' : 'Sign in'}{' '}
+                            <ArrowRight className="size-4" />
+                        </Link>
+                    </div>
                 </header>
                 <section className="mx-auto flex w-full max-w-7xl flex-1 flex-col justify-center px-6 py-16">
                     <div className="max-w-3xl">
@@ -45,11 +55,19 @@ export default function Welcome() {
                         </p>
                         <div className="mt-8 flex flex-wrap gap-3">
                             <Link
-                                href={auth.user ? dashboard() : login()}
+                                href={auth.user ? dashboard() : register()}
                                 className="inline-flex h-11 items-center gap-2 rounded-md bg-primary px-5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
                             >
-                                Open operations dashboard{' '}
+                                {auth.user
+                                    ? 'Open operations dashboard'
+                                    : 'Start free workspace'}{' '}
                                 <ArrowRight className="size-4" />
+                            </Link>
+                            <Link
+                                href="/pricing"
+                                className="inline-flex h-11 items-center gap-2 rounded-md border px-4 text-sm font-medium hover:bg-muted"
+                            >
+                                View pricing
                             </Link>
                             <div className="inline-flex h-11 items-center gap-2 rounded-md border px-4 text-sm text-muted-foreground">
                                 <Activity className="size-4" /> Manual-first

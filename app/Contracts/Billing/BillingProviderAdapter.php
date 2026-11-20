@@ -13,7 +13,7 @@ interface BillingProviderAdapter
      * normalize the event. Implementations must reject invalid signatures and
      * malformed provider envelopes without exposing signature material.
      *
-     * @param array<string, string|string[]> $headers
+     * @param  array<string, string|string[]>  $headers
      */
     public function verifyAndNormalize(string $rawBody, array $headers): VerifiedBillingWebhook;
 }

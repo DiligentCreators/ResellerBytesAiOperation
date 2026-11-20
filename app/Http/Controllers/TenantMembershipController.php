@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Services\Tenancy\TenantMembershipLifecycle;
 use App\Services\Tenancy\TenantRoleAuthorization;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Validation\Rule;
@@ -47,7 +48,7 @@ class TenantMembershipController extends Controller
         return response()->view('tenants.membership-invitation', ['membership' => $membership->load('user')]);
     }
 
-    public function accept(Request $request, string $tenantId, TenantMembershipLifecycle $lifecycle): JsonResponse|\Illuminate\Http\RedirectResponse
+    public function accept(Request $request, string $tenantId, TenantMembershipLifecycle $lifecycle): JsonResponse|RedirectResponse
     {
         /** @var User $user */
         $user = $request->user();
@@ -76,6 +77,7 @@ class TenantMembershipController extends Controller
     {
         /** @var User $user */
         $user = $request->user();
+
         return response()->json(['membership' => $lifecycle->suspend($user, $tenant->id, $membership->id, $request->ip())]);
     }
 
@@ -83,6 +85,7 @@ class TenantMembershipController extends Controller
     {
         /** @var User $user */
         $user = $request->user();
+
         return response()->json(['membership' => $lifecycle->revoke($user, $tenant->id, $membership->id, $request->ip())]);
     }
 }

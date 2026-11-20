@@ -9,14 +9,20 @@ import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { store } from '@/routes/login';
 import { request } from '@/routes/password';
+import { register } from '@/routes';
 import PasskeyVerify from '@/components/passkey-verify';
 
 type Props = {
     status?: string;
     canResetPassword: boolean;
+    canRegister?: boolean;
 };
 
-export default function Login({ status, canResetPassword }: Props) {
+export default function Login({
+    status,
+    canResetPassword,
+    canRegister = false,
+}: Props) {
     return (
         <>
             <Head title="Log in" />
@@ -90,6 +96,15 @@ export default function Login({ status, canResetPassword }: Props) {
                                 Log in
                             </Button>
                         </div>
+
+                        {canRegister && (
+                            <p className="text-center text-sm text-muted-foreground">
+                                New here?{' '}
+                                <TextLink href={register()} tabIndex={5}>
+                                    Create an account
+                                </TextLink>
+                            </p>
+                        )}
                     </>
                 )}
             </Form>

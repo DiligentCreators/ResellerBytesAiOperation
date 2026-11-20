@@ -7,8 +7,8 @@ use App\Models\Tenant;
 use App\Models\TenantMembership;
 use App\Models\User;
 use App\Services\Audit\AuditEventWriter;
-use App\Services\Tenancy\TenantRoleAuthorization;
 use App\Services\Tenancy\TenantDatabaseContext;
+use App\Services\Tenancy\TenantRoleAuthorization;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -55,37 +55,37 @@ class TenantAuditExportController extends Controller
                 }
 
                 app(TenantDatabaseContext::class)->run($tenant->id, (int) $user->getKey(), function () use ($tenant, $from, $to): void {
-            $output = fopen('php://output', 'wb');
-            if ($output === false) {
-                return;
-            }
-
-            fputcsv($output, ['chain_sequence', 'occurred_at', 'event_type', 'actor_type', 'actor_id', 'subject_type', 'subject_id', 'metadata', 'ip_address', 'previous_hash', 'event_hash', 'hash_version']);
-
-            AuditEvent::query()->where('tenant_id', $tenant->id)
-                ->when($from !== null, fn ($query) => $query->where('occurred_at', '>=', $from))
-                ->when($to !== null, fn ($query) => $query->where('occurred_at', '<=', $to))
-                ->orderBy('chain_sequence')
-                ->chunk(500, function ($events) use ($output): void {
-                    foreach ($events as $event) {
-                        fputcsv($output, [
-                            $event->chain_sequence,
-                            $event->occurred_at?->toIso8601String(),
-                            $this->csvSafe($event->event_type),
-                            $this->csvSafe($event->actor_type),
-                            $this->csvSafe($event->actor_id),
-                            $this->csvSafe($event->subject_type),
-                            $this->csvSafe($event->subject_id),
-                            json_encode($event->metadata ?? [], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES),
-                            $this->csvSafe($event->ip_address),
-                            $event->previous_hash,
-                            $event->event_hash,
-                            $event->hash_version,
-                        ]);
+                    $output = fopen('php://output', 'wb');
+                    if ($output === false) {
+                        return;
                     }
-                });
 
-            fclose($output);
+                    fputcsv($output, ['chain_sequence', 'occurred_at', 'event_type', 'actor_type', 'actor_id', 'subject_type', 'subject_id', 'metadata', 'ip_address', 'previous_hash', 'event_hash', 'hash_version']);
+
+                    AuditEvent::query()->where('tenant_id', $tenant->id)
+                        ->when($from !== null, fn ($query) => $query->where('occurred_at', '>=', $from))
+                        ->when($to !== null, fn ($query) => $query->where('occurred_at', '<=', $to))
+                        ->orderBy('chain_sequence')
+                        ->chunk(500, function ($events) use ($output): void {
+                            foreach ($events as $event) {
+                                fputcsv($output, [
+                                    $event->chain_sequence,
+                                    $event->occurred_at?->toIso8601String(),
+                                    $this->csvSafe($event->event_type),
+                                    $this->csvSafe($event->actor_type),
+                                    $this->csvSafe($event->actor_id),
+                                    $this->csvSafe($event->subject_type),
+                                    $this->csvSafe($event->subject_id),
+                                    json_encode($event->metadata ?? [], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES),
+                                    $this->csvSafe($event->ip_address),
+                                    $event->previous_hash,
+                                    $event->event_hash,
+                                    $event->hash_version,
+                                ]);
+                            }
+                        });
+
+                    fclose($output);
                 });
             });
         }, $filename, [

@@ -2,17 +2,18 @@
 
 namespace App\Models;
 
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * @property array<string, mixed> $payload
- * @property \Carbon\CarbonImmutable $received_at
- * @property \Carbon\CarbonImmutable|null $provider_occurred_at
- * @property \Carbon\CarbonImmutable|null $available_at
- * @property \Carbon\CarbonImmutable|null $locked_at
- * @property \Carbon\CarbonImmutable|null $processed_at
- * @property \Carbon\CarbonImmutable|null $dead_lettered_at
+ * @property CarbonImmutable $received_at
+ * @property CarbonImmutable|null $provider_occurred_at
+ * @property CarbonImmutable|null $available_at
+ * @property CarbonImmutable|null $locked_at
+ * @property CarbonImmutable|null $processed_at
+ * @property CarbonImmutable|null $dead_lettered_at
  */
 class TenantBillingWebhookEvent extends Model
 {

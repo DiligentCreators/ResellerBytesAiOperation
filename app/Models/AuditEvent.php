@@ -2,12 +2,13 @@
 
 namespace App\Models;
 
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
 use LogicException;
 
 /**
  * @property array<string, mixed> $metadata
- * @property \Carbon\CarbonImmutable $occurred_at
+ * @property CarbonImmutable $occurred_at
  */
 class AuditEvent extends Model
 {

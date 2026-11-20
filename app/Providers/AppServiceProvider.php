@@ -4,9 +4,8 @@ namespace App\Providers;
 
 use App\Contracts\AuditCheckpointObjectStore;
 use App\Services\Audit\S3AuditCheckpointObjectStore;
-use App\Services\Mail\PlatformMailTransport;
 use App\Services\Mail\CentralOutboundMailer;
-use Illuminate\Support\Facades\Mail;
+use App\Services\Mail\PlatformMailTransport;
 use App\Services\Operations\QueueJobMetricsTracker;
 use Carbon\CarbonImmutable;
 use Illuminate\Queue\Events\JobFailed;
@@ -17,6 +16,7 @@ use Illuminate\Queue\Events\JobReleasedAfterException;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 

@@ -44,7 +44,6 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
         return $this->hasMany(WhmcsIntegration::class, 'owner_user_id');
     }
 
-
     /**
      * @return BelongsToMany<Tenant, $this>
      */

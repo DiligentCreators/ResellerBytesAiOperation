@@ -2,16 +2,17 @@
 
 namespace App\Models;
 
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use LogicException;
 
 /**
- * @property \Carbon\CarbonImmutable|null $submitted_at
- * @property \Carbon\CarbonImmutable|null $settled_at
- * @property \Carbon\CarbonImmutable|null $reconciled_at
- * @property \Carbon\CarbonImmutable|null $reconciliation_approved_at
+ * @property CarbonImmutable|null $submitted_at
+ * @property CarbonImmutable|null $settled_at
+ * @property CarbonImmutable|null $reconciled_at
+ * @property CarbonImmutable|null $reconciliation_approved_at
  */
 class AiUsageAttempt extends Model
 {
