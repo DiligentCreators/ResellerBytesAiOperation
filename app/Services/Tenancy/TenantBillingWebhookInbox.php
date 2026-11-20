@@ -22,7 +22,7 @@ class TenantBillingWebhookInbox
      * webhook route is enabled until a provider and its verification contract
      * have been selected and independently reviewed.
      *
-     * @param array<string, mixed> $normalizedPayload
+     * @param  array<string, mixed>  $normalizedPayload
      */
     public function acceptVerifiedEvent(
         string $tenantId,

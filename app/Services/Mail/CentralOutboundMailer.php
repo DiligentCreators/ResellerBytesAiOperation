@@ -50,13 +50,14 @@ class CentralOutboundMailer
 
         if ($driver === 'log') {
             Log::info('outbound_mail.preview', ['driver' => 'log']);
+
             return;
         }
 
         $config = $this->effectiveConfiguration($settings);
         $from = (string) ($config['from_address'] ?? '');
-        $name = str_replace(["\r", "
-", '"', '<', '>'], '', (string) ($config['from_name'] ?? ''));
+        $name = str_replace(["\r", '
+', '"', '<', '>'], '', (string) ($config['from_name'] ?? ''));
 
         if (! filter_var($from, FILTER_VALIDATE_EMAIL) || $name === '') {
             throw new RuntimeException('platform_mail_sender_configuration_invalid');

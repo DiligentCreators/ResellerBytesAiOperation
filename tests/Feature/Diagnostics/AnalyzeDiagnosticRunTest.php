@@ -12,6 +12,9 @@ use App\Services\Diagnostics\AiBudgetService;
 use App\Services\Diagnostics\WhmcsDiagnosticAnalyzer;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\QueryException;
+use Illuminate\Http\Client\Factory;
+use Illuminate\Http\Client\PendingRequest;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
@@ -94,7 +97,6 @@ it('persists validated AI findings and recommendations against their source snap
         ->and($finding->recommendations->first()->requires_manual_action)->toBeTrue();
 });
 
-
 it('does not start a billable analysis for a diagnostic run beyond its retention deadline', function () {
     $integration = WhmcsIntegration::create([
         'owner_user_id' => User::factory()->create()->id,
@@ -126,7 +128,6 @@ it('does not start a billable analysis for a diagnostic run beyond its retention
     expect($run->fresh()->status)->toBe('queued')
         ->and($run->fresh()->analysis_attempts)->toBe(0);
 });
-
 
 it('releases a pre-submit reservation if the diagnostic crosses its retention cutoff before provider submission', function () {
     $integration = WhmcsIntegration::create([
@@ -223,8 +224,6 @@ it('does not persist provider results when a diagnostic expires during analysis'
         ->and(DiagnosticFinding::query()->where('diagnostic_run_id', $run->id)->count())->toBe(0)
         ->and($attempt->status)->toBe('settled');
 });
-
-
 
 it('refuses to analyze or mutate a run after its captured owner no longer matches', function () {
     $owner = User::factory()->create();
@@ -432,7 +431,6 @@ it('keeps a submitted provider timeout ambiguous and blocks an automatic duplica
         ->and($run->fresh()->status)->toBe('analysis_failed');
 });
 
-
 it('settles confirmed provider usage before surfacing an unsuccessful HTTP response', function () {
     $integration = WhmcsIntegration::create([
         'owner_user_id' => User::factory()->create()->id,
@@ -456,7 +454,7 @@ it('settles confirmed provider usage before surfacing an unsuccessful HTTP respo
 
     config()->set('services.openai.key', 'test-provider-key');
     // Isolate the facade so the response-handling contract is tested without a network fake.
-    Http::swap(new \Illuminate\Http\Client\Factory());
+    Http::swap(new Factory);
     $rawBody = json_encode([
         'id' => 'resp_confirmed_usage_error',
         'status' => 'failed',
@@ -470,11 +468,11 @@ it('settles confirmed provider usage before surfacing an unsuccessful HTTP respo
     ], JSON_THROW_ON_ERROR);
 
     // Keep the provider's usage-bearing HTTP 500 deterministic while asserting settlement ordering.
-    $response = Mockery::mock(\Illuminate\Http\Client\Response::class);
+    $response = Mockery::mock(Response::class);
     $response->shouldReceive('body')->once()->andReturn($rawBody);
     $response->shouldReceive('successful')->once()->andReturnFalse();
 
-    $pendingRequest = Mockery::mock(\Illuminate\Http\Client\PendingRequest::class);
+    $pendingRequest = Mockery::mock(PendingRequest::class);
     $pendingRequest->shouldReceive('acceptJson')->once()->andReturnSelf();
     $pendingRequest->shouldReceive('connectTimeout')->once()->with(10)->andReturnSelf();
     $pendingRequest->shouldReceive('timeout')->once()->with(45)->andReturnSelf();
@@ -508,7 +506,6 @@ it('settles confirmed provider usage before surfacing an unsuccessful HTTP respo
         ],
     ]);
 });
-
 
 it('prevents tenant reassignment after diagnostic history exists', function () {
     $owner = User::factory()->create();
@@ -590,7 +587,6 @@ it('does not start tenant analysis while the captured tenant is suspended', func
     expect($run->fresh()->status)->toBe('queued')
         ->and($run->fresh()->analysis_attempts)->toBe(0);
 });
-
 
 it('denies tenant AI analysis without an active subscription feature entitlement before budget reservation', function () {
     $tenant = Tenant::create(['name' => 'Unentitled Analysis Tenant', 'slug' => 'unentitled-analysis-tenant', 'status' => Tenant::STATUS_ACTIVE]);

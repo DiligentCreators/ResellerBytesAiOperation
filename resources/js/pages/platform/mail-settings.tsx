@@ -22,7 +22,8 @@ type Props = {
 
 const selectClassName =
     'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm';
-const checkboxLabelClassName = 'flex items-center gap-2 text-sm text-muted-foreground';
+const checkboxLabelClassName =
+    'flex items-center gap-2 text-sm text-muted-foreground';
 
 export default function MailSettings(props: Props) {
     return (
@@ -35,8 +36,8 @@ export default function MailSettings(props: Props) {
                     </h1>
                     <p className="mt-1 text-sm text-muted-foreground">
                         Central mail transport for platform alerts, invitations,
-                        and verification messages. Secrets stay encrypted and are
-                        never shown again after save.
+                        and verification messages. Secrets stay encrypted and
+                        are never shown again after save.
                     </p>
                 </div>
 
@@ -146,9 +147,7 @@ export default function MailSettings(props: Props) {
                                         <select
                                             id="smtp_encryption"
                                             name="smtp_encryption"
-                                            defaultValue={
-                                                props.smtp_encryption
-                                            }
+                                            defaultValue={props.smtp_encryption}
                                             className={selectClassName}
                                         >
                                             <option value="tls">

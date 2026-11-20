@@ -13,7 +13,7 @@ class CreateOperationsUser extends Command
 {
     protected $signature = 'ops:user:create {name : The operator display name} {email : The operator email address}';
 
-    protected $description = 'Create a verified operations dashboard user without public registration';
+    protected $description = 'Create a verified operations dashboard user (bootstrap / break-glass; public registration remains available)';
 
     public function handle(): int
     {

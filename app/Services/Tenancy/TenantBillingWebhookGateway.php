@@ -13,7 +13,7 @@ class TenantBillingWebhookGateway
     /**
      * Resolve only an explicitly configured provider adapter.
      *
-     * @param array<string, string|string[]> $headers
+     * @param  array<string, string|string[]>  $headers
      */
     public function ingestConfigured(string $provider, string $rawBody, array $headers): TenantBillingWebhookEvent
     {
@@ -26,7 +26,7 @@ class TenantBillingWebhookGateway
      * Verify, tenant-map and ingest a provider webhook. This is an internal
      * application boundary; no public HTTP route is registered by this class.
      *
-     * @param array<string, string|string[]> $headers
+     * @param  array<string, string|string[]>  $headers
      */
     public function ingest(
         string $provider,

@@ -11,7 +11,8 @@ class TenantDatabaseContext
 {
     /**
      * @template T
-     * @param Closure(): T $callback
+     *
+     * @param  Closure(): T  $callback
      * @return T
      */
     public function run(?string $tenantId, ?int $userId, Closure $callback, ?string $integrationLookupId = null): mixed

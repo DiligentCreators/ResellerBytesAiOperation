@@ -3,8 +3,8 @@
 namespace App\Http\Middleware;
 
 use App\Models\IntegrationRequestNonce;
-use App\Models\WhmcsIntegration;
 use App\Models\Tenant;
+use App\Models\WhmcsIntegration;
 use App\Services\Tenancy\TenantDatabaseContext;
 use Closure;
 use Illuminate\Database\QueryException;

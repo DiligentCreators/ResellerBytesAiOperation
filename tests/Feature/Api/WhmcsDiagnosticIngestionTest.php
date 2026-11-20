@@ -4,8 +4,8 @@ use App\Jobs\AnalyzeDiagnosticRun;
 use App\Models\AuditEvent;
 use App\Models\DiagnosticRun;
 use App\Models\IntegrationRequestNonce;
-use App\Models\WhmcsIntegration;
 use App\Models\User;
+use App\Models\WhmcsIntegration;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 

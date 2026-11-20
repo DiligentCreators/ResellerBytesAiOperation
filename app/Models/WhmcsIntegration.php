@@ -63,7 +63,6 @@ class WhmcsIntegration extends Model
         ];
     }
 
-
     /**
      * @return BelongsTo<Tenant, $this>
      */

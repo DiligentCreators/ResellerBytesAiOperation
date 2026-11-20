@@ -3,10 +3,13 @@ import {
     Activity,
     AlertTriangle,
     ArrowUpRight,
+    CheckCircle2,
+    Circle,
     Download,
     Server,
     ShieldAlert,
 } from 'lucide-react';
+import { show as onboarding } from '@/routes/onboarding';
 
 type DashboardStats = {
     active_integrations: number;
@@ -26,6 +29,16 @@ type DiagnosticRun = {
     integration_name: string;
 };
 
+type OnboardingChecklist = {
+    needed: boolean;
+    tenant_id: string | null;
+    steps: {
+        workspace: boolean;
+        plan: boolean;
+        whmcs: boolean;
+    };
+};
+
 type Props = {
     stats: DashboardStats;
     latestRuns: DiagnosticRun[];
@@ -34,6 +47,7 @@ type Props = {
         download_available: boolean;
         ai_configured: boolean;
     };
+    onboarding?: OnboardingChecklist | null;
 };
 
 function formatDate(value: string | null): string {
@@ -72,7 +86,12 @@ function StatCard({
     );
 }
 
-export default function Dashboard({ stats, latestRuns, addon }: Props) {
+export default function Dashboard({
+    stats,
+    latestRuns,
+    addon,
+    onboarding: onboardingState,
+}: Props) {
     return (
         <>
             <Head title="Operations Overview" />
@@ -95,6 +114,49 @@ export default function Dashboard({ stats, latestRuns, addon }: Props) {
                         WHMCS Addon & Setup
                     </Link>
                 </div>
+
+                {onboardingState?.needed && (
+                    <section className="rounded-xl border border-dashed bg-muted/30 p-5">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                            <div>
+                                <h2 className="font-semibold">
+                                    Finish workspace setup
+                                </h2>
+                                <p className="mt-1 text-sm text-muted-foreground">
+                                    Complete onboarding to connect billing and
+                                    WHMCS.
+                                </p>
+                                <ul className="mt-3 space-y-1.5 text-sm">
+                                    {(
+                                        [
+                                            ['workspace', 'Workspace details'],
+                                            ['plan', 'Choose a plan'],
+                                            ['whmcs', 'Connect WHMCS'],
+                                        ] as const
+                                    ).map(([key, label]) => (
+                                        <li
+                                            key={key}
+                                            className="flex items-center gap-2"
+                                        >
+                                            {onboardingState.steps[key] ? (
+                                                <CheckCircle2 className="size-4 text-emerald-600" />
+                                            ) : (
+                                                <Circle className="size-4 text-muted-foreground" />
+                                            )}
+                                            {label}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                            <Link
+                                href={onboarding()}
+                                className="inline-flex h-9 items-center rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                            >
+                                Continue onboarding
+                            </Link>
+                        </div>
+                    </section>
+                )}
 
                 <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                     <StatCard

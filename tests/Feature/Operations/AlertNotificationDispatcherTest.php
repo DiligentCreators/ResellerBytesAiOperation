@@ -20,7 +20,6 @@ beforeEach(function () {
     ]);
 });
 
-
 it('does not mark the log-only mail driver as an email delivery', function () {
     config(['platform_mail.driver' => 'log']);
     Mail::fake();

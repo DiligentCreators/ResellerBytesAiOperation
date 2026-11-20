@@ -2,6 +2,7 @@
 
 use App\Models\CentralStaffAccess;
 use App\Models\User;
+use App\Services\Audit\AuditEventWriter;
 use App\Services\CentralStaffAuthorization;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -141,9 +142,9 @@ it('rolls back a staff permission change when its audit event cannot be appended
         'granted_by_user_id' => $owner->id,
     ]);
 
-    $writer = Mockery::mock(\App\Services\Audit\AuditEventWriter::class);
+    $writer = Mockery::mock(AuditEventWriter::class);
     $writer->shouldReceive('append')->once()->andThrow(new RuntimeException('audit_write_failed'));
-    app()->instance(\App\Services\Audit\AuditEventWriter::class, $writer);
+    app()->instance(AuditEventWriter::class, $writer);
     $this->withoutExceptionHandling();
 
     expect(fn () => $this->actingAs($owner)->put('/platform/staff/'.$access->id, [
@@ -152,7 +153,6 @@ it('rolls back a staff permission change when its audit event cannot be appended
 
     expect($access->fresh()->permissions)->toBe(['tenants']);
 });
-
 
 it('never allows the configured super admin to be modified or deleted through staff administration', function () {
     $owner = User::factory()->withTwoFactor()->create(['email' => 'owner@example.test']);

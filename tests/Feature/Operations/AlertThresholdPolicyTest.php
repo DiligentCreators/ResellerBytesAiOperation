@@ -129,7 +129,6 @@ it('marks only metrics with an observed value as safe to resolve', function () {
     ]);
 });
 
-
 it('raises billing alerts for dead letters, stale leases and backlog older than 15 minutes', function () {
     $metrics = [
         'last_successful_backup_at' => now()->toIso8601String(),
@@ -162,7 +161,6 @@ it('does not resolve billing alerts when operations telemetry is unavailable', f
             'successful_backup_timestamp_invalid',
         ]);
 });
-
 
 it('alerts on stale in-flight workers, resolves on healthy telemetry, and preserves alerts when telemetry is missing', function () {
     $policy = app(AlertThresholdPolicy::class);

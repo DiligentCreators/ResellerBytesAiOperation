@@ -14,15 +14,32 @@ class Tenant extends Model
     use HasUuids;
 
     public const STATUS_PROVISIONING = 'provisioning';
+
     public const STATUS_ACTIVE = 'active';
+
     public const STATUS_SUSPENDED = 'suspended';
+
     public const STATUS_CLOSED = 'closed';
 
-    protected $fillable = ['name', 'slug', 'status', 'created_by_user_id', 'settings'];
+    protected $fillable = [
+        'name',
+        'slug',
+        'status',
+        'country_code',
+        'timezone',
+        'require_two_factor',
+        'onboarding_completed_at',
+        'created_by_user_id',
+        'settings',
+    ];
 
     protected function casts(): array
     {
-        return ['settings' => 'array'];
+        return [
+            'settings' => 'array',
+            'require_two_factor' => 'boolean',
+            'onboarding_completed_at' => 'immutable_datetime',
+        ];
     }
 
     /** @return BelongsTo<User, $this> */

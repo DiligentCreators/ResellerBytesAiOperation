@@ -126,8 +126,9 @@ it('does not expose the WHMCS addon download to unverified users', function () {
         ->assertRedirect(route('verification.notice'));
 });
 
-it('does not expose the WHMCS addon download before two-factor authentication is confirmed', function () {
-    $user = User::factory()->create();
+it('does not expose the WHMCS addon download to platform staff before two-factor authentication is confirmed', function () {
+    config(['operations.owner_email' => 'addon-owner@example.test']);
+    $user = User::factory()->create(['email' => 'addon-owner@example.test']);
 
     $this->actingAs($user)
         ->get('/whmcs-addon/download')

@@ -33,6 +33,7 @@ class TenantRoleAuthorization
         if (! $this->allows($membership, $capability)) {
             throw new AuthorizationException('The active tenant role does not grant this capability.');
         }
+
         return $membership;
     }
 }

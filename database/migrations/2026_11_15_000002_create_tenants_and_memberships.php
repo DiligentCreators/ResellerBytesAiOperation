@@ -14,6 +14,10 @@ return new class extends Migration
             $table->string('name', 120);
             $table->string('slug', 80)->unique();
             $table->string('status', 20)->default('provisioning')->index();
+            $table->string('country_code', 2)->nullable()->index();
+            $table->string('timezone', 64)->nullable();
+            $table->boolean('require_two_factor')->default(false);
+            $table->timestampTz('onboarding_completed_at')->nullable()->index();
             $table->foreignId('created_by_user_id')->nullable()->constrained('users')->restrictOnDelete();
             $table->jsonb('settings')->nullable();
             $table->timestampsTz();

@@ -12,6 +12,7 @@ return new class extends Migration
         Schema::create('tenant_subscriptions', function (Blueprint $table): void {
             $table->id();
             $table->foreignUuid('tenant_id')->constrained('tenants')->restrictOnDelete();
+            $table->unsignedBigInteger('plan_id')->nullable()->index();
             $table->string('plan_code', 64);
             $table->string('billing_mode', 16);
             $table->string('status', 20)->index();
@@ -21,6 +22,7 @@ return new class extends Migration
             $table->string('currency', 3);
             $table->unsignedBigInteger('unit_amount_minor');
             $table->jsonb('entitlements');
+            $table->boolean('cancel_at_period_end')->default(false);
             $table->timestampTz('current_period_starts_at');
             $table->timestampTz('current_period_ends_at');
             $table->timestampTz('grace_ends_at')->nullable();
@@ -40,8 +42,12 @@ return new class extends Migration
             $table->string('provider_invoice_id', 180)->nullable();
             $table->string('status', 20)->index();
             $table->char('currency', 3);
+            $table->unsignedBigInteger('subtotal_minor')->default(0);
+            $table->unsignedBigInteger('tax_minor')->default(0);
             $table->unsignedBigInteger('amount_due_minor');
             $table->unsignedBigInteger('amount_paid_minor')->default(0);
+            $table->json('line_items')->nullable();
+            $table->json('billing_details')->nullable();
             $table->timestampTz('issued_at');
             $table->timestampTz('due_at')->nullable();
             $table->timestampTz('paid_at')->nullable();

@@ -7,9 +7,7 @@ use Illuminate\Support\Facades\URL;
 
 class TenantInvitationMailer
 {
-    public function __construct(private readonly CentralOutboundMailer $mailer)
-    {
-    }
+    public function __construct(private readonly CentralOutboundMailer $mailer) {}
 
     public function sendTenantInvitation(TenantMembership $membership): void
     {

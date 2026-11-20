@@ -4,8 +4,8 @@ namespace App\Console\Commands;
 
 use App\Events\TenantBillingOutboxPublished;
 use App\Models\TenantBillingOutboxMessage;
-use App\Services\Tenancy\TenantDatabaseContext;
 use App\Services\Tenancy\TenantBillingOperationsConnection;
+use App\Services\Tenancy\TenantDatabaseContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;

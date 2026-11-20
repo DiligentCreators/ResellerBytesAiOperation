@@ -14,7 +14,7 @@ class TenantBillingOutbox
     /**
      * Enqueue an integration event in the caller's business transaction.
      *
-     * @param array<string, mixed> $payload
+     * @param  array<string, mixed>  $payload
      */
     public function enqueue(
         string $tenantId,

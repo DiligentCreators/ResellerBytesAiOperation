@@ -388,6 +388,8 @@ SQL);
     private function dropSqliteBillingTableTriggers(): void
     {
         foreach ([
+            'rb_tenant_subscription_provider_identity',
+            'rb_tenant_subscription_plan_snapshot_immutable',
             'rb_tenant_billing_invoice_provider_identity',
             'rb_tenant_billing_payment_immutable',
             'rb_tenant_billing_payment_no_delete',
@@ -400,6 +402,19 @@ SQL);
     private function restoreSqliteBillingTableTriggers(): void
     {
         DB::unprepared(<<<'SQL'
+CREATE TRIGGER rb_tenant_subscription_provider_identity BEFORE UPDATE ON tenant_subscriptions
+WHEN NEW.tenant_id IS NOT OLD.tenant_id
+ OR (OLD.billing_provider IS NOT NULL AND NEW.billing_provider IS NOT OLD.billing_provider)
+ OR (OLD.provider_account_id IS NOT NULL AND NEW.provider_account_id IS NOT OLD.provider_account_id)
+ OR (OLD.provider_subscription_id IS NOT NULL AND NEW.provider_subscription_id IS NOT OLD.provider_subscription_id)
+BEGIN SELECT RAISE(ABORT, 'tenant_subscription_provider_identity_immutable'); END;
+CREATE TRIGGER rb_tenant_subscription_plan_snapshot_immutable BEFORE UPDATE ON tenant_subscriptions
+WHEN NEW.plan_code IS NOT OLD.plan_code
+ OR NEW.billing_mode IS NOT OLD.billing_mode
+ OR NEW.currency IS NOT OLD.currency
+ OR NEW.unit_amount_minor IS NOT OLD.unit_amount_minor
+ OR NEW.entitlements IS NOT OLD.entitlements
+BEGIN SELECT RAISE(ABORT, 'tenant_subscription_plan_snapshot_immutable'); END;
 CREATE TRIGGER rb_tenant_billing_invoice_provider_identity BEFORE UPDATE ON tenant_billing_invoices
 WHEN NEW.tenant_id IS NOT OLD.tenant_id
  OR (OLD.tenant_subscription_id IS NOT NULL AND NEW.tenant_subscription_id IS NOT OLD.tenant_subscription_id)

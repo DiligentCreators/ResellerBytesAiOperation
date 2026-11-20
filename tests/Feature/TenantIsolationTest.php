@@ -1,15 +1,17 @@
 <?php
 
+use App\Jobs\AnalyzeDiagnosticRun;
 use App\Models\DiagnosticFinding;
 use App\Models\DiagnosticRun;
-use App\Models\User;
 use App\Models\Tenant;
 use App\Models\TenantMembership;
 use App\Models\TenantSubscription;
-use App\Services\Tenancy\TenantNotificationService;
-use App\Jobs\AnalyzeDiagnosticRun;
-use Illuminate\Support\Facades\Queue;
+use App\Models\User;
 use App\Models\WhmcsIntegration;
+use App\Services\Audit\AuditEventWriter;
+use App\Services\Tenancy\TenantNotificationService;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -113,7 +115,6 @@ it('does not allow a different owner to trigger reanalysis', function () {
     expect($run->fresh()->status)->toBe('received');
 });
 
-
 it('serves tenant-assigned integrations and nested diagnostics only to active tenant members', function () {
     $historicalOwner = User::factory()->withTwoFactor()->create(['email_verified_at' => now()]);
     $tenant = Tenant::create([
@@ -155,7 +156,6 @@ it('serves tenant-assigned integrations and nested diagnostics only to active te
     $this->get('/findings/'.$finding->id)->assertNotFound();
 });
 
-
 it('allows only tenant operators and above with an active entitlement to request reanalysis', function () {
     config(['services.openai.key' => 'test-api-key']);
     Queue::fake();
@@ -187,7 +187,6 @@ it('allows only tenant operators and above with an active entitlement to request
     expect($run->fresh()->status)->toBe('queued');
 });
 
-
 it('restricts tenant audit exports to owner and admin and streams only tenant events', function () {
     $tenant = Tenant::create(['name' => 'Audit Export Workspace', 'slug' => 'audit-export-workspace', 'status' => Tenant::STATUS_ACTIVE]);
     $viewer = User::factory()->withTwoFactor()->create(['email_verified_at' => now()]);
@@ -197,8 +196,8 @@ it('restricts tenant audit exports to owner and admin and streams only tenant ev
 
     $admin = User::factory()->withTwoFactor()->create(['email_verified_at' => now()]);
     $tenant->memberships()->create(['user_id' => $admin->id, 'role' => TenantMembership::ROLE_ADMIN, 'status' => TenantMembership::STATUS_ACTIVE, 'accepted_at' => now()]);
-    $this->mock(\App\Services\Audit\AuditEventWriter::class)
-        ->shouldReceive('append')->once()->with(\Mockery::on(fn (array $event): bool => $event['tenant_id'] === $tenant->id && $event['event_type'] === 'tenant.audit_export.requested'));
+    $this->mock(AuditEventWriter::class)
+        ->shouldReceive('append')->once()->with(Mockery::on(fn (array $event): bool => $event['tenant_id'] === $tenant->id && $event['event_type'] === 'tenant.audit_export.requested'));
 
     $response = $this->actingAs($admin)->get('/tenants/'.$tenant->id.'/audit-events/export');
     $response->assertOk();
@@ -206,7 +205,6 @@ it('restricts tenant audit exports to owner and admin and streams only tenant ev
         ->and($response->headers->get('Cache-Control'))->toContain('no-store')
         ->and($response->headers->get('X-Content-Type-Options'))->toBe('nosniff');
 });
-
 
 it('keeps tenant notification inbox entries private to the intended active member', function () {
     $tenant = Tenant::create(['name' => 'Notification Workspace', 'slug' => 'notification-workspace', 'status' => Tenant::STATUS_ACTIVE]);
@@ -239,9 +237,9 @@ it('does not publish notifications for suspended or non-member tenant users', fu
     $tenant = Tenant::create(['name' => 'No Notification Workspace', 'slug' => 'no-notification-workspace', 'status' => Tenant::STATUS_ACTIVE]);
     $outsider = User::factory()->create();
     expect(fn () => app(TenantNotificationService::class)->publish($tenant->id, $outsider->id, 'tenant.notice.created', ['message' => 'test'], 'notice:outsider:001'))
-        ->toThrow(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
+        ->toThrow(ModelNotFoundException::class);
 
     $tenant->forceFill(['status' => Tenant::STATUS_SUSPENDED])->save();
     expect(fn () => app(TenantNotificationService::class)->publish($tenant->id, $outsider->id, 'tenant.notice.created', ['message' => 'test'], 'notice:outsider:002'))
-        ->toThrow(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
+        ->toThrow(ModelNotFoundException::class);
 });

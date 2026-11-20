@@ -4,9 +4,9 @@ use App\Jobs\AnalyzeDiagnosticRun;
 use App\Models\AiBudgetPeriod;
 use App\Models\AiUsageAttempt;
 use App\Models\DiagnosticRun;
-use App\Models\WhmcsIntegration;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Models\WhmcsIntegration;
 use App\Services\Diagnostics\AiBudgetService;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
@@ -242,7 +242,6 @@ it('does not re-dispatch diagnostic runs that have reached the absolute retentio
     expect($expiredRun->fresh()->status)->toBe('queued');
 });
 
-
 it('ignores stale queued runs belonging to unassigned legacy integrations', function () {
     Queue::fake();
 
@@ -254,7 +253,6 @@ it('ignores stale queued runs belonging to unassigned legacy integrations', func
     Queue::assertNothingPushed();
     expect($unassignedRun->fresh()->status)->toBe('queued');
 });
-
 
 it('captures active tenant context during stale queue recovery and ignores suspended tenants', function () {
     Queue::fake();
@@ -277,10 +275,8 @@ it('captures active tenant context during stale queue recovery and ignores suspe
 
     expect(Artisan::call('diagnostics:recover-queued'))->toBe(0);
 
-    Queue::assertPushed(AnalyzeDiagnosticRun::class, fn (AnalyzeDiagnosticRun $job): bool =>
-        $job->diagnosticRunId === $activeRun->id && $job->tenantId === $activeTenant->id
+    Queue::assertPushed(AnalyzeDiagnosticRun::class, fn (AnalyzeDiagnosticRun $job): bool => $job->diagnosticRunId === $activeRun->id && $job->tenantId === $activeTenant->id
     );
-    Queue::assertNotPushed(AnalyzeDiagnosticRun::class, fn (AnalyzeDiagnosticRun $job): bool =>
-        $job->diagnosticRunId === $suspendedRun->id
+    Queue::assertNotPushed(AnalyzeDiagnosticRun::class, fn (AnalyzeDiagnosticRun $job): bool => $job->diagnosticRunId === $suspendedRun->id
     );
 });

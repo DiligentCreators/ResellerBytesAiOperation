@@ -4,9 +4,9 @@ namespace App\Services\Diagnostics;
 
 use App\Models\AiBudgetPeriod;
 use App\Models\AiTenantBudgetPeriod;
-use App\Models\Tenant;
 use App\Models\AiUsageAttempt;
 use App\Models\DiagnosticRun;
+use App\Models\Tenant;
 use App\Services\Audit\AuditEventWriter;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -326,12 +326,11 @@ class AiBudgetService
         }, 3);
     }
 
-
     /**
      * Create and reserve the tenant's daily/monthly allowance in the same
      * transaction as the platform-wide cap. Platform limits remain global.
      *
-     * @param array<int, array{type: string, start: string, limit: int}> $periods
+     * @param  array<int, array{type: string, start: string, limit: int}>  $periods
      */
     private function reserveTenantPeriods(?string $tenantId, array $periods, int $reservation): void
     {

@@ -36,7 +36,7 @@ class FindingController extends Controller
     public function show(DiagnosticFinding $finding): Response
     {
         if (! app(TenantRecordQuery::class)->findings(Auth::user())->whereKey($finding->id)->exists()) {
-            throw new NotFoundHttpException();
+            throw new NotFoundHttpException;
         }
 
         $finding->load([

@@ -2,8 +2,8 @@
 
 namespace App\Services\Tenancy;
 
-use App\Models\Tenant;
 use App\Jobs\SendTenantMembershipInvitation;
+use App\Models\Tenant;
 use App\Models\TenantMembership;
 use App\Models\User;
 use App\Services\Audit\AuditEventWriter;
@@ -85,6 +85,7 @@ class TenantMembershipLifecycle
             }
             $membership->forceFill(['status' => TenantMembership::STATUS_ACTIVE, 'accepted_at' => now()])->save();
             $this->audit($user, $tenantId, 'tenant.membership.accepted', $membership, ['role' => $membership->role], $ip);
+
             return $membership->refresh();
         });
     }
@@ -104,6 +105,7 @@ class TenantMembershipLifecycle
             $oldRole = $membership->role;
             $membership->forceFill(['role' => $role])->save();
             $this->audit($actor, $tenantId, 'tenant.membership.role_changed', $membership, ['previous_role' => $oldRole, 'new_role' => $role], $ip);
+
             return $membership->refresh();
         });
     }
@@ -132,6 +134,7 @@ class TenantMembershipLifecycle
             $oldStatus = $membership->status;
             $membership->forceFill(['status' => $status])->save();
             $this->audit($actor, $tenantId, 'tenant.membership.'.$status, $membership, ['previous_status' => $oldStatus, 'new_status' => $status], $ip);
+
             return $membership->refresh();
         });
     }
@@ -140,6 +143,7 @@ class TenantMembershipLifecycle
     {
         return app(TenantDatabaseContext::class)->run($tenantId, $userId, fn () => DB::transaction(function () use ($tenantId, $callback) {
             Tenant::query()->whereKey($tenantId)->where('status', Tenant::STATUS_ACTIVE)->lockForUpdate()->firstOrFail();
+
             return $callback();
         }, 3));
     }

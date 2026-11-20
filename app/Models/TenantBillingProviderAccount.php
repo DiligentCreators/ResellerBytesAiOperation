@@ -2,10 +2,11 @@
 
 namespace App\Models;
 
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-/** @property \Carbon\CarbonImmutable|null $verified_at */
+/** @property CarbonImmutable|null $verified_at */
 class TenantBillingProviderAccount extends Model
 {
     protected $fillable = [

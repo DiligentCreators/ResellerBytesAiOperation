@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * @property array<string, mixed> $payload
- * @property \Carbon\CarbonImmutable|null $read_at
- * @property \Carbon\CarbonImmutable $created_at
+ * @property CarbonImmutable|null $read_at
+ * @property CarbonImmutable $created_at
  */
 class TenantNotification extends Model
 {
@@ -22,8 +23,14 @@ class TenantNotification extends Model
     }
 
     /** @return BelongsTo<Tenant, $this> */
-    public function tenant(): BelongsTo { return $this->belongsTo(Tenant::class); }
+    public function tenant(): BelongsTo
+    {
+        return $this->belongsTo(Tenant::class);
+    }
 
     /** @return BelongsTo<User, $this> */
-    public function user(): BelongsTo { return $this->belongsTo(User::class); }
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
 }

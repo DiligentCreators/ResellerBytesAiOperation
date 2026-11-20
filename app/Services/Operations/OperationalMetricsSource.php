@@ -14,6 +14,7 @@ use Throwable;
 final class OperationalMetricsSource
 {
     private const MAX_BACKUP_MARKER_BYTES = 4096;
+
     public function __construct(private readonly QueueJobMetricsTracker $queueMetrics) {}
 
     /**
@@ -80,7 +81,6 @@ final class OperationalMetricsSource
             ->where('created_at', '<', ($observedAt ?? CarbonImmutable::now())->utc()->subDay())
             ->delete();
     }
-
 
     /**
      * Aggregate billing queue health under the separately guarded operations role.

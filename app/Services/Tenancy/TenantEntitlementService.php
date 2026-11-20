@@ -13,7 +13,7 @@ class TenantEntitlementService
     {
         $tenant = Tenant::query()->whereKey($tenantId)->where('status', Tenant::STATUS_ACTIVE)->first();
         if ($tenant === null) {
-            throw (new ModelNotFoundException())->setModel(Tenant::class, [$tenantId]);
+            throw (new ModelNotFoundException)->setModel(Tenant::class, [$tenantId]);
         }
 
         $subscription = TenantSubscription::query()->where('tenant_id', $tenantId)
@@ -41,6 +41,7 @@ class TenantEntitlementService
         if (($entitlements[$feature] ?? false) !== true) {
             throw new AuthorizationException('The current tenant subscription does not include this feature.');
         }
+
         return $subscription;
     }
 
@@ -53,6 +54,7 @@ class TenantEntitlementService
         if (! is_int($maximum) || $maximum < 0 || $requested < 0 || $requested > $maximum) {
             throw new AuthorizationException('The current tenant subscription limit does not permit this operation.');
         }
+
         return $subscription;
     }
 }
