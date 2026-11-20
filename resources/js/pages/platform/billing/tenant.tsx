@@ -1,4 +1,6 @@
 import { Head, Link } from '@inertiajs/react';
+import { StatusBadge } from '@/components/status-badge';
+import { formatDate, formatDateTime } from '@/lib/dates';
 import { formatMoney } from '@/lib/money';
 
 type Props = {
@@ -7,10 +9,12 @@ type Props = {
         name: string;
         slug: string;
         billing: Record<string, string> | null;
+        timezone?: string;
     };
     subscription: {
         id: number;
         plan_code: string;
+        plan_name?: string;
         status: string;
         unit_amount_minor: number;
         currency: string;
@@ -40,6 +44,8 @@ export default function PlatformBillingTenant({
     payments,
     revenue_paid_minor,
 }: Props) {
+    const timezone = tenant.timezone ?? 'UTC';
+
     return (
         <>
             <Head title={`Billing · ${tenant.name}`} />
@@ -61,10 +67,14 @@ export default function PlatformBillingTenant({
                 <section className="rounded-lg border border-border bg-white p-5">
                     <h2 className="text-base font-semibold">Subscription</h2>
                     {subscription ? (
-                        <div className="mt-3 space-y-1 text-sm">
-                            <p>
-                                {subscription.plan_code} · {subscription.status}
-                            </p>
+                        <div className="mt-3 space-y-2 text-sm">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <span className="font-medium">
+                                    {subscription.plan_name ??
+                                        subscription.plan_code}
+                                </span>
+                                <StatusBadge status={subscription.status} />
+                            </div>
                             <p className="tabular-nums">
                                 {formatMoney(
                                     subscription.unit_amount_minor,
@@ -73,7 +83,10 @@ export default function PlatformBillingTenant({
                             </p>
                             <p className="text-muted-foreground">
                                 Period ends{' '}
-                                {subscription.current_period_ends_at}
+                                {formatDate(
+                                    subscription.current_period_ends_at,
+                                    { timeZone: timezone },
+                                )}
                             </p>
                         </div>
                     ) : (
@@ -96,17 +109,19 @@ export default function PlatformBillingTenant({
                         {invoices.map((invoice) => (
                             <li
                                 key={invoice.id}
-                                className="flex justify-between"
+                                className="flex justify-between gap-3"
                             >
-                                <span className="font-mono">
+                                <span className="text-primary tabular-nums">
                                     {invoice.invoice_number}
                                 </span>
-                                <span>
-                                    {invoice.status} ·{' '}
-                                    {formatMoney(
-                                        invoice.amount_due_minor,
-                                        invoice.currency,
-                                    )}
+                                <span className="flex items-center gap-2">
+                                    <StatusBadge status={invoice.status} />
+                                    <span className="tabular-nums">
+                                        {formatMoney(
+                                            invoice.amount_due_minor,
+                                            invoice.currency,
+                                        )}
+                                    </span>
                                 </span>
                             </li>
                         ))}
@@ -119,15 +134,22 @@ export default function PlatformBillingTenant({
                         {payments.map((payment) => (
                             <li
                                 key={payment.id}
-                                className="flex justify-between"
+                                className="flex justify-between gap-3"
                             >
-                                <span>{payment.received_at ?? '—'}</span>
                                 <span>
-                                    {formatMoney(
-                                        payment.amount_minor,
-                                        payment.currency,
-                                    )}{' '}
-                                    · {payment.status}
+                                    {formatDateTime(
+                                        payment.received_at,
+                                        timezone,
+                                    )}
+                                </span>
+                                <span className="flex items-center gap-2">
+                                    <span className="tabular-nums">
+                                        {formatMoney(
+                                            payment.amount_minor,
+                                            payment.currency,
+                                        )}
+                                    </span>
+                                    <StatusBadge status={payment.status} />
                                 </span>
                             </li>
                         ))}

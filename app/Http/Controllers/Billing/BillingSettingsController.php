@@ -30,6 +30,7 @@ class BillingSettingsController extends Controller
         app(TenantRoleAuthorization::class)->require($user, $tenant->id, 'billing.read');
 
         $subscription = TenantSubscription::query()
+            ->with('plan:id,code,name,price_monthly_minor,price_yearly_minor')
             ->where('tenant_id', $tenant->id)
             ->whereIn('status', ['trialing', 'active', 'past_due', 'suspended'])
             ->latest('id')
@@ -68,14 +69,17 @@ class BillingSettingsController extends Controller
             'subscription' => $subscription ? [
                 'id' => $subscription->id,
                 'plan_code' => $subscription->plan_code,
+                'plan_name' => $subscription->plan->name ?? $subscription->plan_code,
                 'status' => $subscription->status,
                 'currency' => $subscription->currency,
                 'unit_amount_minor' => $subscription->unit_amount_minor,
+                'billing_period' => $this->billingPeriodFor($subscription),
                 'cancel_at_period_end' => $subscription->cancel_at_period_end,
                 'current_period_starts_at' => $subscription->current_period_starts_at?->toIso8601String(),
                 'current_period_ends_at' => $subscription->current_period_ends_at?->toIso8601String(),
                 'entitlements' => $subscription->entitlements,
             ] : null,
+            'timezone' => $tenant->timezone ?: 'UTC',
             'usage' => $usage,
             'invoices' => $invoices,
             'payments' => $payments,
@@ -143,5 +147,16 @@ class BillingSettingsController extends Controller
         }
 
         return back()->with('status', 'Cancellation at period end cleared.');
+    }
+
+    private function billingPeriodFor(TenantSubscription $subscription): string
+    {
+        $plan = $subscription->plan;
+
+        if ($plan !== null && $subscription->unit_amount_minor === $plan->price_yearly_minor) {
+            return 'yearly';
+        }
+
+        return 'monthly';
     }
 }

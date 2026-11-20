@@ -34,8 +34,9 @@ test('verified owners can open the onboarding wizard', function () {
         ->assertOk()
         ->assertInertia(fn ($page) => $page
             ->component('onboarding/index')
-            ->where('currentStep', 'workspace')
-            ->where('steps.workspace', false));
+            ->where('currentStep', 'plan')
+            ->where('steps.workspace', true)
+            ->where('steps.plan', false));
 });
 
 test('owners can complete the three onboarding steps', function () {
@@ -72,7 +73,9 @@ test('dashboard shows an onboarding checklist until complete', function () {
         ->assertInertia(fn ($page) => $page
             ->component('dashboard')
             ->where('onboarding.needed', true)
-            ->where('onboarding.steps.workspace', false));
+            ->where('onboarding.steps.workspace', true)
+            ->where('onboarding.steps.plan', false)
+            ->where('onboarding.steps.whmcs', false));
 });
 
 test('billing plans placeholder route is available', function () {

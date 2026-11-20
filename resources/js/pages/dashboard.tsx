@@ -16,6 +16,8 @@ import { StatCard } from '@/components/stat-card';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useWorkspaceTimezone } from '@/hooks/use-workspace-timezone';
+import { formatDateTime } from '@/lib/dates';
 import { show as onboarding } from '@/routes/onboarding';
 
 type DashboardStats = {
@@ -57,17 +59,6 @@ type Props = {
     onboarding?: OnboardingChecklist | null;
 };
 
-function formatDate(value: string | null): string {
-    if (!value) {
-        return 'Not available';
-    }
-
-    return new Intl.DateTimeFormat(undefined, {
-        dateStyle: 'medium',
-        timeStyle: 'short',
-    }).format(new Date(value));
-}
-
 export default function Dashboard({
     stats,
     latestRuns,
@@ -75,8 +66,11 @@ export default function Dashboard({
     onboarding: onboardingState,
 }: Props) {
     const { auth } = usePage().props;
+    const timezone = useWorkspaceTimezone();
     const firstName = auth.user?.name?.split(' ')[0] ?? 'there';
     const tenantId = auth.tenants?.[0]?.id;
+    const isPlatformOperator =
+        auth.is_platform_admin || auth.is_platform_operator;
     const isEmptyWorkspace =
         stats.active_integrations === 0 &&
         stats.total_runs === 0 &&
@@ -283,8 +277,9 @@ export default function Dashboard({
                                                         {run.whmcs_version}
                                                     </td>
                                                     <td className="px-4 text-muted-foreground">
-                                                        {formatDate(
+                                                        {formatDateTime(
                                                             run.received_at,
+                                                            timezone,
                                                         )}
                                                     </td>
                                                     <td className="px-4 tabular-nums">
@@ -415,12 +410,16 @@ export default function Dashboard({
                                         Download ZIP
                                     </a>
                                 </Button>
-                            ) : (
-                                <span className="text-sm text-muted-foreground">
-                                    ZIP download unavailable until PHP ZIP
-                                    support is enabled.
-                                </span>
-                            )}
+                            ) : isPlatformOperator ? (
+                                <p className="max-w-md text-sm text-muted-foreground">
+                                    ZIP packaging needs PHP&apos;s{' '}
+                                    <code className="rounded bg-muted px-1 py-0.5 text-xs">
+                                        ext-zip
+                                    </code>{' '}
+                                    on this server. Enable it for local/admin
+                                    downloads, then refresh.
+                                </p>
+                            ) : null}
                             <Button size="sm" asChild>
                                 <Link href="/whmcs-addon/setup">
                                     Installation guide

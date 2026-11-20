@@ -32,6 +32,7 @@ class HandleInertiaRequests extends Middleware
                 'name' => (string) $membership->tenant->name,
                 'slug' => (string) $membership->tenant->slug,
                 'role' => (string) $membership->role,
+                'timezone' => (string) ($membership->tenant->timezone ?: 'UTC'),
             ])
             ->values()
             ->all();
@@ -73,7 +74,7 @@ class HandleInertiaRequests extends Middleware
         return $user->tenantMemberships()
             ->where('status', TenantMembership::STATUS_ACTIVE)
             ->whereHas('tenant', fn ($query) => $query->where('status', Tenant::STATUS_ACTIVE))
-            ->with(['tenant:id,name,slug,status'])
+            ->with(['tenant:id,name,slug,status,timezone'])
             ->orderBy('created_at')
             ->get();
     }

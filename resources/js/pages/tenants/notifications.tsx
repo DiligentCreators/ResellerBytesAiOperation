@@ -4,6 +4,8 @@ import { EmptyState } from '@/components/empty-state';
 import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
 import { Pagination } from '@/components/pagination';
+import { useWorkspaceTimezone } from '@/hooks/use-workspace-timezone';
+import { formatDateTime } from '@/lib/dates';
 
 type Notification = {
     id: number;
@@ -21,16 +23,9 @@ type Props = {
     };
 };
 
-function formatWhen(value: string | null) {
-    return value
-        ? new Intl.DateTimeFormat(undefined, {
-              dateStyle: 'medium',
-              timeStyle: 'short',
-          }).format(new Date(value))
-        : '—';
-}
-
 export default function TenantNotifications({ tenant, notifications }: Props) {
+    const timezone = useWorkspaceTimezone();
+
     return (
         <>
             <Head title="Notifications" />
@@ -66,8 +61,9 @@ export default function TenantNotifications({ tenant, notifications }: Props) {
                                             )}
                                         </p>
                                         <p className="mt-1 text-xs text-muted-foreground">
-                                            {formatWhen(
+                                            {formatDateTime(
                                                 notification.created_at,
+                                                timezone,
                                             )}
                                         </p>
                                     </div>

@@ -6,6 +6,7 @@ use App\Models\Tenant;
 use App\Models\TenantMembership;
 use App\Models\User;
 use App\Services\Audit\AuditEventWriter;
+use App\Services\Tenancy\OnboardingProgress;
 use App\Services\Tenancy\TenantAccess;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -14,15 +15,14 @@ use Inertia\Response;
 
 class OnboardingController extends Controller
 {
-    public function show(Request $request, TenantAccess $access): Response|RedirectResponse
+    public function show(Request $request, TenantAccess $access, OnboardingProgress $onboardingProgress): Response|RedirectResponse
     {
         $tenant = $this->ownedTenant($request, $access);
+        $progress = $onboardingProgress->forTenant($tenant->fresh());
 
-        if ($tenant->onboarding_completed_at !== null) {
+        if (! $progress['needed']) {
             return redirect()->route('dashboard');
         }
-
-        $onboarding = (array) data_get($tenant->settings, 'onboarding', []);
 
         return Inertia::render('onboarding/index', [
             'tenant' => [
@@ -32,12 +32,8 @@ class OnboardingController extends Controller
                 'timezone' => $tenant->timezone ?: 'UTC',
                 'require_two_factor' => (bool) $tenant->require_two_factor,
             ],
-            'steps' => [
-                'workspace' => filled($onboarding['workspace_completed_at'] ?? null),
-                'plan' => filled($onboarding['plan_completed_at'] ?? null),
-                'whmcs' => filled($onboarding['whmcs_completed_at'] ?? null),
-            ],
-            'currentStep' => $this->currentStep($onboarding),
+            'steps' => $progress['steps'],
+            'currentStep' => $progress['current_step'],
             'timezones' => timezone_identifiers_list(),
             'plansUrl' => route('billing.plans'),
             'integrationsUrl' => route('integrations.index'),
@@ -45,7 +41,7 @@ class OnboardingController extends Controller
         ]);
     }
 
-    public function updateWorkspace(Request $request, TenantAccess $access, AuditEventWriter $audit): RedirectResponse
+    public function updateWorkspace(Request $request, TenantAccess $access, AuditEventWriter $audit, OnboardingProgress $onboardingProgress): RedirectResponse
     {
         /** @var User $user */
         $user = $request->user();
@@ -89,23 +85,30 @@ class OnboardingController extends Controller
             'occurred_at' => now(),
         ]);
 
+        $progress = $onboardingProgress->forTenant($tenant->fresh());
+
+        if (! $progress['needed']) {
+            return redirect()->route('dashboard')->with('status', 'Workspace onboarding is complete.');
+        }
+
         return redirect()->route('onboarding.show');
     }
 
-    public function completePlan(Request $request, TenantAccess $access, AuditEventWriter $audit): RedirectResponse
+    public function completePlan(Request $request, TenantAccess $access, AuditEventWriter $audit, OnboardingProgress $onboardingProgress): RedirectResponse
     {
-        return $this->completeStep($request, $access, $audit, 'plan', 'tenant.onboarding.plan_completed');
+        return $this->completeStep($request, $access, $audit, $onboardingProgress, 'plan', 'tenant.onboarding.plan_completed');
     }
 
-    public function completeWhmcs(Request $request, TenantAccess $access, AuditEventWriter $audit): RedirectResponse
+    public function completeWhmcs(Request $request, TenantAccess $access, AuditEventWriter $audit, OnboardingProgress $onboardingProgress): RedirectResponse
     {
-        return $this->completeStep($request, $access, $audit, 'whmcs', 'tenant.onboarding.whmcs_completed');
+        return $this->completeStep($request, $access, $audit, $onboardingProgress, 'whmcs', 'tenant.onboarding.whmcs_completed');
     }
 
     private function completeStep(
         Request $request,
         TenantAccess $access,
         AuditEventWriter $audit,
+        OnboardingProgress $onboardingProgress,
         string $step,
         string $eventType,
     ): RedirectResponse {
@@ -120,9 +123,7 @@ class OnboardingController extends Controller
 
         $tenant->forceFill(['settings' => $settings])->save();
 
-        if ($this->allStepsComplete($onboarding)) {
-            $tenant->forceFill(['onboarding_completed_at' => now()])->save();
-        }
+        $progress = $onboardingProgress->forTenant($tenant->fresh());
 
         $audit->append([
             'actor_type' => 'user',
@@ -132,13 +133,13 @@ class OnboardingController extends Controller
             'subject_type' => Tenant::class,
             'subject_id' => (string) $tenant->id,
             'metadata' => [
-                'onboarding_completed' => $tenant->onboarding_completed_at !== null,
+                'onboarding_completed' => ! $progress['needed'],
             ],
             'ip_address' => $request->ip(),
             'occurred_at' => now(),
         ]);
 
-        if ($tenant->onboarding_completed_at !== null) {
+        if (! $progress['needed']) {
             return redirect()->route('dashboard')->with('status', 'Workspace onboarding is complete.');
         }
 
@@ -165,35 +166,5 @@ class OnboardingController extends Controller
         $access->requireMembership($user, (string) $membership->tenant_id, [TenantMembership::ROLE_OWNER]);
 
         return $membership->tenant;
-    }
-
-    /**
-     * @param  array<string, mixed>  $onboarding
-     */
-    private function currentStep(array $onboarding): string
-    {
-        if (! filled($onboarding['workspace_completed_at'] ?? null)) {
-            return 'workspace';
-        }
-
-        if (! filled($onboarding['plan_completed_at'] ?? null)) {
-            return 'plan';
-        }
-
-        if (! filled($onboarding['whmcs_completed_at'] ?? null)) {
-            return 'whmcs';
-        }
-
-        return 'done';
-    }
-
-    /**
-     * @param  array<string, mixed>  $onboarding
-     */
-    private function allStepsComplete(array $onboarding): bool
-    {
-        return filled($onboarding['workspace_completed_at'] ?? null)
-            && filled($onboarding['plan_completed_at'] ?? null)
-            && filled($onboarding['whmcs_completed_at'] ?? null);
     }
 }

@@ -71,6 +71,7 @@ class PlatformBillingController extends Controller
         $this->authorizeBilling($request);
 
         $subscription = TenantSubscription::query()
+            ->with('plan:id,code,name')
             ->where('tenant_id', $tenant->id)
             ->latest('id')
             ->first();
@@ -80,9 +81,18 @@ class PlatformBillingController extends Controller
                 'id' => $tenant->id,
                 'name' => $tenant->name,
                 'slug' => $tenant->slug,
+                'timezone' => $tenant->timezone ?: 'UTC',
                 'billing' => $tenant->settings['billing'] ?? null,
             ],
-            'subscription' => $subscription,
+            'subscription' => $subscription ? [
+                'id' => $subscription->id,
+                'plan_code' => $subscription->plan_code,
+                'plan_name' => $subscription->plan->name ?? $subscription->plan_code,
+                'status' => $subscription->status,
+                'unit_amount_minor' => $subscription->unit_amount_minor,
+                'currency' => $subscription->currency,
+                'current_period_ends_at' => $subscription->current_period_ends_at?->toIso8601String(),
+            ] : null,
             'invoices' => TenantBillingInvoice::query()->where('tenant_id', $tenant->id)->latest('id')->limit(50)->get(),
             'payments' => TenantBillingPayment::query()->where('tenant_id', $tenant->id)->latest('id')->limit(50)->get(),
             'revenue_paid_minor' => (int) TenantBillingPayment::query()

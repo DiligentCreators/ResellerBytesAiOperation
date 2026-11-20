@@ -1,4 +1,5 @@
 import { Form, Head, Link } from '@inertiajs/react';
+import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -202,8 +203,14 @@ export default function PlatformBillingIndex({
                                             '—'
                                         )}
                                     </td>
-                                    <td>{subscription.plan_code}</td>
-                                    <td>{subscription.status}</td>
+                                    <td className="capitalize">
+                                        {subscription.plan_code}
+                                    </td>
+                                    <td>
+                                        <StatusBadge
+                                            status={subscription.status}
+                                        />
+                                    </td>
                                     <td className="text-right tabular-nums">
                                         {formatMoney(
                                             subscription.unit_amount_minor,
@@ -233,11 +240,13 @@ export default function PlatformBillingIndex({
                                     key={invoice.id}
                                     className="border-t border-border"
                                 >
-                                    <td className="py-2 font-mono">
+                                    <td className="py-2 text-primary tabular-nums">
                                         {invoice.invoice_number}
                                     </td>
                                     <td>{invoice.tenant?.name ?? '—'}</td>
-                                    <td>{invoice.status}</td>
+                                    <td>
+                                        <StatusBadge status={invoice.status} />
+                                    </td>
                                     <td className="text-right tabular-nums">
                                         {formatMoney(
                                             invoice.amount_due_minor,
