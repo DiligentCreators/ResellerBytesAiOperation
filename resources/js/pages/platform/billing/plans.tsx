@@ -2,7 +2,6 @@ import { Form, Head, Link } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import AppLayout from '@/layouts/app-layout';
 import { formatMoney } from '@/lib/money';
 
 type Plan = {
@@ -38,23 +37,23 @@ export default function PlatformPlansPage({
     pricesArePlaceholders,
 }: Props) {
     return (
-        <AppLayout>
+        <>
             <Head title="Plan catalog" />
-            <div className="mx-auto max-w-5xl space-y-8 p-6">
+            <div className="mx-auto max-w-5xl space-y-8">
                 <div className="flex items-center justify-between">
                     <div>
                         <h1 className="text-2xl font-bold tracking-tight">
                             Plans
                         </h1>
                         {pricesArePlaceholders && (
-                            <p className="mt-2 text-sm text-[#B45309]">
+                            <p className="mt-2 text-sm text-warning-fg">
                                 Placeholder seed prices — edit before launch.
                             </p>
                         )}
                     </div>
                     <Link
                         href="/platform/billing"
-                        className="text-sm text-[#0779A8]"
+                        className="text-sm text-primary"
                     >
                         Back to billing
                     </Link>
@@ -66,18 +65,18 @@ export default function PlatformPlansPage({
                             key={plan.id}
                             action={`/platform/billing/plans/${plan.id}`}
                             method="put"
-                            className="space-y-4 rounded-lg border border-[#E3E8EE] bg-white p-5"
+                            className="space-y-4 rounded-lg border border-border bg-white p-5"
                         >
                             {({ processing }) => (
                                 <>
                                     <div className="flex items-center justify-between">
                                         <h2 className="text-base font-semibold">
                                             {plan.name}{' '}
-                                            <span className="font-mono text-xs text-[#5B6B7D]">
+                                            <span className="font-mono text-xs text-muted-foreground">
                                                 {plan.code}
                                             </span>
                                         </h2>
-                                        <p className="text-sm text-[#5B6B7D] tabular-nums">
+                                        <p className="text-sm text-muted-foreground tabular-nums">
                                             {formatMoney(
                                                 plan.price_monthly_minor,
                                                 plan.currency,
@@ -273,7 +272,7 @@ export default function PlatformPlansPage({
                                     <Button
                                         type="submit"
                                         disabled={processing}
-                                        className="bg-[#0779A8] hover:bg-[#066A93]"
+                                        className="bg-primary hover:bg-primary-hover"
                                     >
                                         Save plan
                                     </Button>
@@ -283,6 +282,6 @@ export default function PlatformPlansPage({
                     ))}
                 </div>
             </div>
-        </AppLayout>
+        </>
     );
 }

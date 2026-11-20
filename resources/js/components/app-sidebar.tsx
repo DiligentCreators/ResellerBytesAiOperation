@@ -5,9 +5,13 @@ import {
     Bot,
     CreditCard,
     Download,
-    LayoutDashboard,
+    FileText,
+    Layers,
+    LayoutGrid,
     Mail,
+    Receipt,
     Server,
+    Settings,
     ShieldAlert,
     Users,
 } from 'lucide-react';
@@ -15,6 +19,7 @@ import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
+import { TenantSwitcher } from '@/components/tenant-switcher';
 import {
     Sidebar,
     SidebarContent,
@@ -23,6 +28,7 @@ import {
     SidebarMenu,
     SidebarMenuButton,
     SidebarMenuItem,
+    SidebarSeparator,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
 import type { NavItem } from '@/types';
@@ -40,39 +46,91 @@ export function AppSidebar() {
     const permissions = auth.central_permissions ?? [];
     const hasWorkspace = (auth.tenants?.length ?? 0) > 0;
     const isCustomerWorkspace = hasWorkspace || !auth.is_platform_operator;
+    const primaryTenantId = auth.tenants?.[0]?.id;
 
-    const workspaceNavItems: NavItem[] = [
-        { title: 'Overview', href: dashboard(), icon: LayoutDashboard },
-        { title: 'Integrations', href: '/integrations', icon: Server },
+    const overviewItems: NavItem[] = [
+        { title: 'Overview', href: dashboard(), icon: LayoutGrid },
+    ];
+
+    const diagnosticsItems: NavItem[] = [
         { title: 'Diagnostic Runs', href: '/diagnostic-runs', icon: Activity },
         { title: 'Findings', href: '/findings', icon: ShieldAlert },
     ];
 
+    const integrationsItems: NavItem[] = [
+        { title: 'Integrations', href: '/integrations', icon: Server },
+    ];
+
     if (isCustomerWorkspace || hasWorkspace) {
-        workspaceNavItems.push({
-            title: 'WHMCS Addon & Setup',
+        integrationsItems.push({
+            title: 'WHMCS Addon',
             href: '/whmcs-addon/setup',
             icon: Download,
         });
     }
 
-    const primaryTenantId = auth.tenants?.[0]?.id;
+    const billingItems: NavItem[] = [];
     if (primaryTenantId) {
-        workspaceNavItems.push({
-            title: 'Billing',
-            href: `/tenants/${primaryTenantId}/billing`,
-            icon: CreditCard,
-        });
+        billingItems.push(
+            {
+                title: 'Plans',
+                href: '/billing/plans',
+                icon: Layers,
+            },
+            {
+                title: 'Billing settings',
+                href: `/tenants/${primaryTenantId}/billing`,
+                icon: CreditCard,
+            },
+            {
+                title: 'Invoices',
+                href: `/tenants/${primaryTenantId}/billing/invoices`,
+                icon: Receipt,
+            },
+        );
+    }
+
+    const teamItems: NavItem[] = [];
+    if (primaryTenantId) {
+        teamItems.push(
+            {
+                title: 'Members',
+                href: `/tenants/${primaryTenantId}/memberships`,
+                icon: Users,
+            },
+            {
+                title: 'Workspace',
+                href: `/tenants/${primaryTenantId}/settings`,
+                icon: Settings,
+            },
+            {
+                title: 'Notifications',
+                href: `/tenants/${primaryTenantId}/notifications`,
+                icon: FileText,
+            },
+        );
     }
 
     const platformItems: NavItem[] = [];
 
     if (permissions.includes('billing')) {
-        platformItems.push({
-            title: 'Billing',
-            href: '/platform/billing',
-            icon: CreditCard,
-        });
+        platformItems.push(
+            {
+                title: 'Billing admin',
+                href: '/platform/billing',
+                icon: CreditCard,
+            },
+            {
+                title: 'Plan catalog',
+                href: '/platform/billing/plans',
+                icon: Layers,
+            },
+            {
+                title: 'Kelviq gateway',
+                href: '/platform/billing/gateway',
+                icon: Receipt,
+            },
+        );
     }
 
     if (permissions.includes('settings')) {
@@ -99,8 +157,8 @@ export function AppSidebar() {
     }
 
     return (
-        <Sidebar collapsible="icon" variant="inset">
-            <SidebarHeader>
+        <Sidebar collapsible="icon" variant="sidebar">
+            <SidebarHeader className="border-b border-sidebar-border">
                 <SidebarMenu>
                     <SidebarMenuItem>
                         <SidebarMenuButton size="lg" asChild>
@@ -110,21 +168,33 @@ export function AppSidebar() {
                         </SidebarMenuButton>
                     </SidebarMenuItem>
                 </SidebarMenu>
+                <TenantSwitcher />
             </SidebarHeader>
             <SidebarContent>
-                <NavMain
-                    items={workspaceNavItems}
-                    label={
-                        auth.is_platform_operator && !hasWorkspace
-                            ? 'Operations'
-                            : 'Workspace'
-                    }
-                />
-                {auth.is_platform_operator && (
-                    <NavMain items={platformItems} label="Platform" />
+                <NavMain items={overviewItems} label="Overview" />
+                {(isCustomerWorkspace || hasWorkspace) && (
+                    <>
+                        <NavMain items={diagnosticsItems} label="Diagnostics" />
+                        <NavMain
+                            items={integrationsItems}
+                            label="Integrations"
+                        />
+                    </>
+                )}
+                {billingItems.length > 0 && (
+                    <NavMain items={billingItems} label="Billing" />
+                )}
+                {teamItems.length > 0 && (
+                    <NavMain items={teamItems} label="Team" />
+                )}
+                {auth.is_platform_operator && platformItems.length > 0 && (
+                    <>
+                        <SidebarSeparator />
+                        <NavMain items={platformItems} label="Platform" />
+                    </>
                 )}
             </SidebarContent>
-            <SidebarFooter>
+            <SidebarFooter className="border-t border-sidebar-border">
                 <NavFooter items={footerNavItems} className="mt-auto" />
                 <NavUser />
             </SidebarFooter>

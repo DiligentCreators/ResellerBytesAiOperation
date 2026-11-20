@@ -39,7 +39,7 @@ export default function DiagnosticRunShow({ run }: Props) {
     return (
         <>
             <Head title="Diagnostic Snapshot" />
-            <div className="flex flex-1 flex-col gap-6 p-4 md:p-6">
+            <div className="flex flex-1 flex-col gap-6">
                 <div>
                     <Link
                         href="/diagnostic-runs"

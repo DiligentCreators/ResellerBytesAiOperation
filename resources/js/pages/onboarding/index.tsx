@@ -59,7 +59,7 @@ export default function OnboardingIndex({
     return (
         <>
             <Head title="Workspace onboarding" />
-            <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-8 p-6 md:p-10">
+            <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-8">
                 <div>
                     <p className="text-sm font-medium tracking-wide text-muted-foreground uppercase">
                         Get started

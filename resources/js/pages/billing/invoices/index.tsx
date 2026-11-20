@@ -1,5 +1,9 @@
 import { Head, Link } from '@inertiajs/react';
-import AppLayout from '@/layouts/app-layout';
+import { Receipt } from 'lucide-react';
+import { EmptyState } from '@/components/empty-state';
+import { PageHeader } from '@/components/page-header';
+import { StatusBadge } from '@/components/status-badge';
+import { Button } from '@/components/ui/button';
 import { formatMoney } from '@/lib/money';
 
 type Props = {
@@ -19,56 +23,90 @@ type Props = {
 
 export default function InvoicesIndex({ tenant, invoices }: Props) {
     return (
-        <AppLayout>
+        <>
             <Head title="Invoices" />
-            <div className="mx-auto max-w-4xl space-y-6 p-6">
-                <div className="flex items-center justify-between">
-                    <h1 className="text-2xl font-bold tracking-tight">
-                        Invoices
-                    </h1>
-                    <Link
-                        href={`/tenants/${tenant.id}/billing`}
-                        className="text-sm text-[#0779A8]"
-                    >
-                        Back to billing
-                    </Link>
-                </div>
-                <table className="w-full text-left text-sm">
-                    <thead className="text-xs text-[#5B6B7D]">
-                        <tr>
-                            <th className="py-2">Number</th>
-                            <th>Status</th>
-                            <th>Issued</th>
-                            <th className="text-right">Amount</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {invoices.data.map((invoice) => (
-                            <tr
-                                key={invoice.id}
-                                className="border-t border-[#E3E8EE]"
-                            >
-                                <td className="py-2 font-mono">
-                                    <Link
-                                        href={`/tenants/${tenant.id}/billing/invoices/${invoice.id}`}
-                                        className="text-[#0779A8]"
+            <div className="space-y-6">
+                <PageHeader
+                    title="Invoices"
+                    description="Download and review past invoices."
+                    actions={
+                        <Button variant="secondary" size="sm" asChild>
+                            <Link href={`/tenants/${tenant.id}/billing`}>
+                                Billing settings
+                            </Link>
+                        </Button>
+                    }
+                />
+
+                {invoices.data.length === 0 ? (
+                    <EmptyState
+                        icon={Receipt}
+                        title="No invoices yet"
+                        description="Your invoices will appear here after your first billing cycle."
+                        action={
+                            <Button size="sm" asChild>
+                                <Link href="/billing/plans">View plans</Link>
+                            </Button>
+                        }
+                    />
+                ) : (
+                    <div className="overflow-hidden rounded-lg border border-border bg-card shadow-xs">
+                        <table className="w-full text-left text-sm">
+                            <caption className="sr-only">Invoices</caption>
+                            <thead className="border-b border-border bg-surface text-xs font-medium text-muted-foreground">
+                                <tr>
+                                    <th scope="col" className="h-9 px-4">
+                                        Invoice
+                                    </th>
+                                    <th scope="col" className="h-9 px-4">
+                                        Status
+                                    </th>
+                                    <th scope="col" className="h-9 px-4">
+                                        Issued
+                                    </th>
+                                    <th
+                                        scope="col"
+                                        className="h-9 px-4 text-right"
                                     >
-                                        {invoice.invoice_number}
-                                    </Link>
-                                </td>
-                                <td>{invoice.status}</td>
-                                <td>{invoice.issued_at ?? '—'}</td>
-                                <td className="text-right tabular-nums">
-                                    {formatMoney(
-                                        invoice.amount_due_minor,
-                                        invoice.currency,
-                                    )}
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+                                        Amount
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {invoices.data.map((invoice) => (
+                                    <tr
+                                        key={invoice.id}
+                                        className="h-11 border-b border-border last:border-0 hover:bg-surface/70"
+                                    >
+                                        <td className="px-4 font-mono text-[13px]">
+                                            <Link
+                                                href={`/tenants/${tenant.id}/billing/invoices/${invoice.id}`}
+                                                className="font-medium text-primary hover:underline"
+                                            >
+                                                {invoice.invoice_number}
+                                            </Link>
+                                        </td>
+                                        <td className="px-4">
+                                            <StatusBadge
+                                                status={invoice.status}
+                                            />
+                                        </td>
+                                        <td className="px-4 text-muted-foreground">
+                                            {invoice.issued_at ?? '—'}
+                                        </td>
+                                        <td className="px-4 text-right font-medium tabular-nums">
+                                            {formatMoney(
+                                                invoice.amount_due_minor,
+                                                invoice.currency,
+                                            )}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
             </div>
-        </AppLayout>
+        </>
     );
 }

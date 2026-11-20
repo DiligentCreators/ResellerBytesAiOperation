@@ -156,8 +156,15 @@ export default function Register({ countries, passwordRules }: Props) {
                                     htmlFor="terms"
                                     className="text-sm leading-5 font-normal"
                                 >
-                                    I accept the terms of service and privacy
-                                    policy for ResellerBytes AI Operations.
+                                    I agree to the{' '}
+                                    <TextLink href="/terms" tabIndex={-1}>
+                                        Terms of Service
+                                    </TextLink>{' '}
+                                    and{' '}
+                                    <TextLink href="/privacy" tabIndex={-1}>
+                                        Privacy Policy
+                                    </TextLink>
+                                    .
                                 </Label>
                             </div>
                             <InputError message={errors.terms} />

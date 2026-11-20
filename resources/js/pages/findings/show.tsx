@@ -28,7 +28,7 @@ export default function FindingShow({ finding }: Props) {
     return (
         <>
             <Head title="Finding Details" />
-            <div className="flex flex-1 flex-col gap-6 p-4 md:p-6">
+            <div className="flex flex-1 flex-col gap-6">
                 <div>
                     <Link
                         href="/findings"

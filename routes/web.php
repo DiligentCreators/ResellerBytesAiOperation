@@ -31,6 +31,8 @@ use Illuminate\Support\Facades\Route;
 
 Route::inertia('/', 'welcome')->name('home');
 Route::get('pricing', PricingController::class)->name('pricing');
+Route::inertia('terms', 'legal/terms')->name('terms');
+Route::inertia('privacy', 'legal/privacy')->name('privacy');
 
 Route::post('webhooks/kelviq', KelviqWebhookController::class)
     ->middleware('throttle:120,1')

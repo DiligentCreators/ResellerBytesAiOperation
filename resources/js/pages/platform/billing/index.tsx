@@ -2,7 +2,6 @@ import { Form, Head, Link } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import AppLayout from '@/layouts/app-layout';
 import { formatMoney } from '@/lib/money';
 
 type Props = {
@@ -45,7 +44,7 @@ export default function PlatformBillingIndex({
     pricesArePlaceholders,
 }: Props) {
     return (
-        <AppLayout>
+        <>
             <Head title="Platform billing" />
             <div className="mx-auto max-w-6xl space-y-8 p-6">
                 <div className="flex flex-wrap items-center justify-between gap-3">
@@ -54,7 +53,7 @@ export default function PlatformBillingIndex({
                             Platform billing
                         </h1>
                         {pricesArePlaceholders && (
-                            <p className="mt-2 text-sm text-[#B45309]">
+                            <p className="mt-2 text-sm text-warning-fg">
                                 Plan prices are placeholder seed values — edit
                                 them before launch.
                             </p>
@@ -64,7 +63,7 @@ export default function PlatformBillingIndex({
                         <Button
                             asChild
                             variant="outline"
-                            className="border-[#E3E8EE] text-[#0779A8]"
+                            className="border-border text-primary"
                         >
                             <Link href="/platform/billing/gateway">
                                 Gateway status
@@ -72,7 +71,7 @@ export default function PlatformBillingIndex({
                         </Button>
                         <Button
                             asChild
-                            className="bg-[#0779A8] hover:bg-[#066A93]"
+                            className="bg-primary hover:bg-primary-hover"
                         >
                             <Link href="/platform/billing/plans">
                                 Manage plans
@@ -102,9 +101,9 @@ export default function PlatformBillingIndex({
                     ].map((tile) => (
                         <div
                             key={tile.label}
-                            className="rounded-lg border border-[#E3E8EE] bg-white p-4"
+                            className="rounded-lg border border-border bg-white p-4"
                         >
-                            <p className="text-xs font-semibold text-[#5B6B7D]">
+                            <p className="text-xs font-semibold text-muted-foreground">
                                 {tile.label}
                             </p>
                             <p className="mt-2 text-2xl font-bold tabular-nums">
@@ -114,7 +113,7 @@ export default function PlatformBillingIndex({
                     ))}
                 </div>
 
-                <section className="rounded-lg border border-[#E3E8EE] bg-white p-5">
+                <section className="rounded-lg border border-border bg-white p-5">
                     <h2 className="text-base font-semibold">Seller details</h2>
                     <Form
                         action="/platform/billing/seller"
@@ -164,7 +163,7 @@ export default function PlatformBillingIndex({
                                     <Button
                                         type="submit"
                                         disabled={processing}
-                                        className="bg-[#0779A8] hover:bg-[#066A93]"
+                                        className="bg-primary hover:bg-primary-hover"
                                     >
                                         Save seller details
                                     </Button>
@@ -174,10 +173,10 @@ export default function PlatformBillingIndex({
                     </Form>
                 </section>
 
-                <section className="rounded-lg border border-[#E3E8EE] bg-white p-5">
+                <section className="rounded-lg border border-border bg-white p-5">
                     <h2 className="text-base font-semibold">Subscriptions</h2>
                     <table className="mt-4 w-full text-left text-sm">
-                        <thead className="text-xs text-[#5B6B7D]">
+                        <thead className="text-xs text-muted-foreground">
                             <tr>
                                 <th className="py-2">Tenant</th>
                                 <th>Plan</th>
@@ -189,13 +188,13 @@ export default function PlatformBillingIndex({
                             {subscriptions.map((subscription) => (
                                 <tr
                                     key={subscription.id}
-                                    className="border-t border-[#E3E8EE]"
+                                    className="border-t border-border"
                                 >
                                     <td className="py-2">
                                         {subscription.tenant ? (
                                             <Link
                                                 href={`/platform/billing/tenants/${subscription.tenant.id}`}
-                                                className="text-[#0779A8]"
+                                                className="text-primary"
                                             >
                                                 {subscription.tenant.name}
                                             </Link>
@@ -217,10 +216,10 @@ export default function PlatformBillingIndex({
                     </table>
                 </section>
 
-                <section className="rounded-lg border border-[#E3E8EE] bg-white p-5">
+                <section className="rounded-lg border border-border bg-white p-5">
                     <h2 className="text-base font-semibold">Invoices</h2>
                     <table className="mt-4 w-full text-left text-sm">
-                        <thead className="text-xs text-[#5B6B7D]">
+                        <thead className="text-xs text-muted-foreground">
                             <tr>
                                 <th className="py-2">Number</th>
                                 <th>Tenant</th>
@@ -232,7 +231,7 @@ export default function PlatformBillingIndex({
                             {invoices.map((invoice) => (
                                 <tr
                                     key={invoice.id}
-                                    className="border-t border-[#E3E8EE]"
+                                    className="border-t border-border"
                                 >
                                     <td className="py-2 font-mono">
                                         {invoice.invoice_number}
@@ -251,6 +250,6 @@ export default function PlatformBillingIndex({
                     </table>
                 </section>
             </div>
-        </AppLayout>
+        </>
     );
 }
