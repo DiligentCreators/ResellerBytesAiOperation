@@ -34,7 +34,7 @@ function securityHeadersHotRestore(array $backup): void
     }
 }
 
-it('allows the exact Vite hot origin including IPv6 in non-production CSP', function () {
+it('falls back to scheme sources for IPv6 Vite hot origins that CSP cannot express', function () {
     $backup = securityHeadersHotBackup();
     File::put(public_path('hot'), "http://[::1]:5173\n");
 
@@ -45,12 +45,37 @@ it('allows the exact Vite hot origin including IPv6 in non-production CSP', func
         $csp = (string) $response->headers->get('Content-Security-Policy');
 
         $response->assertOk();
-        expect($csp)->toContain('http://[::1]:5173')
-            ->and($csp)->toContain('ws://[::1]:5173')
-            ->and($csp)->toContain("script-src 'self' 'unsafe-inline' http://[::1]:5173")
-            ->and($csp)->toContain("font-src 'self' data: http://[::1]:5173")
-            ->and($csp)->toContain("img-src 'self' data: blob: http://[::1]:5173")
-            ->and($csp)->toContain("connect-src 'self' http://[::1]:5173 ws://[::1]:5173");
+        expect($csp)->not->toContain('[::1]')
+            ->and($csp)->not->toContain('http://[::1]:5173')
+            ->and($csp)->not->toContain('ws://[::1]:5173')
+            ->and($csp)->toContain("script-src 'self' 'unsafe-inline' http:")
+            ->and($csp)->toContain("style-src 'self' 'unsafe-inline' http:")
+            ->and($csp)->toContain("font-src 'self' data: http:")
+            ->and($csp)->toContain("img-src 'self' data: blob: http:")
+            ->and($csp)->toContain("connect-src 'self' http: ws:");
+    } finally {
+        securityHeadersHotRestore($backup);
+    }
+});
+
+it('allows the exact Vite hot origin for IPv4 hosts in non-production CSP', function () {
+    $backup = securityHeadersHotBackup();
+    File::put(public_path('hot'), "http://127.0.0.1:5173\n");
+
+    try {
+        expect(Vite::isRunningHot())->toBeTrue();
+
+        $response = $this->get(route('home'));
+        $csp = (string) $response->headers->get('Content-Security-Policy');
+
+        $response->assertOk();
+        expect($csp)->toContain('http://127.0.0.1:5173')
+            ->and($csp)->toContain('ws://127.0.0.1:5173')
+            ->and($csp)->toContain("script-src 'self' 'unsafe-inline' http://127.0.0.1:5173")
+            ->and($csp)->toContain("font-src 'self' data: http://127.0.0.1:5173")
+            ->and($csp)->toContain("img-src 'self' data: blob: http://127.0.0.1:5173")
+            ->and($csp)->toContain("connect-src 'self' http://127.0.0.1:5173 ws://127.0.0.1:5173")
+            ->and($csp)->not->toContain("connect-src 'self' http: ws:");
     } finally {
         securityHeadersHotRestore($backup);
     }

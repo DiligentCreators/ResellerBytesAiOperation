@@ -41,7 +41,7 @@ class SecurityHeadersMiddleware
     private function contentSecurityPolicy(): string
     {
         // Inline script/style in app.blade.php boot theme before CSS/JS load.
-        // Vite HMR needs the exact hot origin in non-production; built assets are same-origin.
+        // Vite HMR needs the hot origin in non-production; built assets are same-origin.
         $connect = "'self'";
         $script = "'self' 'unsafe-inline'";
         $style = "'self' 'unsafe-inline'";
@@ -52,12 +52,23 @@ class SecurityHeadersMiddleware
             $hotOrigin = $this->viteHotOrigin();
 
             if ($hotOrigin !== null) {
-                $wsOrigin = preg_replace('#^http#', 'ws', $hotOrigin) ?? $hotOrigin;
-                $script .= " {$hotOrigin}";
-                $style .= " {$hotOrigin}";
-                $font .= " {$hotOrigin}";
-                $img .= " {$hotOrigin}";
-                $connect .= " {$hotOrigin} {$wsOrigin}";
+                if ($this->hotOriginHostIsCspExpressible($hotOrigin)) {
+                    $wsOrigin = preg_replace('#^http#', 'ws', $hotOrigin) ?? $hotOrigin;
+                    $script .= " {$hotOrigin}";
+                    $style .= " {$hotOrigin}";
+                    $font .= " {$hotOrigin}";
+                    $img .= " {$hotOrigin}";
+                    $connect .= " {$hotOrigin} {$wsOrigin}";
+                } else {
+                    // Browsers reject IPv6 literal host-sources (e.g. http://[::1]:5173) and
+                    // ignore them, which blanks Inertia under Herd's Vite hot file. Prefer
+                    // scheme sources over dropping CSP entirely so other directives still apply.
+                    $script .= ' http:';
+                    $style .= ' http:';
+                    $font .= ' http:';
+                    $img .= ' http:';
+                    $connect .= ' http: ws:';
+                }
             } else {
                 $connect .= ' http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:*';
                 $script .= ' http://localhost:* http://127.0.0.1:*';
@@ -104,12 +115,28 @@ class SecurityHeadersMiddleware
         }
 
         $host = (string) $parts['host'];
-        // parse_url keeps IPv6 brackets for http://[::1]:5173; keep them for CSP.
         $origin = $parts['scheme'].'://'.$host;
         if (isset($parts['port'])) {
             $origin .= ':'.$parts['port'];
         }
 
         return $origin;
+    }
+
+    /**
+     * CSP Level 3 host-sources cannot express IPv6 literals; browsers ignore them.
+     */
+    private function hotOriginHostIsCspExpressible(string $origin): bool
+    {
+        $host = parse_url($origin, PHP_URL_HOST);
+        if (! is_string($host) || $host === '') {
+            return false;
+        }
+
+        $normalized = str_starts_with($host, '[') && str_ends_with($host, ']')
+            ? substr($host, 1, -1)
+            : $host;
+
+        return filter_var($normalized, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) === false;
     }
 }
