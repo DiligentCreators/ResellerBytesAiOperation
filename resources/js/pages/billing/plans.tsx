@@ -1,5 +1,8 @@
 import { Head, Link, usePage } from '@inertiajs/react';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Check } from 'lucide-react';
+import { useState } from 'react';
+import { PageHeader } from '@/components/page-header';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatMoney } from '@/lib/money';
 import { show as onboarding } from '@/routes/onboarding';
@@ -30,73 +33,151 @@ export default function BillingPlans({
 }: Props) {
     const { auth } = usePage().props;
     const resolvedTenantId = tenantId ?? auth.tenants?.[0]?.id;
+    const [yearly, setYearly] = useState(false);
 
     return (
         <>
             <Head title="Plans" />
-            <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 p-6 md:p-10">
-                <div>
-                    <p className="text-sm font-medium tracking-wide text-[#5B6B7D] uppercase">
-                        Billing
-                    </p>
-                    <h1 className="mt-2 text-2xl font-bold tracking-tight">
-                        Choose a plan
-                    </h1>
-                    {pricesArePlaceholders && (
-                        <p className="mt-3 rounded-lg bg-[#FFFBEB] px-4 py-3 text-sm text-[#B45309]">
-                            Placeholder seed prices — edit in platform billing
-                            before launch.
-                        </p>
-                    )}
-                </div>
-
-                <div className="grid gap-4 md:grid-cols-2">
-                    {plans.map((plan) => (
+            <div className="space-y-6">
+                <PageHeader
+                    title="Choose a plan"
+                    description="Select entitlements for this workspace. You can change plans later from billing settings."
+                    actions={
                         <div
-                            key={plan.id}
-                            className="rounded-lg border border-[#E3E8EE] bg-white p-5"
+                            className="inline-flex rounded-lg bg-muted p-1"
+                            role="radiogroup"
+                            aria-label="Billing period"
                         >
-                            <h2 className="text-base font-semibold">
-                                {plan.name}
-                            </h2>
-                            <p className="mt-2 text-sm text-[#5B6B7D]">
-                                {plan.description}
-                            </p>
-                            <p className="mt-4 text-2xl font-bold tabular-nums">
-                                {plan.is_contact_sales
-                                    ? 'Contact sales'
-                                    : formatMoney(
-                                          plan.price_monthly_minor,
-                                          plan.currency,
-                                      )}
-                            </p>
-                            {!plan.is_contact_sales && resolvedTenantId && (
-                                <Button
-                                    asChild
-                                    className="mt-4 bg-[#0779A8] hover:bg-[#066A93]"
-                                >
-                                    <Link
-                                        href={`/tenants/${resolvedTenantId}/billing/checkout/${plan.id}?period=monthly`}
-                                    >
-                                        Continue to checkout
-                                    </Link>
-                                </Button>
-                            )}
+                            <button
+                                type="button"
+                                role="radio"
+                                aria-checked={!yearly}
+                                onClick={() => setYearly(false)}
+                                className={`h-8 rounded-md px-4 text-sm font-medium ${
+                                    !yearly
+                                        ? 'bg-white text-foreground shadow-xs'
+                                        : 'text-muted-foreground'
+                                }`}
+                            >
+                                Monthly
+                            </button>
+                            <button
+                                type="button"
+                                role="radio"
+                                aria-checked={yearly}
+                                onClick={() => setYearly(true)}
+                                className={`h-8 rounded-md px-4 text-sm font-medium ${
+                                    yearly
+                                        ? 'bg-white text-foreground shadow-xs'
+                                        : 'text-muted-foreground'
+                                }`}
+                            >
+                                Yearly
+                            </button>
                         </div>
-                    ))}
+                    }
+                />
+
+                {pricesArePlaceholders && (
+                    <p
+                        role="status"
+                        className="rounded-md border border-warning/25 bg-warning-soft px-4 py-3 text-sm text-warning-fg"
+                    >
+                        Placeholder seed prices — edit in platform billing
+                        before launch.
+                    </p>
+                )}
+
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    {plans.map((plan) => {
+                        const price = yearly
+                            ? plan.price_yearly_minor
+                            : plan.price_monthly_minor;
+                        const highlighted = plan.code === 'growth';
+
+                        return (
+                            <div
+                                key={plan.id}
+                                className={`flex flex-col rounded-lg border bg-card p-5 shadow-xs ${
+                                    highlighted
+                                        ? 'relative border-brand ring-1 ring-brand'
+                                        : 'border-border'
+                                }`}
+                            >
+                                {highlighted ? (
+                                    <Badge
+                                        variant="popular"
+                                        className="absolute -top-3 left-5"
+                                    >
+                                        Popular
+                                    </Badge>
+                                ) : null}
+                                <h2 className="text-sm font-semibold">
+                                    {plan.name}
+                                </h2>
+                                <p className="mt-2 min-h-10 text-sm text-muted-foreground">
+                                    {plan.description}
+                                </p>
+                                <p className="mt-4 text-3xl font-semibold tracking-tight tabular-nums">
+                                    {plan.is_contact_sales
+                                        ? 'Custom'
+                                        : formatMoney(price, plan.currency)}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                    {plan.is_contact_sales
+                                        ? 'Talk to sales'
+                                        : yearly
+                                          ? 'per year'
+                                          : 'per month'}
+                                </p>
+                                <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
+                                    <li className="flex gap-2">
+                                        <Check
+                                            className="mt-0.5 size-4 text-brand"
+                                            aria-hidden
+                                        />
+                                        {plan.trial_days > 0
+                                            ? `${plan.trial_days}-day trial`
+                                            : 'No trial'}
+                                    </li>
+                                </ul>
+                                <div className="mt-auto pt-5">
+                                    {plan.is_contact_sales ? (
+                                        <Button
+                                            asChild
+                                            variant="secondary"
+                                            className="w-full"
+                                        >
+                                            <a href="mailto:sales@resellerbytes.com">
+                                                Contact sales
+                                            </a>
+                                        </Button>
+                                    ) : resolvedTenantId ? (
+                                        <Button asChild className="w-full">
+                                            <Link
+                                                href={`/tenants/${resolvedTenantId}/billing/checkout/${plan.id}?period=${yearly ? 'yearly' : 'monthly'}`}
+                                            >
+                                                Continue to checkout
+                                            </Link>
+                                        </Button>
+                                    ) : null}
+                                </div>
+                            </div>
+                        );
+                    })}
                 </div>
 
                 <div className="flex flex-wrap gap-3">
-                    <Button asChild variant="outline">
+                    <Button asChild variant="secondary">
                         <Link href={onboarding()}>
-                            <ArrowLeft className="size-4" />
+                            <ArrowLeft className="size-4" aria-hidden />
                             Back to onboarding
                         </Link>
                     </Button>
-                    <Button asChild variant="outline">
+                    <Button asChild variant="secondary">
                         <Link href={dashboard()}>Open dashboard</Link>
                     </Button>
-                    <Button asChild variant="outline">
+                    <Button asChild variant="ghost">
                         <Link href="/pricing">Public pricing</Link>
                     </Button>
                 </div>

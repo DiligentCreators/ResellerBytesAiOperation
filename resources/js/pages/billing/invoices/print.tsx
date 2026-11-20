@@ -33,13 +33,13 @@ export default function InvoicePrint({ tenant, invoice, seller }: Props) {
     return (
         <>
             <Head title={`Print ${invoice.invoice_number}`} />
-            <div className="mx-auto max-w-3xl bg-white p-10 text-[#0F172A] print:p-0">
+            <div className="mx-auto max-w-3xl bg-white p-10 text-foreground print:p-0">
                 <div className="mb-8 flex items-start justify-between">
                     <div>
                         <h1 className="text-2xl font-bold">
                             {seller.company_name}
                         </h1>
-                        <p className="mt-2 text-sm whitespace-pre-line text-[#5B6B7D]">
+                        <p className="mt-2 text-sm whitespace-pre-line text-muted-foreground">
                             {seller.address}
                             {'\n'}
                             {seller.email}
@@ -50,28 +50,28 @@ export default function InvoicePrint({ tenant, invoice, seller }: Props) {
                         <p className="font-mono text-lg font-semibold">
                             {invoice.invoice_number}
                         </p>
-                        <p className="text-sm text-[#5B6B7D]">
+                        <p className="text-sm text-muted-foreground">
                             {invoice.status}
                         </p>
                     </div>
                 </div>
                 <div className="mb-8">
-                    <p className="text-xs font-semibold tracking-wide text-[#5B6B7D] uppercase">
+                    <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                         Bill to
                     </p>
                     <p className="mt-1 font-medium">
                         {invoice.billing_details.company_name ?? tenant.name}
                     </p>
-                    <p className="text-sm text-[#5B6B7D]">
+                    <p className="text-sm text-muted-foreground">
                         {invoice.billing_details.address_line1}
                     </p>
-                    <p className="text-sm text-[#5B6B7D]">
+                    <p className="text-sm text-muted-foreground">
                         {invoice.billing_details.billing_email}
                     </p>
                 </div>
                 <table className="w-full text-sm">
                     <thead>
-                        <tr className="border-b border-[#E3E8EE] text-left text-xs text-[#5B6B7D]">
+                        <tr className="border-b border-border text-left text-xs text-muted-foreground">
                             <th className="py-2">Description</th>
                             <th className="py-2 text-right">Amount</th>
                         </tr>
@@ -80,7 +80,7 @@ export default function InvoicePrint({ tenant, invoice, seller }: Props) {
                         {invoice.line_items.map((item) => (
                             <tr
                                 key={item.description}
-                                className="border-b border-[#E3E8EE]"
+                                className="border-b border-border"
                             >
                                 <td className="py-3">{item.description}</td>
                                 <td className="py-3 text-right tabular-nums">
@@ -109,14 +109,14 @@ export default function InvoicePrint({ tenant, invoice, seller }: Props) {
                         )}
                     </p>
                 </div>
-                <p className="mt-10 text-xs text-[#5B6B7D]">
+                <p className="mt-10 text-xs text-muted-foreground">
                     Issued {invoice.issued_at ?? '—'}
                     {invoice.paid_at ? ` · Paid ${invoice.paid_at}` : ''}
                 </p>
                 <button
                     type="button"
                     onClick={() => window.print()}
-                    className="mt-8 rounded-md bg-[#0779A8] px-4 py-2 text-sm font-semibold text-white print:hidden"
+                    className="mt-8 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white print:hidden"
                 >
                     Download PDF
                 </button>

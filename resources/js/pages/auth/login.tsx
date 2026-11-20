@@ -110,7 +110,10 @@ export default function Login({
             </Form>
 
             {status && (
-                <div className="mb-4 text-center text-sm font-medium text-green-600">
+                <div
+                    role="status"
+                    className="rounded-md border border-success/20 bg-success-soft px-3 py-2 text-sm text-success-fg"
+                >
                     {status}
                 </div>
             )}
@@ -119,6 +122,6 @@ export default function Login({
 }
 
 Login.layout = {
-    title: 'Log in to your account',
-    description: 'Enter your email and password below to log in',
+    title: 'Sign in to AI Operations',
+    description: 'Welcome back. Enter your details to continue.',
 };

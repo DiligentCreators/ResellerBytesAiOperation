@@ -3,7 +3,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import InputError from '@/components/input-error';
-import AppLayout from '@/layouts/app-layout';
 import { formatMoney } from '@/lib/money';
 
 type Props = {
@@ -64,22 +63,27 @@ export default function BillingSettingsPage(props: Props) {
     const limits = subscription?.entitlements?.limits ?? {};
 
     return (
-        <AppLayout>
+        <>
             <Head title="Billing settings" />
             <div className="mx-auto max-w-5xl space-y-8 p-6">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight">
                         Billing
                     </h1>
-                    <p className="mt-2 text-sm text-[#5B6B7D]">{tenant.name}</p>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                        {tenant.name}
+                    </p>
                     {status && (
-                        <p className="mt-3 rounded-lg bg-[#ECFDF5] px-4 py-3 text-sm text-[#047857]">
+                        <p
+                            role="status"
+                            className="mt-3 rounded-md border border-success/20 bg-success-soft px-4 py-3 text-sm text-success-fg"
+                        >
                             {status}
                         </p>
                     )}
                 </div>
 
-                <section className="rounded-lg border border-[#E3E8EE] bg-white p-5">
+                <section className="rounded-lg border border-border bg-white p-5">
                     <h2 className="text-base font-semibold">Current plan</h2>
                     {subscription ? (
                         <div className="mt-4 space-y-2 text-sm">
@@ -95,12 +99,12 @@ export default function BillingSettingsPage(props: Props) {
                                     subscription.currency,
                                 )}
                             </p>
-                            <p className="text-[#5B6B7D]">
+                            <p className="text-muted-foreground">
                                 Renews / period ends:{' '}
                                 {subscription.current_period_ends_at ?? '—'}
                             </p>
                             {subscription.cancel_at_period_end && (
-                                <p className="text-[#B45309]">
+                                <p className="text-warning-fg">
                                     Cancels at period end
                                 </p>
                             )}
@@ -144,7 +148,7 @@ export default function BillingSettingsPage(props: Props) {
                                                 <Button
                                                     type="submit"
                                                     disabled={processing}
-                                                    className="bg-[#0779A8] hover:bg-[#066A93]"
+                                                    className="bg-primary hover:bg-primary-hover"
                                                 >
                                                     Resume
                                                 </Button>
@@ -161,7 +165,7 @@ export default function BillingSettingsPage(props: Props) {
                         </div>
                     ) : (
                         <div className="mt-4 space-y-3">
-                            <p className="text-sm text-[#5B6B7D]">
+                            <p className="text-sm text-muted-foreground">
                                 No active subscription.
                             </p>
                             <div className="flex flex-wrap gap-2">
@@ -171,7 +175,7 @@ export default function BillingSettingsPage(props: Props) {
                                         <Button
                                             key={plan.id}
                                             asChild
-                                            className="bg-[#0779A8] hover:bg-[#066A93]"
+                                            className="bg-primary hover:bg-primary-hover"
                                         >
                                             <Link
                                                 href={`/tenants/${tenant.id}/billing/checkout/${plan.id}?period=monthly`}
@@ -190,7 +194,7 @@ export default function BillingSettingsPage(props: Props) {
                     )}
                 </section>
 
-                <section className="rounded-lg border border-[#E3E8EE] bg-white p-5">
+                <section className="rounded-lg border border-border bg-white p-5">
                     <h2 className="text-base font-semibold">Billing details</h2>
                     <Form
                         action={`/tenants/${tenant.id}/billing/details`}
@@ -267,7 +271,7 @@ export default function BillingSettingsPage(props: Props) {
                                         <Button
                                             type="submit"
                                             disabled={processing}
-                                            className="bg-[#0779A8] hover:bg-[#066A93]"
+                                            className="bg-primary hover:bg-primary-hover"
                                         >
                                             Save billing details
                                         </Button>
@@ -278,7 +282,7 @@ export default function BillingSettingsPage(props: Props) {
                     </Form>
                 </section>
 
-                <section className="rounded-lg border border-[#E3E8EE] bg-white p-5">
+                <section className="rounded-lg border border-border bg-white p-5">
                     <div className="flex items-center justify-between">
                         <h2 className="text-base font-semibold">Invoices</h2>
                         <Button asChild variant="outline" size="sm">
@@ -291,7 +295,7 @@ export default function BillingSettingsPage(props: Props) {
                     </div>
                     <div className="mt-4 overflow-x-auto">
                         <table className="w-full text-left text-sm">
-                            <thead className="text-xs text-[#5B6B7D]">
+                            <thead className="text-xs text-muted-foreground">
                                 <tr>
                                     <th className="py-2">Number</th>
                                     <th>Status</th>
@@ -302,12 +306,12 @@ export default function BillingSettingsPage(props: Props) {
                                 {invoices.map((invoice) => (
                                     <tr
                                         key={invoice.id}
-                                        className="border-t border-[#E3E8EE]"
+                                        className="border-t border-border"
                                     >
                                         <td className="py-2 font-mono">
                                             <Link
                                                 href={`/tenants/${tenant.id}/billing/invoices/${invoice.id}`}
-                                                className="text-[#0779A8]"
+                                                className="text-primary"
                                             >
                                                 {invoice.invoice_number}
                                             </Link>
@@ -326,13 +330,13 @@ export default function BillingSettingsPage(props: Props) {
                     </div>
                 </section>
 
-                <section className="rounded-lg border border-[#E3E8EE] bg-white p-5">
+                <section className="rounded-lg border border-border bg-white p-5">
                     <h2 className="text-base font-semibold">Payment history</h2>
                     <div className="mt-4 space-y-2 text-sm">
                         {payments.map((payment) => (
                             <div
                                 key={payment.id}
-                                className="flex justify-between border-t border-[#E3E8EE] py-2"
+                                className="flex justify-between border-t border-border py-2"
                             >
                                 <span>{payment.received_at ?? '—'}</span>
                                 <span className="tabular-nums">
@@ -345,11 +349,13 @@ export default function BillingSettingsPage(props: Props) {
                             </div>
                         ))}
                         {payments.length === 0 && (
-                            <p className="text-[#5B6B7D]">No payments yet.</p>
+                            <p className="text-muted-foreground">
+                                No payments yet.
+                            </p>
                         )}
                     </div>
                 </section>
             </div>
-        </AppLayout>
+        </>
     );
 }

@@ -41,27 +41,27 @@ export default function CheckoutPage({
             <Head title="Checkout" />
             <div className="mx-auto max-w-3xl space-y-8 p-6 md:p-10">
                 <div>
-                    <p className="text-sm font-medium text-[#5B6B7D] uppercase">
+                    <p className="text-sm font-medium text-muted-foreground uppercase">
                         Checkout
                     </p>
                     <h1 className="mt-2 text-2xl font-bold tracking-tight">
                         Review & pay
                     </h1>
-                    <p className="mt-2 text-sm text-[#5B6B7D]">
+                    <p className="mt-2 text-sm text-muted-foreground">
                         {tenant.name} · {plan.name} · {period}
                     </p>
                     {pricesArePlaceholders && (
-                        <p className="mt-3 rounded-lg bg-[#FFFBEB] px-4 py-3 text-sm text-[#B45309]">
+                        <p className="mt-3 rounded-lg bg-warning-soft px-4 py-3 text-sm text-warning-fg">
                             Placeholder seed price.
                         </p>
                     )}
                 </div>
 
-                <div className="rounded-lg border border-[#E3E8EE] bg-white p-5">
+                <div className="rounded-lg border border-border bg-white p-5">
                     <div className="flex items-center justify-between">
                         <div>
                             <p className="font-semibold">{plan.name}</p>
-                            <p className="text-sm text-[#5B6B7D]">
+                            <p className="text-sm text-muted-foreground">
                                 Billed {period}
                             </p>
                         </div>
@@ -74,7 +74,7 @@ export default function CheckoutPage({
                 <Form
                     action={`/tenants/${tenant.id}/billing/checkout/${plan.id}`}
                     method="post"
-                    className="space-y-4 rounded-lg border border-[#E3E8EE] bg-white p-5"
+                    className="space-y-4 rounded-lg border border-border bg-white p-5"
                 >
                     {({ errors, processing }) => (
                         <>
@@ -183,7 +183,7 @@ export default function CheckoutPage({
                                 <Button
                                     type="submit"
                                     disabled={processing}
-                                    className="bg-[#0779A8] hover:bg-[#066A93]"
+                                    className="bg-primary hover:bg-primary-hover"
                                 >
                                     Pay {formatMoney(amount, plan.currency)}
                                 </Button>

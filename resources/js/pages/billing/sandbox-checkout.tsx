@@ -26,22 +26,24 @@ export default function SandboxCheckoutPage({
         <>
             <Head title="Sandbox checkout" />
             <div className="mx-auto max-w-xl space-y-6 p-6 md:p-10">
-                <div className="rounded-lg border border-[#F59E0B] bg-[#FFFBEB] p-4">
-                    <p className="text-sm font-semibold text-[#B45309]">
+                <div className="rounded-lg border border-warning bg-warning-soft p-4">
+                    <p className="text-sm font-semibold text-warning-fg">
                         Sandbox — no real payment
                     </p>
-                    <p className="mt-1 text-sm text-[#B45309]">
+                    <p className="mt-1 text-sm text-warning-fg">
                         This hosted page simulates a payment provider. Approve
                         or decline to send a signed event through the same
                         webhook inbox path production gateways will use.
                     </p>
                 </div>
 
-                <div className="rounded-lg border border-[#E3E8EE] bg-white p-5">
+                <div className="rounded-lg border border-border bg-white p-5">
                     <h1 className="text-xl font-bold tracking-tight">
                         Confirm payment
                     </h1>
-                    <p className="mt-2 text-sm text-[#5B6B7D]">{tenant.name}</p>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                        {tenant.name}
+                    </p>
                     <p className="mt-4 font-mono text-sm">
                         {invoice.invoice_number}
                     </p>
@@ -51,7 +53,7 @@ export default function SandboxCheckoutPage({
                             invoice.currency,
                         )}
                     </p>
-                    <ul className="mt-4 space-y-1 text-sm text-[#5B6B7D]">
+                    <ul className="mt-4 space-y-1 text-sm text-muted-foreground">
                         {(invoice.line_items ?? []).map((item) => (
                             <li key={item.description}>{item.description}</li>
                         ))}
@@ -64,7 +66,7 @@ export default function SandboxCheckoutPage({
                             <Button
                                 type="submit"
                                 disabled={processing}
-                                className="bg-[#059669] hover:bg-[#047857]"
+                                className="bg-success hover:bg-success-fg"
                             >
                                 Approve
                             </Button>

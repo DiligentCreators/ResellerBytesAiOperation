@@ -59,7 +59,7 @@ export default function IntegrationsIndex({ integrations }: Props) {
     return (
         <>
             <Head title="WHMCS Integrations" />
-            <div className="flex flex-1 flex-col gap-6 p-4 md:p-6">
+            <div className="flex flex-1 flex-col gap-6">
                 <div>
                     <h1 className="text-2xl font-semibold tracking-tight">
                         WHMCS Integrations

@@ -12,10 +12,15 @@ export default function AppSidebarLayout({
     return (
         <AppShell variant="sidebar">
             <AppSidebar />
-            <AppContent variant="sidebar" className="min-w-0 overflow-x-clip">
+            <AppContent
+                variant="sidebar"
+                className="min-w-0 overflow-x-clip bg-surface"
+            >
                 <AppSidebarHeader breadcrumbs={breadcrumbs} />
                 <TwoFactorEncouragementBanner />
-                {children}
+                <div className="mx-auto w-full max-w-[1200px] flex-1 px-4 py-6 md:px-8 md:py-8">
+                    {children}
+                </div>
             </AppContent>
         </AppShell>
     );
