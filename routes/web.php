@@ -56,8 +56,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 Route::middleware(['auth', 'verified', EnsureTwoFactorEnabled::class])->group(function () {
     Route::get('platform/staff', [CentralStaffController::class, 'index'])->name('platform.staff.index');
     Route::post('platform/staff', [CentralStaffController::class, 'store'])->middleware('throttle:10,1')->name('platform.staff.store');
-    Route::put('platform/staff/{staff}', [CentralStaffController::class, 'update'])->name('platform.staff.update');
-    Route::delete('platform/staff/{staff}', [CentralStaffController::class, 'destroy'])->name('platform.staff.destroy');
+    Route::put('platform/staff/{staff}', [CentralStaffController::class, 'update'])->middleware('throttle:20,1')->name('platform.staff.update');
+    Route::delete('platform/staff/{staff}', [CentralStaffController::class, 'destroy'])->middleware('throttle:10,1')->name('platform.staff.destroy');
 
     Route::middleware('central.permission:settings')->group(function () {
         Route::get('platform/mail-settings', [PlatformMailSettingsController::class, 'show'])->name('platform.mail-settings.show');

@@ -219,10 +219,10 @@ it('keeps tenant notification inbox entries private to the intended active membe
     $duplicate = app(TenantNotificationService::class)->publish($tenant->id, $recipient->id, 'diagnostics.run.completed', ['run_id' => 42, 'status' => 'completed'], 'diagnostic-run:42:completed');
     expect($duplicate->id)->toBe($notification->id);
 
-    $this->actingAs($recipient)->get('/tenants/'.$tenant->id.'/notifications')
+    $this->actingAs($recipient)->getJson('/tenants/'.$tenant->id.'/notifications')
         ->assertOk()->assertJsonPath('notifications.total', 1)
         ->assertJsonPath('notifications.data.0.id', $notification->id);
-    $this->actingAs($other)->get('/tenants/'.$tenant->id.'/notifications')
+    $this->actingAs($other)->getJson('/tenants/'.$tenant->id.'/notifications')
         ->assertOk()->assertJsonPath('notifications.total', 0);
     $this->actingAs($other)->post('/tenants/'.$tenant->id.'/notifications/'.$notification->id.'/read')
         ->assertOk();

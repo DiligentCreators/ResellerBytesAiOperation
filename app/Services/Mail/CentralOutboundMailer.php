@@ -49,15 +49,32 @@ class CentralOutboundMailer
         $driver = $settings instanceof PlatformMailSettings ? $settings->driver : config('platform_mail.driver', 'log');
 
         if ($driver === 'log') {
-            Log::info('outbound_mail.preview', ['driver' => 'log']);
+            $context = ['driver' => 'log'];
+
+            // Local QA only: surface signed verify/reset links when mail is discarded to the log.
+            if (! app()->isProduction()) {
+                $context['to'] = $to;
+                $context['subject'] = $subject;
+
+                $verificationUrl = $this->extractAuthUrl($html, $text, 'email/verify');
+                if ($verificationUrl !== null) {
+                    $context['verification_url'] = $verificationUrl;
+                }
+
+                $resetUrl = $this->extractAuthUrl($html, $text, 'reset-password');
+                if ($resetUrl !== null) {
+                    $context['password_reset_url'] = $resetUrl;
+                }
+            }
+
+            Log::info('outbound_mail.preview', $context);
 
             return;
         }
 
         $config = $this->effectiveConfiguration($settings);
         $from = (string) ($config['from_address'] ?? '');
-        $name = str_replace(["\r", '
-', '"', '<', '>'], '', (string) ($config['from_name'] ?? ''));
+        $name = str_replace(["\r", "\n", '"', '<', '>'], '', (string) ($config['from_name'] ?? ''));
 
         if (! filter_var($from, FILTER_VALIDATE_EMAIL) || $name === '') {
             throw new RuntimeException('platform_mail_sender_configuration_invalid');
@@ -131,5 +148,24 @@ class CentralOutboundMailer
         }
 
         throw new RuntimeException('platform_mail_driver_invalid');
+    }
+
+    private function extractAuthUrl(string $html, string $text, string $pathFragment): ?string
+    {
+        $haystacks = [$html, $text];
+
+        foreach ($haystacks as $haystack) {
+            if ($haystack === '') {
+                continue;
+            }
+
+            if (preg_match('#https?://[^\s"\'<>]+'.preg_quote($pathFragment, '#').'[^\s"\'<>]*#i', $haystack, $matches) === 1) {
+                $url = html_entity_decode($matches[0], ENT_QUOTES | ENT_HTML5);
+
+                return filter_var($url, FILTER_VALIDATE_URL) ? $url : null;
+            }
+        }
+
+        return null;
     }
 }

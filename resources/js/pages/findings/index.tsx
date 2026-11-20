@@ -1,6 +1,9 @@
 import { Head, Link } from '@inertiajs/react';
-import { Pagination } from '@/components/pagination';
 import { ShieldAlert } from 'lucide-react';
+import { EmptyState } from '@/components/empty-state';
+import { PageHeader } from '@/components/page-header';
+import { Pagination } from '@/components/pagination';
+import { StatusBadge } from '@/components/status-badge';
 
 type Finding = {
     id: string;
@@ -23,86 +26,78 @@ export default function FindingsIndex({ findings }: Props) {
     return (
         <>
             <Head title="Findings" />
-            <div className="flex flex-1 flex-col gap-6">
-                <div>
-                    <h1 className="text-2xl font-semibold tracking-tight">
-                        Findings
-                    </h1>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                        Evidence-backed operational issues identified from
-                        diagnostic snapshots.
-                    </p>
-                </div>
-                <section className="overflow-hidden rounded-xl border bg-card">
-                    {findings.data.length === 0 ? (
-                        <div className="px-5 py-14 text-center">
-                            <ShieldAlert className="mx-auto size-8 text-muted-foreground" />
-                            <p className="mt-3 font-medium">
-                                No findings recorded
-                            </p>
-                            <p className="mt-1 text-sm text-muted-foreground">
-                                Findings will appear here after diagnostic
-                                analysis has run.
-                            </p>
-                        </div>
-                    ) : (
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left text-sm">
-                                <thead className="bg-muted/40 text-xs text-muted-foreground uppercase">
-                                    <tr>
-                                        <th className="px-5 py-3 font-medium">
-                                            Finding
-                                        </th>
-                                        <th className="px-5 py-3 font-medium">
-                                            Installation
-                                        </th>
-                                        <th className="px-5 py-3 font-medium">
-                                            Category
-                                        </th>
-                                        <th className="px-5 py-3 font-medium">
-                                            Severity
-                                        </th>
-                                        <th className="px-5 py-3 font-medium">
-                                            Status
-                                        </th>
+            <div className="space-y-6">
+                <PageHeader
+                    title="Findings"
+                    description="Evidence-backed operational issues identified from diagnostic snapshots."
+                />
+
+                {findings.data.length === 0 ? (
+                    <EmptyState
+                        icon={ShieldAlert}
+                        title="No findings recorded"
+                        description="Findings will appear here after diagnostic analysis has run."
+                    />
+                ) : (
+                    <div className="overflow-hidden rounded-lg border border-border bg-card shadow-xs">
+                        <table className="w-full text-left text-sm">
+                            <caption className="sr-only">Findings</caption>
+                            <thead className="border-b border-border bg-surface text-xs font-medium text-muted-foreground">
+                                <tr>
+                                    <th scope="col" className="h-9 px-4">
+                                        Finding
+                                    </th>
+                                    <th scope="col" className="h-9 px-4">
+                                        Installation
+                                    </th>
+                                    <th scope="col" className="h-9 px-4">
+                                        Category
+                                    </th>
+                                    <th scope="col" className="h-9 px-4">
+                                        Severity
+                                    </th>
+                                    <th scope="col" className="h-9 px-4">
+                                        Status
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {findings.data.map((finding) => (
+                                    <tr
+                                        key={finding.id}
+                                        className="h-11 border-b border-border last:border-0 hover:bg-surface/70"
+                                    >
+                                        <td className="px-4">
+                                            <Link
+                                                href={'/findings/' + finding.id}
+                                                className="font-medium text-primary hover:underline"
+                                            >
+                                                {finding.title}
+                                            </Link>
+                                        </td>
+                                        <td className="px-4 text-muted-foreground">
+                                            {finding.integration_name}
+                                        </td>
+                                        <td className="px-4 text-muted-foreground">
+                                            {finding.category}
+                                        </td>
+                                        <td className="px-4">
+                                            <StatusBadge
+                                                status={finding.severity}
+                                            />
+                                        </td>
+                                        <td className="px-4">
+                                            <StatusBadge
+                                                status={finding.status}
+                                            />
+                                        </td>
                                     </tr>
-                                </thead>
-                                <tbody className="divide-y">
-                                    {findings.data.map((finding) => (
-                                        <tr key={finding.id}>
-                                            <td className="px-5 py-4">
-                                                <Link
-                                                    href={
-                                                        '/findings/' +
-                                                        finding.id
-                                                    }
-                                                    className="font-medium hover:text-primary hover:underline"
-                                                >
-                                                    {finding.title}
-                                                </Link>
-                                            </td>
-                                            <td className="px-5 py-4 text-muted-foreground">
-                                                {finding.integration_name}
-                                            </td>
-                                            <td className="px-5 py-4 text-muted-foreground">
-                                                {finding.category}
-                                            </td>
-                                            <td className="px-5 py-4">
-                                                <span className="rounded-full border px-2.5 py-1 text-xs capitalize">
-                                                    {finding.severity}
-                                                </span>
-                                            </td>
-                                            <td className="px-5 py-4 text-muted-foreground capitalize">
-                                                {finding.status}
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
-                    <Pagination links={findings.links} />
-                </section>
+                                ))}
+                            </tbody>
+                        </table>
+                        <Pagination links={findings.links} />
+                    </div>
+                )}
             </div>
         </>
     );

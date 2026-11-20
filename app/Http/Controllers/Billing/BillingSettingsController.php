@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Billing;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Billing\UpdateBillingDetailsRequest;
 use App\Models\Plan;
 use App\Models\Tenant;
 use App\Models\TenantBillingInvoice;
@@ -16,7 +17,6 @@ use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 use Throwable;
@@ -87,23 +87,13 @@ class BillingSettingsController extends Controller
         ]);
     }
 
-    public function updateDetails(Request $request, Tenant $tenant): RedirectResponse
+    public function updateDetails(UpdateBillingDetailsRequest $request, Tenant $tenant): RedirectResponse
     {
         $user = $request->user();
         abort_unless($user instanceof User, 403);
         app(TenantRoleAuthorization::class)->require($user, $tenant->id, 'billing.manage');
 
-        $data = $request->validate([
-            'company_name' => ['required', 'string', 'max:160'],
-            'billing_email' => ['required', 'email:rfc', 'max:255'],
-            'country' => ['required', 'string', 'size:2', Rule::in(CountryCodes::codes())],
-            'address_line1' => ['required', 'string', 'max:255'],
-            'address_line2' => ['nullable', 'string', 'max:255'],
-            'city' => ['nullable', 'string', 'max:120'],
-            'state' => ['nullable', 'string', 'max:120'],
-            'postal_code' => ['nullable', 'string', 'max:40'],
-            'tax_id' => ['nullable', 'string', 'max:80'],
-        ]);
+        $data = $request->validated();
 
         $settings = (array) $tenant->settings;
         $settings['billing'] = [

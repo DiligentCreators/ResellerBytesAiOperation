@@ -123,4 +123,17 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Trusted Proxies
+    |--------------------------------------------------------------------------
+    |
+    | Empty string keeps TrustProxies unset (safe local default). Production
+    | behind Cloudflare/load balancers should set TRUSTED_PROXIES in .env.
+    | AppServiceProvider applies TrustProxies::at() from this config value.
+    |
+    */
+
+    'trusted_proxies' => env('TRUSTED_PROXIES', ''),
+
 ];

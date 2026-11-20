@@ -16,7 +16,9 @@ export default function Appearance() {
                     title="Appearance settings"
                     description="Update the appearance settings for your account"
                 />
-                <AppearanceTabs />
+                <section className="rounded-lg border border-border bg-card p-5 shadow-xs">
+                    <AppearanceTabs />
+                </section>
             </div>
         </>
     );

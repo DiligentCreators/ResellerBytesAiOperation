@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Billing;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Billing\StoreCheckoutRequest;
 use App\Models\Plan;
 use App\Models\Tenant;
 use App\Models\User;
@@ -12,7 +13,6 @@ use App\Support\CountryCodes;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 use Throwable;
@@ -58,25 +58,14 @@ class CheckoutController extends Controller
         ]);
     }
 
-    public function store(Request $request, Tenant $tenant, Plan $plan): RedirectResponse
+    public function store(StoreCheckoutRequest $request, Tenant $tenant, Plan $plan): RedirectResponse
     {
         $user = $request->user();
         abort_unless($user instanceof User, 403);
         app(TenantRoleAuthorization::class)->require($user, $tenant->id, 'billing.manage');
         abort_unless($plan->is_active && ! $plan->is_contact_sales, 404);
 
-        $data = $request->validate([
-            'period' => ['required', Rule::in(['monthly', 'yearly'])],
-            'company_name' => ['required', 'string', 'max:160'],
-            'billing_email' => ['required', 'email:rfc', 'max:255'],
-            'country' => ['required', 'string', 'size:2', Rule::in(CountryCodes::codes())],
-            'address_line1' => ['required', 'string', 'max:255'],
-            'address_line2' => ['nullable', 'string', 'max:255'],
-            'city' => ['nullable', 'string', 'max:120'],
-            'state' => ['nullable', 'string', 'max:120'],
-            'postal_code' => ['nullable', 'string', 'max:40'],
-            'tax_id' => ['nullable', 'string', 'max:80'],
-        ]);
+        $data = $request->validated();
 
         try {
             $result = app(CheckoutService::class)->begin(

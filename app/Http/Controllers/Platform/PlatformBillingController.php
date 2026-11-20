@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Platform;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Platform\UpdateBillingSellerRequest;
 use App\Models\Tenant;
 use App\Models\TenantBillingInvoice;
 use App\Models\TenantBillingPayment;
@@ -91,16 +92,11 @@ class PlatformBillingController extends Controller
         ]);
     }
 
-    public function updateSeller(Request $request): RedirectResponse
+    public function updateSeller(UpdateBillingSellerRequest $request): RedirectResponse
     {
         $this->authorizeBilling($request);
 
-        $data = $request->validate([
-            'company_name' => ['required', 'string', 'max:160'],
-            'address' => ['nullable', 'string', 'max:500'],
-            'email' => ['required', 'email:rfc', 'max:255'],
-            'tax_id' => ['nullable', 'string', 'max:80'],
-        ]);
+        $data = $request->validated();
 
         // Persist seller overrides in platform mail-style singleton table is overkill;
         // store in cache/config file via DB platform settings key.

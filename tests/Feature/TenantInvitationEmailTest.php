@@ -112,7 +112,13 @@ it('uses a local log preview without making an external request or logging priva
     Http::preventStrayRequests();
     Log::shouldReceive('info')
         ->once()
-        ->with('outbound_mail.preview', ['driver' => 'log']);
+        ->withArgs(function (string $message, array $context) use ($invitee): bool {
+            return $message === 'outbound_mail.preview'
+                && ($context['driver'] ?? null) === 'log'
+                && ($context['to'] ?? null) === $invitee->email
+                && ! array_key_exists('html', $context)
+                && ! array_key_exists('text', $context);
+        });
 
     app(TenantInvitationMailer::class)->sendTenantInvitation($membership->fresh());
 });

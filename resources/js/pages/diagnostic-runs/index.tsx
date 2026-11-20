@@ -1,6 +1,9 @@
 import { Head, Link } from '@inertiajs/react';
-import { Pagination } from '@/components/pagination';
 import { Activity } from 'lucide-react';
+import { EmptyState } from '@/components/empty-state';
+import { PageHeader } from '@/components/page-header';
+import { Pagination } from '@/components/pagination';
+import { StatusBadge } from '@/components/status-badge';
 
 type Run = {
     id: string;
@@ -31,90 +34,84 @@ export default function DiagnosticRunsIndex({ runs }: Props) {
     return (
         <>
             <Head title="Diagnostic Runs" />
-            <div className="flex flex-1 flex-col gap-6">
-                <div>
-                    <h1 className="text-2xl font-semibold tracking-tight">
-                        Diagnostic Runs
-                    </h1>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                        Sanitized diagnostic snapshots received from your WHMCS
-                        installation.
-                    </p>
-                </div>
-                <section className="overflow-hidden rounded-xl border bg-card">
-                    {runs.data.length === 0 ? (
-                        <div className="px-5 py-14 text-center">
-                            <Activity className="mx-auto size-8 text-muted-foreground" />
-                            <p className="mt-3 font-medium">
-                                No diagnostic runs yet
-                            </p>
-                            <p className="mt-1 text-sm text-muted-foreground">
-                                Once the WHMCS addon submits a snapshot, it will
-                                appear here.
-                            </p>
-                        </div>
-                    ) : (
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left text-sm">
-                                <thead className="bg-muted/40 text-xs text-muted-foreground uppercase">
-                                    <tr>
-                                        <th className="px-5 py-3 font-medium">
-                                            Installation
-                                        </th>
-                                        <th className="px-5 py-3 font-medium">
-                                            WHMCS
-                                        </th>
-                                        <th className="px-5 py-3 font-medium">
-                                            Received
-                                        </th>
-                                        <th className="px-5 py-3 font-medium">
-                                            Findings
-                                        </th>
-                                        <th className="px-5 py-3 font-medium">
-                                            Status
-                                        </th>
-                                        <th className="px-5 py-3" />
+            <div className="space-y-6">
+                <PageHeader
+                    title="Diagnostic Runs"
+                    description="Sanitized diagnostic snapshots received from your WHMCS installation."
+                />
+
+                {runs.data.length === 0 ? (
+                    <EmptyState
+                        icon={Activity}
+                        title="No diagnostic runs yet"
+                        description="Once the WHMCS addon submits a snapshot, it will appear here."
+                    />
+                ) : (
+                    <div className="overflow-hidden rounded-lg border border-border bg-card shadow-xs">
+                        <table className="w-full text-left text-sm">
+                            <caption className="sr-only">
+                                Diagnostic runs
+                            </caption>
+                            <thead className="border-b border-border bg-surface text-xs font-medium text-muted-foreground">
+                                <tr>
+                                    <th scope="col" className="h-9 px-4">
+                                        Installation
+                                    </th>
+                                    <th scope="col" className="h-9 px-4">
+                                        WHMCS
+                                    </th>
+                                    <th scope="col" className="h-9 px-4">
+                                        Received
+                                    </th>
+                                    <th scope="col" className="h-9 px-4">
+                                        Findings
+                                    </th>
+                                    <th scope="col" className="h-9 px-4">
+                                        Status
+                                    </th>
+                                    <th scope="col" className="h-9 px-4">
+                                        <span className="sr-only">Actions</span>
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {runs.data.map((run) => (
+                                    <tr
+                                        key={run.id}
+                                        className="h-11 border-b border-border last:border-0 hover:bg-surface/70"
+                                    >
+                                        <td className="px-4 font-medium">
+                                            {run.integration_name}
+                                        </td>
+                                        <td className="px-4 text-muted-foreground">
+                                            {run.whmcs_version}
+                                        </td>
+                                        <td className="px-4 text-muted-foreground">
+                                            {date(run.received_at)}
+                                        </td>
+                                        <td className="px-4 tabular-nums">
+                                            {run.findings_count}
+                                        </td>
+                                        <td className="px-4">
+                                            <StatusBadge status={run.status} />
+                                        </td>
+                                        <td className="px-4">
+                                            <Link
+                                                href={
+                                                    '/diagnostic-runs/' + run.id
+                                                }
+                                                className="text-sm font-medium text-primary hover:underline"
+                                            >
+                                                Details
+                                            </Link>
+                                        </td>
                                     </tr>
-                                </thead>
-                                <tbody className="divide-y">
-                                    {runs.data.map((run) => (
-                                        <tr key={run.id}>
-                                            <td className="px-5 py-4 font-medium">
-                                                {run.integration_name}
-                                            </td>
-                                            <td className="px-5 py-4 text-muted-foreground">
-                                                {run.whmcs_version}
-                                            </td>
-                                            <td className="px-5 py-4 text-muted-foreground">
-                                                {date(run.received_at)}
-                                            </td>
-                                            <td className="px-5 py-4">
-                                                {run.findings_count}
-                                            </td>
-                                            <td className="px-5 py-4">
-                                                <span className="rounded-full border px-2.5 py-1 text-xs capitalize">
-                                                    {run.status}
-                                                </span>
-                                            </td>
-                                            <td className="px-5 py-4">
-                                                <Link
-                                                    href={
-                                                        '/diagnostic-runs/' +
-                                                        run.id
-                                                    }
-                                                    className="text-primary hover:underline"
-                                                >
-                                                    Details
-                                                </Link>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
-                    <Pagination links={runs.links} />
-                </section>
+                                ))}
+                            </tbody>
+                        </table>
+                        <Pagination links={runs.links} />
+                    </div>
+                )}
             </div>
         </>
     );
