@@ -2,18 +2,13 @@
 
 namespace App\Console\Commands;
 
-use App\Models\Tenant;
 use App\Models\User;
-use App\Models\WhmcsIntegration;
-use App\Services\Audit\AuditEventWriter;
-use App\Services\Tenancy\TenantDatabaseContext;
-use App\Services\Tenancy\TenantResourceLimitService;
-use App\Services\Tenancy\TenantRoleAuthorization;
+use App\Services\Whmcs\WhmcsIntegrationProvisioner;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use InvalidArgumentException;
 
 class CreateWhmcsIntegration extends Command
 {
@@ -21,16 +16,17 @@ class CreateWhmcsIntegration extends Command
 
     protected $description = 'Create an owned WHMCS integration and display its secret once';
 
-    public function handle(): int
+    public function handle(WhmcsIntegrationProvisioner $provisioner): int
     {
         $name = trim((string) $this->argument('name'));
-        $ownerEmail = trim((string) $this->option('owner'));
 
         if ($name === '' || mb_strlen($name) > 120) {
             $this->error('The integration name must contain between 1 and 120 characters.');
 
             return self::FAILURE;
         }
+
+        $ownerEmail = trim((string) $this->option('owner'));
 
         if ($ownerEmail === '' || filter_var($ownerEmail, FILTER_VALIDATE_EMAIL) === false) {
             $this->error('Provide --owner with the verified email of the integration owner.');
@@ -58,49 +54,16 @@ class CreateWhmcsIntegration extends Command
             return self::FAILURE;
         }
 
-        $secret = bin2hex(random_bytes(32));
-        $provision = fn (): WhmcsIntegration => DB::transaction(function () use ($name, $secret, $owner, $tenantId): WhmcsIntegration {
-            if ($tenantId !== '') {
-                $tenant = Tenant::query()
-                    ->whereKey($tenantId)
-                    ->where('status', Tenant::STATUS_ACTIVE)
-                    ->lockForUpdate()
-                    ->firstOrFail();
-
-                app(TenantRoleAuthorization::class)->require($owner, $tenant->id, 'integrations.manage');
-                app(TenantResourceLimitService::class)->requireIntegrationCapacity($tenant->id);
-            }
-
-            $integration = WhmcsIntegration::create([
-                'owner_user_id' => $owner->getKey(),
-                'tenant_id' => $tenantId !== '' ? $tenantId : null,
-                'name' => $name,
-                'status' => 'active',
-                'secret' => $secret,
-                'secret_version' => 1,
-            ]);
-
-            app(AuditEventWriter::class)->append([
-                'actor_type' => 'system_operator',
-                'event_type' => 'whmcs_integration.created',
-                'subject_type' => 'whmcs_integration',
-                'subject_id' => $integration->id,
-                'tenant_id' => $tenantId !== '' ? $tenantId : null,
-                'metadata' => [
-                    'owner_user_id' => (string) $owner->getKey(),
-                    'secret_version' => 1,
-                    'tenant_id' => $tenantId !== '' ? $tenantId : null,
-                ],
-                'occurred_at' => now(),
-            ]);
-
-            return $integration;
-        });
-
         try {
-            $integration = $tenantId !== ''
-                ? app(TenantDatabaseContext::class)->run($tenantId, (int) $owner->getKey(), $provision)
-                : $provision();
+            $result = $provisioner->create(
+                $owner,
+                $name,
+                $tenantId !== '' ? $tenantId : null,
+            );
+        } catch (InvalidArgumentException $exception) {
+            $this->error($exception->getMessage());
+
+            return self::FAILURE;
         } catch (AuthorizationException $exception) {
             $this->error($exception->getMessage());
 
@@ -111,6 +74,8 @@ class CreateWhmcsIntegration extends Command
             return self::FAILURE;
         }
 
+        $integration = $result['integration'];
+
         $this->info('WHMCS integration created.');
         $this->line('Integration ID: '.$integration->id);
         $this->line('Owner: '.$owner->email);
@@ -118,7 +83,7 @@ class CreateWhmcsIntegration extends Command
             $this->line('Tenant ID: '.$tenantId);
         }
         $this->warn('Integration secret (shown once):');
-        $this->line($secret);
+        $this->line($result['plainTextSecret']);
         $this->comment('Copy the secret to a secure password manager. It cannot be displayed again.');
 
         return self::SUCCESS;

@@ -2,6 +2,7 @@ import { Link, usePage } from '@inertiajs/react';
 import {
     Activity,
     BookOpen,
+    Bot,
     Download,
     LayoutDashboard,
     Mail,
@@ -25,18 +26,6 @@ import {
 import { dashboard } from '@/routes';
 import type { NavItem } from '@/types';
 
-const mainNavItems: NavItem[] = [
-    { title: 'Overview', href: dashboard(), icon: LayoutDashboard },
-    { title: 'Integrations', href: '/integrations', icon: Server },
-    { title: 'Diagnostic Runs', href: '/diagnostic-runs', icon: Activity },
-    { title: 'Findings', href: '/findings', icon: ShieldAlert },
-    {
-        title: 'WHMCS Addon & Setup',
-        href: '/whmcs-addon/setup',
-        icon: Download,
-    },
-];
-
 const footerNavItems: NavItem[] = [
     {
         title: 'WHMCS Documentation',
@@ -46,22 +35,46 @@ const footerNavItems: NavItem[] = [
 ];
 
 export function AppSidebar() {
-    const { auth } = usePage().props as {
-        auth: { is_platform_admin?: boolean; central_permissions?: string[] };
-    };
+    const { auth } = usePage().props;
     const permissions = auth.central_permissions ?? [];
-    const navItems = [...mainNavItems];
+    const hasWorkspace = (auth.tenants?.length ?? 0) > 0;
+    const isCustomerWorkspace =
+        hasWorkspace || !auth.is_platform_operator;
 
-    if (permissions.includes('settings')) {
-        navItems.push({
-            title: 'Mail Settings',
-            href: '/platform/mail-settings',
-            icon: Mail,
+    const workspaceNavItems: NavItem[] = [
+        { title: 'Overview', href: dashboard(), icon: LayoutDashboard },
+        { title: 'Integrations', href: '/integrations', icon: Server },
+        { title: 'Diagnostic Runs', href: '/diagnostic-runs', icon: Activity },
+        { title: 'Findings', href: '/findings', icon: ShieldAlert },
+    ];
+
+    if (isCustomerWorkspace || hasWorkspace) {
+        workspaceNavItems.push({
+            title: 'WHMCS Addon & Setup',
+            href: '/whmcs-addon/setup',
+            icon: Download,
         });
     }
 
+    const platformItems: NavItem[] = [];
+
+    if (permissions.includes('settings')) {
+        platformItems.push(
+            {
+                title: 'Mail Settings',
+                href: '/platform/mail-settings',
+                icon: Mail,
+            },
+            {
+                title: 'AI & Addon Signing',
+                href: '/platform/ai-settings',
+                icon: Bot,
+            },
+        );
+    }
+
     if (auth.is_platform_admin) {
-        navItems.push({
+        platformItems.push({
             title: 'Central Staff',
             href: '/platform/staff',
             icon: Users,
@@ -82,7 +95,17 @@ export function AppSidebar() {
                 </SidebarMenu>
             </SidebarHeader>
             <SidebarContent>
-                <NavMain items={navItems} />
+                <NavMain
+                    items={workspaceNavItems}
+                    label={
+                        auth.is_platform_operator && !hasWorkspace
+                            ? 'Operations'
+                            : 'Workspace'
+                    }
+                />
+                {auth.is_platform_operator && (
+                    <NavMain items={platformItems} label="Platform" />
+                )}
             </SidebarContent>
             <SidebarFooter>
                 <NavFooter items={footerNavItems} className="mt-auto" />

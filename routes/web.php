@@ -4,6 +4,7 @@ use App\Http\Controllers\CentralStaffController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DiagnosticRunController;
 use App\Http\Controllers\FindingController;
+use App\Http\Controllers\PlatformAiSettingsController;
 use App\Http\Controllers\PlatformMailSettingsController;
 use App\Http\Controllers\TenantAuditExportController;
 use App\Http\Controllers\TenantMembershipController;
@@ -28,6 +29,9 @@ Route::middleware(['auth', 'verified', EnsureTwoFactorEnabled::class])->group(fu
         Route::get('platform/mail-settings', [PlatformMailSettingsController::class, 'show'])->name('platform.mail-settings.show');
         Route::put('platform/mail-settings', [PlatformMailSettingsController::class, 'update'])->middleware('throttle:10,1')->name('platform.mail-settings.update');
         Route::post('platform/mail-settings/test', [PlatformMailSettingsController::class, 'test'])->middleware('throttle:3,1')->name('platform.mail-settings.test');
+        Route::get('platform/ai-settings', [PlatformAiSettingsController::class, 'show'])->name('platform.ai-settings.show');
+        Route::put('platform/ai-settings', [PlatformAiSettingsController::class, 'update'])->middleware('throttle:10,1')->name('platform.ai-settings.update');
+        Route::post('platform/ai-settings/generate-signing-keys', [PlatformAiSettingsController::class, 'generateSigningKeys'])->middleware('throttle:5,1')->name('platform.ai-settings.generate-signing-keys');
     });
 
     Route::get('dashboard', DashboardController::class)->name('dashboard');
@@ -44,6 +48,8 @@ Route::middleware(['auth', 'verified', EnsureTwoFactorEnabled::class])->group(fu
     Route::post('tenants/{tenant}/notifications/{notification}/read', [TenantNotificationController::class, 'markRead'])->middleware('throttle:30,1')->name('tenants.notifications.read');
     Route::get('tenants/{tenant}/audit-events/export', TenantAuditExportController::class)->middleware('throttle:3,1')->name('tenants.audit-events.export');
     Route::get('integrations', [WhmcsIntegrationController::class, 'index'])->name('integrations.index');
+    Route::post('integrations', [WhmcsIntegrationController::class, 'store'])->middleware('throttle:10,1')->name('integrations.store');
+    Route::post('integrations/{integration}/rotate', [WhmcsIntegrationController::class, 'rotate'])->middleware('throttle:5,1')->name('integrations.rotate');
     Route::get('diagnostic-runs', [DiagnosticRunController::class, 'index'])->name('diagnostic-runs.index');
     Route::get('diagnostic-runs/{diagnosticRun}', [DiagnosticRunController::class, 'show'])->name('diagnostic-runs.show');
     Route::post('diagnostic-runs/{diagnosticRun}/reanalyze', [DiagnosticRunController::class, 'reanalyze'])->middleware('throttle:5,1')->name('diagnostic-runs.reanalyze');

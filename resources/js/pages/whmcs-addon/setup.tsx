@@ -1,10 +1,10 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import {
-    AlertTriangle,
     ArrowDownToLine,
     CheckCircle2,
     FileArchive,
     FolderOpen,
+    Link2,
     ShieldCheck,
 } from 'lucide-react';
 
@@ -16,15 +16,30 @@ type Props = {
 };
 
 const steps = [
-    'Take and verify a restorable WHMCS files and database backup.',
-    'Open your 20i hosting control panel and launch File Manager.',
-    'Navigate to the WHMCS installation directory, then modules/addons.',
-    'If File Manager offers Extract, upload and extract the ZIP into modules/addons. Otherwise, extract it locally and upload the four PHP files through File Manager, preserving the folder structure.',
-    'Confirm modules/addons/resellerbytes_ai_ops/resellerbytes_ai_ops.php exists.',
-    'In WHMCS Admin, open Configuration → System Settings → Addon Modules and activate ResellerBytes AI Operations.',
-    'Configure the addon with the absolute path to the external credentials JSON file. The secret itself must not be entered into WHMCS settings.',
-    'Restrict Access Control to trusted administrator roles, save changes, then open Addons → ResellerBytes AI Operations.',
-    'Run diagnostics once manually and verify the received snapshot in this dashboard.',
+    {
+        title: 'Create an integration',
+        body: 'Open Integrations and create a connection for this WHMCS installation. Copy the one-time integration ID and secret shown after create (or rotate).',
+    },
+    {
+        title: 'Download the addon package',
+        body: 'Download the signed ZIP from this page. It contains only the addon module files — never credentials.',
+    },
+    {
+        title: 'Upload into WHMCS',
+        body: 'In your hosting control panel File Manager (or SFTP), open your WHMCS directory and go to modules/addons. Upload and extract the ZIP so modules/addons/resellerbytes_ai_ops/resellerbytes_ai_ops.php exists.',
+    },
+    {
+        title: 'Activate in WHMCS Admin',
+        body: 'In WHMCS go to Configuration → System Settings → Addon Modules, activate ResellerBytes AI Operations, and restrict Access Control to trusted admin roles.',
+    },
+    {
+        title: 'Point to your credentials file',
+        body: 'Create a JSON credentials file outside the WHMCS web root (permissions 0600). In the addon settings, enter only the absolute path to that file — never paste the secret into WHMCS.',
+    },
+    {
+        title: 'Run a manual diagnostic',
+        body: 'Open Addons → ResellerBytes AI Operations in WHMCS, run diagnostics once, then confirm the snapshot appears under Diagnostic Runs here.',
+    },
 ];
 
 export default function WhmcsAddonSetup({
@@ -33,17 +48,20 @@ export default function WhmcsAddonSetup({
     downloadUnavailableReason,
     aiConfigured,
 }: Props) {
+    const { auth } = usePage().props;
+    const canManage = auth.can_manage_integrations;
+
     return (
         <>
             <Head title="WHMCS Addon & Setup" />
             <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 p-4 md:p-6">
                 <div>
                     <h1 className="text-2xl font-semibold tracking-tight">
-                        WHMCS Addon & Setup
+                        Connect your WHMCS
                     </h1>
                     <p className="mt-1 text-sm text-muted-foreground">
-                        Download the signed, read-only diagnostic collector and
-                        follow the controlled installation procedure.
+                        Install the read-only diagnostic addon on your WHMCS
+                        control panel and link it to this workspace.
                     </p>
                 </div>
 
@@ -62,72 +80,52 @@ export default function WhmcsAddonSetup({
                                 </span>
                             </div>
                             <p className="mt-1 text-sm text-muted-foreground">
-                                WHMCS 8.13.7 · PHP 8.1+ · cURL required · ZIP
+                                WHMCS 8.13.7 · PHP 8.1+ · cURL · Signed ZIP
                                 package
                             </p>
-                            <p className="mt-3 text-sm">
-                                This package contains only the WHMCS addon
-                                folder and an installation text file. It does
-                                not include credentials or secrets.
+                            <p className="mt-3 text-sm leading-6">
+                                This package is read-only. It does not change
+                                customers, invoices, payments, hosting, domains,
+                                or your existing registrar/hosting modules.
                             </p>
-                            <p className="mt-2 text-xs text-muted-foreground">
-                                AI analysis:{' '}
-                                {aiConfigured
-                                    ? 'API key configured'
-                                    : 'OPENAI_API_KEY must be configured in the Forge environment before analysis can run.'}
-                            </p>
+                            <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                                <span className="rounded-full border px-2.5 py-1">
+                                    AI analysis:{' '}
+                                    {aiConfigured
+                                        ? 'Available'
+                                        : 'Pending platform configuration'}
+                                </span>
+                            </div>
                             <div className="mt-4 flex flex-wrap gap-2">
                                 {downloadAvailable ? (
                                     <a
                                         href="/whmcs-addon/download"
                                         className="inline-flex h-10 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90"
                                     >
-                                        <ArrowDownToLine className="size-4" />{' '}
-                                        Download WHMCS Addon ZIP
+                                        <ArrowDownToLine className="size-4" />
+                                        Download addon ZIP
                                     </a>
                                 ) : (
                                     <span className="text-sm text-destructive">
                                         {downloadUnavailableReason}
                                     </span>
                                 )}
+                                {canManage && (
+                                    <Link
+                                        href="/integrations"
+                                        className="inline-flex h-10 items-center gap-2 rounded-md border px-4 text-sm font-medium hover:bg-muted"
+                                    >
+                                        <Link2 className="size-4" />
+                                        Create integration
+                                    </Link>
+                                )}
                                 <Link
                                     href="/dashboard"
                                     className="inline-flex h-10 items-center rounded-md border px-4 text-sm font-medium hover:bg-muted"
                                 >
-                                    Back to dashboard
+                                    Back to overview
                                 </Link>
                             </div>
-                        </div>
-                    </div>
-                </section>
-
-                <section className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-5">
-                    <div className="flex items-start gap-3">
-                        <AlertTriangle className="mt-0.5 size-5 text-amber-600" />
-                        <div>
-                            <h2 className="font-semibold">
-                                WHMCS does not include a built-in ZIP addon
-                                uploader
-                            </h2>
-                            <p className="mt-1 text-sm text-muted-foreground">
-                                WHMCS activates addon modules from its Admin
-                                Area, but module files must first exist in
-                                /modules/addons. 20i File Manager supports
-                                browser uploads without FTP. If your panel
-                                exposes an Extract action, upload and extract
-                                the ZIP there. Otherwise, extract it locally and
-                                upload the four PHP files through File Manager,
-                                preserving the resellerbytes_ai_ops/lib folder
-                                structure.
-                            </p>
-                            <a
-                                href="https://docs.20i.com/managed-cloud-servers/complete-guide-to-the-20i-file-manager"
-                                target="_blank"
-                                rel="noreferrer"
-                                className="mt-2 inline-flex text-xs font-medium text-primary hover:underline"
-                            >
-                                Read the 20i File Manager guide
-                            </a>
                         </div>
                     </div>
                 </section>
@@ -135,15 +133,22 @@ export default function WhmcsAddonSetup({
                 <section className="rounded-xl border bg-card p-5">
                     <div className="flex items-center gap-2">
                         <FolderOpen className="size-5" />
-                        <h2 className="font-semibold">Installation steps</h2>
+                        <h2 className="font-semibold">How to set it up</h2>
                     </div>
                     <ol className="mt-5 space-y-4">
                         {steps.map((step, index) => (
-                            <li key={step} className="flex gap-3">
+                            <li key={step.title} className="flex gap-3">
                                 <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold">
                                     {index + 1}
                                 </span>
-                                <p className="pt-1 text-sm leading-6">{step}</p>
+                                <div className="pt-0.5">
+                                    <p className="text-sm font-medium">
+                                        {step.title}
+                                    </p>
+                                    <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                                        {step.body}
+                                    </p>
+                                </div>
                             </li>
                         ))}
                     </ol>
@@ -158,21 +163,28 @@ export default function WhmcsAddonSetup({
                     </div>
                     <ul className="mt-4 list-disc space-y-2 pl-5 text-sm leading-6 text-muted-foreground">
                         <li>
-                            Store the JSON file outside both the WHMCS
-                            installation root and the public document root.
+                            Store the JSON file outside the WHMCS installation
+                            root and outside the public document root.
                         </li>
                         <li>
-                            Set exact file permissions to 0600 and ensure the
-                            PHP runtime user can read it.
+                            Set file permissions to{' '}
+                            <code className="rounded bg-muted px-1">0600</code>{' '}
+                            so only the PHP runtime user can read it.
                         </li>
                         <li>
-                            The file contains the integration UUID and 256-bit
-                            secret. The WHMCS addon setting stores only its
-                            path.
+                            The file holds{' '}
+                            <code className="rounded bg-muted px-1">
+                                integration_id
+                            </code>{' '}
+                            and{' '}
+                            <code className="rounded bg-muted px-1">
+                                secret
+                            </code>
+                            . The WHMCS addon setting stores only the file path.
                         </li>
                         <li>
-                            Never paste the secret into WHMCS settings, support
-                            tickets, chat, source control, or logs.
+                            Never paste the secret into WHMCS settings, tickets,
+                            chat, source control, or logs.
                         </li>
                     </ul>
                     <p className="mt-4 text-sm font-medium">
@@ -185,30 +197,28 @@ export default function WhmcsAddonSetup({
 }`}</code>
                     </pre>
                     <p className="mt-2 text-xs text-muted-foreground">
-                        Replace both placeholders with the one-time values
-                        generated by the Forge integration command. Do not
-                        upload this file into the WHMCS installation directory.
+                        Use the one-time values from Integrations after you
+                        create or rotate a connection.
                     </p>
                 </section>
 
                 <section className="rounded-xl border bg-card p-5">
                     <div className="flex items-center gap-2">
                         <CheckCircle2 className="size-5" />
-                        <h2 className="font-semibold">
-                            First-run safety and rollback
-                        </h2>
+                        <h2 className="font-semibold">Safety and rollback</h2>
                     </div>
                     <p className="mt-3 text-sm leading-6 text-muted-foreground">
-                        The first release is manual-only and read-only. It does
-                        not modify customers, invoices, payments, hosting
-                        services, domains, or the existing 20i and ResellerClub
-                        modules. Do not configure a cron job.
+                        The addon is manual and read-only. Do not configure a
+                        WHMCS cron for it in this release.
                     </p>
                     <p className="mt-3 text-sm leading-6 text-muted-foreground">
-                        To roll back: revoke the integration in this dashboard,
-                        deactivate the addon in WHMCS, remove its folder through
-                        File Manager, delete the external credentials file, and
-                        verify normal WHMCS operation.
+                        To roll back: rotate or revoke the integration here,
+                        deactivate the addon in WHMCS, remove the{' '}
+                        <code className="rounded bg-muted px-1">
+                            resellerbytes_ai_ops
+                        </code>{' '}
+                        folder, delete the external credentials file, and
+                        confirm WHMCS still works normally.
                     </p>
                 </section>
             </div>

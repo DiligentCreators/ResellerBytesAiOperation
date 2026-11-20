@@ -10,8 +10,20 @@ export type User = {
     [key: string]: unknown;
 };
 
+export type AuthTenant = {
+    id: string;
+    name: string;
+    slug: string;
+    role: string;
+};
+
 export type Auth = {
-    user: User;
+    user: User | null;
+    is_platform_admin: boolean;
+    is_platform_operator: boolean;
+    can_manage_integrations: boolean;
+    central_permissions: string[];
+    tenants: AuthTenant[];
 };
 
 export type Passkey = {
@@ -29,4 +41,11 @@ export type TwoFactorSetupData = {
 
 export type TwoFactorSecretKey = {
     secretKey: string;
+};
+
+export type IntegrationCredentialsFlash = {
+    integration_id: string;
+    secret: string;
+    name: string;
+    action: 'created' | 'rotated';
 };

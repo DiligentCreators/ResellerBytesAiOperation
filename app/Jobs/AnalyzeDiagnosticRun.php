@@ -6,6 +6,7 @@ use App\Jobs\Middleware\SetTenantDatabaseContext;
 use App\Models\DiagnosticFinding;
 use App\Models\DiagnosticRun;
 use App\Models\TenantMembership;
+use App\Services\Ai\OpenAiConfiguration;
 use App\Services\Diagnostics\AiBudgetService;
 use App\Services\Diagnostics\WhmcsDiagnosticAnalyzer;
 use App\Services\Tenancy\TenantDatabaseContext;
@@ -99,7 +100,7 @@ class AnalyzeDiagnosticRun implements ShouldQueue
                 app(TenantResourceLimitService::class)->requireDiagnosticCapacity($this->tenantId);
             }
 
-            $model = (string) config('services.openai.model', 'gpt-5.6-sol');
+            $model = app(OpenAiConfiguration::class)->model();
             $attempt = $budget->reserve($run, $model, WhmcsDiagnosticAnalyzer::PROMPT_VERSION);
 
             $result = $analyzer->analyze(
@@ -182,8 +183,8 @@ class AnalyzeDiagnosticRun implements ShouldQueue
                 $evidencePaths = array_values(array_unique($findingData['evidence_paths']));
                 sort($evidencePaths, SORT_STRING);
 
-                $fingerprint = hash('sha256', implode("
-", [
+                $fingerprint = hash('sha256', implode('
+', [
                     $findingData['category'],
                     mb_strtolower($findingData['title']),
                     implode('|', $evidencePaths),
@@ -225,7 +226,7 @@ class AnalyzeDiagnosticRun implements ShouldQueue
 
             $lockedRun->forceFill([
                 'status' => 'analyzed',
-                'analysis_model' => (string) config('services.openai.model', 'gpt-5.6-sol'),
+                'analysis_model' => app(OpenAiConfiguration::class)->model(),
                 'analysis_prompt_version' => WhmcsDiagnosticAnalyzer::PROMPT_VERSION,
                 'analysis_response_id' => $result['response_id'],
                 'analysis_summary' => $result['summary'],
@@ -273,7 +274,6 @@ class AnalyzeDiagnosticRun implements ShouldQueue
                 ]);
         });
     }
-
 
     /**
      * Revalidate the immutable tenant context captured at dispatch. Legacy jobs

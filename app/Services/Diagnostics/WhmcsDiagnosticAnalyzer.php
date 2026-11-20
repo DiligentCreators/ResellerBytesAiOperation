@@ -3,6 +3,7 @@
 namespace App\Services\Diagnostics;
 
 use App\Models\DiagnosticRun;
+use App\Services\Ai\OpenAiConfiguration;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Validator;
 use RuntimeException;
@@ -28,7 +29,8 @@ class WhmcsDiagnosticAnalyzer
      */
     public function analyze(DiagnosticRun $run, ?callable $beforeSubmit = null, ?callable $afterResponse = null): array
     {
-        $apiKey = (string) config('services.openai.key');
+        $openai = app(OpenAiConfiguration::class);
+        $apiKey = $openai->apiKey();
 
         if ($apiKey === '') {
             throw new RuntimeException('provider_not_configured');
@@ -52,13 +54,13 @@ class WhmcsDiagnosticAnalyzer
         $response = Http::withToken($apiKey)
             ->acceptJson()
             ->connectTimeout(10)
-            ->timeout((int) config('services.openai.timeout', 45))
+            ->timeout($openai->timeout())
             ->post('https://api.openai.com/v1/responses', [
-                'model' => (string) config('services.openai.model', 'gpt-5.6-sol'),
+                'model' => $openai->model(),
                 'store' => false,
                 'max_output_tokens' => (int) config('ai_budget.max_output_tokens', 3_000),
                 'reasoning' => [
-                    'effort' => (string) config('services.openai.reasoning_effort', 'medium'),
+                    'effort' => $openai->reasoningEffort(),
                 ],
                 'input' => [
                     [

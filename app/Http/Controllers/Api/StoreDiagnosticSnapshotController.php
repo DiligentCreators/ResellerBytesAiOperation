@@ -7,6 +7,7 @@ use App\Http\Requests\Api\StoreDiagnosticSnapshotRequest;
 use App\Jobs\AnalyzeDiagnosticRun;
 use App\Models\DiagnosticRun;
 use App\Models\WhmcsIntegration;
+use App\Services\Ai\OpenAiConfiguration;
 use App\Services\Audit\AuditEventWriter;
 use App\Services\Tenancy\TenantResourceLimitService;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -90,7 +91,7 @@ class StoreDiagnosticSnapshotController extends Controller
             return $this->idempotentResponse($existing, $payloadHash);
         }
 
-        if ($integration->owner_user_id !== null && filled(config('services.openai.key'))) {
+        if ($integration->owner_user_id !== null && app(OpenAiConfiguration::class)->isConfigured()) {
             $run->forceFill(['status' => 'queued'])->save();
 
             try {

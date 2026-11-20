@@ -2,13 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\Ai\OpenAiConfiguration;
 use App\Support\WhmcsAddonPackageSigner;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class WhmcsAddonSetupController extends Controller
 {
-    public function __invoke(WhmcsAddonPackageSigner $signer): Response
+    public function __invoke(WhmcsAddonPackageSigner $signer, OpenAiConfiguration $openAi): Response
     {
         $zipAvailable = class_exists(\ZipArchive::class);
         $signingConfigured = $signer->isConfigured();
@@ -17,9 +18,9 @@ class WhmcsAddonSetupController extends Controller
             'addonVersion' => config('services.whmcs_addon.version', '1.0.0'),
             'downloadAvailable' => $zipAvailable && $signingConfigured,
             'downloadUnavailableReason' => ! $zipAvailable
-                ? 'PHP ext-zip must be enabled before the addon can be packaged.'
-                : 'Configure the Ed25519 signing key pair before downloading the addon.',
-            'aiConfigured' => filled(config('services.openai.key')),
+                ? 'PHP ZIP extension must be enabled by the platform before the addon can be downloaded.'
+                : 'Addon download is temporarily unavailable. Contact ResellerBytes support if this continues.',
+            'aiConfigured' => $openAi->isConfigured(),
         ]);
     }
 }
