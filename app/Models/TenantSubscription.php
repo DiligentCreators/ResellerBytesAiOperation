@@ -102,7 +102,8 @@ class TenantSubscription extends Model
     }
 
     /**
-     * Whole days remaining until trial_ends_at (UTC), or null when not a trial.
+     * Ceiling of whole days remaining until trial_ends_at (UTC), or null when not a trial.
+     * A just-started 7-day trial shows 7; a trial ending in 1 hour shows 1; ended shows 0.
      */
     public function trialDaysRemaining(?CarbonImmutable $now = null): ?int
     {
@@ -111,7 +112,12 @@ class TenantSubscription extends Model
         }
 
         $now ??= CarbonImmutable::now('UTC');
+        $seconds = $now->diffInSeconds($this->trial_ends_at, false);
 
-        return max(0, (int) $now->diffInDays($this->trial_ends_at, false));
+        if ($seconds <= 0) {
+            return 0;
+        }
+
+        return (int) ceil($seconds / 86400);
     }
 }

@@ -64,6 +64,33 @@ class TenantBillingInvoice extends Model
         ];
     }
 
+    /**
+     * Zero-amount card-hold document created for trial checkout session tracking.
+     * Must not be presented as a normal paid invoice.
+     */
+    public function isZeroAmountTrialDocument(): bool
+    {
+        if ((int) $this->amount_due_minor !== 0) {
+            return false;
+        }
+
+        $details = is_array($this->billing_details) ? $this->billing_details : [];
+
+        return ($details['checkout_kind'] ?? null) === 'trial';
+    }
+
+    /**
+     * Status string for tenant/platform invoice lists (never "paid" for trial holds).
+     */
+    public function listStatus(): string
+    {
+        if ($this->isZeroAmountTrialDocument()) {
+            return 'trial_started_no_charge';
+        }
+
+        return $this->status;
+    }
+
     /** @return BelongsTo<Tenant, $this> */
     public function tenant(): BelongsTo
     {

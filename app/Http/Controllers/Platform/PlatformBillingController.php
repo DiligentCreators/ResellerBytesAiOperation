@@ -64,14 +64,29 @@ class PlatformBillingController extends Controller
             ->when($request->string('invoice_status')->toString(), fn ($q, $status) => $q->where('status', $status))
             ->latest('id')
             ->limit(50)
-            ->get();
+            ->get()
+            ->map(fn (TenantBillingInvoice $invoice): array => [
+                'id' => $invoice->id,
+                'invoice_number' => $invoice->invoice_number,
+                'status' => $invoice->listStatus(),
+                'currency' => $invoice->currency,
+                'amount_due_minor' => $invoice->amount_due_minor,
+                'tenant' => $invoice->tenant === null ? null : [
+                    'id' => $invoice->tenant->id,
+                    'name' => $invoice->tenant->name,
+                    'slug' => $invoice->tenant->slug,
+                ],
+            ]);
 
         return Inertia::render('platform/billing/index', [
             'summary' => [
                 'mrr_minor' => $mrrMinor,
                 'active_subscriptions' => $activeSubs,
                 'failed_payments' => $failedPayments,
-                'paid_invoices' => TenantBillingInvoice::query()->where('status', 'paid')->count(),
+                'paid_invoices' => TenantBillingInvoice::query()
+                    ->where('status', 'paid')
+                    ->where('amount_due_minor', '>', 0)
+                    ->count(),
             ],
             'subscriptions' => $subscriptions,
             'invoices' => $invoices,
@@ -133,7 +148,20 @@ class PlatformBillingController extends Controller
                 'current_period_ends_at' => $subscription->current_period_ends_at?->toIso8601String(),
             ] : null,
             'scheduledChange' => $this->scheduledChangePayload($subscription),
-            'invoices' => TenantBillingInvoice::query()->where('tenant_id', $tenant->id)->latest('id')->limit(50)->get(),
+            'invoices' => TenantBillingInvoice::query()
+                ->where('tenant_id', $tenant->id)
+                ->latest('id')
+                ->limit(50)
+                ->get()
+                ->map(fn (TenantBillingInvoice $invoice): array => [
+                    'id' => $invoice->id,
+                    'invoice_number' => $invoice->invoice_number,
+                    'status' => $invoice->listStatus(),
+                    'currency' => $invoice->currency,
+                    'amount_due_minor' => $invoice->amount_due_minor,
+                    'issued_at' => $invoice->issued_at?->toIso8601String(),
+                    'paid_at' => $invoice->paid_at?->toIso8601String(),
+                ]),
             'payments' => TenantBillingPayment::query()->where('tenant_id', $tenant->id)->latest('id')->limit(50)->get(),
             'revenue_paid_minor' => (int) TenantBillingPayment::query()
                 ->where('tenant_id', $tenant->id)

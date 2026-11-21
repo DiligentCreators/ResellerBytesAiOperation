@@ -83,6 +83,10 @@ class PlatformPlanController extends Controller
     public function update(UpdatePlatformPlanRequest $request, Plan $plan, AuditEventWriter $audit): RedirectResponse
     {
         $payload = $request->planPayload();
+        // Defense in depth: never overwrite a billing-referenced plan code from client input.
+        if ($plan->isReferencedByBilling()) {
+            unset($payload['code']);
+        }
         $before = $plan->replicate();
 
         DB::transaction(function () use ($plan, $payload, $before, $request, $audit): void {

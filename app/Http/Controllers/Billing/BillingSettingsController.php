@@ -65,6 +65,7 @@ class BillingSettingsController extends Controller
                 'currency',
                 'amount_due_minor',
                 'amount_paid_minor',
+                'billing_details',
                 'issued_at',
                 'paid_at',
                 'service_period_starts_at',
@@ -108,7 +109,7 @@ class BillingSettingsController extends Controller
             'invoices' => $invoices->map(fn (TenantBillingInvoice $invoice): array => [
                 'id' => $invoice->id,
                 'invoice_number' => $invoice->invoice_number,
-                'status' => $invoice->status,
+                'status' => $invoice->listStatus(),
                 'currency' => $invoice->currency,
                 'amount_due_minor' => $invoice->amount_due_minor,
                 'amount_paid_minor' => $invoice->amount_paid_minor,

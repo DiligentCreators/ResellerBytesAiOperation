@@ -27,7 +27,7 @@ class InvoiceController extends Controller
             ->through(fn (TenantBillingInvoice $invoice): array => [
                 'id' => $invoice->id,
                 'invoice_number' => $invoice->invoice_number,
-                'status' => $invoice->status,
+                'status' => $invoice->listStatus(),
                 'currency' => $invoice->currency,
                 'amount_due_minor' => $invoice->amount_due_minor,
                 'amount_paid_minor' => $invoice->amount_paid_minor,
@@ -93,7 +93,7 @@ class InvoiceController extends Controller
         return [
             'id' => $invoice->id,
             'invoice_number' => $invoice->invoice_number,
-            'status' => $invoice->status,
+            'status' => $invoice->listStatus(),
             'currency' => $invoice->currency,
             'subtotal_minor' => $totals['subtotal_minor'],
             'tax_minor' => $invoice->tax_minor,

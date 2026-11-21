@@ -176,9 +176,6 @@ export default function PlatformBillingSettingsPage({
                         }`}
                     >
                         {connection_test.message}
-                        {connection_test.status !== null
-                            ? ` (HTTP ${connection_test.status})`
-                            : ''}
                     </p>
                 ) : null}
 

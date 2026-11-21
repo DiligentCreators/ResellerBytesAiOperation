@@ -460,3 +460,83 @@ it('shows trial status and subscribe CTA on billing settings and plans while tri
             ->where('currentTrial.days_remaining', 14)
             ->where('currentTrial.plan_name', $plan->name));
 });
+
+it('ceilings trial days remaining for just-started, nearly-ended, and ended trials', function () {
+    [$tenant, $user, $plan] = trialFixture(['trial_days' => 7]);
+    enableTrials(cardRequired: false);
+
+    CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-11-20 12:00:00', 'UTC'));
+    $result = app(TrialService::class)->begin($tenant->id, $user, $plan, 'monthly');
+    $subscription = $result['subscription'];
+
+    expect($subscription->trialDaysRemaining())->toBe(7);
+
+    CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-11-20 13:00:00', 'UTC'));
+    expect($subscription->fresh()->trialDaysRemaining())->toBe(7);
+
+    CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-11-27 11:00:00', 'UTC'));
+    expect($subscription->fresh()->trialDaysRemaining())->toBe(1);
+
+    CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-11-27 12:00:00', 'UTC'));
+    expect($subscription->fresh()->trialDaysRemaining())->toBe(0);
+
+    CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-11-28 12:00:00', 'UTC'));
+    expect($subscription->fresh()->trialDaysRemaining())->toBe(0);
+
+    CarbonImmutable::setTestNow();
+});
+
+it('uses trial wording on sandbox checkout and labels the zero-amount trial invoice', function () {
+    [$tenant, $user, $plan] = trialFixture(['trial_days' => 7]);
+    enableTrials(cardRequired: true);
+
+    CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-11-20 12:00:00', 'UTC'));
+
+    $result = app(TrialService::class)->begin(
+        $tenant->id,
+        $user,
+        $plan,
+        'monthly',
+        trialDetails(),
+    );
+
+    expect($result['card_required'])->toBeTrue()
+        ->and($result['invoice'])->not->toBeNull()
+        ->and($result['invoice']->amount_due_minor)->toBe(0)
+        ->and($result['invoice']->listStatus())->toBe('trial_started_no_charge');
+
+    $this->actingAs($user)
+        ->get($result['checkout_url'])
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('billing/sandbox-checkout')
+            ->where('isTrial', true)
+            ->where('trialDays', 7)
+            ->where('invoice.amount_due_minor', 0));
+
+    $this->actingAs($user)
+        ->post(route('billing.sandbox.checkout.approve', [$tenant, $result['invoice']]))
+        ->assertRedirect(route('billing.settings.show', $tenant))
+        ->assertSessionHas('status', 'Trial started, ends Nov 27, 2026.');
+
+    expect($result['invoice']->fresh()->listStatus())->toBe('trial_started_no_charge')
+        ->and($result['invoice']->fresh()->status)->toBe('paid');
+
+    $this->actingAs($user)
+        ->get(route('billing.settings.show', $tenant))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('billing/settings')
+            ->where('invoices.0.status', 'trial_started_no_charge'));
+
+    $this->actingAs($user)
+        ->get(route('billing.checkout.return', [$tenant, $result['invoice']->fresh()]))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('billing/checkout-return')
+            ->where('isTrial', true)
+            ->where('successMessage', 'Trial started, ends Nov 27, 2026.')
+            ->where('invoice.status', 'trial_started_no_charge'));
+
+    CarbonImmutable::setTestNow();
+});
