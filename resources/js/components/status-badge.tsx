@@ -18,6 +18,7 @@ const statusToneMap: Record<string, StatusTone> = {
     succeeded: 'success',
     verified: 'success',
     trialing: 'info',
+    trial_started_no_charge: 'info',
     draft: 'info',
     open: 'info',
     scheduled: 'info',
@@ -40,6 +41,10 @@ const statusToneMap: Record<string, StatusTone> = {
     info: 'info',
 };
 
+const statusLabelMap: Record<string, string> = {
+    trial_started_no_charge: 'Trial started - no charge',
+};
+
 type StatusBadgeProps = {
     status: string;
     tone?: StatusTone;
@@ -60,12 +65,14 @@ export function StatusBadge({
     showDot = true,
 }: StatusBadgeProps) {
     const resolved = tone ?? statusToTone(status);
-    const label = status.replaceAll('_', ' ');
+    const customLabel = statusLabelMap[status.toLowerCase()];
+    const label = customLabel ?? status.replaceAll('_', ' ');
 
     return (
         <span
             className={cn(
-                'inline-flex h-5 items-center gap-1 rounded-md px-1.5 text-xs font-medium capitalize ring-1 ring-inset',
+                'inline-flex h-5 items-center gap-1 rounded-md px-1.5 text-xs font-medium ring-1 ring-inset',
+                customLabel ? null : 'capitalize',
                 toneClasses[resolved],
                 className,
             )}

@@ -26,6 +26,14 @@ class SandboxCheckoutController extends Controller
         app(TenantRoleAuthorization::class)->require($user, $tenant->id, 'billing.manage');
         app(SandboxPaymentGateway::class)->assertUsable();
 
+        $invoice->loadMissing('subscription');
+        $isTrial = $this->isTrialCheckout($invoice);
+        $details = is_array($invoice->billing_details) ? $invoice->billing_details : [];
+        $trialDays = filter_var($details['trial_days'] ?? null, FILTER_VALIDATE_INT);
+        if ($trialDays === false) {
+            $trialDays = null;
+        }
+
         return Inertia::render('billing/sandbox-checkout', [
             'tenant' => ['id' => $tenant->id, 'name' => $tenant->name],
             'invoice' => [
@@ -36,6 +44,9 @@ class SandboxCheckoutController extends Controller
                 'status' => $invoice->status,
                 'line_items' => $invoice->line_items,
             ],
+            'isTrial' => $isTrial,
+            'trialDays' => $trialDays,
+            'trialEndsAt' => $invoice->subscription?->trial_ends_at?->toIso8601String(),
             'approveUrl' => route('billing.sandbox.checkout.approve', [
                 'tenant' => $tenant->id,
                 'invoice' => $invoice->id,
@@ -64,6 +75,9 @@ class SandboxCheckoutController extends Controller
         abort_unless($invoice->tenant_id === $tenant->id, 404);
         app(TenantRoleAuthorization::class)->require($user, $tenant->id, 'billing.manage');
 
+        $invoice->loadMissing('subscription');
+        $isTrial = $this->isTrialCheckout($invoice);
+
         try {
             $gateway = app(SandboxPaymentGateway::class);
             if ($approve) {
@@ -80,13 +94,26 @@ class SandboxCheckoutController extends Controller
         }
 
         if ($approve) {
+            $status = $isTrial && $invoice->subscription?->trial_ends_at !== null
+                ? BillingCustomerMessages::trialStarted($invoice->subscription->trial_ends_at, $tenant)
+                : BillingCustomerMessages::PAYMENT_APPROVED;
+
             return redirect()
                 ->route('billing.settings.show', $tenant)
-                ->with('status', BillingCustomerMessages::PAYMENT_APPROVED);
+                ->with('status', $status);
         }
 
         return redirect()
             ->route('billing.settings.show', $tenant)
             ->withErrors(['checkout' => BillingCustomerMessages::PAYMENT_DECLINED]);
+    }
+
+    private function isTrialCheckout(TenantBillingInvoice $invoice): bool
+    {
+        $details = is_array($invoice->billing_details) ? $invoice->billing_details : [];
+
+        return ($details['checkout_kind'] ?? null) === 'trial'
+            || ((int) $invoice->amount_due_minor === 0
+                && $invoice->subscription?->status === 'trialing');
     }
 }

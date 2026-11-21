@@ -2,6 +2,10 @@
 
 namespace App\Support;
 
+use App\Models\Tenant;
+use Carbon\CarbonInterface;
+use DateTimeInterface;
+
 /**
  * Customer-facing billing copy shared by sandbox and live gateway paths.
  */
@@ -10,6 +14,16 @@ final class BillingCustomerMessages
     public const PAYMENT_DECLINED = 'Your payment was declined. You haven\'t been charged — please try again or use a different payment method.';
 
     public const PAYMENT_APPROVED = 'Payment approved. Your subscription is active.';
+
+    /**
+     * Flash after a card-required trial checkout is confirmed (sandbox or Kelviq return).
+     */
+    public static function trialStarted(
+        CarbonInterface|DateTimeInterface|string $endsAt,
+        ?Tenant $tenant = null,
+    ): string {
+        return 'Trial started, ends '.BillingDates::humanDate($endsAt, $tenant).'.';
+    }
 
     public const CHECKOUT_GENERIC_FAILURE = 'Checkout could not be started. Please check your billing details and try again.';
 

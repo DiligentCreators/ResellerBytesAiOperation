@@ -193,18 +193,24 @@ function PlanFields({
         <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
                 <Label>Code</Label>
-                <Input
-                    name="code"
-                    defaultValue={plan?.code ?? ''}
-                    required
-                    disabled={disabled || plan?.code_locked}
-                    readOnly={plan?.code_locked}
-                />
                 {plan?.code_locked ? (
-                    <p className="text-xs text-muted-foreground">
-                        Code is locked because subscriptions reference this plan.
-                    </p>
-                ) : null}
+                    <>
+                        <p className="rounded-md border border-input bg-muted/40 px-3 py-2 text-sm font-medium">
+                            {plan.code}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                            Code is locked because subscriptions reference this
+                            plan.
+                        </p>
+                    </>
+                ) : (
+                    <Input
+                        name="code"
+                        defaultValue={plan?.code ?? ''}
+                        required
+                        disabled={disabled}
+                    />
+                )}
                 <InputError message={errors.code} />
             </div>
             <div className="space-y-2">

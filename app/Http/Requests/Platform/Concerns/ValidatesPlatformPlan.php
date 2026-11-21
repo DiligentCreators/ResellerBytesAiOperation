@@ -16,6 +16,14 @@ trait ValidatesPlatformPlan
             $this->errorBag = $errorBag;
         }
 
+        // Locked plans never accept a client-sent code (disabled inputs omit it anyway).
+        $plan = $this->route('plan');
+        if ($plan instanceof Plan && $plan->isReferencedByBilling()) {
+            $input = $this->all();
+            unset($input['code']);
+            $this->replace($input);
+        }
+
         $features = $this->input('features');
         if (! is_array($features)) {
             return;
@@ -39,15 +47,7 @@ trait ValidatesPlatformPlan
      */
     protected function planRules(?Plan $plan = null): array
     {
-        $codeRules = ['required', 'string', 'max:64', 'alpha_dash', Rule::unique('plans', 'code')->ignore($plan?->id)];
-
-        if ($plan !== null && $plan->isReferencedByBilling()) {
-            // Code is immutable once any subscription references the plan.
-            $codeRules = ['required', 'string', 'in:'.$plan->code];
-        }
-
-        return [
-            'code' => $codeRules,
+        $rules = [
             'name' => ['required', 'string', 'max:120'],
             'description' => ['nullable', 'string', 'max:2000'],
             'price_monthly' => ['required', 'numeric', 'min:0', 'decimal:0,2'],
@@ -70,6 +70,13 @@ trait ValidatesPlatformPlan
             'entitlements.limits.retention_days' => ['required', 'integer', 'min:1'],
             'entitlements.support_level' => ['nullable', 'string', 'max:40'],
         ];
+
+        // Code is immutable once any subscription references the plan — never required or accepted.
+        if ($plan === null || ! $plan->isReferencedByBilling()) {
+            $rules['code'] = ['required', 'string', 'max:64', 'alpha_dash', Rule::unique('plans', 'code')->ignore($plan?->id)];
+        }
+
+        return $rules;
     }
 
     /**

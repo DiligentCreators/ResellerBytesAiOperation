@@ -346,9 +346,13 @@ it('tests the connection with Http::fake and never leaks the key', function () {
 
     $response->assertRedirect(route('platform.billing.settings.edit'))
         ->assertSessionHas('connection_test.ok', true)
+        ->assertSessionHas('connection_test.message', 'Kelviq connection OK.')
         ->assertSessionMissing('connection_test.message', $secret);
 
-    expect(json_encode(session('connection_test')))->not->toContain($secret);
+    $connectionTest = session('connection_test');
+    expect(json_encode($connectionTest))->not->toContain($secret)
+        ->and($connectionTest['message'])->not->toContain('(HTTP')
+        ->and(substr_count(strtolower($connectionTest['message']), 'http'))->toBe(0);
 
     $audit = DB::table('audit_events')->where('event_type', 'billing.settings.connection_tested')->first();
     expect($audit)->not->toBeNull();
@@ -361,6 +365,36 @@ it('tests the connection with Http::fake and never leaks the key', function () {
             && str_contains($request->url(), 'page_size=1')
             && $request->hasHeader('Authorization', 'Bearer '.$secret);
     });
+});
+
+it('reports a Kelviq HTTP failure with the status only once', function () {
+    $owner = billingSettingsOwner();
+
+    BillingGatewaySetting::query()->create([
+        'id' => 1,
+        'gateway' => 'kelviq',
+        'kelviq_mode' => 'sandbox',
+        'kelviq_sandbox_api_key' => 'kq_test_forbidden_key',
+        'trials_enabled' => false,
+        'trial_card_required' => true,
+        'trial_first_time_only' => true,
+    ]);
+
+    Http::preventStrayRequests();
+    Http::fake([
+        'https://sandboxapi.kelviq.com/api/v1/webhook/logs/*' => Http::response(['error' => 'forbidden'], 403),
+    ]);
+
+    $this->actingAs($owner)
+        ->post(route('platform.billing.settings.test'))
+        ->assertRedirect(route('platform.billing.settings.edit'))
+        ->assertSessionHas('connection_test.ok', false)
+        ->assertSessionHas('connection_test.message', 'Kelviq returned HTTP 403.')
+        ->assertSessionHas('connection_test.status', 403);
+
+    $message = session('connection_test.message');
+    expect(substr_count($message, '403'))->toBe(1)
+        ->and($message)->not->toContain('(HTTP 403)');
 });
 
 it('lets PaymentGatewayManager pick the database gateway', function () {
