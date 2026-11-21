@@ -34,6 +34,7 @@ type Plan = {
         support_level?: string;
         'diagnostics.analysis'?: boolean;
         'diagnostics.reanalyze'?: boolean;
+        'safe_actions.enabled'?: boolean;
     };
 };
 
@@ -393,6 +394,18 @@ function PlanFields({
                 />
                 <InputError message={errors['entitlements.support_level']} />
             </div>
+            <label className="flex items-center gap-2 text-sm">
+                <input
+                    type="checkbox"
+                    name="safe_actions_enabled"
+                    value="1"
+                    defaultChecked={
+                        plan?.entitlements['safe_actions.enabled'] ?? false
+                    }
+                    disabled={disabled}
+                />
+                Safe Actions enabled
+            </label>
             <label className="flex items-center gap-2 text-sm">
                 <input
                     type="checkbox"

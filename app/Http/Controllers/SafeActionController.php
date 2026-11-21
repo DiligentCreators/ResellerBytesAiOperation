@@ -84,7 +84,14 @@ class SafeActionController extends Controller
         $this->authorizeExecute($integration);
 
         $definition = $registry->get($request->string('action_key')->toString());
-        $this->requireEntitlement($integration, $definition['entitlement']);
+
+        try {
+            $this->requireEntitlement($integration, $definition['entitlement']);
+        } catch (AuthorizationException $exception) {
+            throw ValidationException::withMessages([
+                'action_key' => $exception->getMessage(),
+            ]);
+        }
 
         $finding = null;
         if ($request->filled('finding_id')) {
