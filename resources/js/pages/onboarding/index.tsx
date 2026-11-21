@@ -57,7 +57,11 @@ export default function OnboardingIndex({
     integrationsUrl,
     addonSetupUrl,
 }: Props) {
-    const twoFactorEnabled = Boolean(usePage().props.auth.two_factor_enabled);
+    const page = usePage().props;
+    const twoFactorEnabled = Boolean(page.auth.two_factor_enabled);
+    const twoFactorRequiredByPlatform = Boolean(
+        page.security?.twoFactorRequiredByPlatform,
+    );
 
     return (
         <>
@@ -129,13 +133,21 @@ export default function OnboardingIndex({
                                         }
                                         className="mt-0.5"
                                     />
-                                    <Label
-                                        htmlFor="require_two_factor"
-                                        className="text-sm leading-5 font-normal"
-                                    >
-                                        Require two-factor authentication for
-                                        everyone on this workspace
-                                    </Label>
+                                    <div className="space-y-1">
+                                        <Label
+                                            htmlFor="require_two_factor"
+                                            className="text-sm leading-5 font-normal"
+                                        >
+                                            Require two-factor authentication
+                                            for everyone on this workspace
+                                        </Label>
+                                        {!twoFactorRequiredByPlatform ? (
+                                            <p className="text-xs text-muted-foreground">
+                                                Not enforced while platform 2FA
+                                                requirement is off.
+                                            </p>
+                                        ) : null}
+                                    </div>
                                 </div>
                                 <Button type="submit" disabled={processing}>
                                     {processing && <Spinner />}

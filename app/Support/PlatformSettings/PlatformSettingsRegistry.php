@@ -106,7 +106,7 @@ final class PlatformSettingsRegistry
                 key: 'security.two_factor_required',
                 group: 'security',
                 label: 'Require two-factor authentication',
-                help: 'When enabled, all users must enroll in 2FA. Enforcement is wired in a later release; this flag only stores the policy.',
+                help: 'Off (default): nobody is redirected for missing 2FA; workspace Require 2FA preferences are stored but not enforced. On: platform operators and members of workspaces with Require 2FA must enroll before continuing. Users who already enabled 2FA are still challenged at login either way.',
                 type: PlatformSettingDefinition::TYPE_BOOL,
                 default: static fn (): bool => (bool) config('security.two_factor_required', false),
                 rules: ['boolean'],

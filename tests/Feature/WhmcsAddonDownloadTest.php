@@ -127,7 +127,10 @@ it('does not expose the WHMCS addon download to unverified users', function () {
 });
 
 it('does not expose the WHMCS addon download to platform staff before two-factor authentication is confirmed', function () {
-    config(['operations.owner_email' => 'addon-owner@example.test']);
+    config([
+        'operations.owner_email' => 'addon-owner@example.test',
+        'security.two_factor_required' => true,
+    ]);
     $user = User::factory()->create(['email' => 'addon-owner@example.test']);
 
     $this->actingAs($user)

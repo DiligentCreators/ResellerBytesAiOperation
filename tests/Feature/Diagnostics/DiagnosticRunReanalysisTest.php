@@ -65,6 +65,7 @@ it('blocks diagnostic reanalysis for platform staff until two-factor authenticat
     config([
         'services.openai.key' => 'test-api-key',
         'operations.owner_email' => 'reanalyze-owner@example.test',
+        'security.two_factor_required' => true,
     ]);
     Queue::fake();
 

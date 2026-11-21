@@ -1,7 +1,7 @@
 <?php
 
 return [
-    // Platform-wide 2FA requirement for all users. Enforcement is wired in a later change.
+    // Platform-wide gate for forced 2FA enrollment (operators + tenant require_two_factor). Default off.
     'two_factor_required' => (bool) env('SECURITY_TWO_FACTOR_REQUIRED', false),
 
     // When false, public account registration routes should refuse new sign-ups (wired later).

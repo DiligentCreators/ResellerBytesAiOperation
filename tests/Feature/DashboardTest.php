@@ -29,7 +29,10 @@ test('authenticated users with confirmed two-factor authentication can visit the
 });
 
 test('platform operators without two-factor are redirected to security settings', function () {
-    config(['operations.owner_email' => 'dash-owner@example.test']);
+    config([
+        'operations.owner_email' => 'dash-owner@example.test',
+        'security.two_factor_required' => true,
+    ]);
     $user = User::factory()->create(['email' => 'dash-owner@example.test']);
 
     $this->actingAs($user)

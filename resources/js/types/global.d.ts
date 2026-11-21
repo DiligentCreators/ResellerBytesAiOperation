@@ -11,6 +11,9 @@ declare module '@inertiajs/core' {
         sharedPageProps: {
             name: string;
             auth: Auth;
+            security: {
+                twoFactorRequiredByPlatform: boolean;
+            };
             flash: {
                 integration_credentials?: IntegrationCredentialsFlash | null;
                 status?: string | null;

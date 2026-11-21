@@ -83,9 +83,14 @@ class UpdatePlatformSettingsGroupRequest extends FormRequest
                 }
 
                 $rules = $this->rulesForDefinition($definition);
+                $normalized = $this->normalizeIncoming($definition, $value);
+                // Validate under a non-dotted attribute; registry keys contain dots and
+                // Laravel would otherwise treat them as nested array paths.
                 $fieldValidator = ValidatorFacade::make(
-                    [$key => $this->normalizeIncoming($definition, $value)],
-                    [$key => $rules],
+                    ['value' => $normalized],
+                    ['value' => $rules],
+                    [],
+                    ['value' => $definition->label],
                 );
 
                 if ($fieldValidator->fails()) {
@@ -93,7 +98,7 @@ class UpdatePlatformSettingsGroupRequest extends FormRequest
                         $validator->errors()->add('settings.'.$key, $message);
                     }
                 } else {
-                    $incoming[$key] = $this->normalizeIncoming($definition, $value);
+                    $incoming[$key] = $normalized;
                 }
             }
 
