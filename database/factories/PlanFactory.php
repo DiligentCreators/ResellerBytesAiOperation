@@ -33,6 +33,7 @@ class PlanFactory extends Factory
             'entitlements' => [
                 'diagnostics.analysis' => true,
                 'diagnostics.reanalyze' => true,
+                'safe_actions.enabled' => true,
                 'limits' => [
                     'members' => 5,
                     'integrations' => 1,

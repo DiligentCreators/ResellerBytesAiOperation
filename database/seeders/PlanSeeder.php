@@ -23,9 +23,16 @@ class PlanSeeder extends Seeder
                 'trial_days' => 14,
                 'sort_order' => 10,
                 'is_contact_sales' => false,
+                'features' => [
+                    '1 WHMCS install',
+                    'Guided fix playbooks',
+                    'Weekly email digest',
+                    'Last-scan-clean health state',
+                ],
                 'entitlements' => [
                     'diagnostics.analysis' => true,
                     'diagnostics.reanalyze' => true,
+                    'safe_actions.enabled' => false,
                     'limits' => [
                         'members' => 3,
                         'integrations' => 1,
@@ -39,15 +46,22 @@ class PlanSeeder extends Seeder
             [
                 'code' => 'growth',
                 'name' => 'Growth',
-                'description' => 'For growing reseller teams with higher diagnostic volume.',
+                'description' => 'Multi-install ops with assignees, re-check diffs, and Safe Actions.',
                 'price_monthly_minor' => 14900, // PLACEHOLDER — edit before launch
                 'price_yearly_minor' => 149000, // PLACEHOLDER — edit before launch
                 'trial_days' => 14,
                 'sort_order' => 20,
                 'is_contact_sales' => false,
+                'features' => [
+                    'Up to 3 WHMCS installs',
+                    'Assignees + re-check diffs',
+                    'Safe Actions allowlist pack',
+                    'Weekly email digest',
+                ],
                 'entitlements' => [
                     'diagnostics.analysis' => true,
                     'diagnostics.reanalyze' => true,
+                    'safe_actions.enabled' => true,
                     'limits' => [
                         'members' => 10,
                         'integrations' => 3,
@@ -60,16 +74,23 @@ class PlanSeeder extends Seeder
             ],
             [
                 'code' => 'business',
-                'name' => 'Business',
-                'description' => 'For multi-brand operations that need broader seats and retention.',
+                'name' => 'Agency',
+                'description' => 'Agency packing: staff seats, higher AI budget, and Safe Actions for client estates.',
                 'price_monthly_minor' => 39900, // PLACEHOLDER — edit before launch
                 'price_yearly_minor' => 399000, // PLACEHOLDER — edit before launch
                 'trial_days' => 14,
                 'sort_order' => 30,
                 'is_contact_sales' => false,
+                'features' => [
+                    'Up to 10 WHMCS installs',
+                    'Staff access + higher AI budget',
+                    'Safe Actions pack + audit trail',
+                    'Priority support',
+                ],
                 'entitlements' => [
                     'diagnostics.analysis' => true,
                     'diagnostics.reanalyze' => true,
+                    'safe_actions.enabled' => true,
                     'limits' => [
                         'members' => 25,
                         'integrations' => 10,
@@ -89,9 +110,16 @@ class PlanSeeder extends Seeder
                 'trial_days' => 0,
                 'sort_order' => 40,
                 'is_contact_sales' => true,
+                'features' => [
+                    'Custom install limits',
+                    'Dedicated support',
+                    'Safe Actions + custom allowlist review',
+                    'Marketplace / partner onboarding help',
+                ],
                 'entitlements' => [
                     'diagnostics.analysis' => true,
                     'diagnostics.reanalyze' => true,
+                    'safe_actions.enabled' => true,
                     'limits' => [
                         'members' => 100,
                         'integrations' => 50,

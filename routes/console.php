@@ -330,3 +330,8 @@ Schedule::command('billing:apply-scheduled-plan-changes')
 Schedule::command('billing:expire-trials')
     ->everyFiveMinutes()
     ->withoutOverlapping();
+
+Schedule::command('findings:send-weekly-digest')
+    ->weeklyOn(1, '09:00')
+    ->timezone('UTC')
+    ->withoutOverlapping();

@@ -160,6 +160,7 @@ class DiagnosticRunController extends Controller
                 'analysis_summary' => $diagnosticRun->analysis_summary,
                 'analysis_error_code' => $diagnosticRun->analysis_error_code,
                 'no_findings_reason' => $diagnosticRun->no_findings_reason,
+                'last_scan_clean' => $diagnosticRun->status === 'analyzed' && $diagnosticRun->findings->isEmpty(),
                 'findings' => $diagnosticRun->findings->map(fn ($finding): array => [
                     'id' => $finding->id,
                     'title' => $finding->title,

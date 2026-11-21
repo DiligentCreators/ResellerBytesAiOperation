@@ -28,6 +28,7 @@ type Run = {
     analysis_summary: string | null;
     analysis_error_code: string | null;
     no_findings_reason: string | null;
+    last_scan_clean: boolean;
 };
 type Props = { run: Run };
 
@@ -135,9 +136,22 @@ export default function DiagnosticRunShow({ run }: Props) {
                             {run.analysis_summary}
                         </p>
                     ) : null}
-                    {run.status === 'analyzed' &&
-                    run.findings.length === 0 &&
-                    run.no_findings_reason ? (
+                    {run.last_scan_clean ? (
+                        <div className="mt-4 rounded-md border border-success/20 bg-success-soft px-3 py-2 text-sm text-success-fg">
+                            <p className="font-medium">Last scan clean</p>
+                            <p className="mt-1 text-success-fg/90">
+                                Analysis completed with no evidence-backed
+                                findings for this snapshot.
+                            </p>
+                            {run.no_findings_reason ? (
+                                <p className="mt-2 text-xs text-success-fg/80">
+                                    {run.no_findings_reason}
+                                </p>
+                            ) : null}
+                        </div>
+                    ) : run.status === 'analyzed' &&
+                      run.findings.length === 0 &&
+                      run.no_findings_reason ? (
                         <p className="mt-3 text-sm text-muted-foreground">
                             {run.no_findings_reason}
                         </p>
@@ -158,9 +172,9 @@ export default function DiagnosticRunShow({ run }: Props) {
                     </div>
                     {run.findings.length === 0 ? (
                         <p className="p-5 text-sm text-muted-foreground">
-                            No findings have been generated for this snapshot
-                            yet. An empty list does not mean the installation is
-                            healthy until analysis completes.
+                            {run.last_scan_clean
+                                ? 'Last scan clean — analysis finished with zero findings.'
+                                : 'No findings have been generated for this snapshot yet. An empty list does not mean the installation is healthy until analysis completes.'}
                         </p>
                     ) : (
                         <div className="divide-y divide-border">

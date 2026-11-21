@@ -42,5 +42,17 @@ it('renders the authenticated integrations, diagnostic runs, and findings pages'
 
     $this->get('/findings')
         ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page->component('findings/index')->has('findings.data'));
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('findings/index')
+            ->has('findings.data')
+            ->has('health.last_scan_clean')
+            ->has('filters.status'));
+});
+
+it('exposes last scan clean health on the dashboard', function () {
+    $this->get('/dashboard')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('dashboard')
+            ->has('health.last_scan_clean'));
 });

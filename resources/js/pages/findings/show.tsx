@@ -1,7 +1,21 @@
-import { Head, Link } from '@inertiajs/react';
-import { ArrowLeft, ClipboardList } from 'lucide-react';
+import { Form, Head, Link, router, usePage } from '@inertiajs/react';
+import {
+    ArrowLeft,
+    CheckCircle2,
+    ClipboardCopy,
+    ClipboardList,
+    RefreshCw,
+    ShieldAlert,
+} from 'lucide-react';
+import { useState } from 'react';
 import { PageHeader } from '@/components/page-header';
 import { StatusBadge } from '@/components/status-badge';
+import { Button } from '@/components/ui/button';
+import { useClipboard } from '@/hooks/use-clipboard';
+import { useWorkspaceTimezone } from '@/hooks/use-workspace-timezone';
+import { formatDateTime } from '@/lib/dates';
+import { update as updateFinding } from '@/actions/App/Http/Controllers/FindingController';
+import { recheck } from '@/routes/findings';
 
 type Recommendation = {
     id: string;
@@ -10,6 +24,71 @@ type Recommendation = {
     risk_level: string;
     requires_manual_action: boolean;
 };
+
+type EvidenceRow = {
+    path: string;
+    label: string;
+    value: string;
+};
+
+type Playbook = {
+    detected: {
+        title: string;
+        category: string;
+        severity: string;
+        confidence: string | null;
+        evidence: EvidenceRow[];
+    };
+    impact: {
+        summary: string;
+        why_it_matters: string;
+    };
+    safe_steps: {
+        step: number;
+        action: string;
+        rationale: string | null;
+        risk_level: string | null;
+    }[];
+    verify: {
+        signal: string;
+        instructions: string[];
+    };
+    rollback: {
+        summary: string;
+        steps: string[];
+    };
+    change_risk: string;
+    deep_links: {
+        label: string;
+        path: string;
+        note: string;
+    }[];
+    checklist_text: string;
+};
+
+type Recheck = {
+    status: string;
+    message: string;
+    latest_run: {
+        id: string;
+        status: string;
+        received_at: string | null;
+        findings_count: number;
+    } | null;
+    matched_finding: {
+        id: string;
+        title: string;
+        severity: string;
+        status: string;
+    } | null;
+};
+
+type Assignee = {
+    id: number;
+    name: string;
+    email: string;
+};
+
 type Finding = {
     id: string;
     title: string;
@@ -20,16 +99,51 @@ type Finding = {
     evidence: Record<string, unknown>;
     confidence: string | null;
     created_at: string | null;
+    status_updated_at: string | null;
+    resolved_at: string | null;
+    status_note: string | null;
     integration_name: string;
     diagnostic_run_id: string;
+    assignee: Assignee | null;
     recommendations: Recommendation[];
 };
-type Props = { finding: Finding };
 
-export default function FindingShow({ finding }: Props) {
+type Props = {
+    finding: Finding;
+    playbook: Playbook;
+    recheck: Recheck;
+    assignees: Assignee[];
+    can_manage: boolean;
+    statuses: string[];
+};
+
+export default function FindingShow({
+    finding,
+    playbook,
+    recheck: recheckState,
+    assignees,
+    can_manage,
+    statuses,
+}: Props) {
+    const timezone = useWorkspaceTimezone();
+    const { flash } = usePage().props as {
+        flash?: { status?: string | null };
+    };
+    const [, copy] = useClipboard();
+    const [copied, setCopied] = useState(false);
+    const [statusNote, setStatusNote] = useState(finding.status_note ?? '');
+
+    const copyChecklist = async () => {
+        const ok = await copy(playbook.checklist_text);
+        setCopied(ok);
+        if (ok) {
+            window.setTimeout(() => setCopied(false), 2000);
+        }
+    };
+
     return (
         <>
-            <Head title="Finding Details" />
+            <Head title={`Fix: ${finding.title}`} />
             <div className="space-y-6">
                 <Link
                     href="/findings"
@@ -40,29 +154,285 @@ export default function FindingShow({ finding }: Props) {
                 </Link>
                 <PageHeader
                     title={finding.title}
-                    description={`${finding.integration_name} · ${finding.category}`}
+                    description={`${finding.integration_name} · Guided Fix Center — WHMCS stays read-only for this platform`}
                     actions={
                         <div className="flex flex-wrap items-center gap-2">
                             <StatusBadge status={finding.severity} />
                             <StatusBadge status={finding.status} />
+                            <StatusBadge
+                                status={playbook.change_risk}
+                                tone={
+                                    playbook.change_risk === 'critical' ||
+                                    playbook.change_risk === 'high'
+                                        ? 'danger'
+                                        : playbook.change_risk === 'medium'
+                                          ? 'warning'
+                                          : 'info'
+                                }
+                            />
                         </div>
                     }
                 />
 
-                <section className="rounded-lg border border-border bg-card p-5 shadow-xs">
-                    <h2 className="text-sm font-semibold">Assessment</h2>
-                    <p className="mt-3 text-sm leading-7 whitespace-pre-wrap">
-                        {finding.summary}
+                {flash?.status ? (
+                    <p className="rounded-md border border-success/20 bg-success-soft px-3 py-2 text-sm text-success-fg">
+                        {flash.status}
                     </p>
-                    <p className="mt-3 text-xs text-muted-foreground">
-                        Confidence: {finding.confidence ?? 'Not provided'}
-                    </p>
-                    <Link
-                        href={'/diagnostic-runs/' + finding.diagnostic_run_id}
-                        className="mt-3 inline-flex text-sm font-medium text-primary hover:underline"
+                ) : null}
+
+                <section className="flex flex-wrap gap-2">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={copyChecklist}
                     >
-                        Open source diagnostic snapshot
-                    </Link>
+                        <ClipboardCopy className="size-4" aria-hidden />
+                        {copied ? 'Checklist copied' : 'Copy checklist'}
+                    </Button>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                            router.post(
+                                recheck.url(finding.id),
+                                {},
+                                { preserveScroll: true },
+                            )
+                        }
+                    >
+                        <RefreshCw className="size-4" aria-hidden />
+                        Re-check vs latest scan
+                    </Button>
+                    <Button variant="outline" size="sm" asChild>
+                        <Link href={`/diagnostic-runs/${finding.diagnostic_run_id}`}>
+                            Source snapshot
+                        </Link>
+                    </Button>
+                    <Button variant="outline" size="sm" asChild>
+                        <Link href="/whmcs-addon/setup">
+                            Re-run diagnostics (WHMCS)
+                        </Link>
+                    </Button>
+                    <Button variant="outline" size="sm" asChild>
+                        <Link href="/safe-actions">Safe Actions</Link>
+                    </Button>
+                </section>
+
+                {can_manage ? (
+                    <section className="rounded-lg border border-border bg-card p-5 shadow-xs">
+                        <h2 className="text-sm font-semibold">Workflow</h2>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                            Track ownership and closure here. Execution still
+                            happens in WHMCS.
+                        </p>
+                        <Form
+                            {...updateFinding.form(finding.id)}
+                            className="mt-4 grid gap-4 sm:grid-cols-2"
+                            preserveScroll
+                        >
+                            {({ processing }) => (
+                                <>
+                                    <label className="space-y-1.5 text-sm">
+                                        <span className="font-medium">
+                                            Status
+                                        </span>
+                                        <select
+                                            name="status"
+                                            defaultValue={finding.status}
+                                            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs"
+                                        >
+                                            {statuses.map((status) => (
+                                                <option
+                                                    key={status}
+                                                    value={status}
+                                                >
+                                                    {status.replaceAll(
+                                                        '_',
+                                                        ' ',
+                                                    )}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </label>
+                                    <label className="space-y-1.5 text-sm">
+                                        <span className="font-medium">
+                                            Assignee
+                                        </span>
+                                        <select
+                                            name="assignee_user_id"
+                                            defaultValue={
+                                                finding.assignee?.id ?? ''
+                                            }
+                                            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs"
+                                        >
+                                            <option value="">Unassigned</option>
+                                            {assignees.map((member) => (
+                                                <option
+                                                    key={member.id}
+                                                    value={member.id}
+                                                >
+                                                    {member.name}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </label>
+                                    <label className="space-y-1.5 text-sm sm:col-span-2">
+                                        <span className="font-medium">
+                                            Note
+                                        </span>
+                                        <textarea
+                                            name="status_note"
+                                            value={statusNote}
+                                            onChange={(event) =>
+                                                setStatusNote(event.target.value)
+                                            }
+                                            rows={2}
+                                            maxLength={500}
+                                            className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs"
+                                            placeholder="Optional closure or progress note"
+                                        />
+                                    </label>
+                                    <div className="sm:col-span-2">
+                                        <Button
+                                            type="submit"
+                                            size="sm"
+                                            disabled={processing}
+                                        >
+                                            Save workflow
+                                        </Button>
+                                        <p className="mt-2 text-xs text-muted-foreground">
+                                            Updated{' '}
+                                            {formatDateTime(
+                                                finding.status_updated_at ??
+                                                    finding.created_at,
+                                                timezone,
+                                            )}
+                                            {finding.resolved_at
+                                                ? ` · Closed ${formatDateTime(finding.resolved_at, timezone)}`
+                                                : ''}
+                                        </p>
+                                    </div>
+                                </>
+                            )}
+                        </Form>
+                    </section>
+                ) : (
+                    <section className="rounded-lg border border-border bg-card p-5 shadow-xs">
+                        <h2 className="text-sm font-semibold">Workflow</h2>
+                        <p className="mt-2 text-sm text-muted-foreground">
+                            Status:{' '}
+                            <StatusBadge status={finding.status} />
+                            {finding.assignee
+                                ? ` · Assigned to ${finding.assignee.name}`
+                                : ' · Unassigned'}
+                        </p>
+                    </section>
+                )}
+
+                <section className="rounded-lg border border-border bg-card p-5 shadow-xs">
+                    <div className="mb-3 flex items-center gap-2">
+                        <RefreshCw
+                            className="size-4 text-slate-brand"
+                            aria-hidden
+                        />
+                        <h2 className="text-sm font-semibold">
+                            Re-check result
+                        </h2>
+                        <StatusBadge status={recheckState.status} />
+                    </div>
+                    <p className="text-sm leading-6">{recheckState.message}</p>
+                    {recheckState.latest_run ? (
+                        <p className="mt-2 text-xs text-muted-foreground">
+                            Latest run{' '}
+                            <Link
+                                href={`/diagnostic-runs/${recheckState.latest_run.id}`}
+                                className="font-medium text-primary hover:underline"
+                            >
+                                {recheckState.latest_run.id.slice(0, 8)}…
+                            </Link>{' '}
+                            · {recheckState.latest_run.status} ·{' '}
+                            {recheckState.latest_run.findings_count} findings ·{' '}
+                            {formatDateTime(
+                                recheckState.latest_run.received_at,
+                                timezone,
+                            )}
+                        </p>
+                    ) : null}
+                    {recheckState.matched_finding ? (
+                        <p className="mt-2 text-sm">
+                            Still open as{' '}
+                            <Link
+                                href={`/findings/${recheckState.matched_finding.id}`}
+                                className="font-medium text-primary hover:underline"
+                            >
+                                {recheckState.matched_finding.title}
+                            </Link>
+                        </p>
+                    ) : null}
+                    {recheckState.status === 'absent' ? (
+                        <p className="mt-3 inline-flex items-center gap-2 text-sm text-success-fg">
+                            <CheckCircle2 className="size-4" aria-hidden />
+                            Fingerprint cleared on newest analyzed scan.
+                        </p>
+                    ) : null}
+                </section>
+
+                <section className="rounded-lg border border-border bg-card p-5 shadow-xs">
+                    <h2 className="text-sm font-semibold">1. Detected</h2>
+                    <p className="mt-2 text-sm leading-7 whitespace-pre-wrap">
+                        {playbook.impact.summary}
+                    </p>
+                    <p className="mt-2 text-xs text-muted-foreground">
+                        Confidence:{' '}
+                        {playbook.detected.confidence ?? 'Not provided'}
+                    </p>
+                    <div className="mt-4 space-y-3">
+                        <h3 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                            Evidence
+                        </h3>
+                        {playbook.detected.evidence.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">
+                                No evidence paths were retained for this
+                                finding.
+                            </p>
+                        ) : (
+                            <dl className="space-y-3">
+                                {playbook.detected.evidence.map((row) => (
+                                    <div
+                                        key={row.path}
+                                        className="rounded-md border border-border bg-surface/50 px-3 py-2"
+                                    >
+                                        <dt className="text-sm font-medium">
+                                            {row.label}
+                                        </dt>
+                                        <dd className="mt-1 font-mono text-xs break-all text-muted-foreground">
+                                            {row.value}
+                                        </dd>
+                                        <dd className="mt-1 text-[11px] text-muted-foreground">
+                                            {row.path}
+                                        </dd>
+                                    </div>
+                                ))}
+                            </dl>
+                        )}
+                    </div>
+                </section>
+
+                <section className="rounded-lg border border-border bg-card p-5 shadow-xs">
+                    <div className="mb-2 flex items-center gap-2">
+                        <ShieldAlert
+                            className="size-4 text-warning-fg"
+                            aria-hidden
+                        />
+                        <h2 className="text-sm font-semibold">
+                            2. Impact — why it matters
+                        </h2>
+                    </div>
+                    <p className="text-sm leading-7">
+                        {playbook.impact.why_it_matters}
+                    </p>
                 </section>
 
                 <section className="rounded-lg border border-border bg-card p-5 shadow-xs">
@@ -72,49 +442,101 @@ export default function FindingShow({ finding }: Props) {
                             aria-hidden
                         />
                         <h2 className="text-sm font-semibold">
-                            Recommendations
+                            3. Safe steps
                         </h2>
+                        <StatusBadge status={playbook.change_risk} />
                     </div>
-                    {finding.recommendations.length === 0 ? (
+                    <p className="mb-4 text-xs font-medium text-warning-fg">
+                        Manual action in WHMCS only — this platform never
+                        writes to WHMCS or invents free-form repairs.
+                    </p>
+                    {playbook.safe_steps.length === 0 ? (
                         <p className="text-sm text-muted-foreground">
-                            No recommendation has been recorded for this
-                            finding.
+                            No structured recommendation was recorded. Use the
+                            evidence and deep links below.
                         </p>
                     ) : (
-                        <div className="space-y-4">
-                            {finding.recommendations.map((item) => (
-                                <div
-                                    key={item.id}
+                        <ol className="space-y-4">
+                            {playbook.safe_steps.map((step) => (
+                                <li
+                                    key={step.step}
                                     className="rounded-lg border border-border bg-surface/50 p-4"
                                 >
                                     <div className="flex flex-wrap items-center gap-2">
-                                        <p className="font-medium">
-                                            {item.recommendation}
-                                        </p>
-                                        <StatusBadge status={item.risk_level} />
+                                        <span className="text-xs font-semibold text-muted-foreground">
+                                            Step {step.step}
+                                        </span>
+                                        {step.risk_level ? (
+                                            <StatusBadge
+                                                status={step.risk_level}
+                                            />
+                                        ) : null}
                                     </div>
-                                    <p className="mt-2 text-sm text-muted-foreground">
-                                        {item.rationale}
+                                    <p className="mt-2 font-medium">
+                                        {step.action}
                                     </p>
-                                    {item.requires_manual_action ? (
-                                        <p className="mt-3 text-xs font-medium text-warning-fg">
-                                            Manual action required — no changes
-                                            are executed by this platform.
+                                    {step.rationale ? (
+                                        <p className="mt-2 text-sm text-muted-foreground">
+                                            {step.rationale}
                                         </p>
                                     ) : null}
-                                </div>
+                                </li>
                             ))}
-                        </div>
+                        </ol>
                     )}
                 </section>
 
-                <section className="overflow-hidden rounded-lg border border-border bg-card shadow-xs">
-                    <div className="border-b border-border px-5 py-4">
-                        <h2 className="text-sm font-semibold">Evidence</h2>
+                <section className="grid gap-6 lg:grid-cols-2">
+                    <div className="rounded-lg border border-border bg-card p-5 shadow-xs">
+                        <h2 className="text-sm font-semibold">4. Verify</h2>
+                        <p className="mt-2 text-sm leading-6">
+                            {playbook.verify.signal}
+                        </p>
+                        <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+                            {playbook.verify.instructions.map((item) => (
+                                <li key={item}>{item}</li>
+                            ))}
+                        </ul>
                     </div>
-                    <pre className="max-h-[480px] overflow-auto p-5 text-xs leading-6">
-                        <code>{JSON.stringify(finding.evidence, null, 2)}</code>
-                    </pre>
+                    <div className="rounded-lg border border-border bg-card p-5 shadow-xs">
+                        <h2 className="text-sm font-semibold">5. Rollback</h2>
+                        <p className="mt-2 text-sm leading-6">
+                            {playbook.rollback.summary}
+                        </p>
+                        <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+                            {playbook.rollback.steps.map((item) => (
+                                <li key={item}>{item}</li>
+                            ))}
+                        </ul>
+                    </div>
+                </section>
+
+                <section className="rounded-lg border border-border bg-card p-5 shadow-xs">
+                    <h2 className="text-sm font-semibold">
+                        WHMCS admin deep links
+                    </h2>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                        Path hints only — open them in your WHMCS admin. No
+                        secrets are embedded.
+                    </p>
+                    <ul className="mt-4 space-y-3">
+                        {playbook.deep_links.map((link) => (
+                            <li
+                                key={link.label}
+                                className="rounded-md border border-border bg-surface/50 px-3 py-2"
+                            >
+                                <p className="text-sm font-medium">
+                                    {link.label}
+                                </p>
+                                <p className="mt-1 font-mono text-xs">
+                                    {link.path}
+                                </p>
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                    {link.note}
+                                </p>
+                            </li>
+                        ))}
+                    </ul>
                 </section>
             </div>
         </>

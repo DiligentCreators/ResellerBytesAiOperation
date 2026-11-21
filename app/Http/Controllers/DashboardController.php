@@ -44,16 +44,41 @@ class DashboardController extends Controller
 
         $signingConfigured = $signer->isConfigured();
 
+        $installations = $tenantRecords->integrations($user)
+            ->withCount([
+                'diagnosticRuns as runs_count',
+            ])
+            ->orderBy('name')
+            ->limit(12)
+            ->get()
+            ->map(fn ($integration): array => [
+                'id' => $integration->id,
+                'name' => $integration->name,
+                'status' => $integration->status,
+                'addon_version' => $integration->addon_version,
+                'last_seen_at' => $integration->last_seen_at?->toIso8601String(),
+                'runs_count' => $integration->runs_count,
+                'open_findings' => $tenantRecords->findings($user)
+                    ->whereHas('diagnosticRun', fn ($query) => $query->where('integration_id', $integration->id))
+                    ->active()
+                    ->count(),
+            ]);
+
         return Inertia::render('dashboard', [
             'stats' => [
                 'active_integrations' => $tenantRecords->integrations($user)->where('status', 'active')->count(),
                 'total_runs' => $tenantRecords->runs($user)->count(),
-                'open_findings' => $tenantRecords->findings($user)->where('status', 'open')->count(),
+                'open_findings' => $tenantRecords->findings($user)->active()->count(),
                 'critical_findings' => $tenantRecords->findings($user)
-                    ->where('status', 'open')
+                    ->active()
                     ->where('severity', 'critical')
                     ->count(),
             ],
+            'health' => [
+                'last_scan_clean' => $tenantRecords->runs($user)->where('status', 'analyzed')->exists()
+                    && ! $tenantRecords->findings($user)->active()->exists(),
+            ],
+            'installations' => $installations,
             'latestRuns' => $latestRuns,
             'addon' => [
                 'version' => config('services.whmcs_addon.version', '1.0.0'),

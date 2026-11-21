@@ -21,6 +21,8 @@ use LogicException;
  * @property int $secret_version
  * @property string|null $addon_version
  * @property Carbon|null $last_seen_at
+ * @property Carbon|null $pending_diagnostic_collect_at
+ * @property string|null $pending_diagnostic_collect_execution_id
  * @property-read User|null $owner
  * @property-read Collection<int, DiagnosticRun> $diagnosticRuns
  * @property-read int $diagnostic_runs_count
@@ -38,6 +40,8 @@ class WhmcsIntegration extends Model
         'secret_version',
         'addon_version',
         'last_seen_at',
+        'pending_diagnostic_collect_at',
+        'pending_diagnostic_collect_execution_id',
     ];
 
     protected $hidden = [
@@ -60,6 +64,7 @@ class WhmcsIntegration extends Model
             'secret' => 'encrypted',
             'secret_version' => 'integer',
             'last_seen_at' => 'immutable_datetime',
+            'pending_diagnostic_collect_at' => 'immutable_datetime',
         ];
     }
 
