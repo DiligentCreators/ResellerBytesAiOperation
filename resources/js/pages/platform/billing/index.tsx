@@ -82,24 +82,31 @@ export default function PlatformBillingIndex({
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-4">
-                    {[
-                        {
-                            label: 'MRR (approx)',
-                            value: formatMoney(summary.mrr_minor),
-                        },
-                        {
-                            label: 'Active subscriptions',
-                            value: String(summary.active_subscriptions),
-                        },
-                        {
-                            label: 'Failed / past due invoices',
-                            value: String(summary.failed_payments),
-                        },
-                        {
-                            label: 'Paid invoices',
-                            value: String(summary.paid_invoices),
-                        },
-                    ].map((tile) => (
+                    {(
+                        [
+                            {
+                                label: 'MRR (approx)',
+                                value: formatMoney(summary.mrr_minor),
+                                hint: 'Yearly plans normalised to /12',
+                            },
+                            {
+                                label: 'Active subscriptions',
+                                value: String(summary.active_subscriptions),
+                            },
+                            {
+                                label: 'Failed / past due invoices',
+                                value: String(summary.failed_payments),
+                            },
+                            {
+                                label: 'Paid invoices',
+                                value: String(summary.paid_invoices),
+                            },
+                        ] as Array<{
+                            label: string;
+                            value: string;
+                            hint?: string;
+                        }>
+                    ).map((tile) => (
                         <div
                             key={tile.label}
                             className="rounded-lg border border-border bg-white p-4"
@@ -110,6 +117,11 @@ export default function PlatformBillingIndex({
                             <p className="mt-2 text-2xl font-bold tabular-nums">
                                 {tile.value}
                             </p>
+                            {tile.hint ? (
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                    {tile.hint}
+                                </p>
+                            ) : null}
                         </div>
                     ))}
                 </div>

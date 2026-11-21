@@ -14,6 +14,7 @@ use App\Services\Billing\ProrationCalculator;
 use App\Services\Billing\SubscriptionManagementService;
 use App\Services\Tenancy\TenantRoleAuthorization;
 use App\Support\BillingCustomerMessages;
+use App\Support\BillingDates;
 use App\Support\CountryCodes;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\RedirectResponse;
@@ -165,12 +166,9 @@ class CheckoutController extends Controller
         }
 
         if (($result['mode'] ?? null) === 'downgrade') {
-            $scheduled = $result['scheduled_change'] ?? [];
-            $when = is_array($scheduled) ? (string) ($scheduled['change_at'] ?? '') : '';
-
             return redirect()
                 ->route('billing.settings.show', $tenant)
-                ->with('status', 'Plan change scheduled'.($when !== '' ? ' for '.$when : '').'.');
+                ->with('status', $this->scheduledChangeStatusMessage($tenant, $result));
         }
 
         if (($result['mode'] ?? null) === 'zero_upgrade') {
@@ -190,12 +188,48 @@ class CheckoutController extends Controller
         return match ($code) {
             'billing_subscription_already_current' => BillingCustomerMessages::CHECKOUT_ALREADY_SUBSCRIBED,
             'billing_plan_unchanged' => BillingCustomerMessages::CHECKOUT_PLAN_UNCHANGED,
+            'billing_scheduled_change_already_pending' => BillingCustomerMessages::CHECKOUT_SCHEDULED_CHANGE_ALREADY,
             'billing_plan_change_already_pending' => BillingCustomerMessages::CHECKOUT_PLAN_CHANGE_PENDING,
             'billing_plan_change_status_invalid', 'billing_plan_change_invalid',
             'billing_period_invalid', 'billing_plan_not_checkoutable',
             'billing_details_incomplete', 'billing_email_invalid', 'billing_country_invalid' => BillingCustomerMessages::CHECKOUT_GENERIC_FAILURE,
             default => BillingCustomerMessages::CHECKOUT_GENERIC_FAILURE,
         };
+    }
+
+    /**
+     * @param  array<string, mixed>  $result
+     */
+    private function scheduledChangeStatusMessage(Tenant $tenant, array $result): string
+    {
+        $scheduled = is_array($result['scheduled_change'] ?? null) ? $result['scheduled_change'] : [];
+        $replaced = is_array($result['replaced_scheduled_change'] ?? null)
+            ? $result['replaced_scheduled_change']
+            : null;
+
+        $planName = (string) ($scheduled['plan_name'] ?? 'plan');
+        $period = (string) ($scheduled['charge_period'] ?? '');
+        $when = BillingDates::humanDate($scheduled['change_at'] ?? null, $tenant);
+
+        if ($replaced !== null) {
+            $previousName = (string) ($replaced['plan_name'] ?? 'previous plan');
+            $previousPeriod = (string) ($replaced['charge_period'] ?? '');
+            $previousWhen = BillingDates::humanDate($replaced['change_at'] ?? null, $tenant);
+
+            return sprintf(
+                'Your scheduled change to %s (%s) on %s replaced the previous change to %s (%s)%s.',
+                $planName,
+                $period,
+                $when,
+                $previousName,
+                $previousPeriod,
+                $previousWhen !== '' ? ' on '.$previousWhen : '',
+            );
+        }
+
+        return $when !== ''
+            ? 'Plan change scheduled for '.$when.'.'
+            : 'Plan change scheduled.';
     }
 
     /**

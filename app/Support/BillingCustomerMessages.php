@@ -17,6 +17,8 @@ final class BillingCustomerMessages
 
     public const CHECKOUT_PLAN_UNCHANGED = 'You are already on this plan and billing period.';
 
+    public const CHECKOUT_SCHEDULED_CHANGE_ALREADY = 'That plan change is already scheduled.';
+
     public const CHECKOUT_PLAN_CHANGE_PENDING = 'A plan change is already in progress. Finish or abandon that checkout before starting another.';
 
     public const CHECKOUT_FORBIDDEN = 'You do not have permission to manage billing for this workspace.';

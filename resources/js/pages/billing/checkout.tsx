@@ -97,7 +97,8 @@ export default function CheckoutPage({
                             role="status"
                             className="mt-3 rounded-md border border-border bg-surface px-4 py-3 text-sm"
                         >
-                            Your plan changes to {scheduledChange.plan_name} (
+                            This replaces your scheduled change to{' '}
+                            {scheduledChange.plan_name} (
                             {scheduledChange.charge_period}) on{' '}
                             {formatDate(scheduledChange.change_at, {
                                 timeZone: timezone,

@@ -76,7 +76,8 @@ class SubscriptionManagementService
      *     checkout_url: string|null,
      *     current_subscription: TenantSubscription,
      *     proration: array<string, mixed>|null,
-     *     scheduled_change: array<string, mixed>|null
+     *     scheduled_change: array<string, mixed>|null,
+     *     replaced_scheduled_change: array<string, mixed>|null
      * }
      */
     public function changePlan(
@@ -242,7 +243,8 @@ class SubscriptionManagementService
      *     checkout_url: string|null,
      *     current_subscription: TenantSubscription,
      *     proration: array<string, mixed>,
-     *     scheduled_change: null
+     *     scheduled_change: null,
+     *     replaced_scheduled_change: null
      * }
      */
     private function beginImmediateUpgrade(
@@ -361,6 +363,7 @@ class SubscriptionManagementService
                 'current_subscription' => $current->refresh(),
                 'proration' => $proration->toArray(),
                 'scheduled_change' => null,
+                'replaced_scheduled_change' => null,
             ];
         }
 
@@ -374,6 +377,7 @@ class SubscriptionManagementService
             'current_subscription' => $current->refresh(),
             'proration' => $proration->toArray(),
             'scheduled_change' => null,
+            'replaced_scheduled_change' => null,
         ];
     }
 
@@ -385,7 +389,8 @@ class SubscriptionManagementService
      *     checkout_url: null,
      *     current_subscription: TenantSubscription,
      *     proration: null,
-     *     scheduled_change: array<string, mixed>
+     *     scheduled_change: array<string, mixed>,
+     *     replaced_scheduled_change: array<string, mixed>|null
      * }
      */
     private function scheduleDowngrade(
@@ -395,6 +400,27 @@ class SubscriptionManagementService
         Plan $plan,
         string $billingPeriod,
     ): array {
+        $current->loadMissing('scheduledPlan');
+
+        $replacedScheduledChange = null;
+        if ($current->scheduled_plan_id !== null
+            && $current->scheduled_change_at !== null
+            && in_array($current->scheduled_charge_period, ['monthly', 'yearly'], true)) {
+            if ((int) $current->scheduled_plan_id === (int) $plan->id
+                && $current->scheduled_charge_period === $billingPeriod) {
+                throw new InvalidArgumentException('billing_scheduled_change_already_pending');
+            }
+
+            $previousPlan = $current->scheduledPlan;
+            $replacedScheduledChange = [
+                'plan_id' => (int) $current->scheduled_plan_id,
+                'plan_code' => $previousPlan->code ?? '',
+                'plan_name' => $previousPlan->name ?? (string) $current->scheduled_plan_id,
+                'charge_period' => $current->scheduled_charge_period,
+                'change_at' => $current->scheduled_change_at->toIso8601String(),
+            ];
+        }
+
         $changeAt = CarbonImmutable::parse($current->current_period_ends_at)->utc();
 
         $current->forceFill([
@@ -408,6 +434,8 @@ class SubscriptionManagementService
             'scheduled_plan_code' => $plan->code,
             'scheduled_charge_period' => $billingPeriod,
             'scheduled_change_at' => $changeAt->toIso8601String(),
+            'replaced_scheduled_plan_id' => $replacedScheduledChange['plan_id'] ?? null,
+            'replaced_scheduled_plan_code' => $replacedScheduledChange['plan_code'] ?? null,
         ]);
 
         $scheduled = [
@@ -426,6 +454,7 @@ class SubscriptionManagementService
             'current_subscription' => $current->refresh(),
             'proration' => null,
             'scheduled_change' => $scheduled,
+            'replaced_scheduled_change' => $replacedScheduledChange,
         ];
     }
 
