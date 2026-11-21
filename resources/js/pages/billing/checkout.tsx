@@ -103,7 +103,8 @@ export default function CheckoutPage({
                     </p>
                     {pricesArePlaceholders && (
                         <p className="mt-3 rounded-lg bg-warning-soft px-4 py-3 text-sm text-warning-fg">
-                            Placeholder seed price.
+                            This plan still has a temporary price. Confirm it
+                            with your administrator before paying.
                         </p>
                     )}
                     {convertingFromTrial && (

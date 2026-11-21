@@ -105,8 +105,8 @@ export default function PricingPage({
                             role="status"
                             className="mt-6 rounded-md border border-warning/25 bg-warning-soft px-4 py-3 text-sm text-warning-fg"
                         >
-                            Placeholder seed prices — platform admins must edit
-                            amounts before commercial launch.
+                            Prices shown here are temporary. Platform admins
+                            must confirm amounts before commercial launch.
                         </p>
                     )}
 

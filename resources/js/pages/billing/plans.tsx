@@ -115,8 +115,8 @@ export default function BillingPlans({
                         role="status"
                         className="rounded-md border border-warning/25 bg-warning-soft px-4 py-3 text-sm text-warning-fg"
                     >
-                        Placeholder seed prices — edit in platform billing
-                        before launch.
+                        Prices shown here are temporary and may change before
+                        launch.
                     </p>
                 )}
 

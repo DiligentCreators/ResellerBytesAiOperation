@@ -388,14 +388,14 @@ export default function PlatformPlansPage({
                         </h1>
                         {pricesArePlaceholders && (
                             <p className="mt-2 text-sm text-warning-fg">
-                                Some public plans still have unconfirmed
-                                placeholder prices.
+                                Some public plans still have unconfirmed prices.
+                                Confirm them before launch.
                             </p>
                         )}
                         {!canManage && (
                             <p className="mt-2 text-sm text-muted-foreground">
-                                Read-only — billing.settings.manage is required
-                                to edit plans.
+                                Read-only — you need permission to manage
+                                billing settings to edit plans.
                             </p>
                         )}
                     </div>

@@ -4,6 +4,7 @@ import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { index as platformPlans } from '@/routes/platform/billing/plans';
 
 type SecretPresentation = {
     configured: boolean;
@@ -298,9 +299,21 @@ export default function PlatformBillingSettingsPage({
                                     Trial rules (global)
                                 </h2>
                                 <p className="text-sm text-muted-foreground">
-                                    Per-plan trial days arrive in a later
-                                    chunk. These flags are stored now for the
-                                    resolver.
+                                    These rules apply to every plan. Turn the
+                                    trial on and set the trial days for each
+                                    plan in the{' '}
+                                    <Link
+                                        href={platformPlans()}
+                                        className="font-medium text-primary hover:underline"
+                                    >
+                                        Plan catalog
+                                    </Link>
+                                    . A plan shows a trial only when trials are
+                                    enabled here AND the trial is on for that
+                                    plan. Card required = Yes sends the trial to
+                                    Kelviq checkout (card collected, first
+                                    charge after the trial); No starts the trial
+                                    in the app without any payment step.
                                 </p>
                                 <div className="grid gap-4 md:grid-cols-3">
                                     <div className="grid gap-2">
@@ -381,8 +394,8 @@ export default function PlatformBillingSettingsPage({
                                     Test connection
                                 </h2>
                                 <p className="mt-1 text-sm text-muted-foreground">
-                                    Calls Kelviq GET /webhook/logs/?page_size=1
-                                    with the resolved key for the current mode.
+                                    Sends a lightweight request to Kelviq using
+                                    the API key for the current mode.
                                 </p>
                             </div>
                             <Button
