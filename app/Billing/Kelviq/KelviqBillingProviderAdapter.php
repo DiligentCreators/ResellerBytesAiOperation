@@ -7,6 +7,7 @@ use App\Data\Billing\VerifiedBillingWebhook;
 use App\Models\TenantBillingInvoice;
 use App\Models\TenantBillingPayment;
 use App\Models\TenantSubscription;
+use App\Services\Billing\BillingSettings;
 use Carbon\CarbonImmutable;
 use InvalidArgumentException;
 use RuntimeException;
@@ -29,7 +30,7 @@ class KelviqBillingProviderAdapter implements BillingProviderAdapter
      */
     public function verifyAndNormalize(string $rawBody, array $headers): VerifiedBillingWebhook
     {
-        $secret = (string) config('billing.kelviq.webhook_secret');
+        $secret = app(BillingSettings::class)->kelviqWebhookSecret();
         $timestamp = $this->signatures->assertValid($rawBody, $headers, $secret);
 
         try {

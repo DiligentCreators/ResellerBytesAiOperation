@@ -17,11 +17,12 @@ The fixed allowlist is:
 
 - tenants — central tenant administration
 - billing — central billing operations
+- billing.settings.manage — Billing settings: manage gateway, keys, plan prices and trials
 - support — central support operations
 - settings — central platform configuration (currently includes platform mail transport)
 - audit — central audit and evidence access
 
-Unknown permissions are rejected by validation and by the authorization service. Route/controller boundaries must use the central.permission:<permission> middleware or CentralStaffAuthorization::can(); hiding navigation items is not an authorization control. The existing central mail-settings routes are gated by settings. Tenant workspace routes remain governed by tenant membership and are deliberately not gated by central-staff permissions. The tenants, billing, support, and audit permission keys are available for their corresponding central feature endpoints; this branch does not introduce new tenant provisioning, billing UI, support UI, or a central audit UI.
+Unknown permissions are rejected by validation and by the authorization service. Route/controller boundaries must use the central.permission:<permission> middleware or CentralStaffAuthorization::can(); hiding navigation items is not an authorization control. The existing central mail-settings routes are gated by settings. Billing gateway credential settings (`/platform/billing/settings`) are gated by `billing.settings.manage` and are not implied by `billing` or `settings`. Only the super admin may grant or revoke `billing.settings.manage`. Tenant workspace routes remain governed by tenant membership and are deliberately not gated by central-staff permissions.
 
 ## Audit evidence
 

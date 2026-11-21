@@ -133,6 +133,14 @@ export function AppSidebar() {
         );
     }
 
+    if (permissions.includes('billing.settings.manage')) {
+        platformItems.push({
+            title: 'Billing settings',
+            href: '/platform/billing/settings',
+            icon: Settings,
+        });
+    }
+
     if (permissions.includes('settings')) {
         platformItems.push(
             {

@@ -25,6 +25,8 @@ type Props = {
 const permissionHelp: Record<string, string> = {
     tenants: 'Tenant administration',
     billing: 'Billing operations',
+    'billing.settings.manage':
+        'Billing settings: manage gateway, keys, plan prices and trials',
     support: 'Support tools',
     settings: 'Platform configuration',
     audit: 'Audit evidence access',
@@ -52,11 +54,11 @@ function PermissionChoices({
                         className="mt-1"
                     />
                     <span>
-                        <span className="font-medium capitalize">
-                            {permission}
+                        <span className="font-medium">
+                            {permissionHelp[permission] ?? permission}
                         </span>
                         <span className="mt-0.5 block text-xs text-muted-foreground">
-                            {permissionHelp[permission] ?? permission}
+                            {permission}
                         </span>
                     </span>
                 </label>

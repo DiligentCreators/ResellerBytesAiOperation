@@ -8,6 +8,7 @@ use App\Models\Plan;
 use App\Models\Tenant;
 use App\Models\TenantSubscription;
 use App\Models\User;
+use App\Services\Billing\BillingSettings;
 use App\Services\Billing\CheckoutService;
 use App\Services\Billing\PlanChangeClassifier;
 use App\Services\Billing\ProrationCalculator;
@@ -264,10 +265,11 @@ class CheckoutController extends Controller
             return true;
         }
 
+        $billingSettings = app(BillingSettings::class);
         $allowedSuffixes = [
             'kelviq.com',
-            parse_url((string) config('billing.kelviq.sandbox_base_url'), PHP_URL_HOST),
-            parse_url((string) config('billing.kelviq.live_base_url'), PHP_URL_HOST),
+            parse_url($billingSettings->kelviqSandboxBaseUrl(), PHP_URL_HOST),
+            parse_url($billingSettings->kelviqLiveBaseUrl(), PHP_URL_HOST),
         ];
 
         foreach ($allowedSuffixes as $suffix) {

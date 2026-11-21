@@ -32,6 +32,8 @@ class RouteRateLimiterServiceProvider extends ServiceProvider
         'platform-ai-settings-update' => 10,
         'platform-ai-settings-generate-signing-keys' => 5,
         'platform-billing-gateway-replay' => 20,
+        'platform-billing-settings-update' => 10,
+        'platform-billing-settings-test' => 3,
         'platform-billing-seller-update' => 10,
         'platform-billing-plans-store' => 20,
         'platform-billing-plans-update' => 20,

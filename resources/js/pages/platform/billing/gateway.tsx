@@ -26,6 +26,7 @@ type WebhookRow = {
 type Props = {
     gateway: GatewayStatus;
     recentWebhooks: WebhookRow[];
+    canManageSettings?: boolean;
 };
 
 function BoolPill({ value, label }: { value: boolean; label: string }) {
@@ -46,6 +47,7 @@ function BoolPill({ value, label }: { value: boolean; label: string }) {
 export default function PlatformBillingGatewayPage({
     gateway,
     recentWebhooks,
+    canManageSettings = false,
 }: Props) {
     return (
         <>
@@ -66,6 +68,14 @@ export default function PlatformBillingGatewayPage({
                             Status only — secret values are never shown.
                         </p>
                     </div>
+                    {canManageSettings ? (
+                        <Link
+                            href="/platform/billing/settings"
+                            className="text-sm font-semibold text-primary"
+                        >
+                            Billing settings →
+                        </Link>
+                    ) : null}
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

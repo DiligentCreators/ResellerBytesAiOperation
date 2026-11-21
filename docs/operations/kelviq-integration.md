@@ -2,11 +2,29 @@
 
 ResellerBytes AI Ops uses Kelviq as the production payment gateway (`BILLING_GATEWAY=kelviq`). Local development may keep `BILLING_GATEWAY=sandbox`.
 
+## Billing settings screen
+
+Platform operators with the `billing.settings.manage` central permission (the configured super admin has it implicitly) manage gateway credentials from **Platform → Billing settings** (`/platform/billing/settings`). The gateway status page links here when the viewer holds that permission.
+
+| Area | Behaviour |
+| ---- | --------- |
+| Gateway | Choose `sandbox` or `kelviq`. UI shows whether the effective value comes from the database or `.env` fallback. Switching to `kelviq` requires a resolvable API key for the selected mode. Sandbox remains blocked in production unless `BILLING_SANDBOX_ALLOW_IN_PRODUCTION` is enabled. |
+| Kelviq mode + secrets | Mode `sandbox` \| `live`. Separate sandbox/live API keys and webhook secrets. The browser only receives configured yes/no, source (`database` \| `env`), and a last-4 mask (`••••1234`). Blank input keeps the current stored value. An explicit **Clear** checkbox nulls the DB column so env/config applies again. Live mode requires a resolvable live API key and live webhook secret. |
+| Webhook URL | Read-only copy of `{APP_URL}/webhooks/kelviq` (named route `webhooks.kelviq`). |
+| Test connection | Throttled POST that calls Kelviq `GET /webhook/logs/?page_size=1` with the resolved key for the current mode. Reports success or HTTP/connection failure only — never the key. Audited as `billing.settings.connection_tested`. |
+| Trial rules (global) | `trials_enabled`, `trial_card_required`, `trial_first_time_only` stored on the single settings row and exposed via `App\Services\Billing\BillingSettings`. Per-plan trial days come later. |
+
+**Fallback order** (resolver `App\Services\Billing\BillingSettings`): non-empty database value wins; otherwise `config('billing.*')` / env; otherwise defaults (`gateway=sandbox`, `mode=sandbox`). Mode-specific DB keys fall back to the single env pair `KELVIQ_API_KEY` / `KELVIQ_WEBHOOK_SECRET`. If the `billing_gateway_settings` table is not migrated yet, the resolver falls back to config so Artisan commands do not crash.
+
+**Permission**: `billing.settings.manage` — only the super admin may grant or revoke it on central staff. Holding `billing` or `settings` alone is not enough to open the screen or grant this permission.
+
+**Audit**: each save writes one `billing.settings.updated` event listing changed field names; non-secret fields include old/new values; secret fields record only `replaced` or `cleared` (never the value, not even masked). No event when nothing changed.
+
 ## Setup
 
 1. Create a Kelviq organization and product/plans in the **sandbox** dashboard first.
 2. Copy the server API key and webhook signing secret (`kq_whsec_...`).
-3. Set env keys (never commit real values):
+3. Prefer entering credentials in **Platform → Billing settings**. Env keys remain the fallback (never commit real values):
 
 ```
 BILLING_GATEWAY=kelviq
@@ -20,9 +38,9 @@ KELVIQ_CONNECT_TIMEOUT=5
 ```
 
 4. In Platform → Billing → Plans, set **Kelviq plan id (monthly)** and **Kelviq plan id (yearly)** per catalog plan.
-5. Register webhook endpoint URL: `{APP_URL}/webhooks/kelviq`
+5. Register webhook endpoint URL: `{APP_URL}/webhooks/kelviq` (also shown on the billing settings screen).
 6. Subscribe at least to: `checkout.completed`, `subscription.created`, `subscription.updated`, `subscription.cancelled`, `subscription.plan_changed`, `subscription.paused`, `subscription.resumed`, `invoice.created`, `invoice.paid`, `invoice.payment_failed`, `refund.created`, `refund.updated`, `order.refunded`.
-7. Run `php artisan billing:kelviq:check` (prints booleans and URLs only — never secrets).
+7. Use **Test connection** on the settings screen, or run `php artisan billing:kelviq:check` (prints booleans and URLs only — never secrets).
 
 ## Checkout behaviour
 

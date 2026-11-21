@@ -13,6 +13,7 @@ use App\Http\Controllers\FindingController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\Platform\PlatformBillingController;
 use App\Http\Controllers\Platform\PlatformBillingGatewayController;
+use App\Http\Controllers\Platform\PlatformBillingSettingsController;
 use App\Http\Controllers\Platform\PlatformPlanController;
 use App\Http\Controllers\PlatformAiSettingsController;
 use App\Http\Controllers\PlatformMailSettingsController;
@@ -77,6 +78,12 @@ Route::middleware(['auth', 'verified', EnsureTwoFactorEnabled::class])->group(fu
         Route::get('platform/billing/plans', [PlatformPlanController::class, 'index'])->name('platform.billing.plans.index');
         Route::post('platform/billing/plans', [PlatformPlanController::class, 'store'])->middleware('throttle:platform-billing-plans-store')->name('platform.billing.plans.store');
         Route::put('platform/billing/plans/{plan}', [PlatformPlanController::class, 'update'])->middleware('throttle:platform-billing-plans-update')->name('platform.billing.plans.update');
+    });
+
+    Route::middleware('central.permission:billing.settings.manage')->group(function () {
+        Route::get('platform/billing/settings', [PlatformBillingSettingsController::class, 'edit'])->name('platform.billing.settings.edit');
+        Route::put('platform/billing/settings', [PlatformBillingSettingsController::class, 'update'])->middleware('throttle:platform-billing-settings-update')->name('platform.billing.settings.update');
+        Route::post('platform/billing/settings/test-connection', [PlatformBillingSettingsController::class, 'testConnection'])->middleware('throttle:platform-billing-settings-test')->name('platform.billing.settings.test');
     });
 
     Route::get('dashboard', DashboardController::class)->name('dashboard');

@@ -7,6 +7,7 @@ use App\Models\Plan;
 use App\Models\TenantBillingInvoice;
 use App\Models\TenantSubscription;
 use App\Models\User;
+use App\Services\Billing\BillingSettings;
 use App\Services\Billing\PlanChangeClassifier;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
@@ -22,9 +23,10 @@ class KelviqPaymentGateway implements PaymentGateway
 
     public function assertUsable(): void
     {
-        $mode = (string) config('billing.kelviq.mode', 'sandbox');
-        $apiKey = (string) config('billing.kelviq.api_key');
-        $webhookSecret = (string) config('billing.kelviq.webhook_secret');
+        $settings = app(BillingSettings::class);
+        $mode = $settings->kelviqMode();
+        $apiKey = $settings->kelviqApiKey();
+        $webhookSecret = $settings->kelviqWebhookSecret();
 
         if ($mode === 'live' && ($apiKey === '' || $webhookSecret === '')) {
             throw new RuntimeException('billing_kelviq_live_credentials_required');

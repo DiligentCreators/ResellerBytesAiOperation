@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Billing\Kelviq\KelviqClient;
+use App\Services\Billing\BillingSettings;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
@@ -12,24 +13,24 @@ use Throwable;
 #[Description('Validate Kelviq billing config and optionally perform one harmless API read')]
 class CheckKelviqBilling extends Command
 {
-    public function handle(KelviqClient $client): int
+    public function handle(KelviqClient $client, BillingSettings $settings): int
     {
-        $mode = (string) config('billing.kelviq.mode', 'sandbox');
-        $apiKeyConfigured = (string) config('billing.kelviq.api_key') !== '';
-        $webhookSecretConfigured = (string) config('billing.kelviq.webhook_secret') !== '';
-        $gateway = (string) config('billing.default_gateway');
+        $mode = $settings->kelviqMode();
+        $apiKeyConfigured = $settings->kelviqApiKey() !== '';
+        $webhookSecretConfigured = $settings->kelviqWebhookSecret() !== '';
+        $gateway = $settings->gateway();
 
         $this->info('Kelviq billing configuration check');
         $this->line('gateway='.$gateway);
         $this->line('mode='.$mode);
         $this->line('api_key_configured='.($apiKeyConfigured ? 'yes' : 'no'));
         $this->line('webhook_secret_configured='.($webhookSecretConfigured ? 'yes' : 'no'));
-        $this->line('sandbox_base_url='.(string) config('billing.kelviq.sandbox_base_url'));
-        $this->line('live_base_url='.(string) config('billing.kelviq.live_base_url'));
+        $this->line('sandbox_base_url='.$settings->kelviqSandboxBaseUrl());
+        $this->line('live_base_url='.$settings->kelviqLiveBaseUrl());
         $this->line('webhook_url='.url('/webhooks/kelviq'));
 
         if ($mode === 'live' && (! $apiKeyConfigured || ! $webhookSecretConfigured)) {
-            $this->error('Live mode requires KELVIQ_API_KEY and KELVIQ_WEBHOOK_SECRET.');
+            $this->error('Live mode requires a resolvable API key and webhook secret (database or env).');
 
             return self::FAILURE;
         }
@@ -41,7 +42,7 @@ class CheckKelviqBilling extends Command
         }
 
         try {
-            $client->listWebhookLogs();
+            $client->listWebhookLogs(pageSize: 1);
             $this->info('Remote read OK: GET /webhook/logs/');
         } catch (Throwable $exception) {
             $this->error('Remote read failed: '.$exception->getMessage());

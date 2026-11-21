@@ -12,7 +12,7 @@ class PaymentGatewayManager
 {
     public function driver(?string $name = null): PaymentGateway
     {
-        $name ??= (string) config('billing.default_gateway', 'sandbox');
+        $name ??= app(BillingSettings::class)->gateway();
 
         $gateway = match ($name) {
             'sandbox' => app(SandboxPaymentGateway::class),
