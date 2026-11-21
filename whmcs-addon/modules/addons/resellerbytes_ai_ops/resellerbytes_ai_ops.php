@@ -10,6 +10,9 @@ if (! defined('WHMCS')) {
 }
 
 require_once __DIR__.'/lib/CredentialsFile.php';
+require_once __DIR__.'/lib/WhmcsDataSource.php';
+require_once __DIR__.'/lib/CapsuleWhmcsDataSource.php';
+require_once __DIR__.'/lib/SnapshotRedactor.php';
 require_once __DIR__.'/lib/DiagnosticCollector.php';
 require_once __DIR__.'/lib/SignedApiClient.php';
 require_once __DIR__.'/lib/RemediationRunner.php';

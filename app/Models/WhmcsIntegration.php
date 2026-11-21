@@ -21,6 +21,9 @@ use LogicException;
  * @property int $secret_version
  * @property string|null $addon_version
  * @property Carbon|null $last_seen_at
+ * @property Carbon|null $last_heartbeat_at
+ * @property Carbon|null $last_cron_at
+ * @property string|null $cron_php_version
  * @property Carbon|null $pending_diagnostic_collect_at
  * @property string|null $pending_diagnostic_collect_execution_id
  * @property array<string, mixed>|null $host_connection
@@ -41,6 +44,9 @@ class WhmcsIntegration extends Model
         'secret_version',
         'addon_version',
         'last_seen_at',
+        'last_heartbeat_at',
+        'last_cron_at',
+        'cron_php_version',
         'pending_diagnostic_collect_at',
         'pending_diagnostic_collect_execution_id',
         'host_connection',
@@ -67,6 +73,8 @@ class WhmcsIntegration extends Model
             'secret' => 'encrypted',
             'secret_version' => 'integer',
             'last_seen_at' => 'immutable_datetime',
+            'last_heartbeat_at' => 'immutable_datetime',
+            'last_cron_at' => 'immutable_datetime',
             'pending_diagnostic_collect_at' => 'immutable_datetime',
             'host_connection' => 'encrypted:array',
         ];

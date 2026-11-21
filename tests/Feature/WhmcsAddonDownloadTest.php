@@ -35,7 +35,8 @@ it('downloads an addon archive with a verifiable Ed25519 signature and expected 
 
     $response = $this->actingAs($user)->get('/whmcs-addon/download');
 
-    $response->assertDownload('resellerbytes-ai-ops-whmcs-v1.0.0.zip');
+    $version = preg_replace('/[^0-9A-Za-z._-]/', '-', (string) config('services.whmcs_addon.version'));
+    $response->assertDownload('resellerbytes-ai-ops-whmcs-v'.$version.'.zip');
     expect($response->headers->get('Cache-Control'))
         ->toContain('private')
         ->toContain('no-store');
@@ -52,6 +53,11 @@ it('downloads an addon archive with a verifiable Ed25519 signature and expected 
 
     expect($archive->locateName('resellerbytes_ai_ops/resellerbytes_ai_ops.php'))->not->toBeFalse();
     expect($archive->locateName('resellerbytes_ai_ops/lib/CredentialsFile.php'))->not->toBeFalse();
+    expect($archive->locateName('resellerbytes_ai_ops/lib/DiagnosticCollector.php'))->not->toBeFalse();
+    expect($archive->locateName('resellerbytes_ai_ops/lib/SignedApiClient.php'))->not->toBeFalse();
+    if (is_file(base_path('whmcs-addon/modules/addons/resellerbytes_ai_ops/hooks.php'))) {
+        expect($archive->locateName('resellerbytes_ai_ops/hooks.php'))->not->toBeFalse();
+    }
     expect($archive->locateName('INSTALLATION.txt'))->not->toBeFalse();
     expect($archive->locateName('VERSION.txt'))->not->toBeFalse();
     expect($archive->locateName('SHA256SUMS.txt'))->not->toBeFalse();

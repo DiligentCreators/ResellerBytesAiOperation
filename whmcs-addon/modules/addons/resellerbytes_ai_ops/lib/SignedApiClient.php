@@ -9,7 +9,7 @@ final class SignedApiClient
 {
     private const BASE_URL = 'https://ops.resellerbytes.com';
 
-    public const ADDON_VERSION = '1.1.0';
+    public const ADDON_VERSION = '1.2.0';
 
     private const MAX_RESPONSE_BYTES = 16384;
 
@@ -22,7 +22,7 @@ final class SignedApiClient
     {
         $snapshot = [
             'snapshot_uuid' => $this->uuidV4(),
-            'schema_version' => '1.0',
+            'schema_version' => '1.1',
             'addon_version' => self::ADDON_VERSION,
             'collected_at' => gmdate('Y-m-d\TH:i:s\Z'),
             'payload' => $diagnostics,
@@ -47,6 +47,35 @@ final class SignedApiClient
         return [
             'http_status' => $response['http_status'],
             'duplicate' => $response['json']['data']['duplicate'],
+        ];
+    }
+
+    /**
+     * @param  array{integration_id: string, secret: string}  $credentials
+     * @param  array<string, mixed>  $body
+     * @return array{http_status: int, accepted: bool}
+     */
+    public function heartbeat(array $credentials, array $body): array
+    {
+        try {
+            $response = $this->request($credentials, 'POST', '/api/v1/whmcs/heartbeats', $body);
+        } catch (RuntimeException $exception) {
+            if ($exception->getMessage() === 'http_response_invalid') {
+                throw new RuntimeException('heartbeat_response_invalid');
+            }
+
+            throw new RuntimeException('heartbeat_submission_failed');
+        }
+
+        if (! in_array($response['http_status'], [200, 202], true)
+            || ! isset($response['json']['data']['accepted'])
+            || ! is_bool($response['json']['data']['accepted'])) {
+            throw new RuntimeException('heartbeat_submission_failed');
+        }
+
+        return [
+            'http_status' => $response['http_status'],
+            'accepted' => $response['json']['data']['accepted'],
         ];
     }
 

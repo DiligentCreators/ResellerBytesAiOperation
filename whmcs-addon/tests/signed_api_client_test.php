@@ -82,7 +82,9 @@ namespace {
     assertSignedClientCondition((bool) preg_match('/\A[a-f0-9]{64}\z/', $headers['X-RB-Nonce']), 'Nonce format is invalid.');
     assertSignedClientCondition((bool) preg_match('/\A[a-f0-9]{64}\z/', $headers['X-RB-Signature']), 'Signature format is invalid.');
     assertSignedClientCondition($headers['X-RB-Integration'] === $integrationId, 'Integration identifier was not sent.');
-    assertSignedClientCondition($snapshot['schema_version'] === '1.0', 'Snapshot schema version is incorrect.');
+    assertSignedClientCondition($snapshot['schema_version'] === '1.1', 'Snapshot schema version is incorrect.');
+    assertSignedClientCondition($snapshot['addon_version'] === SignedApiClient::ADDON_VERSION, 'Addon version constant was not sent.');
+    assertSignedClientCondition(SignedApiClient::ADDON_VERSION === '1.2.0', 'Addon version constant is incorrect.');
     assertSignedClientCondition($snapshot['payload']['system']['whmcs_version'] === '8.13.7-release.1', 'Diagnostic payload was not sent.');
     assertSignedClientCondition(strpos($body, $secret) === false, 'The HMAC secret was included in the request body.');
 

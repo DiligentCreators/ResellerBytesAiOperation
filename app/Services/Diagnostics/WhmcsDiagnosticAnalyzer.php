@@ -36,12 +36,14 @@ class WhmcsDiagnosticAnalyzer
             throw new RuntimeException('provider_not_configured');
         }
 
-        $payload = $run->payload;
-        $userInput = json_encode([
+        $payload = app(AiSnapshotPayloadTrimmer::class)->trim(
+            is_array($run->payload) ? $run->payload : [],
+        );
+        $userContent = json_encode([
             'whmcs_version' => $run->payload['system']['whmcs_version'] ?? 'unknown',
             'snapshot' => $payload,
         ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
-        $requestBytes = strlen($this->systemInstructions()) + strlen($userInput)
+        $requestBytes = strlen($this->systemInstructions()) + strlen($userContent)
             + strlen(json_encode($this->outputSchema(), JSON_THROW_ON_ERROR));
         if ($requestBytes > (int) config('ai_budget.max_input_bytes', 65_536)) {
             throw new RuntimeException('budget_input_limit_exceeded');
@@ -69,10 +71,7 @@ class WhmcsDiagnosticAnalyzer
                     ],
                     [
                         'role' => 'user',
-                        'content' => json_encode([
-                            'whmcs_version' => $run->payload['system']['whmcs_version'] ?? 'unknown',
-                            'snapshot' => $payload,
-                        ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES),
+                        'content' => $userContent,
                     ],
                 ],
                 'text' => [
@@ -351,7 +350,7 @@ PROMPT;
                 continue;
             }
 
-            $finding['evidence_paths'] = array_values($validPaths);
+            $finding['evidence_paths'] = $validPaths;
             $kept[] = $finding;
         }
 

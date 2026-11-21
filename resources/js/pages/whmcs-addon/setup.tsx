@@ -89,6 +89,17 @@ export default function WhmcsAddonSetup({
                                 customers, invoices, payments, hosting, domains,
                                 or your existing registrar/hosting modules.
                             </p>
+                            <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                                Diagnostics collect technical aggregates only:
+                                cron health, module queue depth, overdue and
+                                unpaid invoice counts, suspended or orphaned
+                                services, domain expiry problems, ticket SLA
+                                breaches, mail and gateway failure counts, disk
+                                and database size signals, and basic security
+                                flags. Client names, emails, addresses, ticket
+                                message bodies, passwords, and secrets are never
+                                collected or sent.
+                            </p>
                             <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
                                 <span className="text-muted-foreground">
                                     AI analysis:

@@ -48,8 +48,9 @@ class WhmcsAddonDownloadController extends Controller
                 }
 
                 $absolutePath = $file->getPathname();
-                $relativePath = substr($absolutePath, strlen($sourceDirectory) + 1);
-                if (! $archive->addFile($absolutePath, 'resellerbytes_ai_ops/'.$relativePath)) {
+                $relativePath = str_replace('\\', '/', substr($absolutePath, strlen($sourceDirectory) + 1));
+                $archivePath = 'resellerbytes_ai_ops/'.$relativePath;
+                if (! $archive->addFile($absolutePath, $archivePath)) {
                     throw new RuntimeException('Unable to add an addon file to the archive.');
                 }
 
@@ -68,7 +69,7 @@ class WhmcsAddonDownloadController extends Controller
 
             sort($manifest, SORT_STRING);
 
-            $version = (string) config('services.whmcs_addon.version', '1.1.0');
+            $version = (string) config('services.whmcs_addon.version', '1.2.0');
             $manifestContents = implode("\n", $manifest)."\n";
             $signedPayload = $this->canonicalSignedPayload($version, $manifest);
             $signature = $signer->sign($signedPayload);
@@ -94,7 +95,7 @@ class WhmcsAddonDownloadController extends Controller
             throw $exception;
         }
 
-        $version = preg_replace('/[^0-9A-Za-z._-]/', '-', (string) config('services.whmcs_addon.version', '1.1.0'));
+        $version = preg_replace('/[^0-9A-Za-z._-]/', '-', (string) config('services.whmcs_addon.version', '1.2.0'));
 
         $download = response()->download(
             $temporaryPath,
