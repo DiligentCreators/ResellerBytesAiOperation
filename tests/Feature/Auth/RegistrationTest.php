@@ -8,7 +8,6 @@ use App\Services\CentralStaffAuthorization;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Notification;
-use Illuminate\Support\Facades\RateLimiter;
 use Laravel\Fortify\Features;
 
 beforeEach(function () {
@@ -106,9 +105,25 @@ test('registration rejects honeypot submissions', function () {
 });
 
 test('registration is rate limited', function () {
-    RateLimiter::increment('register|127.0.0.1', amount: 5);
+    $invalid = [
+        'name' => '',
+        'email' => 'not-an-email',
+        'password' => 'x',
+        'password_confirmation' => 'y',
+        'workspace_name' => 'A',
+        'country' => 'XX',
+        'terms' => null,
+        'website' => '',
+    ];
 
-    $this->post(route('register.store'), validRegistrationPayload())
+    for ($i = 0; $i < 5; $i++) {
+        $this->from(route('register'))
+            ->post(route('register.store'), $invalid)
+            ->assertRedirect();
+    }
+
+    $this->from(route('register'))
+        ->post(route('register.store'), $invalid)
         ->assertTooManyRequests();
 
     $this->assertGuest();

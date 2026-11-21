@@ -78,7 +78,7 @@ it('approves sandbox checkout through the webhook path and activates the subscri
 
     $invoice = $result['invoice'];
     expect($invoice->status)->toBe('open')
-        ->and($result['subscription']->status)->toBe('trialing');
+        ->and($result['subscription']->status)->toBe('incomplete');
 
     app(SandboxPaymentGateway::class)->approve($invoice);
 

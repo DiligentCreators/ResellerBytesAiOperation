@@ -12,24 +12,35 @@ type Props = {
         currency: string;
     };
     processing: boolean;
+    declined?: boolean;
+    declineMessage?: string | null;
 };
 
 export default function CheckoutReturnPage({
     tenant,
     invoice,
     processing,
+    declined = false,
+    declineMessage = null,
 }: Props) {
+    const title = declined
+        ? 'Payment declined'
+        : processing
+          ? 'Payment processing'
+          : 'Payment received';
+
     return (
         <>
-            <Head title="Payment processing" />
+            <Head title={title} />
             <div className="mx-auto max-w-lg space-y-6 p-6">
-                <h1 className="text-2xl font-bold tracking-tight">
-                    {processing ? 'Payment processing' : 'Payment received'}
-                </h1>
+                <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
                 <p className="text-sm text-muted-foreground">
-                    {processing
-                        ? 'Your checkout completed on the payment provider. We activate your plan only after the signed webhook arrives — this page does not turn access on by itself.'
-                        : 'Your invoice is marked paid and entitlements should be active.'}
+                    {declined
+                        ? (declineMessage ??
+                          "Your payment was declined. You haven't been charged — please try again or use a different payment method.")
+                        : processing
+                          ? 'Your checkout completed on the payment provider. We activate your plan only after the signed webhook arrives — this page does not turn access on by itself.'
+                          : 'Your invoice is marked paid and entitlements should be active.'}
                 </p>
                 <div className="rounded-lg border border-border bg-[#F7F9FB] p-4 text-sm">
                     <p>

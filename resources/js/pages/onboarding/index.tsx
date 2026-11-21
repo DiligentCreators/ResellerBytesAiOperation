@@ -1,4 +1,4 @@
-import { Form, Head, Link } from '@inertiajs/react';
+import { Form, Head, Link, usePage } from '@inertiajs/react';
 import { CheckCircle2, Circle } from 'lucide-react';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import {
     completeWhmcs,
     updateWorkspace,
 } from '@/actions/App/Http/Controllers/OnboardingController';
+import { edit as editSecurity } from '@/routes/security';
 
 type Props = {
     tenant: {
@@ -56,6 +57,8 @@ export default function OnboardingIndex({
     integrationsUrl,
     addonSetupUrl,
 }: Props) {
+    const twoFactorEnabled = Boolean(usePage().props.auth.two_factor_enabled);
+
     return (
         <>
             <Head title="Workspace onboarding" />
@@ -174,6 +177,24 @@ export default function OnboardingIndex({
                             technical install later — mark this step when you
                             are ready to proceed.
                         </p>
+                        {!twoFactorEnabled ? (
+                            <div
+                                role="status"
+                                className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100"
+                            >
+                                <p>
+                                    Creating an integration requires the
+                                    workspace owner to confirm two-factor
+                                    authentication (TOTP) first.
+                                </p>
+                                <Link
+                                    href={editSecurity()}
+                                    className="mt-2 inline-flex font-medium underline underline-offset-4 hover:no-underline"
+                                >
+                                    Enable 2FA
+                                </Link>
+                            </div>
+                        ) : null}
                         <div className="flex flex-wrap gap-3">
                             <Button asChild variant="outline">
                                 <Link href={integrationsUrl}>Integrations</Link>

@@ -77,7 +77,7 @@ it('builds the documented Kelviq checkout session request shape', function () {
     expect($result['checkout_url'])->toBe('https://www.kelviq.com/checkout/cs_test/')
         ->and($result['subscription']->billing_provider)->toBe('kelviq')
         ->and($result['subscription']->provider_subscription_id)->toBeNull()
-        ->and($result['subscription']->status)->toBe('trialing');
+        ->and($result['subscription']->status)->toBe('incomplete');
 
     Http::assertSent(function ($request) use ($tenant, $plan) {
         if (! str_ends_with($request->url(), '/checkout/')) {

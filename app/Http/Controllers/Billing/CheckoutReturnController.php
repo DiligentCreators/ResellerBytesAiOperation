@@ -7,6 +7,7 @@ use App\Models\Tenant;
 use App\Models\TenantBillingInvoice;
 use App\Models\User;
 use App\Services\Tenancy\TenantRoleAuthorization;
+use App\Support\BillingCustomerMessages;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -24,6 +25,8 @@ class CheckoutReturnController extends Controller
         app(TenantRoleAuthorization::class)->require($user, $tenant->id, 'billing.manage');
         abort_unless($invoice->tenant_id === $tenant->id, 404);
 
+        $failed = in_array($invoice->status, ['failed', 'past_due', 'void'], true);
+
         return Inertia::render('billing/checkout-return', [
             'tenant' => ['id' => $tenant->id, 'name' => $tenant->name],
             'invoice' => [
@@ -33,7 +36,9 @@ class CheckoutReturnController extends Controller
                 'amount_due_minor' => $invoice->amount_due_minor,
                 'currency' => $invoice->currency,
             ],
-            'processing' => $invoice->status !== 'paid',
+            'processing' => ! $failed && $invoice->status !== 'paid',
+            'declined' => $failed,
+            'declineMessage' => $failed ? BillingCustomerMessages::PAYMENT_DECLINED : null,
         ]);
     }
 }

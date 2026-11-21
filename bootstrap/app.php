@@ -32,6 +32,7 @@ use App\Http\Middleware\RequireCentralPermission;
 use App\Http\Middleware\SecurityHeadersMiddleware;
 use App\Http\Middleware\SetTenantDatabaseContext;
 use App\Http\Middleware\ThrottleSensitiveAuthRequests;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -40,6 +41,7 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -101,6 +103,37 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );
+
+        // When APP_DEBUG=false, never leak Eloquent model class names in JSON 404s.
+        $exceptions->render(function (ModelNotFoundException $exception, Request $request) {
+            if (config('app.debug')) {
+                return null;
+            }
+
+            if ($request->expectsJson() || $request->is('api/*')) {
+                return response()->json(['message' => 'Not Found.'], 404);
+            }
+
+            return null;
+        });
+
+        $exceptions->render(function (NotFoundHttpException $exception, Request $request) {
+            if (config('app.debug')) {
+                return null;
+            }
+
+            if (! ($request->expectsJson() || $request->is('api/*'))) {
+                return null;
+            }
+
+            $previous = $exception->getPrevious();
+            if ($previous instanceof ModelNotFoundException
+                || str_contains($exception->getMessage(), 'No query results for model')) {
+                return response()->json(['message' => 'Not Found.'], 404);
+            }
+
+            return null;
+        });
 
         $exceptions->respond(function (Response $response, Throwable $exception, Request $request) {
             $status = $response->getStatusCode();

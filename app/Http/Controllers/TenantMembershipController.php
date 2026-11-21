@@ -44,14 +44,17 @@ class TenantMembershipController extends Controller
         return Inertia::render('tenants/memberships', $payload);
     }
 
-    public function invite(Request $request, Tenant $tenant, TenantMembershipLifecycle $lifecycle): JsonResponse|RedirectResponse
+    public function invite(Request $request, Tenant $tenant, TenantMembershipLifecycle $lifecycle, TenantRoleAuthorization $authorization): JsonResponse|RedirectResponse
     {
+        /** @var User $user */
+        $user = $request->user();
+        // Authorize before validation so non-members always get 404 (no payload oracle).
+        $authorization->require($user, $tenant->id, 'members.manage');
+
         $data = $request->validate([
             'email' => ['required', 'email:rfc', 'max:255'],
             'role' => ['required', Rule::in([TenantMembership::ROLE_ADMIN, TenantMembership::ROLE_OPERATOR, TenantMembership::ROLE_VIEWER, TenantMembership::ROLE_BILLING])],
         ]);
-        /** @var User $user */
-        $user = $request->user();
         $membership = $lifecycle->invite($user, $tenant->id, $data['email'], $data['role'], $request->ip());
 
         if (! $request->header('X-Inertia')) {
@@ -83,13 +86,15 @@ class TenantMembershipController extends Controller
         return redirect()->route('dashboard')->with('status', 'Workspace invitation accepted.');
     }
 
-    public function updateRole(Request $request, Tenant $tenant, TenantMembership $membership, TenantMembershipLifecycle $lifecycle): JsonResponse|RedirectResponse
+    public function updateRole(Request $request, Tenant $tenant, TenantMembership $membership, TenantMembershipLifecycle $lifecycle, TenantRoleAuthorization $authorization): JsonResponse|RedirectResponse
     {
+        /** @var User $user */
+        $user = $request->user();
+        $authorization->require($user, $tenant->id, 'members.manage');
+
         $data = $request->validate([
             'role' => ['required', Rule::in([TenantMembership::ROLE_ADMIN, TenantMembership::ROLE_OPERATOR, TenantMembership::ROLE_VIEWER, TenantMembership::ROLE_BILLING])],
         ]);
-        /** @var User $user */
-        $user = $request->user();
         $updated = $lifecycle->changeRole($user, $tenant->id, $membership->id, $data['role'], $request->ip());
 
         if (! $request->header('X-Inertia')) {
