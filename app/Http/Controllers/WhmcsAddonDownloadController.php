@@ -68,7 +68,7 @@ class WhmcsAddonDownloadController extends Controller
 
             sort($manifest, SORT_STRING);
 
-            $version = (string) config('services.whmcs_addon.version', '1.0.0');
+            $version = (string) config('services.whmcs_addon.version', '1.1.0');
             $manifestContents = implode("\n", $manifest)."\n";
             $signedPayload = $this->canonicalSignedPayload($version, $manifest);
             $signature = $signer->sign($signedPayload);
@@ -94,7 +94,7 @@ class WhmcsAddonDownloadController extends Controller
             throw $exception;
         }
 
-        $version = preg_replace('/[^0-9A-Za-z._-]/', '-', (string) config('services.whmcs_addon.version', '1.0.0'));
+        $version = preg_replace('/[^0-9A-Za-z._-]/', '-', (string) config('services.whmcs_addon.version', '1.1.0'));
 
         $download = response()->download(
             $temporaryPath,

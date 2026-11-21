@@ -15,6 +15,7 @@ import { useClipboard } from '@/hooks/use-clipboard';
 import { useWorkspaceTimezone } from '@/hooks/use-workspace-timezone';
 import { formatDateTime } from '@/lib/dates';
 import { update as updateFinding } from '@/actions/App/Http/Controllers/FindingController';
+import { store as storeSafeAction } from '@/actions/App/Http/Controllers/SafeActionController';
 import { recheck } from '@/routes/findings';
 
 type Recommendation = {
@@ -102,10 +103,20 @@ type Finding = {
     status_updated_at: string | null;
     resolved_at: string | null;
     status_note: string | null;
+    integration_id?: string | null;
     integration_name: string;
     diagnostic_run_id: string;
     assignee: Assignee | null;
     recommendations: Recommendation[];
+};
+
+type SuggestedSafeAction = {
+    key: string;
+    label: string;
+    description: string;
+    risk_level: string;
+    requires_password_confirm: boolean;
+    execution_target: string;
 };
 
 type Props = {
@@ -115,6 +126,8 @@ type Props = {
     assignees: Assignee[];
     can_manage: boolean;
     statuses: string[];
+    suggested_safe_actions?: SuggestedSafeAction[];
+    safe_actions_enabled?: boolean;
 };
 
 export default function FindingShow({
@@ -124,6 +137,8 @@ export default function FindingShow({
     assignees,
     can_manage,
     statuses,
+    suggested_safe_actions = [],
+    safe_actions_enabled = false,
 }: Props) {
     const timezone = useWorkspaceTimezone();
     const { flash } = usePage().props as {
@@ -220,12 +235,79 @@ export default function FindingShow({
                     </Button>
                 </section>
 
+                {can_manage &&
+                safe_actions_enabled &&
+                finding.integration_id &&
+                suggested_safe_actions.length > 0 ? (
+                    <section className="rounded-lg border border-border bg-card p-5 shadow-xs">
+                        <h2 className="text-sm font-semibold">
+                            Request Safe Action
+                        </h2>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                            Approve here, then click “Apply approved Safe
+                            Actions” in the WHMCS addon. Only allowlisted
+                            remediations run — never free-form AI repairs.
+                        </p>
+                        <ul className="mt-4 space-y-3">
+                            {suggested_safe_actions.map((action) => (
+                                <li
+                                    key={action.key}
+                                    className="flex flex-col gap-2 rounded-md border border-border p-3 sm:flex-row sm:items-center sm:justify-between"
+                                >
+                                    <div className="min-w-0">
+                                        <p className="text-sm font-medium">
+                                            {action.label}
+                                        </p>
+                                        <p className="text-sm text-muted-foreground">
+                                            {action.description}
+                                        </p>
+                                    </div>
+                                    <Form
+                                        {...storeSafeAction.form()}
+                                        className="shrink-0"
+                                    >
+                                        {({ processing }) => (
+                                            <>
+                                                <input
+                                                    type="hidden"
+                                                    name="integration_id"
+                                                    value={
+                                                        finding.integration_id ??
+                                                        ''
+                                                    }
+                                                />
+                                                <input
+                                                    type="hidden"
+                                                    name="action_key"
+                                                    value={action.key}
+                                                />
+                                                <input
+                                                    type="hidden"
+                                                    name="finding_id"
+                                                    value={finding.id}
+                                                />
+                                                <Button
+                                                    type="submit"
+                                                    size="sm"
+                                                    disabled={processing}
+                                                >
+                                                    Request approval
+                                                </Button>
+                                            </>
+                                        )}
+                                    </Form>
+                                </li>
+                            ))}
+                        </ul>
+                    </section>
+                ) : null}
+
                 {can_manage ? (
                     <section className="rounded-lg border border-border bg-card p-5 shadow-xs">
                         <h2 className="text-sm font-semibold">Workflow</h2>
                         <p className="mt-1 text-sm text-muted-foreground">
-                            Track ownership and closure here. Execution still
-                            happens in WHMCS.
+                            Track ownership and closure here. Allowlisted Safe
+                            Actions apply from the WHMCS addon after approval.
                         </p>
                         <Form
                             {...updateFinding.form(finding.id)}

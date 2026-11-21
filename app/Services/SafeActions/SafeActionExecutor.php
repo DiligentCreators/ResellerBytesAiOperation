@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Models\WhmcsIntegration;
 use App\Services\Audit\AuditEventWriter;
 use App\Services\Diagnostics\FindingPlaybookBuilder;
+use App\Services\Diagnostics\FindingWorkflowService;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 use RuntimeException;
@@ -111,7 +112,13 @@ class SafeActionExecutor
                 'occurred_at' => now(),
             ]);
 
-            return $this->execute($locked->fresh() ?? $locked, $definition);
+            $fresh = $locked->fresh() ?? $locked;
+
+            if (($definition['execution_target'] ?? 'platform') === 'addon') {
+                return $this->queueForAddon($fresh, $definition);
+            }
+
+            return $this->execute($fresh, $definition);
         });
     }
 
@@ -124,6 +131,189 @@ class SafeActionExecutor
      *     requires_password_confirm: bool,
      *     requires_finding: bool,
      *     auto_verify: bool,
+     *     execution_target?: string,
+     *     entitlement: string
+     * }  $definition
+     */
+    private function queueForAddon(SafeActionExecution $execution, array $definition): SafeActionExecution
+    {
+        $execution->forceFill([
+            'status' => SafeActionExecution::STATUS_AWAITING_AGENT,
+            'result' => [
+                'summary' => 'Approved and waiting for the WHMCS addon to apply this allowlisted action.',
+                'instructions' => [
+                    'Open Addons → ResellerBytes AI Operations in WHMCS.',
+                    'Click “Apply approved Safe Actions”.',
+                    'The addon applies only allowlisted keys, then submits a fresh diagnostic snapshot.',
+                ],
+                'addon_path' => 'addonmodules.php?module=resellerbytes_ai_ops',
+                'execution_target' => 'addon',
+            ],
+        ])->save();
+
+        if (in_array($execution->action_key, ['pull_and_run_diagnostic_collect', 'request_diagnostic_collect'], true)) {
+            $execution->loadMissing('integration');
+            $execution->integration?->forceFill([
+                'pending_diagnostic_collect_at' => now(),
+                'pending_diagnostic_collect_execution_id' => $execution->id,
+            ])->save();
+        }
+
+        $this->audit->append([
+            'actor_type' => 'user',
+            'actor_id' => (string) $execution->approved_by_user_id,
+            'tenant_id' => $execution->tenant_id,
+            'event_type' => 'safe_action.awaiting_agent',
+            'subject_type' => 'safe_action_execution',
+            'subject_id' => $execution->id,
+            'metadata' => [
+                'action_key' => $execution->action_key,
+                'risk_level' => $definition['risk_level'],
+            ],
+            'occurred_at' => now(),
+        ]);
+
+        return $execution->fresh() ?? $execution;
+    }
+
+    /**
+     * @param  array<string, mixed>  $evidence
+     */
+    public function recordAddonResult(
+        SafeActionExecution $execution,
+        WhmcsIntegration $integration,
+        string $status,
+        string $summary,
+        array $evidence = [],
+        ?string $errorCode = null,
+    ): SafeActionExecution {
+        return DB::transaction(function () use ($execution, $integration, $status, $summary, $evidence, $errorCode): SafeActionExecution {
+            /** @var SafeActionExecution $locked */
+            $locked = SafeActionExecution::query()->whereKey($execution->id)->lockForUpdate()->firstOrFail();
+
+            if ($locked->integration_id !== $integration->id) {
+                throw new RuntimeException('Safe action does not belong to this integration.');
+            }
+
+            if ($locked->status !== SafeActionExecution::STATUS_AWAITING_AGENT) {
+                throw new RuntimeException('Only awaiting-agent safe actions can receive addon results.');
+            }
+
+            if ($status === 'success') {
+                $locked->forceFill([
+                    'status' => SafeActionExecution::STATUS_VERIFIED,
+                    'result' => [
+                        'summary' => $summary,
+                        'evidence' => $evidence,
+                        'applied_by' => 'whmcs_addon',
+                    ],
+                    'after_evidence' => $evidence,
+                    'executed_at' => now(),
+                    'verified_at' => now(),
+                ])->save();
+
+                if ($integration->pending_diagnostic_collect_execution_id === $locked->id) {
+                    $integration->forceFill([
+                        'pending_diagnostic_collect_at' => null,
+                        'pending_diagnostic_collect_execution_id' => null,
+                    ])->save();
+                }
+
+                $this->maybeResolveFinding($locked, $evidence);
+
+                $this->audit->append([
+                    'actor_type' => 'integration',
+                    'actor_id' => $integration->id,
+                    'tenant_id' => $locked->tenant_id,
+                    'event_type' => 'safe_action.verified',
+                    'subject_type' => 'safe_action_execution',
+                    'subject_id' => $locked->id,
+                    'metadata' => [
+                        'action_key' => $locked->action_key,
+                        'summary' => $summary,
+                    ],
+                    'occurred_at' => now(),
+                ]);
+            } else {
+                $locked->forceFill([
+                    'status' => SafeActionExecution::STATUS_FAILED,
+                    'result' => [
+                        'summary' => $summary,
+                        'error_code' => $errorCode ?? 'addon_apply_failed',
+                        'evidence' => $evidence,
+                        'applied_by' => 'whmcs_addon',
+                    ],
+                    'after_evidence' => $evidence,
+                    'executed_at' => now(),
+                ])->save();
+
+                $this->audit->append([
+                    'actor_type' => 'integration',
+                    'actor_id' => $integration->id,
+                    'tenant_id' => $locked->tenant_id,
+                    'event_type' => 'safe_action.failed',
+                    'subject_type' => 'safe_action_execution',
+                    'subject_id' => $locked->id,
+                    'metadata' => [
+                        'action_key' => $locked->action_key,
+                        'error_code' => $errorCode ?? 'addon_apply_failed',
+                    ],
+                    'occurred_at' => now(),
+                ]);
+            }
+
+            return $locked->fresh() ?? $locked;
+        });
+    }
+
+    /**
+     * @param  array<string, mixed>  $evidence
+     */
+    private function maybeResolveFinding(SafeActionExecution $execution, array $evidence): void
+    {
+        if ($execution->finding_id === null) {
+            return;
+        }
+
+        $finding = DiagnosticFinding::query()->find($execution->finding_id);
+        if ($finding === null || ! in_array($finding->status, [
+            DiagnosticFinding::STATUS_OPEN,
+            DiagnosticFinding::STATUS_IN_PROGRESS,
+        ], true)) {
+            return;
+        }
+
+        $fixed = ($evidence['remediation_applied'] ?? false) === true
+            || ($evidence['configuration_file_writable'] ?? null) === false
+            || ($evidence['error_display_disabled'] ?? null) === true;
+
+        if (! $fixed) {
+            return;
+        }
+
+        $actorId = $execution->approved_by_user_id ?? $execution->requested_by_user_id;
+        $actor = User::query()->find($actorId);
+        if ($actor === null) {
+            return;
+        }
+
+        app(FindingWorkflowService::class)->update($finding, $actor, [
+            'status' => DiagnosticFinding::STATUS_RESOLVED,
+            'assignee_user_id' => $finding->assignee_user_id,
+            'status_note' => 'Auto-resolved after verified Safe Action '.$execution->action_key.'.',
+        ]);
+    }
+
+    /**
+     * @param  array{
+     *     key: string,
+     *     label: string,
+     *     description: string,
+     *     risk_level: string,
+     *     requires_password_confirm: bool,
+     *     requires_finding: bool,
+     *     auto_verify: bool,
+     *     execution_target?: string,
      *     entitlement: string
      * }  $definition
      */
@@ -136,7 +326,6 @@ class SafeActionExecutor
                 'health_version_ping' => $this->runHealthVersionPing($execution),
                 'permissions_audit_report' => $this->runPermissionsAudit($execution),
                 'whmcs_admin_deep_link' => $this->runDeepLink($execution),
-                'request_diagnostic_collect' => $this->runCollectRequest($execution),
                 default => throw new InvalidArgumentException('Action is not on the Safe Action allowlist.'),
             };
 
@@ -208,7 +397,10 @@ class SafeActionExecutor
                 ->lockForUpdate()
                 ->first();
 
-            if ($execution === null || $execution->status !== SafeActionExecution::STATUS_COMPLETED) {
+            if ($execution === null || ! in_array($execution->status, [
+                SafeActionExecution::STATUS_COMPLETED,
+                SafeActionExecution::STATUS_AWAITING_AGENT,
+            ], true)) {
                 return;
             }
 
@@ -411,34 +603,6 @@ class SafeActionExecutor
             'after_evidence' => [
                 'path_count' => count($paths),
                 'finding_id' => $execution->finding_id,
-            ],
-        ];
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function runCollectRequest(SafeActionExecution $execution): array
-    {
-        $integration = $execution->integration;
-        $integration->forceFill([
-            'pending_diagnostic_collect_at' => now(),
-            'pending_diagnostic_collect_execution_id' => $execution->id,
-        ])->save();
-
-        return [
-            'summary' => 'Diagnostic collect requested. Complete the read-only collect in the WHMCS addon, then this action will auto-verify.',
-            'instructions' => [
-                'Sign in to WHMCS as an administrator.',
-                'Open Addons → ResellerBytes AI Operations.',
-                'Click “Run diagnostics” to submit a fresh signed snapshot.',
-                'Return here — verification completes when the new snapshot is received.',
-            ],
-            'addon_path' => 'addonmodules.php?module=resellerbytes_ai_ops',
-            'pending_at' => now()->toIso8601String(),
-            'note' => 'This platform cannot push into WHMCS. Collect remains human-triggered and read-only.',
-            'after_evidence' => [
-                'pending_diagnostic_collect_at' => now()->toIso8601String(),
             ],
         ];
     }

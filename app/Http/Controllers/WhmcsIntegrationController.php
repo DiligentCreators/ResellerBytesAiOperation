@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\RotateWhmcsIntegrationRequest;
 use App\Http\Requests\StoreWhmcsIntegrationRequest;
+use App\Http\Requests\UpdateWhmcsIntegrationHostConnectionRequest;
 use App\Models\WhmcsIntegration;
+use App\Services\Audit\AuditEventWriter;
 use App\Services\Tenancy\TenantRecordQuery;
 use App\Services\Tenancy\TenantRoleAuthorization;
 use App\Services\Whmcs\WhmcsIntegrationProvisioner;
@@ -33,6 +35,16 @@ class WhmcsIntegrationController extends Controller
                 'last_seen_at' => $integration->last_seen_at?->toIso8601String(),
                 'diagnostic_runs_count' => $integration->diagnostic_runs_count,
                 'tenant_id' => $integration->tenant_id,
+                'host_connection_configured' => $integration->hasHostConnection(),
+                'host_connection_summary' => $integration->hasHostConnection()
+                    ? [
+                        'protocol' => (string) ($integration->host_connection['protocol'] ?? 'ftp'),
+                        'host' => (string) ($integration->host_connection['host'] ?? ''),
+                        'port' => (int) ($integration->host_connection['port'] ?? 21),
+                        'username' => (string) ($integration->host_connection['username'] ?? ''),
+                        'remote_whmcs_root' => (string) ($integration->host_connection['remote_whmcs_root'] ?? ''),
+                    ]
+                    : null,
             ]);
 
         return Inertia::render('integrations/index', [
@@ -109,5 +121,69 @@ class WhmcsIntegrationController extends Controller
                 'name' => $result['integration']->name,
                 'action' => 'rotated',
             ]);
+    }
+
+    public function updateHostConnection(
+        UpdateWhmcsIntegrationHostConnectionRequest $request,
+        WhmcsIntegration $integration,
+        AuditEventWriter $audit,
+    ): RedirectResponse {
+        $user = $request->user();
+
+        $visible = app(TenantRecordQuery::class)->integrations($user)
+            ->whereKey($integration->id)
+            ->exists();
+
+        if (! $visible || $integration->tenant_id === null) {
+            abort(404);
+        }
+
+        try {
+            app(TenantRoleAuthorization::class)->require($user, $integration->tenant_id, 'integrations.manage');
+        } catch (AuthorizationException) {
+            abort(403);
+        }
+
+        if ($request->boolean('clear')) {
+            $integration->forceFill(['host_connection' => null])->save();
+            $event = 'integration.host_connection.cleared';
+            $status = 'Host credentials removed.';
+        } else {
+            $validated = $request->validated();
+            $root = str_replace('\\', '/', (string) $validated['remote_whmcs_root']);
+            $root = rtrim($root, '/');
+            if ($root === '' || str_contains($root, '..')) {
+                return back()->withErrors(['remote_whmcs_root' => 'Enter an absolute WHMCS root path without .. segments.']);
+            }
+
+            $integration->forceFill([
+                'host_connection' => [
+                    'protocol' => $validated['protocol'],
+                    'host' => $validated['host'],
+                    'port' => (int) $validated['port'],
+                    'username' => $validated['username'],
+                    'password' => $validated['password'],
+                    'remote_whmcs_root' => $root,
+                ],
+            ])->save();
+            $event = 'integration.host_connection.updated';
+            $status = 'Host credentials saved for allowlisted Safe Action fallbacks.';
+        }
+
+        $audit->append([
+            'actor_type' => 'user',
+            'actor_id' => (string) $user->id,
+            'tenant_id' => $integration->tenant_id,
+            'event_type' => $event,
+            'subject_type' => 'whmcs_integration',
+            'subject_id' => $integration->id,
+            'metadata' => [
+                'configured' => $integration->hasHostConnection(),
+            ],
+            'ip_address' => $request->ip(),
+            'occurred_at' => now(),
+        ]);
+
+        return back()->with('status', $status);
     }
 }

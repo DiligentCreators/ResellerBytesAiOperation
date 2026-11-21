@@ -36,6 +36,8 @@ class SafeActionExecution extends Model
 
     public const STATUS_APPROVED = 'approved';
 
+    public const STATUS_AWAITING_AGENT = 'awaiting_agent';
+
     public const STATUS_COMPLETED = 'completed';
 
     public const STATUS_VERIFIED = 'verified';
@@ -47,6 +49,7 @@ class SafeActionExecution extends Model
     public const STATUSES = [
         self::STATUS_PENDING_APPROVAL,
         self::STATUS_APPROVED,
+        self::STATUS_AWAITING_AGENT,
         self::STATUS_COMPLETED,
         self::STATUS_VERIFIED,
         self::STATUS_FAILED,

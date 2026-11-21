@@ -26,6 +26,7 @@ type DashboardStats = {
     total_runs: number;
     open_findings: number;
     critical_findings: number;
+    awaiting_safe_actions?: number;
 };
 
 type DiagnosticRun = {
@@ -250,9 +251,9 @@ export default function Dashboard({
                         icon={AlertTriangle}
                     />
                     <StatCard
-                        label="Critical findings"
-                        value={stats.critical_findings}
-                        description="Open findings requiring priority review"
+                        label="Safe Actions awaiting apply"
+                        value={stats.awaiting_safe_actions ?? 0}
+                        description="Approved remediations waiting in the WHMCS addon"
                         icon={ShieldAlert}
                     />
                 </div>

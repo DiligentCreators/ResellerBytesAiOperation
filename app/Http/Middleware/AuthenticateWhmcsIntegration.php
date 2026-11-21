@@ -20,7 +20,19 @@ class AuthenticateWhmcsIntegration
 
     public function handle(Request $request, Closure $next): Response
     {
-        if ($request->query->count() > 0 || ! $request->isJson() || strlen($request->getContent()) > self::MAX_BODY_BYTES) {
+        if ($request->query->count() > 0) {
+            return response()->json(['message' => 'Invalid request.'], 400);
+        }
+
+        $content = $request->getContent();
+        $isGet = $request->isMethod('GET');
+
+        if ($isGet) {
+            // Signed GET pulls may send an empty body or "{}".
+            if ($content !== '' && (! $request->isJson() || strlen($content) > self::MAX_BODY_BYTES)) {
+                return response()->json(['message' => 'Invalid request.'], 400);
+            }
+        } elseif (! $request->isJson() || strlen($content) > self::MAX_BODY_BYTES) {
             return response()->json(['message' => 'Invalid request.'], 400);
         }
 

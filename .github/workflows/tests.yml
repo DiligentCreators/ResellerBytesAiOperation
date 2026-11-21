@@ -38,6 +38,7 @@ jobs:
           php whmcs-addon/tests/credentials_file_test.php
           php whmcs-addon/tests/diagnostic_collector_test.php
           php whmcs-addon/tests/signed_api_client_test.php
+          php whmcs-addon/tests/remediation_runner_test.php
 
   ci:
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false

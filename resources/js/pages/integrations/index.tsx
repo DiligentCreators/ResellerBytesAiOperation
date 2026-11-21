@@ -22,6 +22,14 @@ type Integration = {
     last_seen_at: string | null;
     diagnostic_runs_count: number;
     tenant_id: string | null;
+    host_connection_configured?: boolean;
+    host_connection_summary?: {
+        protocol: string;
+        host: string;
+        port: number;
+        username: string;
+        remote_whmcs_root: string;
+    } | null;
 };
 
 type Props = {
@@ -433,6 +441,207 @@ export default function IntegrationsIndex({ integrations }: Props) {
                         <Pagination links={integrations.links} />
                     </div>
                 )}
+
+                {canManage && integrations.data.length > 0 ? (
+                    <section className="space-y-4">
+                        <PageHeader
+                            title="Host credentials (optional)"
+                            description="Store encrypted FTP credentials once for allowlisted Safe Action fallbacks when the WHMCS web user cannot chmod or write .user.ini. Passwords are never included in diagnostic snapshots."
+                        />
+                        {integrations.data.map((item) =>
+                            item.tenant_id && item.status === 'active' ? (
+                                <div
+                                    key={`host-${item.id}`}
+                                    className="rounded-lg border border-border bg-card p-5 shadow-xs"
+                                >
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                        <h3 className="text-sm font-semibold">
+                                            {item.name}
+                                        </h3>
+                                        <StatusBadge
+                                            status={
+                                                item.host_connection_configured
+                                                    ? 'configured'
+                                                    : 'missing'
+                                            }
+                                        />
+                                    </div>
+                                    {item.host_connection_summary ? (
+                                        <p className="mt-2 text-sm text-muted-foreground">
+                                            {item.host_connection_summary.protocol.toUpperCase()}{' '}
+                                            {item.host_connection_summary.username}
+                                            @{item.host_connection_summary.host}:
+                                            {item.host_connection_summary.port} →{' '}
+                                            {
+                                                item.host_connection_summary
+                                                    .remote_whmcs_root
+                                            }
+                                        </p>
+                                    ) : null}
+                                    <Form
+                                        action={`/integrations/${item.id}/host-connection`}
+                                        method="put"
+                                        className="mt-4 grid gap-3 sm:grid-cols-2"
+                                        options={{ preserveScroll: true }}
+                                    >
+                                        {({ processing, errors }) => (
+                                            <>
+                                                <div className="space-y-1.5">
+                                                    <Label htmlFor={`protocol-${item.id}`}>
+                                                        Protocol
+                                                    </Label>
+                                                    <select
+                                                        id={`protocol-${item.id}`}
+                                                        name="protocol"
+                                                        defaultValue={
+                                                            item
+                                                                .host_connection_summary
+                                                                ?.protocol ??
+                                                            'ftp'
+                                                        }
+                                                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs"
+                                                    >
+                                                        <option value="ftp">
+                                                            FTP
+                                                        </option>
+                                                        <option value="ftps">
+                                                            FTPS
+                                                        </option>
+                                                    </select>
+                                                </div>
+                                                <div className="space-y-1.5">
+                                                    <Label htmlFor={`host-${item.id}`}>
+                                                        Host
+                                                    </Label>
+                                                    <Input
+                                                        id={`host-${item.id}`}
+                                                        name="host"
+                                                        defaultValue={
+                                                            item
+                                                                .host_connection_summary
+                                                                ?.host ?? ''
+                                                        }
+                                                        required
+                                                    />
+                                                    <InputError
+                                                        message={errors.host}
+                                                    />
+                                                </div>
+                                                <div className="space-y-1.5">
+                                                    <Label htmlFor={`port-${item.id}`}>
+                                                        Port
+                                                    </Label>
+                                                    <Input
+                                                        id={`port-${item.id}`}
+                                                        name="port"
+                                                        type="number"
+                                                        defaultValue={
+                                                            item
+                                                                .host_connection_summary
+                                                                ?.port ?? 21
+                                                        }
+                                                        required
+                                                    />
+                                                </div>
+                                                <div className="space-y-1.5">
+                                                    <Label
+                                                        htmlFor={`username-${item.id}`}
+                                                    >
+                                                        Username
+                                                    </Label>
+                                                    <Input
+                                                        id={`username-${item.id}`}
+                                                        name="username"
+                                                        defaultValue={
+                                                            item
+                                                                .host_connection_summary
+                                                                ?.username ?? ''
+                                                        }
+                                                        required
+                                                    />
+                                                </div>
+                                                <div className="space-y-1.5 sm:col-span-2">
+                                                    <Label
+                                                        htmlFor={`password-${item.id}`}
+                                                    >
+                                                        Password
+                                                    </Label>
+                                                    <Input
+                                                        id={`password-${item.id}`}
+                                                        name="password"
+                                                        type="password"
+                                                        autoComplete="new-password"
+                                                        required
+                                                    />
+                                                </div>
+                                                <div className="space-y-1.5 sm:col-span-2">
+                                                    <Label
+                                                        htmlFor={`root-${item.id}`}
+                                                    >
+                                                        Absolute WHMCS root on
+                                                        server
+                                                    </Label>
+                                                    <Input
+                                                        id={`root-${item.id}`}
+                                                        name="remote_whmcs_root"
+                                                        placeholder="/home/user/public_html"
+                                                        defaultValue={
+                                                            item
+                                                                .host_connection_summary
+                                                                ?.remote_whmcs_root ??
+                                                            ''
+                                                        }
+                                                        required
+                                                    />
+                                                    <InputError
+                                                        message={
+                                                            errors.remote_whmcs_root
+                                                        }
+                                                    />
+                                                </div>
+                                                <div className="flex flex-wrap gap-2 sm:col-span-2">
+                                                    <Button
+                                                        type="submit"
+                                                        size="sm"
+                                                        disabled={processing}
+                                                    >
+                                                        Save host credentials
+                                                    </Button>
+                                                </div>
+                                            </>
+                                        )}
+                                    </Form>
+                                    {item.host_connection_configured ? (
+                                        <Form
+                                            action={`/integrations/${item.id}/host-connection`}
+                                            method="put"
+                                            className="mt-3"
+                                            options={{ preserveScroll: true }}
+                                        >
+                                            {({ processing }) => (
+                                                <>
+                                                    <input
+                                                        type="hidden"
+                                                        name="clear"
+                                                        value="1"
+                                                    />
+                                                    <Button
+                                                        type="submit"
+                                                        variant="outline"
+                                                        size="sm"
+                                                        disabled={processing}
+                                                    >
+                                                        Remove host credentials
+                                                    </Button>
+                                                </>
+                                            )}
+                                        </Form>
+                                    ) : null}
+                                </div>
+                            ) : null,
+                        )}
+                    </section>
+                ) : null}
             </div>
         </>
     );

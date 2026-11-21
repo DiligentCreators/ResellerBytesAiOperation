@@ -8,12 +8,14 @@ class SafeActionRegistry
 {
     /**
      * @return array<string, array{
+     *     key: string,
      *     label: string,
      *     description: string,
      *     risk_level: string,
      *     requires_password_confirm: bool,
      *     requires_finding: bool,
      *     auto_verify: bool,
+     *     execution_target: string,
      *     entitlement: string
      * }>
      */
@@ -39,6 +41,7 @@ class SafeActionRegistry
      *     requires_password_confirm: bool,
      *     requires_finding: bool,
      *     auto_verify: bool,
+     *     execution_target: string,
      *     entitlement: string
      * }
      */
@@ -59,6 +62,11 @@ class SafeActionRegistry
         return is_array($actions) && array_key_exists($actionKey, $actions);
     }
 
+    public function isAddonExecuted(string $actionKey): bool
+    {
+        return $this->get($actionKey)['execution_target'] === 'addon';
+    }
+
     /**
      * @param  array<string, mixed>  $definition
      * @return array{
@@ -69,11 +77,17 @@ class SafeActionRegistry
      *     requires_password_confirm: bool,
      *     requires_finding: bool,
      *     auto_verify: bool,
+     *     execution_target: string,
      *     entitlement: string
      * }
      */
     private function normalize(string $key, array $definition): array
     {
+        $target = (string) ($definition['execution_target'] ?? 'platform');
+        if (! in_array($target, ['platform', 'addon'], true)) {
+            $target = 'platform';
+        }
+
         return [
             'key' => $key,
             'label' => (string) ($definition['label'] ?? $key),
@@ -82,6 +96,7 @@ class SafeActionRegistry
             'requires_password_confirm' => (bool) ($definition['requires_password_confirm'] ?? false),
             'requires_finding' => (bool) ($definition['requires_finding'] ?? false),
             'auto_verify' => (bool) ($definition['auto_verify'] ?? true),
+            'execution_target' => $target,
             'entitlement' => (string) ($definition['entitlement'] ?? 'safe_actions.enabled'),
         ];
     }

@@ -7,11 +7,9 @@ use RuntimeException;
 
 final class SignedApiClient
 {
-    private const ENDPOINT = 'https://ops.resellerbytes.com/api/v1/whmcs/diagnostic-snapshots';
+    private const BASE_URL = 'https://ops.resellerbytes.com';
 
-    private const REQUEST_PATH = '/api/v1/whmcs/diagnostic-snapshots';
-
-    private const ADDON_VERSION = '1.0.0';
+    public const ADDON_VERSION = '1.1.0';
 
     private const MAX_RESPONSE_BYTES = 16384;
 
@@ -22,10 +20,6 @@ final class SignedApiClient
      */
     public function submit(array $credentials, array $diagnostics): array
     {
-        if (! function_exists('curl_init')) {
-            throw new RuntimeException('curl_extension_unavailable');
-        }
-
         $snapshot = [
             'snapshot_uuid' => $this->uuidV4(),
             'schema_version' => '1.0',
@@ -35,41 +29,134 @@ final class SignedApiClient
         ];
 
         try {
-            $body = json_encode($snapshot, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
-        } catch (JsonException $exception) {
-            throw new RuntimeException('snapshot_encoding_failed');
+            $response = $this->request($credentials, 'POST', '/api/v1/whmcs/diagnostic-snapshots', $snapshot);
+        } catch (RuntimeException $exception) {
+            if ($exception->getMessage() === 'http_response_invalid') {
+                throw new RuntimeException('diagnostic_response_invalid');
+            }
+
+            throw new RuntimeException('diagnostic_submission_failed');
+        }
+
+        if (! in_array($response['http_status'], [200, 202], true)
+            || ! isset($response['json']['data']['duplicate'])
+            || ! is_bool($response['json']['data']['duplicate'])) {
+            throw new RuntimeException('diagnostic_submission_failed');
+        }
+
+        return [
+            'http_status' => $response['http_status'],
+            'duplicate' => $response['json']['data']['duplicate'],
+        ];
+    }
+
+    /**
+     * @param  array{integration_id: string, secret: string}  $credentials
+     * @return array{actions: list<array<string, mixed>>, host_credentials_configured: bool}
+     */
+    public function listPendingSafeActions(array $credentials): array
+    {
+        $response = $this->request($credentials, 'GET', '/api/v1/whmcs/safe-actions/pending', null);
+
+        if ($response['http_status'] !== 200
+            || ! isset($response['json']['data']['actions'])
+            || ! is_array($response['json']['data']['actions'])) {
+            throw new RuntimeException('pending_actions_fetch_failed');
+        }
+
+        return [
+            'actions' => array_values($response['json']['data']['actions']),
+            'host_credentials_configured' => (bool) ($response['json']['data']['host_credentials_configured'] ?? false),
+        ];
+    }
+
+    /**
+     * @param  array{integration_id: string, secret: string}  $credentials
+     * @param  array<string, mixed>  $payload
+     * @return array{id: string, status: string}
+     */
+    public function reportSafeActionResult(array $credentials, string $executionId, array $payload): array
+    {
+        if (! preg_match('/\A[0-9a-fA-F-]{36}\z/', $executionId)) {
+            throw new RuntimeException('invalid_execution_id');
+        }
+
+        $response = $this->request(
+            $credentials,
+            'POST',
+            '/api/v1/whmcs/safe-actions/'.$executionId.'/result',
+            $payload,
+        );
+
+        if ($response['http_status'] !== 200
+            || ! isset($response['json']['data']['id'], $response['json']['data']['status'])
+            || ! is_string($response['json']['data']['id'])
+            || ! is_string($response['json']['data']['status'])) {
+            throw new RuntimeException('safe_action_result_failed');
+        }
+
+        return [
+            'id' => $response['json']['data']['id'],
+            'status' => $response['json']['data']['status'],
+        ];
+    }
+
+    /**
+     * @param  array{integration_id: string, secret: string}  $credentials
+     * @param  array<string, mixed>|null  $jsonBody
+     * @return array{http_status: int, json: array<string, mixed>}
+     */
+    public function request(array $credentials, string $method, string $path, ?array $jsonBody): array
+    {
+        if (! function_exists('curl_init')) {
+            throw new RuntimeException('curl_extension_unavailable');
+        }
+
+        $method = strtoupper($method);
+        $body = '';
+
+        if ($jsonBody !== null) {
+            try {
+                $body = json_encode($jsonBody, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
+            } catch (JsonException $exception) {
+                throw new RuntimeException('request_encoding_failed');
+            }
+        } elseif ($method === 'GET') {
+            $body = '';
+        } else {
+            $body = '{}';
         }
 
         $timestamp = (string) time();
         $nonce = bin2hex(random_bytes(32));
         $canonicalMessage = implode("\n", [
-            'POST',
-            self::REQUEST_PATH,
+            $method,
+            $path,
             $timestamp,
             $nonce,
             hash('sha256', $body),
         ]);
 
         $signature = hash_hmac('sha256', $canonicalMessage, $credentials['secret']);
-        $handle = curl_init(self::ENDPOINT);
+        $url = self::BASE_URL.$path;
+        $handle = curl_init($url);
 
         if ($handle === false) {
             throw new RuntimeException('http_client_initialization_failed');
         }
 
         $responseBody = '';
+        $headers = [
+            'Accept: application/json',
+            'Content-Type: application/json',
+            'X-RB-Integration: '.$credentials['integration_id'],
+            'X-RB-Timestamp: '.$timestamp,
+            'X-RB-Nonce: '.$nonce,
+            'X-RB-Signature: '.$signature,
+        ];
 
         $options = [
-            CURLOPT_POST => true,
-            CURLOPT_POSTFIELDS => $body,
-            CURLOPT_HTTPHEADER => [
-                'Accept: application/json',
-                'Content-Type: application/json',
-                'X-RB-Integration: '.$credentials['integration_id'],
-                'X-RB-Timestamp: '.$timestamp,
-                'X-RB-Nonce: '.$nonce,
-                'X-RB-Signature: '.$signature,
-            ],
+            CURLOPT_HTTPHEADER => $headers,
             CURLOPT_RETURNTRANSFER => false,
             CURLOPT_WRITEFUNCTION => static function ($handle, string $chunk) use (&$responseBody): int {
                 if (strlen($responseBody) + strlen($chunk) > self::MAX_RESPONSE_BYTES) {
@@ -81,13 +168,24 @@ final class SignedApiClient
                 return strlen($chunk);
             },
             CURLOPT_CONNECTTIMEOUT => 5,
-            CURLOPT_TIMEOUT => 15,
+            CURLOPT_TIMEOUT => 30,
             CURLOPT_FOLLOWLOCATION => false,
             CURLOPT_SSL_VERIFYPEER => true,
             CURLOPT_SSL_VERIFYHOST => 2,
             CURLOPT_PROTOCOLS => CURLPROTO_HTTPS,
             CURLOPT_USERAGENT => 'ResellerBytes-AI-Ops-WHMCS/'.self::ADDON_VERSION,
+            CURLOPT_CUSTOMREQUEST => $method,
         ];
+
+        if ($method === 'GET') {
+            $options[CURLOPT_HTTPGET] = true;
+            if ($body !== '') {
+                $options[CURLOPT_POSTFIELDS] = $body;
+            }
+        } else {
+            $options[CURLOPT_POST] = true;
+            $options[CURLOPT_POSTFIELDS] = $body;
+        }
 
         if (! curl_setopt_array($handle, $options)) {
             curl_close($handle);
@@ -99,25 +197,23 @@ final class SignedApiClient
         $httpStatus = (int) curl_getinfo($handle, CURLINFO_HTTP_CODE);
         curl_close($handle);
 
-        if ($executed !== true || $responseBody === '' || ! in_array($httpStatus, [200, 202], true)) {
-            throw new RuntimeException('diagnostic_submission_failed');
+        if ($executed !== true || $responseBody === '') {
+            throw new RuntimeException('http_request_failed');
         }
 
         try {
-            $response = json_decode($responseBody, true, 8, JSON_THROW_ON_ERROR);
+            $response = json_decode($responseBody, true, 16, JSON_THROW_ON_ERROR);
         } catch (JsonException $exception) {
-            throw new RuntimeException('diagnostic_response_invalid');
+            throw new RuntimeException('http_response_invalid');
         }
 
-        if (! is_array($response)
-            || ! isset($response['data']['duplicate'])
-            || ! is_bool($response['data']['duplicate'])) {
-            throw new RuntimeException('diagnostic_response_invalid');
+        if (! is_array($response)) {
+            throw new RuntimeException('http_response_invalid');
         }
 
         return [
             'http_status' => $httpStatus,
-            'duplicate' => $response['data']['duplicate'],
+            'json' => $response,
         ];
     }
 

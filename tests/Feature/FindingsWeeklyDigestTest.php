@@ -64,8 +64,10 @@ it('builds a weekly digest payload for a tenant', function () {
     expect($digest['tenant_name'])->toBe('Digest Workspace')
         ->and($digest['open'])->toBe(1)
         ->and($digest['critical'])->toBe(1)
+        ->and($digest['awaiting_safe_actions'])->toBe(0)
         ->and($digest['top_findings'][0]['title'])->toBe('TLS cipher suite outdated')
-        ->and($digest['findings_url'])->toContain('/findings');
+        ->and($digest['findings_url'])->toContain('/findings')
+        ->and($digest['safe_actions_url'])->toContain('/safe-actions');
 
     $mailable = new FindingsWeeklyDigestMail($digest);
     expect($mailable->envelope()->subject)->toContain('1 active finding')

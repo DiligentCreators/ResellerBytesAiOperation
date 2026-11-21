@@ -15,7 +15,7 @@ class WhmcsAddonSetupController extends Controller
         $signingConfigured = $signer->isConfigured();
 
         return Inertia::render('whmcs-addon/setup', [
-            'addonVersion' => config('services.whmcs_addon.version', '1.0.0'),
+            'addonVersion' => config('services.whmcs_addon.version', '1.1.0'),
             'downloadAvailable' => $zipAvailable && $signingConfigured,
             'downloadUnavailableReason' => ! $zipAvailable
                 ? 'PHP ZIP extension must be enabled by the platform before the addon can be downloaded.'

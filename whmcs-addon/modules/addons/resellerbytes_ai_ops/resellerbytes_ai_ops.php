@@ -2,8 +2,8 @@
 
 use ResellerBytesAiOps\CredentialsFile;
 use ResellerBytesAiOps\DiagnosticCollector;
+use ResellerBytesAiOps\RemediationRunner;
 use ResellerBytesAiOps\SignedApiClient;
-use Throwable;
 
 if (! defined('WHMCS')) {
     exit('This file cannot be accessed directly');
@@ -12,13 +12,14 @@ if (! defined('WHMCS')) {
 require_once __DIR__.'/lib/CredentialsFile.php';
 require_once __DIR__.'/lib/DiagnosticCollector.php';
 require_once __DIR__.'/lib/SignedApiClient.php';
+require_once __DIR__.'/lib/RemediationRunner.php';
 
 function resellerbytes_ai_ops_config(): array
 {
     return [
         'name' => 'ResellerBytes AI Operations',
-        'description' => 'Collects and submits allowlisted, read-only WHMCS diagnostics to ResellerBytes AI Operations.',
-        'version' => '1.0.0',
+        'description' => 'Collects read-only WHMCS diagnostics and applies human-approved allowlisted Safe Actions for ResellerBytes AI Operations.',
+        'version' => SignedApiClient::ADDON_VERSION,
         'author' => 'Diligent Creators Pvt. Ltd.',
         'language' => 'english',
         'fields' => [
@@ -80,8 +81,66 @@ function resellerbytes_ai_ops_output(array $vars): void
                 : 'Diagnostic snapshot submitted successfully. No WHMCS business data was changed.';
             $messageType = 'success';
         } catch (Throwable $exception) {
-            // Never display paths, secrets, remote response bodies, or exception details.
             $message = 'Diagnostics were not submitted. Verify the credentials file path, file permissions, HTTPS connectivity, and API configuration.';
+            $messageType = 'danger';
+        }
+    }
+
+    if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['apply_safe_actions'])) {
+        try {
+            $credentials = CredentialsFile::load(
+                (string) ($vars['credentials_file'] ?? ''),
+                defined('ROOTDIR') ? (string) ROOTDIR : '',
+                (string) ($_SERVER['DOCUMENT_ROOT'] ?? ''),
+            );
+
+            $client = new SignedApiClient;
+            $pending = $client->listPendingSafeActions($credentials);
+            $runner = new RemediationRunner;
+            $applied = 0;
+            $failed = 0;
+
+            foreach ($pending['actions'] as $action) {
+                if (! is_array($action) || ! isset($action['id']) || ! is_string($action['id'])) {
+                    continue;
+                }
+
+                $result = $runner->apply($credentials, $action, $client);
+                $payload = [
+                    'status' => $result['status'],
+                    'summary' => $result['summary'],
+                    'evidence' => $result['evidence'],
+                ];
+                if (isset($result['error_code'])) {
+                    $payload['error_code'] = $result['error_code'];
+                }
+
+                $client->reportSafeActionResult($credentials, $action['id'], $payload);
+
+                if ($result['status'] === 'success') {
+                    $applied++;
+                    if (! in_array($action['action_key'] ?? '', [
+                        'pull_and_run_diagnostic_collect',
+                        'request_diagnostic_collect',
+                    ], true)) {
+                        // Fresh evidence after mutating remediations.
+                        $diagnostics = (new DiagnosticCollector)->collect();
+                        $client->submit($credentials, $diagnostics);
+                    }
+                } else {
+                    $failed++;
+                }
+            }
+
+            if ($applied === 0 && $failed === 0) {
+                $message = 'No approved Safe Actions are waiting for this installation.';
+                $messageType = 'info';
+            } else {
+                $message = 'Applied '.$applied.' Safe Action(s). Failed '.$failed.'.';
+                $messageType = $failed > 0 ? 'warning' : 'success';
+            }
+        } catch (Throwable $exception) {
+            $message = 'Approved Safe Actions could not be applied. Verify credentials, HTTPS connectivity, and that this addon version supports Safe Actions.';
             $messageType = 'danger';
         }
     }
@@ -113,7 +172,7 @@ function resellerbytes_ai_ops_output(array $vars): void
         $output .= implode('', [
             '<form method="post" action="',
             $escapedModuleLink,
-            '">',
+            '" style="display:inline-block;margin-right:8px;">',
             '<input type="hidden" name="token" value="',
             $token,
             '">',
@@ -121,6 +180,21 @@ function resellerbytes_ai_ops_output(array $vars): void
             'Run diagnostics once',
             '</button>',
             '</form>',
+        ]);
+
+        $tokenApply = htmlspecialchars((string) generate_token('plain'), ENT_QUOTES, 'UTF-8');
+        $output .= implode('', [
+            '<form method="post" action="',
+            $escapedModuleLink,
+            '" style="display:inline-block;">',
+            '<input type="hidden" name="token" value="',
+            $tokenApply,
+            '">',
+            '<button type="submit" name="apply_safe_actions" value="1" class="btn btn-success">',
+            'Apply approved Safe Actions',
+            '</button>',
+            '</form>',
+            '<p class="help-block" style="margin-top:12px;">Safe Actions must be requested and approved in ResellerBytes AI Operations first. This button only applies allowlisted, human-approved remediations for this installation.</p>',
         ]);
     }
 
