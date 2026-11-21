@@ -15,6 +15,7 @@ type Props = {
         tax_minor: number;
         amount_due_minor: number;
         line_items: Array<{ description: string; amount_minor: number }>;
+        credit_lines?: Array<{ description: string; amount_minor: number }>;
         billing_details: Record<string, string>;
         issued_at: string | null;
         paid_at: string | null;
@@ -106,21 +107,45 @@ export default function InvoicePrint({
                         ))}
                     </tbody>
                 </table>
-                <div className="mt-6 space-y-1 text-right text-sm">
-                    <p>
-                        Subtotal{' '}
-                        {formatMoney(invoice.subtotal_minor, invoice.currency)}
-                    </p>
-                    <p>
-                        Tax {formatMoney(invoice.tax_minor, invoice.currency)}
-                    </p>
-                    <p className="text-lg font-bold">
-                        Total{' '}
-                        {formatMoney(
-                            invoice.amount_due_minor,
-                            invoice.currency,
-                        )}
-                    </p>
+                <div className="mt-6 ml-auto w-full max-w-sm space-y-1 text-sm">
+                    <div className="flex justify-between gap-4">
+                        <span>Subtotal</span>
+                        <span className="tabular-nums">
+                            {formatMoney(
+                                invoice.subtotal_minor,
+                                invoice.currency,
+                            )}
+                        </span>
+                    </div>
+                    {(invoice.credit_lines ?? []).map((credit) => (
+                        <div
+                            key={credit.description}
+                            className="flex justify-between gap-4"
+                        >
+                            <span>{credit.description}</span>
+                            <span className="shrink-0 tabular-nums">
+                                {formatMoney(
+                                    credit.amount_minor,
+                                    invoice.currency,
+                                )}
+                            </span>
+                        </div>
+                    ))}
+                    <div className="flex justify-between gap-4">
+                        <span>Tax</span>
+                        <span className="tabular-nums">
+                            {formatMoney(invoice.tax_minor, invoice.currency)}
+                        </span>
+                    </div>
+                    <div className="flex justify-between gap-4 text-lg font-bold">
+                        <span>Total</span>
+                        <span className="tabular-nums">
+                            {formatMoney(
+                                invoice.amount_due_minor,
+                                invoice.currency,
+                            )}
+                        </span>
+                    </div>
                 </div>
                 <p className="mt-10 text-xs text-muted-foreground">
                     Issued{' '}

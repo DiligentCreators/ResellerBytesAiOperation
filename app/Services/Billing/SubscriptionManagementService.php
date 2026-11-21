@@ -333,7 +333,7 @@ class SubscriptionManagementService
             'provider_invoice_id' => 'inv_'.$provider.'_'.Str::lower(Str::random(18)),
             'status' => 'open',
             'currency' => $plan->currency,
-            'subtotal_minor' => $proration->totalDueMinor,
+            'subtotal_minor' => $proration->newPriceMinor,
             'tax_minor' => 0,
             'amount_due_minor' => $proration->totalDueMinor,
             'amount_paid_minor' => 0,
