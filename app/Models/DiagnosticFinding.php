@@ -16,6 +16,11 @@ use Illuminate\Support\Carbon;
  * @property string $diagnostic_run_id
  * @property string|null $tenant_id
  * @property string $fingerprint
+ * @property string|null $issue_key
+ * @property string $source
+ * @property int|null $affected_count
+ * @property string|null $fix_mode
+ * @property Carbon|null $ignored_until
  * @property string $category
  * @property string $severity
  * @property string $title
@@ -43,6 +48,10 @@ class DiagnosticFinding extends Model
 
     public const STATUS_ACCEPTED_RISK = 'accepted_risk';
 
+    public const SOURCE_AI = 'ai';
+
+    public const SOURCE_RULE = 'rule';
+
     public const STATUSES = [
         self::STATUS_OPEN,
         self::STATUS_IN_PROGRESS,
@@ -64,6 +73,11 @@ class DiagnosticFinding extends Model
         'diagnostic_run_id',
         'tenant_id',
         'fingerprint',
+        'issue_key',
+        'source',
+        'affected_count',
+        'fix_mode',
+        'ignored_until',
         'category',
         'severity',
         'title',
@@ -79,6 +93,7 @@ class DiagnosticFinding extends Model
 
     protected $attributes = [
         'status' => self::STATUS_OPEN,
+        'source' => self::SOURCE_AI,
     ];
 
     protected function casts(): array
@@ -86,6 +101,8 @@ class DiagnosticFinding extends Model
         return [
             'evidence' => 'array',
             'confidence' => 'decimal:4',
+            'affected_count' => 'integer',
+            'ignored_until' => 'datetime',
             'status_updated_at' => 'datetime',
             'resolved_at' => 'datetime',
         ];

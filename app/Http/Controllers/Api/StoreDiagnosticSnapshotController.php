@@ -6,9 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\StoreDiagnosticSnapshotRequest;
 use App\Jobs\AnalyzeDiagnosticRun;
 use App\Models\DiagnosticRun;
+use App\Models\User;
 use App\Models\WhmcsIntegration;
 use App\Services\Ai\OpenAiConfiguration;
 use App\Services\Audit\AuditEventWriter;
+use App\Services\Diagnostics\DeterministicFindingDetector;
 use App\Services\SafeActions\SafeActionExecutor;
 use App\Services\Tenancy\TenantResourceLimitService;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -71,6 +73,11 @@ class StoreDiagnosticSnapshotController extends Controller
                 ]);
 
                 app(SafeActionExecutor::class)->verifyCollectFromSnapshot($integration->fresh() ?? $integration, $run);
+
+                $actor = $integration->owner_user_id !== null
+                    ? User::query()->find($integration->owner_user_id)
+                    : null;
+                app(DeterministicFindingDetector::class)->detect($run, $actor);
 
                 return $run;
             });

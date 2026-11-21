@@ -3,6 +3,7 @@
 namespace App\Services\SafeActions;
 
 use App\Models\DiagnosticFinding;
+use App\Services\Diagnostics\WhmcsIssueCatalog;
 
 class FindingSafeActionMapper
 {
@@ -20,20 +21,10 @@ class FindingSafeActionMapper
      */
     public function suggestedActions(DiagnosticFinding $finding): array
     {
-        $keys = [];
-        $evidence = is_array($finding->evidence) ? $finding->evidence : [];
-        $title = strtolower($finding->title);
+        $keys = $this->catalogActionKeys($finding);
 
-        if ($this->evidenceIsTrue($evidence, 'system.configuration_file_writable')
-            || str_contains($title, 'configuration file is writable')
-            || str_contains($title, 'configuration.php')) {
-            $keys[] = 'harden_configuration_php_mode';
-        }
-
-        if ($this->evidenceIsFalse($evidence, 'system.error_display_disabled')
-            || str_contains($title, 'error display')
-            || str_contains($title, 'display_errors')) {
-            $keys[] = 'disable_php_display_errors';
+        if ($keys === []) {
+            $keys = $this->legacyTitleEvidenceKeys($finding);
         }
 
         $keys[] = 'pull_and_run_diagnostic_collect';
@@ -56,6 +47,45 @@ class FindingSafeActionMapper
         }
 
         return $suggested;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function catalogActionKeys(DiagnosticFinding $finding): array
+    {
+        $issueKey = $finding->issue_key;
+        if (! is_string($issueKey) || $issueKey === '') {
+            return [];
+        }
+
+        return WhmcsIssueCatalog::actionKeys($issueKey);
+    }
+
+    /**
+     * Fallback matching for AI findings without an issue_key.
+     *
+     * @return list<string>
+     */
+    private function legacyTitleEvidenceKeys(DiagnosticFinding $finding): array
+    {
+        $keys = [];
+        $evidence = is_array($finding->evidence) ? $finding->evidence : [];
+        $title = strtolower($finding->title);
+
+        if ($this->evidenceIsTrue($evidence, 'system.configuration_file_writable')
+            || str_contains($title, 'configuration file is writable')
+            || str_contains($title, 'configuration.php')) {
+            $keys[] = 'harden_configuration_php_mode';
+        }
+
+        if ($this->evidenceIsFalse($evidence, 'system.error_display_disabled')
+            || str_contains($title, 'error display')
+            || str_contains($title, 'display_errors')) {
+            $keys[] = 'disable_php_display_errors';
+        }
+
+        return $keys;
     }
 
     /**

@@ -4,6 +4,8 @@ namespace App\Providers;
 
 use App\Contracts\AuditCheckpointObjectStore;
 use App\Services\Audit\S3AuditCheckpointObjectStore;
+use App\Services\Diagnostics\Rules\IssueRule;
+use App\Services\Diagnostics\Rules\IssueRuleRegistry;
 use App\Services\Mail\CentralOutboundMailer;
 use App\Services\Mail\PlatformMailTransport;
 use App\Services\Operations\QueueJobMetricsTracker;
@@ -35,6 +37,14 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(AuditCheckpointObjectStore::class, S3AuditCheckpointObjectStore::class);
         $this->app->singleton(PlatformSettingsRegistry::class);
         $this->app->singleton(PlatformSettings::class);
+        $this->app->singleton(IssueRuleRegistry::class, function ($app): IssueRuleRegistry {
+            $rules = array_map(
+                static fn (string $class): IssueRule => $app->make($class),
+                IssueRuleRegistry::ruleClasses(),
+            );
+
+            return new IssueRuleRegistry($rules);
+        });
     }
 
     /**

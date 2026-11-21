@@ -64,6 +64,21 @@ class FindingContinuityService
         ]));
     }
 
+    /**
+     * Stable fingerprint for catalog-backed rule findings (issue_key is the continuity key).
+     *
+     * @param  array{category: string, title: string, evidence_paths?: list<string>}  $findingData
+     */
+    public function fingerprintForIssueKey(string $issueKey, array $findingData): string
+    {
+        return hash('sha256', implode("\n", [
+            'rule',
+            $issueKey,
+            $findingData['category'],
+            mb_strtolower($findingData['title']),
+        ]));
+    }
+
     public function markAppliedAwaitingVerify(DiagnosticFinding $finding, User $actor, string $actionKey): void
     {
         if (! $finding->isActive()) {
