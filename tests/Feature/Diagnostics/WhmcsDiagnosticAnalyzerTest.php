@@ -116,7 +116,7 @@ it('requests strict structured analysis without storing the response remotely', 
     });
 });
 
-it('rejects model findings that cite evidence paths absent from the snapshot', function () {
+it('drops model findings that cite evidence paths absent from the snapshot', function () {
     $run = makeDiagnosticRunForAiTest();
     $analysis = [
         'summary' => 'An issue was detected.',
@@ -138,8 +138,49 @@ it('rejects model findings that cite evidence paths absent from the snapshot', f
         'https://api.openai.com/v1/responses' => Http::response(openAiResponseForAnalysis($analysis), 200),
     ]);
 
-    expect(fn () => app(WhmcsDiagnosticAnalyzer::class)->analyze($run))
-        ->toThrow(RuntimeException::class, 'provider_evidence_reference_invalid');
+    $result = app(WhmcsDiagnosticAnalyzer::class)->analyze($run);
+
+    expect($result['findings'])->toBeEmpty()
+        ->and($result['no_findings_reason'])->toContain('evidence paths were not present');
+});
+
+it('keeps verified findings and strips unverifiable evidence paths', function () {
+    $run = makeDiagnosticRunForAiTest();
+    $analysis = [
+        'summary' => 'One verified warning remains after discarding invented evidence.',
+        'no_findings_reason' => null,
+        'findings' => [
+            [
+                'category' => 'security',
+                'severity' => 'warning',
+                'title' => 'WHMCS configuration file is writable',
+                'summary' => 'Supported by the collector warning.',
+                'evidence_paths' => ['warnings.0.code', 'system.customer_database_password'],
+                'confidence' => 0.9,
+                'recommendations' => [],
+            ],
+            [
+                'category' => 'other',
+                'severity' => 'warning',
+                'title' => 'Invented finding',
+                'summary' => 'Unsupported by the snapshot.',
+                'evidence_paths' => ['collector.limitations.0'],
+                'confidence' => 0.8,
+                'recommendations' => [],
+            ],
+        ],
+    ];
+
+    Http::fake([
+        'https://api.openai.com/v1/responses' => Http::response(openAiResponseForAnalysis($analysis), 200),
+    ]);
+
+    $result = app(WhmcsDiagnosticAnalyzer::class)->analyze($run);
+
+    expect($result['findings'])->toHaveCount(1)
+        ->and($result['findings'][0]['title'])->toBe('WHMCS configuration file is writable')
+        ->and($result['findings'][0]['evidence_paths'])->toBe(['warnings.0.code'])
+        ->and($result['no_findings_reason'])->toBeNull();
 });
 
 it('reports an explicit no-findings reason when the snapshot contains no actionable issue', function () {
@@ -168,7 +209,7 @@ it('does not call the provider when no API key is configured', function () {
         ->toThrow(RuntimeException::class, 'provider_not_configured');
 });
 
-it('rejects evidence paths whose values are explicitly unknown', function () {
+it('drops findings whose evidence values are explicitly unknown', function () {
     $run = makeDiagnosticRunForAiTest([
         'system' => [
             'configuration_file_writable' => null,
@@ -194,8 +235,10 @@ it('rejects evidence paths whose values are explicitly unknown', function () {
         'https://api.openai.com/v1/responses' => Http::response(openAiResponseForAnalysis($analysis), 200),
     ]);
 
-    expect(fn () => app(WhmcsDiagnosticAnalyzer::class)->analyze($run))
-        ->toThrow(RuntimeException::class, 'provider_evidence_reference_invalid');
+    $result = app(WhmcsDiagnosticAnalyzer::class)->analyze($run);
+
+    expect($result['findings'])->toBeEmpty()
+        ->and($result['no_findings_reason'])->toContain('evidence paths were not present');
 });
 
 it('does not allow collector metadata to support diagnostic findings', function () {
@@ -224,6 +267,8 @@ it('does not allow collector metadata to support diagnostic findings', function 
         'https://api.openai.com/v1/responses' => Http::response(openAiResponseForAnalysis($analysis), 200),
     ]);
 
-    expect(fn () => app(WhmcsDiagnosticAnalyzer::class)->analyze($run))
-        ->toThrow(RuntimeException::class, 'provider_evidence_reference_invalid');
+    $result = app(WhmcsDiagnosticAnalyzer::class)->analyze($run);
+
+    expect($result['findings'])->toBeEmpty()
+        ->and($result['no_findings_reason'])->toContain('evidence paths were not present');
 });
