@@ -8,6 +8,7 @@ use App\Models\Tenant;
 use App\Models\TenantBillingInvoice;
 use App\Models\TenantBillingPayment;
 use App\Models\TenantSubscription;
+use App\Services\Billing\MrrCalculator;
 use App\Services\Billing\PlanChangeClassifier;
 use App\Services\CentralStaffAuthorization;
 use App\Support\BillingSeller;
@@ -19,7 +20,7 @@ use Inertia\Response;
 
 class PlatformBillingController extends Controller
 {
-    public function index(Request $request): Response
+    public function index(Request $request, MrrCalculator $mrrCalculator): Response
     {
         $this->authorizeBilling($request);
 
@@ -27,9 +28,7 @@ class PlatformBillingController extends Controller
             ->whereIn('status', ['trialing', 'active', 'past_due', 'suspended'])
             ->count();
 
-        $mrrMinor = (int) TenantSubscription::query()
-            ->whereIn('status', ['trialing', 'active', 'past_due'])
-            ->sum('unit_amount_minor');
+        $mrrMinor = $mrrCalculator->approximateMrrMinor();
 
         $failedPayments = TenantBillingInvoice::query()
             ->whereIn('status', ['failed', 'past_due'])
