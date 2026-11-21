@@ -10,6 +10,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * @property array<string, mixed> $entitlements
+ * @property int $trial_days Reserved for a future no-card trial enrollment path.
+ *                           Paid checkout charges the first period up front and does
+ *                           not shorten current_period_ends_at by trial_days.
  */
 class Plan extends Model
 {

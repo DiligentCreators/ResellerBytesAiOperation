@@ -58,6 +58,21 @@ class CheckoutService
                     throw new RuntimeException('billing_subscription_already_current');
                 }
 
+                // Abandoned paid checkouts leave provisional incomplete rows; clear them
+                // so a retry can start without blocking on the unique-current index.
+                TenantSubscription::query()
+                    ->where('tenant_id', $tenantId)
+                    ->where('status', 'incomplete')
+                    ->whereNull('replaces_subscription_id')
+                    ->lockForUpdate()
+                    ->get()
+                    ->each(function (TenantSubscription $abandoned): void {
+                        $abandoned->forceFill([
+                            'status' => 'canceled',
+                            'canceled_at' => CarbonImmutable::now('UTC'),
+                        ])->save();
+                    });
+
                 $provider = $gateway->driver();
                 $providerAccountId = 'acct_'.$provider.'_'.str_replace('-', '', $tenantId);
                 $providerAccount = TenantBillingProviderAccount::query()
@@ -85,11 +100,10 @@ class CheckoutService
                 }
 
                 $now = CarbonImmutable::now('UTC');
-                $trialDays = max(0, (int) $plan->trial_days);
+                // Paid checkout charges the first period up front, so the period is the
+                // full billing interval (calendar month/year). Plan.trial_days is kept for
+                // a future no-card trial enrollment path and must not shorten paid periods.
                 $periodEnds = $billingPeriod === 'yearly' ? $now->addYear() : $now->addMonth();
-                if ($trialDays > 0) {
-                    $periodEnds = $now->addDays($trialDays);
-                }
 
                 $amount = $plan->priceForPeriod($billingPeriod);
                 $providerSubscriptionId = $provider === 'kelviq'
@@ -102,7 +116,8 @@ class CheckoutService
                     'plan_id' => $plan->id,
                     'plan_code' => $plan->code,
                     'billing_mode' => 'automated',
-                    'status' => 'trialing',
+                    // incomplete until first payment webhook succeeds (not a free trial).
+                    'status' => 'incomplete',
                     'billing_provider' => $provider,
                     'provider_account_id' => $providerAccountId,
                     'provider_subscription_id' => $providerSubscriptionId,

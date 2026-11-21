@@ -8,6 +8,7 @@ use App\Models\Tenant;
 use App\Models\TenantBillingInvoice;
 use App\Models\User;
 use App\Services\Tenancy\TenantRoleAuthorization;
+use App\Support\BillingCustomerMessages;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -78,8 +79,14 @@ class SandboxCheckoutController extends Controller
                 ->withErrors(['checkout' => 'Sandbox settlement failed.']);
         }
 
+        if ($approve) {
+            return redirect()
+                ->route('billing.settings.show', $tenant)
+                ->with('status', BillingCustomerMessages::PAYMENT_APPROVED);
+        }
+
         return redirect()
             ->route('billing.settings.show', $tenant)
-            ->with('status', $approve ? 'Payment approved via sandbox webhook path.' : 'Payment declined via sandbox webhook path.');
+            ->withErrors(['checkout' => BillingCustomerMessages::PAYMENT_DECLINED]);
     }
 }

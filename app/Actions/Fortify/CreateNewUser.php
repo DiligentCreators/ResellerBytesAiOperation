@@ -7,9 +7,7 @@ use App\Concerns\ProfileValidationRules;
 use App\Models\User;
 use App\Services\Tenancy\TenantProvisioningService;
 use App\Support\CountryCodes;
-use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
@@ -28,7 +26,8 @@ class CreateNewUser implements CreatesNewUsers
      */
     public function create(array $input): User
     {
-        $this->ensureIsNotRateLimited();
+        // Rate limiting is enforced on register.store via ThrottleSensitiveAuthRequests
+        // (named limiter `register` — 5/min/IP), including invalid payloads.
 
         Validator::make($input, [
             ...$this->profileRules(),
@@ -43,7 +42,7 @@ class CreateNewUser implements CreatesNewUsers
             'terms.accepted' => 'You must accept the terms of service to create an account.',
         ])->validate();
 
-        $user = DB::transaction(function () use ($input): User {
+        return DB::transaction(function () use ($input): User {
             $user = User::query()->create([
                 'name' => $input['name'],
                 'email' => $input['email'],
@@ -58,10 +57,6 @@ class CreateNewUser implements CreatesNewUsers
 
             return $user;
         });
-
-        RateLimiter::hit($this->throttleKey(), 60);
-
-        return $user;
     }
 
     /**
@@ -79,19 +74,5 @@ class CreateNewUser implements CreatesNewUsers
                 ->numbers()
                 ->symbols(),
         ];
-    }
-
-    private function ensureIsNotRateLimited(): void
-    {
-        if (! RateLimiter::tooManyAttempts($this->throttleKey(), 5)) {
-            return;
-        }
-
-        throw new ThrottleRequestsException('Too many registration attempts. Please try again shortly.');
-    }
-
-    private function throttleKey(): string
-    {
-        return 'register|'.(string) request()->ip();
     }
 }

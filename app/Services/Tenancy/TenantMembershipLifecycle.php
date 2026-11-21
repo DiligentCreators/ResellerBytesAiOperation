@@ -15,6 +15,9 @@ class TenantMembershipLifecycle
 {
     public function invite(User $actor, string $tenantId, string $email, string $role, ?string $ip = null): TenantMembership
     {
+        // Capability check before email lookup so unauthorized callers cannot probe accounts.
+        app(TenantRoleAuthorization::class)->require($actor, $tenantId, 'members.manage');
+
         if (! in_array($role, [TenantMembership::ROLE_ADMIN, TenantMembership::ROLE_OPERATOR, TenantMembership::ROLE_VIEWER, TenantMembership::ROLE_BILLING], true)) {
             throw ValidationException::withMessages(['role' => 'The requested invitation role is not assignable.']);
         }
@@ -25,9 +28,7 @@ class TenantMembershipLifecycle
         }
 
         return $this->inTenant($tenantId, (int) $actor->getKey(), function () use ($actor, $tenantId, $target, $role, $ip): TenantMembership {
-            app(TenantRoleAuthorization::class)->require($actor, $tenantId, 'members.manage');
             $tenant = Tenant::query()->whereKey($tenantId)->where('status', Tenant::STATUS_ACTIVE)->lockForUpdate()->firstOrFail();
-
             $existing = TenantMembership::query()->where('tenant_id', $tenantId)->where('user_id', $target->getKey())->lockForUpdate()->first();
             if ($existing && in_array($existing->status, [TenantMembership::STATUS_ACTIVE, TenantMembership::STATUS_SUSPENDED], true)) {
                 throw ValidationException::withMessages(['email' => 'This account already has an active, pending, or suspended membership.']);

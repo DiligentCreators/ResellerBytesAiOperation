@@ -19,6 +19,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useWorkspaceTimezone } from '@/hooks/use-workspace-timezone';
 import { formatDateTime } from '@/lib/dates';
 import { show as onboarding } from '@/routes/onboarding';
+import { edit as editSecurity } from '@/routes/security';
 
 type DashboardStats = {
     active_integrations: number;
@@ -145,13 +146,25 @@ export default function Dashboard({
                     <EmptyState
                         icon={LayoutGrid}
                         title="Your workspace is ready"
-                        description="Connect your first WHMCS integration to start seeing diagnostic activity here."
+                        description={
+                            auth.two_factor_enabled
+                                ? 'Connect your first WHMCS integration to start seeing diagnostic activity here.'
+                                : 'Connect your first WHMCS integration after the workspace owner confirms two-factor authentication (TOTP).'
+                        }
                         action={
-                            <Button size="sm" asChild>
-                                <Link href="/integrations">
-                                    Connect a service
-                                </Link>
-                            </Button>
+                            auth.two_factor_enabled ? (
+                                <Button size="sm" asChild>
+                                    <Link href="/integrations">
+                                        Connect a service
+                                    </Link>
+                                </Button>
+                            ) : (
+                                <Button size="sm" asChild>
+                                    <Link href={editSecurity()}>
+                                        Enable 2FA
+                                    </Link>
+                                </Button>
+                            )
                         }
                     />
                 ) : null}

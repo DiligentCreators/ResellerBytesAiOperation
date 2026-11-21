@@ -6,15 +6,21 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Billing\StoreCheckoutRequest;
 use App\Models\Plan;
 use App\Models\Tenant;
+use App\Models\TenantSubscription;
 use App\Models\User;
 use App\Services\Billing\CheckoutService;
+use App\Services\Billing\SubscriptionManagementService;
 use App\Services\Tenancy\TenantRoleAuthorization;
+use App\Support\BillingCustomerMessages;
 use App\Support\CountryCodes;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
+use InvalidArgumentException;
+use RuntimeException;
 use Throwable;
 
 class CheckoutController extends Controller
@@ -66,30 +72,56 @@ class CheckoutController extends Controller
         abort_unless($plan->is_active && ! $plan->is_contact_sales, 404);
 
         $data = $request->validated();
+        $billingDetails = [
+            'company_name' => $data['company_name'],
+            'billing_email' => $data['billing_email'],
+            'country' => strtoupper($data['country']),
+            'address_line1' => $data['address_line1'],
+            'address_line2' => $data['address_line2'] ?? null,
+            'city' => $data['city'] ?? null,
+            'state' => $data['state'] ?? null,
+            'postal_code' => $data['postal_code'] ?? null,
+            'tax_id' => $data['tax_id'] ?? null,
+        ];
 
         try {
-            $result = app(CheckoutService::class)->begin(
-                $tenant->id,
-                $user,
-                $plan,
-                $data['period'],
-                [
-                    'company_name' => $data['company_name'],
-                    'billing_email' => $data['billing_email'],
-                    'country' => strtoupper($data['country']),
-                    'address_line1' => $data['address_line1'],
-                    'address_line2' => $data['address_line2'] ?? null,
-                    'city' => $data['city'] ?? null,
-                    'state' => $data['state'] ?? null,
-                    'postal_code' => $data['postal_code'] ?? null,
-                    'tax_id' => $data['tax_id'] ?? null,
-                ],
-            );
+            $current = TenantSubscription::query()
+                ->where('tenant_id', $tenant->id)
+                ->whereIn('status', ['trialing', 'active', 'past_due'])
+                ->orderByDesc('id')
+                ->first();
+
+            if ($current !== null) {
+                $result = app(SubscriptionManagementService::class)->changePlan(
+                    $tenant->id,
+                    (int) $current->id,
+                    $user,
+                    $plan,
+                    $data['period'],
+                    $billingDetails,
+                );
+            } else {
+                $result = app(CheckoutService::class)->begin(
+                    $tenant->id,
+                    $user,
+                    $plan,
+                    $data['period'],
+                    $billingDetails,
+                );
+            }
+        } catch (AuthorizationException) {
+            return back()->withErrors([
+                'checkout' => BillingCustomerMessages::CHECKOUT_FORBIDDEN,
+            ]);
+        } catch (InvalidArgumentException|RuntimeException $exception) {
+            return back()->withErrors([
+                'checkout' => $this->checkoutErrorMessage($exception->getMessage()),
+            ]);
         } catch (Throwable $exception) {
             report($exception);
 
             return back()->withErrors([
-                'checkout' => 'Checkout could not be started. Confirm you have billing permission and no active subscription already exists.',
+                'checkout' => BillingCustomerMessages::CHECKOUT_GENERIC_FAILURE,
             ]);
         }
 
@@ -97,6 +129,19 @@ class CheckoutController extends Controller
         abort_unless($this->checkoutUrlIsAllowed($checkoutUrl), 500, 'Checkout redirect was rejected.');
 
         return redirect()->away($checkoutUrl);
+    }
+
+    private function checkoutErrorMessage(string $code): string
+    {
+        return match ($code) {
+            'billing_subscription_already_current' => BillingCustomerMessages::CHECKOUT_ALREADY_SUBSCRIBED,
+            'billing_plan_unchanged' => BillingCustomerMessages::CHECKOUT_PLAN_UNCHANGED,
+            'billing_plan_change_already_pending' => BillingCustomerMessages::CHECKOUT_PLAN_CHANGE_PENDING,
+            'billing_plan_change_status_invalid', 'billing_plan_change_invalid',
+            'billing_period_invalid', 'billing_plan_not_checkoutable',
+            'billing_details_incomplete', 'billing_email_invalid', 'billing_country_invalid' => BillingCustomerMessages::CHECKOUT_GENERIC_FAILURE,
+            default => BillingCustomerMessages::CHECKOUT_GENERIC_FAILURE,
+        };
     }
 
     /**

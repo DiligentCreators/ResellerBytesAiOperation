@@ -20,6 +20,8 @@ class ThrottleSensitiveAuthRequests
         $limiter = match (true) {
             $request->routeIs('password.email', 'password.update') => 'password-reset',
             $request->routeIs('verification.send') => 'verification',
+            // Fortify does not attach config('fortify.limiters.register') to register.store.
+            $request->routeIs('register.store') => 'register',
             default => null,
         };
 

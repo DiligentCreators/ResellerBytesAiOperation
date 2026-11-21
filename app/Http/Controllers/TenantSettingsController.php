@@ -35,8 +35,13 @@ class TenantSettingsController extends Controller
         return Inertia::render('tenants/settings', $payload);
     }
 
-    public function update(Request $request, Tenant $tenant, TenantBrandingSettings $settings): RedirectResponse|JsonResponse
+    public function update(Request $request, Tenant $tenant, TenantBrandingSettings $settings, TenantRoleAuthorization $authorization): RedirectResponse|JsonResponse
     {
+        /** @var User $user */
+        $user = $request->user();
+        // Authorize before validation so outsiders cannot probe tenant existence via 422s.
+        $authorization->require($user, $tenant->id, 'tenant.settings.manage');
+
         $data = $request->validate([
             'display_name' => ['sometimes', 'required', 'string', 'min:1', 'max:120'],
             'support_email' => ['sometimes', 'nullable', 'email:rfc', 'max:255'],
@@ -51,8 +56,6 @@ class TenantSettingsController extends Controller
             return back()->withErrors(['display_name' => 'At least one branding setting must be supplied.']);
         }
 
-        /** @var User $user */
-        $user = $request->user();
         $updated = $settings->update($user, $tenant->id, $data, $request->ip());
 
         $payload = [

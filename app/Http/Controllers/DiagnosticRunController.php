@@ -9,6 +9,7 @@ use App\Services\Audit\AuditEventWriter;
 use App\Services\Tenancy\TenantEntitlementService;
 use App\Services\Tenancy\TenantRecordQuery;
 use App\Services\Tenancy\TenantRoleAuthorization;
+use App\Support\AssertsTenantDiagnosticsAccess;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -22,6 +23,8 @@ class DiagnosticRunController extends Controller
 {
     public function index(): Response
     {
+        AssertsTenantDiagnosticsAccess::forIndex(Auth::user());
+
         $runs = app(TenantRecordQuery::class)->runs(Auth::user())
             ->with('integration:id,name')
             ->withCount('findings')

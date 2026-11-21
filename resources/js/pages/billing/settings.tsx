@@ -1,4 +1,4 @@
-import { Form, Head, Link } from '@inertiajs/react';
+import { Form, Head, Link, usePage } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -106,6 +106,9 @@ export default function BillingSettingsPage(props: Props) {
     const limits = subscription?.entitlements?.limits ?? {};
     const periodLabel =
         subscription?.billing_period === 'yearly' ? 'year' : 'month';
+    const checkoutError = (
+        usePage().props.errors as { checkout?: string } | undefined
+    )?.checkout;
 
     return (
         <>
@@ -124,6 +127,14 @@ export default function BillingSettingsPage(props: Props) {
                             className="mt-3 rounded-md border border-success/20 bg-success-soft px-4 py-3 text-sm text-success-fg"
                         >
                             {status}
+                        </p>
+                    )}
+                    {checkoutError && (
+                        <p
+                            role="alert"
+                            className="mt-3 rounded-md border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+                        >
+                            {checkoutError}
                         </p>
                     )}
                 </div>
