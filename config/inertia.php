@@ -16,7 +16,8 @@ return [
     */
 
     'ssr' => [
-        'enabled' => (bool) env('INERTIA_SSR_ENABLED', false),
+        // Use FILTER_VALIDATE_BOOLEAN: (bool) "false" is true in PHP and would keep SSR on.
+        'enabled' => filter_var(env('INERTIA_SSR_ENABLED', false), FILTER_VALIDATE_BOOLEAN),
         'url' => env('INERTIA_SSR_URL', 'http://127.0.0.1:13714'),
         // 'bundle' => base_path('bootstrap/ssr/ssr.mjs'),
 
