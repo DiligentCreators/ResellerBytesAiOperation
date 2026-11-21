@@ -49,6 +49,10 @@ class CheckoutController extends Controller
         $isDowngrade = $current !== null && $classifier->isDowngrade($current, $plan, $period);
         $proration = null;
         $changeMode = 'new';
+        $scheduledChange = $this->scheduledChangePayload($current);
+        $scheduledChangeIsSameTarget = $scheduledChange !== null
+            && (int) $scheduledChange['plan_id'] === (int) $plan->id
+            && $scheduledChange['charge_period'] === $period;
 
         if ($current !== null) {
             $changeMode = $isDowngrade ? 'downgrade' : 'upgrade';
@@ -98,7 +102,11 @@ class CheckoutController extends Controller
                 'billing_period' => $classifier->chargePeriodFor($current),
                 'current_period_ends_at' => $current->current_period_ends_at?->toIso8601String(),
             ] : null,
-            'scheduledChange' => $this->scheduledChangePayload($current),
+            'scheduledChange' => $scheduledChange,
+            'scheduledChangeIsSameTarget' => $scheduledChangeIsSameTarget,
+            'scheduledChangeHumanDate' => $scheduledChangeIsSameTarget
+                ? BillingDates::humanDate($scheduledChange['change_at'] ?? null, $tenant)
+                : null,
             'timezone' => $tenant->timezone ?: 'UTC',
         ]);
     }

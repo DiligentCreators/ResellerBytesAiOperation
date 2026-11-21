@@ -49,6 +49,8 @@ type Props = {
         current_period_ends_at: string | null;
     } | null;
     scheduledChange?: ScheduledChange | null;
+    scheduledChangeIsSameTarget?: boolean;
+    scheduledChangeHumanDate?: string | null;
     timezone?: string;
 };
 
@@ -63,6 +65,8 @@ export default function CheckoutPage({
     proration = null,
     currentPlan = null,
     scheduledChange = null,
+    scheduledChangeIsSameTarget = false,
+    scheduledChangeHumanDate = null,
     timezone = 'UTC',
 }: Props) {
     const listPrice =
@@ -72,6 +76,9 @@ export default function CheckoutPage({
     const amountDue = proration?.total_due_minor ?? listPrice;
     const isDowngrade = changeMode === 'downgrade';
     const scheduleDate = currentPlan?.current_period_ends_at;
+    const alreadyScheduledDate =
+        scheduledChangeHumanDate ||
+        formatDate(scheduledChange?.change_at, { timeZone: timezone });
 
     return (
         <>
@@ -92,7 +99,16 @@ export default function CheckoutPage({
                             Placeholder seed price.
                         </p>
                     )}
-                    {scheduledChange && (
+                    {scheduledChange && scheduledChangeIsSameTarget && (
+                        <p
+                            role="status"
+                            className="mt-3 rounded-md border border-border bg-surface px-4 py-3 text-sm"
+                        >
+                            This change is already scheduled for{' '}
+                            {alreadyScheduledDate}.
+                        </p>
+                    )}
+                    {scheduledChange && !scheduledChangeIsSameTarget && (
                         <p
                             role="status"
                             className="mt-3 rounded-md border border-border bg-surface px-4 py-3 text-sm"
@@ -275,10 +291,24 @@ export default function CheckoutPage({
                                 </div>
                             </div>
                             <InputError message={errors.checkout} />
+                            {scheduledChangeIsSameTarget && (
+                                <p className="text-sm text-muted-foreground">
+                                    Schedule is disabled because this plan and
+                                    billing period are already scheduled for{' '}
+                                    {alreadyScheduledDate}.
+                                </p>
+                            )}
                             <div className="flex gap-3 pt-2">
                                 <Button
                                     type="submit"
-                                    disabled={processing}
+                                    disabled={
+                                        processing ||
+                                        scheduledChangeIsSameTarget
+                                    }
+                                    aria-disabled={
+                                        processing ||
+                                        scheduledChangeIsSameTarget
+                                    }
                                     className="bg-primary hover:bg-primary-hover"
                                 >
                                     {isDowngrade

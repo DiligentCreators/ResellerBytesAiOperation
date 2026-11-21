@@ -18,6 +18,7 @@ type Props = {
         status: string;
         unit_amount_minor: number;
         currency: string;
+        billing_period: 'monthly' | 'yearly';
         tenant?: { id: string; name: string; slug: string } | null;
     }>;
     invoices: Array<{
@@ -227,7 +228,12 @@ export default function PlatformBillingIndex({
                                         {formatMoney(
                                             subscription.unit_amount_minor,
                                             subscription.currency,
-                                        )}
+                                        )}{' '}
+                                        /{' '}
+                                        {subscription.billing_period ===
+                                        'yearly'
+                                            ? 'year'
+                                            : 'month'}
                                     </td>
                                 </tr>
                             ))}

@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property CarbonImmutable|null $canceled_at
  * @property CarbonImmutable|null $scheduled_change_at
  * @property int|null $scheduled_plan_id
+ * @property string|null $charge_period
  * @property string|null $scheduled_charge_period
  */
 class TenantSubscription extends Model
@@ -30,6 +31,7 @@ class TenantSubscription extends Model
         'provider_subscription_id',
         'currency',
         'unit_amount_minor',
+        'charge_period',
         'entitlements',
         'cancel_at_period_end',
         'current_period_starts_at',

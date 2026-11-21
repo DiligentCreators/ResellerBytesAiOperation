@@ -74,6 +74,7 @@ it('exposes the existing pending change on the schedule confirm page', function 
         ->assertInertia(fn ($page) => $page
             ->component('billing/checkout')
             ->where('changeMode', 'downgrade')
+            ->where('scheduledChangeIsSameTarget', false)
             ->where('scheduledChange.plan_code', 'business')
             ->where('scheduledChange.plan_name', 'Business')
             ->where('scheduledChange.charge_period', 'monthly')

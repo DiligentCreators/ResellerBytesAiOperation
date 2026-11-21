@@ -146,6 +146,7 @@ class DemoAccountsSeeder extends Seeder
                     'status' => 'active',
                     'currency' => 'USD',
                     'unit_amount_minor' => $amount,
+                    'charge_period' => 'monthly',
                     'entitlements' => $entitlements,
                     'cancel_at_period_end' => false,
                     'current_period_starts_at' => now()->subDay(),
