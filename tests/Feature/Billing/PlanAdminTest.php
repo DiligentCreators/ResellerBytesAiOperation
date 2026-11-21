@@ -389,3 +389,42 @@ it('audits plan create and update with changed fields', function () {
         ->and($metadata['changed_fields']['name']['new'])->toBe('Audit Renamed')
         ->and($metadata['changed_fields'])->toHaveKey('price_monthly_minor');
 });
+
+it('persists the safe actions entitlement on the plan catalog', function () {
+    $owner = planAdminOwner();
+    $plan = Plan::factory()->create([
+        'code' => 'growth-safe',
+        'entitlements' => [
+            'diagnostics.analysis' => true,
+            'diagnostics.reanalyze' => true,
+            'safe_actions.enabled' => false,
+            'limits' => [
+                'members' => 10,
+                'integrations' => 3,
+                'diagnostics_per_period' => 500,
+                'retention_days' => 90,
+            ],
+            'support_level' => 'priority_email',
+        ],
+    ]);
+
+    $this->actingAs($owner)
+        ->put(route('platform.billing.plans.update', $plan), planPayload([
+            'code' => $plan->code,
+            'name' => $plan->name,
+            'safe_actions_enabled' => true,
+            'entitlements' => [
+                'limits' => [
+                    'members' => 10,
+                    'integrations' => 3,
+                    'diagnostics_per_period' => 500,
+                    'retention_days' => 90,
+                ],
+                'support_level' => 'priority_email',
+            ],
+        ]))
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    expect($plan->fresh()->entitlements['safe_actions.enabled'])->toBeTrue();
+});

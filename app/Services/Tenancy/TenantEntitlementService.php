@@ -38,7 +38,18 @@ class TenantEntitlementService
     {
         $subscription = $this->activeSubscription($tenantId);
         $entitlements = (array) $subscription->entitlements;
-        if (($entitlements[$feature] ?? false) !== true) {
+
+        // Explicit snapshot value wins. When a newer catalog feature key is absent
+        // from an immutable snapshot, fall back to the current plan packaging.
+        if (array_key_exists($feature, $entitlements)) {
+            $enabled = $entitlements[$feature] === true;
+        } else {
+            $subscription->loadMissing('plan');
+            $planEntitlements = (array) ($subscription->plan?->entitlements ?? []);
+            $enabled = ($planEntitlements[$feature] ?? false) === true;
+        }
+
+        if (! $enabled) {
             throw new AuthorizationException('The current tenant subscription does not include this feature.');
         }
 

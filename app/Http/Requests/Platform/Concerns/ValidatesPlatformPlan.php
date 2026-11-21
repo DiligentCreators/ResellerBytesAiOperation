@@ -69,6 +69,7 @@ trait ValidatesPlatformPlan
             'entitlements.limits.diagnostics_per_period' => ['required', 'integer', 'min:0'],
             'entitlements.limits.retention_days' => ['required', 'integer', 'min:1'],
             'entitlements.support_level' => ['nullable', 'string', 'max:40'],
+            'safe_actions_enabled' => ['sometimes', 'boolean'],
         ];
 
         // Code is immutable once any subscription references the plan — never required or accepted.
@@ -142,7 +143,9 @@ trait ValidatesPlatformPlan
             ...$data['entitlements'],
             'diagnostics.analysis' => true,
             'diagnostics.reanalyze' => true,
+            'safe_actions.enabled' => $this->boolean('safe_actions_enabled'),
         ];
+        unset($data['safe_actions_enabled']);
 
         $data['prices_confirmed_at'] = now();
 

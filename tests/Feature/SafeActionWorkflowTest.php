@@ -232,7 +232,7 @@ it('blocks safe actions without plan entitlement', function () {
             'integration_id' => $integration->id,
             'action_key' => 'health_version_ping',
         ])
-        ->assertForbidden();
+        ->assertSessionHasErrors('action_key');
 });
 
 it('forbids viewers from requesting safe actions', function () {

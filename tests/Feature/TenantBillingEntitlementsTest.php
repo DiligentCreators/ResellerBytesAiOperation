@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\DiagnosticRun;
+use App\Models\Plan;
 use App\Models\Tenant;
 use App\Models\TenantBillingInvoice;
 use App\Models\TenantMembership;
@@ -66,6 +67,68 @@ it('fails closed for missing subscription and unavailable features or limits', f
         ->toThrow(AuthorizationException::class);
 
     expect(fn () => app(TenantEntitlementService::class)->requireLimit($tenant->id, 'integrations', -1))
+        ->toThrow(AuthorizationException::class);
+});
+
+it('falls back to plan packaging when a feature key is absent from the subscription snapshot', function () {
+    $plan = Plan::factory()->create([
+        'code' => 'growth-fallback',
+        'entitlements' => [
+            'safe_actions.enabled' => true,
+            'diagnostics.reanalyze' => true,
+            'limits' => [
+                'integrations' => 3,
+                'members' => 10,
+                'diagnostics_per_period' => 100,
+                'retention_days' => 30,
+            ],
+        ],
+    ]);
+    $tenant = Tenant::create([
+        'name' => 'Plan Fallback Workspace',
+        'slug' => 'plan-fallback-'.uniqid(),
+        'status' => Tenant::STATUS_ACTIVE,
+    ]);
+    createTenantSubscriptionFixture($tenant, [
+        'plan_id' => $plan->id,
+        'plan_code' => $plan->code,
+        'entitlements' => [
+            'limits' => ['integrations' => 3],
+        ],
+    ]);
+
+    expect(app(TenantEntitlementService::class)->requireFeature($tenant->id, 'safe_actions.enabled')->plan_id)
+        ->toBe($plan->id);
+});
+
+it('keeps an explicit false feature on the subscription snapshot closed', function () {
+    $plan = Plan::factory()->create([
+        'code' => 'growth-explicit-false',
+        'entitlements' => [
+            'safe_actions.enabled' => true,
+            'limits' => [
+                'integrations' => 3,
+                'members' => 10,
+                'diagnostics_per_period' => 100,
+                'retention_days' => 30,
+            ],
+        ],
+    ]);
+    $tenant = Tenant::create([
+        'name' => 'Explicit False Workspace',
+        'slug' => 'explicit-false-'.uniqid(),
+        'status' => Tenant::STATUS_ACTIVE,
+    ]);
+    createTenantSubscriptionFixture($tenant, [
+        'plan_id' => $plan->id,
+        'plan_code' => $plan->code,
+        'entitlements' => [
+            'safe_actions.enabled' => false,
+            'limits' => ['integrations' => 3],
+        ],
+    ]);
+
+    expect(fn () => app(TenantEntitlementService::class)->requireFeature($tenant->id, 'safe_actions.enabled'))
         ->toThrow(AuthorizationException::class);
 });
 
