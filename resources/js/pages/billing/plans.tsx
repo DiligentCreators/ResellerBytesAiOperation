@@ -211,7 +211,7 @@ export default function BillingPlans({
                                         />
                                         {plan.trial_enabled &&
                                         plan.trial_days > 0
-                                            ? `${plan.trial_days}-day free trial`
+                                            ? `Start your ${plan.trial_days}-day free trial`
                                             : 'No trial'}
                                     </li>
                                 </ul>
@@ -239,8 +239,7 @@ export default function BillingPlans({
                                                     <Link
                                                         href={`/tenants/${resolvedTenantId}/billing/checkout/${plan.id}?period=${periodIsYearly ? 'yearly' : 'monthly'}`}
                                                     >
-                                                        Start {plan.trial_days}
-                                                        -day trial
+                                                        Start free trial
                                                     </Link>
                                                 </Button>
                                             ) : null}

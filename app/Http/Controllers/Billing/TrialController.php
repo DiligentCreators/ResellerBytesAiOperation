@@ -65,9 +65,12 @@ class TrialController extends Controller
         }
 
         if (! $result['card_required']) {
+            $trialEndsAt = $result['subscription']->trial_ends_at;
+            abort_unless($trialEndsAt !== null, 500, 'Trial started without an end date.');
+
             return redirect()
                 ->route('billing.settings.show', $tenant)
-                ->with('status', 'Your free trial has started.');
+                ->with('status', BillingCustomerMessages::trialStarted($trialEndsAt, $tenant));
         }
 
         $checkoutUrl = (string) ($result['checkout_url'] ?? '');
