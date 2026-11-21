@@ -42,6 +42,28 @@ const selectClassName =
 const checkboxLabelClassName =
     'flex items-center gap-2 text-sm text-muted-foreground';
 
+function FormErrorSummary({ errors }: { errors: Record<string, string> }) {
+    const messages = Object.values(errors).filter(Boolean);
+
+    if (messages.length === 0) {
+        return null;
+    }
+
+    return (
+        <div
+            role="alert"
+            className="rounded-md border border-[#DC2626]/20 bg-[#FEF2F2] px-3 py-2 text-sm text-[#DC2626]"
+        >
+            <p className="font-medium">Please fix the errors below.</p>
+            <ul className="mt-1 list-disc space-y-0.5 pl-5">
+                {messages.map((message) => (
+                    <li key={message}>{message}</li>
+                ))}
+            </ul>
+        </div>
+    );
+}
+
 function SourceHint({ source }: { source: 'database' | 'env' }) {
     return (
         <span className="text-xs text-muted-foreground">
@@ -177,6 +199,8 @@ export default function PlatformBillingSettingsPage({
                 >
                     {({ errors, processing }) => (
                         <>
+                            <FormErrorSummary errors={errors} />
+
                             <section className="space-y-4 rounded-lg border border-border bg-white p-5">
                                 <div className="flex flex-wrap items-baseline justify-between gap-2">
                                     <h2 className="text-base font-semibold">

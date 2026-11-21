@@ -1,5 +1,6 @@
-import { Form, Head, Link, router } from '@inertiajs/react';
+import { Form, Head, Link, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
+import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -42,14 +43,52 @@ type Props = {
     canManage: boolean;
 };
 
+type FormErrors = Record<string, string>;
+
+function FormErrorSummary({ errors }: { errors: FormErrors }) {
+    const messages = Object.values(errors).filter(Boolean);
+
+    if (messages.length === 0) {
+        return null;
+    }
+
+    return (
+        <div
+            role="alert"
+            className="rounded-md border border-[#DC2626]/20 bg-[#FEF2F2] px-3 py-2 text-sm text-[#DC2626]"
+        >
+            <p className="font-medium">Please fix the errors below.</p>
+            <ul className="mt-1 list-disc space-y-0.5 pl-5">
+                {messages.map((message) => (
+                    <li key={message}>{message}</li>
+                ))}
+            </ul>
+        </div>
+    );
+}
+
+function featuresErrorMessage(errors: FormErrors): string | undefined {
+    if (errors.features) {
+        return errors.features;
+    }
+
+    const nestedKey = Object.keys(errors).find((key) =>
+        key.startsWith('features.'),
+    );
+
+    return nestedKey ? errors[nestedKey] : undefined;
+}
+
 function FeatureListEditor({
     name,
     initial,
     disabled,
+    error,
 }: {
     name: string;
     initial: string[];
     disabled: boolean;
+    error?: string;
 }) {
     const [lines, setLines] = useState<string[]>(
         initial.length > 0 ? initial : [],
@@ -136,6 +175,7 @@ function FeatureListEditor({
             >
                 Add feature
             </Button>
+            <InputError message={error} />
         </div>
     );
 }
@@ -143,9 +183,11 @@ function FeatureListEditor({
 function PlanFields({
     plan,
     disabled,
+    errors,
 }: {
     plan?: Plan;
     disabled: boolean;
+    errors: FormErrors;
 }) {
     return (
         <div className="grid gap-4 md:grid-cols-2">
@@ -163,6 +205,7 @@ function PlanFields({
                         Code is locked because subscriptions reference this plan.
                     </p>
                 ) : null}
+                <InputError message={errors.code} />
             </div>
             <div className="space-y-2">
                 <Label>Name</Label>
@@ -172,6 +215,7 @@ function PlanFields({
                     required
                     disabled={disabled}
                 />
+                <InputError message={errors.name} />
             </div>
             <div className="space-y-2">
                 <Label>Currency (ISO)</Label>
@@ -182,6 +226,7 @@ function PlanFields({
                     disabled={disabled}
                     maxLength={3}
                 />
+                <InputError message={errors.currency} />
             </div>
             <div className="space-y-2">
                 <Label>Sort order</Label>
@@ -192,6 +237,7 @@ function PlanFields({
                     required
                     disabled={disabled}
                 />
+                <InputError message={errors.sort_order} />
             </div>
             <div className="space-y-2">
                 <Label>Monthly price</Label>
@@ -204,6 +250,7 @@ function PlanFields({
                     required
                     disabled={disabled}
                 />
+                <InputError message={errors.price_monthly} />
             </div>
             <div className="space-y-2">
                 <Label>Yearly price</Label>
@@ -216,6 +263,7 @@ function PlanFields({
                     required
                     disabled={disabled}
                 />
+                <InputError message={errors.price_yearly} />
             </div>
             <div className="space-y-2 md:col-span-2">
                 <Label>Description</Label>
@@ -224,6 +272,7 @@ function PlanFields({
                     defaultValue={plan?.description ?? ''}
                     disabled={disabled}
                 />
+                <InputError message={errors.description} />
             </div>
             <label className="flex items-center gap-2 text-sm">
                 <input
@@ -252,6 +301,7 @@ function PlanFields({
                     defaultValue={plan?.kelviq_plan_identifier_monthly ?? ''}
                     disabled={disabled}
                 />
+                <InputError message={errors.kelviq_plan_identifier_monthly} />
             </div>
             <div className="space-y-2">
                 <Label>Kelviq plan id (yearly)</Label>
@@ -260,11 +310,13 @@ function PlanFields({
                     defaultValue={plan?.kelviq_plan_identifier_yearly ?? ''}
                     disabled={disabled}
                 />
+                <InputError message={errors.kelviq_plan_identifier_yearly} />
             </div>
             <FeatureListEditor
                 name="features"
                 initial={plan?.features ?? []}
                 disabled={disabled}
+                error={featuresErrorMessage(errors)}
             />
             <div className="space-y-2">
                 <Label>Members limit</Label>
@@ -275,6 +327,7 @@ function PlanFields({
                     required
                     disabled={disabled}
                 />
+                <InputError message={errors['entitlements.limits.members']} />
             </div>
             <div className="space-y-2">
                 <Label>Integrations limit</Label>
@@ -284,6 +337,9 @@ function PlanFields({
                     defaultValue={plan?.entitlements.limits?.integrations ?? 0}
                     required
                     disabled={disabled}
+                />
+                <InputError
+                    message={errors['entitlements.limits.integrations']}
                 />
             </div>
             <div className="space-y-2">
@@ -297,6 +353,11 @@ function PlanFields({
                     required
                     disabled={disabled}
                 />
+                <InputError
+                    message={
+                        errors['entitlements.limits.diagnostics_per_period']
+                    }
+                />
             </div>
             <div className="space-y-2">
                 <Label>Retention days</Label>
@@ -307,6 +368,9 @@ function PlanFields({
                     required
                     disabled={disabled}
                 />
+                <InputError
+                    message={errors['entitlements.limits.retention_days']}
+                />
             </div>
             <div className="space-y-2">
                 <Label>Support level</Label>
@@ -315,6 +379,7 @@ function PlanFields({
                     defaultValue={plan?.entitlements.support_level ?? 'email'}
                     disabled={disabled}
                 />
+                <InputError message={errors['entitlements.support_level']} />
             </div>
             <label className="flex items-center gap-2 text-sm">
                 <input
@@ -337,6 +402,7 @@ function PlanFields({
                     required
                     disabled={disabled}
                 />
+                <InputError message={errors.trial_days} />
             </div>
             <label className="flex items-center gap-2 text-sm">
                 <input
@@ -377,6 +443,9 @@ export default function PlatformPlansPage({
     pricesArePlaceholders,
     canManage,
 }: Props) {
+    const { flash } = usePage().props;
+    const status = flash?.status ?? null;
+
     return (
         <>
             <Head title="Plan catalog" />
@@ -407,6 +476,15 @@ export default function PlatformPlansPage({
                     </Link>
                 </div>
 
+                {status ? (
+                    <p
+                        role="status"
+                        className="rounded-md border border-[#059669]/20 bg-[#ECFDF5] px-3 py-2 text-sm text-[#059669]"
+                    >
+                        {status}
+                    </p>
+                ) : null}
+
                 <p className="rounded-md border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
                     Price changes apply to new checkouts and to plan changes
                     from now on. Existing subscriptions keep the price stored at
@@ -419,14 +497,16 @@ export default function PlatformPlansPage({
                     <Form
                         action="/platform/billing/plans"
                         method="post"
+                        errorBag="plan-create"
                         className="space-y-4 rounded-lg border border-border bg-white p-5"
                     >
-                        {({ processing }) => (
+                        {({ errors, processing }) => (
                             <>
                                 <h2 className="text-base font-semibold">
                                     Create plan
                                 </h2>
-                                <PlanFields disabled={false} />
+                                <FormErrorSummary errors={errors} />
+                                <PlanFields disabled={false} errors={errors} />
                                 <Button
                                     type="submit"
                                     disabled={processing}
@@ -448,9 +528,10 @@ export default function PlatformPlansPage({
                             <Form
                                 action={`/platform/billing/plans/${plan.id}`}
                                 method="put"
+                                errorBag={`plan-${plan.id}`}
                                 className="space-y-4"
                             >
-                                {({ processing }) => (
+                                {({ errors, processing }) => (
                                     <>
                                         <div className="flex items-center justify-between">
                                             <h2 className="text-base font-semibold">
@@ -472,9 +553,11 @@ export default function PlatformPlansPage({
                                                 /mo
                                             </p>
                                         </div>
+                                        <FormErrorSummary errors={errors} />
                                         <PlanFields
                                             plan={plan}
                                             disabled={!canManage}
+                                            errors={errors}
                                         />
                                         {canManage && (
                                             <Button

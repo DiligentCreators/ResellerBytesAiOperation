@@ -191,6 +191,41 @@ it('validates the marketing feature list', function () {
         ->assertSessionHasErrors('features.0');
 });
 
+it('drops blank marketing feature lines before validation', function () {
+    $owner = planAdminOwner();
+
+    $this->actingAs($owner)
+        ->post(route('platform.billing.plans.store'), planPayload([
+            'code' => 'blank-features',
+            'features' => ['Keep me', '  ', '', 'Also keep'],
+        ]))
+        ->assertRedirect();
+
+    $plan = Plan::query()->where('code', 'blank-features')->firstOrFail();
+
+    expect($plan->features)->toBe(['Keep me', 'Also keep']);
+});
+
+it('returns invalid plan update errors in the named error bag', function () {
+    $owner = planAdminOwner();
+    $plan = Plan::factory()->create([
+        'trial_enabled' => false,
+        'trial_days' => 0,
+    ]);
+    $errorBag = 'plan-'.$plan->id;
+
+    $this->actingAs($owner)
+        ->withHeader('X-Inertia-Error-Bag', $errorBag)
+        ->put(route('platform.billing.plans.update', $plan), planPayload([
+            'code' => $plan->code,
+            'trial_enabled' => true,
+            'trial_days' => 0,
+        ]))
+        ->assertSessionHasErrorsIn($errorBag, ['trial_days']);
+
+    expect($plan->fresh()->trial_enabled)->toBeFalse();
+});
+
 it('audits plan create and update with changed fields', function () {
     $owner = planAdminOwner();
 

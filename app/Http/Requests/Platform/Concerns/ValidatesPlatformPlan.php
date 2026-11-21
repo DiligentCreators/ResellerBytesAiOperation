@@ -5,9 +5,35 @@ namespace App\Http\Requests\Platform\Concerns;
 use App\Models\Plan;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
+use Inertia\Support\Header;
 
 trait ValidatesPlatformPlan
 {
+    protected function prepareForValidation(): void
+    {
+        $errorBag = $this->header(Header::ERROR_BAG);
+        if (is_string($errorBag) && $errorBag !== '') {
+            $this->errorBag = $errorBag;
+        }
+
+        $features = $this->input('features');
+        if (! is_array($features)) {
+            return;
+        }
+
+        $normalized = array_values(array_filter(
+            array_map(
+                static fn (mixed $line): string => trim((string) $line),
+                $features,
+            ),
+            static fn (string $line): bool => $line !== '',
+        ));
+
+        $this->merge([
+            'features' => $normalized === [] ? null : $normalized,
+        ]);
+    }
+
     /**
      * @return array<string, mixed>
      */
