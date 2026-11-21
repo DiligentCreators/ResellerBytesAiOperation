@@ -8,10 +8,12 @@ use App\Models\Plan;
 use App\Models\Tenant;
 use App\Models\TenantSubscription;
 use App\Models\User;
+use App\Services\Billing\BillingSettings;
 use App\Services\Billing\CheckoutService;
 use App\Services\Billing\PlanChangeClassifier;
 use App\Services\Billing\ProrationCalculator;
 use App\Services\Billing\SubscriptionManagementService;
+use App\Services\Billing\TrialPolicy;
 use App\Services\Tenancy\TenantRoleAuthorization;
 use App\Support\BillingCustomerMessages;
 use App\Support\BillingDates;
@@ -33,10 +35,13 @@ class CheckoutController extends Controller
         $user = $request->user();
         abort_unless($user instanceof User, 403);
         app(TenantRoleAuthorization::class)->require($user, $tenant->id, 'billing.manage');
-        abort_unless($plan->is_active && ! $plan->is_contact_sales, 404);
+        abort_unless($plan->isCheckoutable(), 404);
 
         $period = $request->string('period')->toString() === 'yearly' ? 'yearly' : 'monthly';
+        abort_unless($plan->intervalIsActive($period), 404);
+
         $billing = (array) (($tenant->settings['billing'] ?? []) ?: []);
+        $trialDays = app(TrialPolicy::class)->trialDaysFor($tenant, $plan);
 
         $current = TenantSubscription::query()
             ->with(['plan:id,code,name,price_monthly_minor,price_yearly_minor', 'scheduledPlan:id,code,name'])
@@ -46,7 +51,10 @@ class CheckoutController extends Controller
             ->first();
 
         $classifier = app(PlanChangeClassifier::class);
-        $isDowngrade = $current !== null && $classifier->isDowngrade($current, $plan, $period);
+        $convertingFromTrial = $current !== null && $current->isConvertibleTrial();
+        $isDowngrade = $current !== null
+            && ! $convertingFromTrial
+            && $classifier->isDowngrade($current, $plan, $period);
         $proration = null;
         $changeMode = 'new';
         $scheduledChange = $this->scheduledChangePayload($current);
@@ -54,7 +62,8 @@ class CheckoutController extends Controller
             && (int) $scheduledChange['plan_id'] === (int) $plan->id
             && $scheduledChange['charge_period'] === $period;
 
-        if ($current !== null) {
+        // Convertible trials use paid checkout (full period, no proration) — not plan-change.
+        if ($current !== null && ! $convertingFromTrial) {
             $changeMode = $isDowngrade ? 'downgrade' : 'upgrade';
             if (! $isDowngrade) {
                 $proration = app(ProrationCalculator::class)->forUpgrade(
@@ -77,7 +86,10 @@ class CheckoutController extends Controller
                 'price_monthly_minor' => $plan->price_monthly_minor,
                 'price_yearly_minor' => $plan->price_yearly_minor,
                 'currency' => $plan->currency,
-                'trial_days' => $plan->trial_days,
+                'trial_days' => $trialDays,
+                'trial_eligible' => $trialDays >= 1,
+                'monthly_active' => (bool) $plan->monthly_active,
+                'yearly_active' => (bool) $plan->yearly_active,
             ],
             'period' => $period,
             'countries' => CountryCodes::options(),
@@ -92,10 +104,12 @@ class CheckoutController extends Controller
                 'postal_code' => $billing['postal_code'] ?? '',
                 'tax_id' => $billing['tax_id'] ?? '',
             ],
-            'pricesArePlaceholders' => true,
+            'pricesArePlaceholders' => Plan::catalogHasUnconfirmedPrices(),
+            'trialCardRequired' => app(TrialPolicy::class)->cardRequired(),
             'changeMode' => $changeMode,
+            'convertingFromTrial' => $convertingFromTrial,
             'proration' => $proration,
-            'currentPlan' => $current ? [
+            'currentPlan' => $current && ! $convertingFromTrial ? [
                 'id' => $current->id,
                 'plan_code' => $current->plan_code,
                 'plan_name' => $current->plan->name ?? $current->plan_code,
@@ -116,9 +130,14 @@ class CheckoutController extends Controller
         $user = $request->user();
         abort_unless($user instanceof User, 403);
         app(TenantRoleAuthorization::class)->require($user, $tenant->id, 'billing.manage');
-        abort_unless($plan->is_active && ! $plan->is_contact_sales, 404);
+        abort_unless($plan->isCheckoutable(), 404);
 
         $data = $request->validated();
+        if (! $plan->intervalIsActive($data['period'])) {
+            return back()->withErrors([
+                'checkout' => 'That billing interval is not available for this plan.',
+            ]);
+        }
         $billingDetails = [
             'company_name' => $data['company_name'],
             'billing_email' => $data['billing_email'],
@@ -138,7 +157,9 @@ class CheckoutController extends Controller
                 ->orderByDesc('id')
                 ->first();
 
-            if ($current !== null) {
+            // Paid conversion of an unpaid trial uses CheckoutService (full period,
+            // replaces_subscription_id). Plan changes never prorate against a trial.
+            if ($current !== null && ! $current->isConvertibleTrial()) {
                 $result = app(SubscriptionManagementService::class)->changePlan(
                     $tenant->id,
                     (int) $current->id,
@@ -195,11 +216,12 @@ class CheckoutController extends Controller
     {
         return match ($code) {
             'billing_subscription_already_current' => BillingCustomerMessages::CHECKOUT_ALREADY_SUBSCRIBED,
+            'billing_trial_requires_paid_checkout' => BillingCustomerMessages::CHECKOUT_TRIAL_REQUIRES_PAID,
             'billing_plan_unchanged' => BillingCustomerMessages::CHECKOUT_PLAN_UNCHANGED,
             'billing_scheduled_change_already_pending' => BillingCustomerMessages::CHECKOUT_SCHEDULED_CHANGE_ALREADY,
             'billing_plan_change_already_pending' => BillingCustomerMessages::CHECKOUT_PLAN_CHANGE_PENDING,
             'billing_plan_change_status_invalid', 'billing_plan_change_invalid',
-            'billing_period_invalid', 'billing_plan_not_checkoutable',
+            'billing_period_invalid', 'billing_plan_not_checkoutable', 'billing_interval_inactive',
             'billing_details_incomplete', 'billing_email_invalid', 'billing_country_invalid' => BillingCustomerMessages::CHECKOUT_GENERIC_FAILURE,
             default => BillingCustomerMessages::CHECKOUT_GENERIC_FAILURE,
         };
@@ -264,10 +286,11 @@ class CheckoutController extends Controller
             return true;
         }
 
+        $billingSettings = app(BillingSettings::class);
         $allowedSuffixes = [
             'kelviq.com',
-            parse_url((string) config('billing.kelviq.sandbox_base_url'), PHP_URL_HOST),
-            parse_url((string) config('billing.kelviq.live_base_url'), PHP_URL_HOST),
+            parse_url($billingSettings->kelviqSandboxBaseUrl(), PHP_URL_HOST),
+            parse_url($billingSettings->kelviqLiveBaseUrl(), PHP_URL_HOST),
         ];
 
         foreach ($allowedSuffixes as $suffix) {

@@ -34,12 +34,17 @@ type Props = {
         price_yearly_minor: number;
         currency: string;
         trial_days: number;
+        trial_eligible?: boolean;
+        monthly_active?: boolean;
+        yearly_active?: boolean;
     };
     period: 'monthly' | 'yearly';
     countries: Array<{ code: string; name: string }>;
     billingDetails: Record<string, string>;
     pricesArePlaceholders: boolean;
+    trialCardRequired?: boolean;
     changeMode?: 'new' | 'upgrade' | 'downgrade';
+    convertingFromTrial?: boolean;
     proration?: Proration | null;
     currentPlan?: {
         id: number;
@@ -61,7 +66,9 @@ export default function CheckoutPage({
     countries,
     billingDetails,
     pricesArePlaceholders,
+    trialCardRequired = true,
     changeMode = 'new',
+    convertingFromTrial = false,
     proration = null,
     currentPlan = null,
     scheduledChange = null,
@@ -96,7 +103,19 @@ export default function CheckoutPage({
                     </p>
                     {pricesArePlaceholders && (
                         <p className="mt-3 rounded-lg bg-warning-soft px-4 py-3 text-sm text-warning-fg">
-                            Placeholder seed price.
+                            This plan still has a temporary price. Confirm it
+                            with your administrator before paying.
+                        </p>
+                    )}
+                    {convertingFromTrial && (
+                        <p
+                            role="status"
+                            className="mt-3 rounded-md border border-border bg-surface px-4 py-3 text-sm"
+                        >
+                            You are converting from a free trial. The paid
+                            period starts when payment succeeds and is a full{' '}
+                            {period} interval — unused trial days are not
+                            credited.
                         </p>
                     )}
                     {scheduledChange && scheduledChangeIsSameTarget && (
@@ -182,6 +201,114 @@ export default function CheckoutPage({
                         </div>
                     )}
                 </div>
+
+                {changeMode === 'new' &&
+                    !convertingFromTrial &&
+                    plan.trial_eligible &&
+                    plan.trial_days > 0 && (
+                        <Form
+                            action={`/tenants/${tenant.id}/billing/trial/${plan.id}`}
+                            method="post"
+                            className="space-y-4 rounded-lg border border-border bg-white p-5"
+                        >
+                            {({ errors, processing }) => (
+                                <>
+                                    <input
+                                        type="hidden"
+                                        name="period"
+                                        value={period}
+                                    />
+                                    <p className="text-sm text-muted-foreground">
+                                        Start a {plan.trial_days}-day free trial
+                                        {trialCardRequired
+                                            ? ' (card required; you will not be charged until the trial ends).'
+                                            : ' with no card required.'}
+                                    </p>
+                                    {trialCardRequired && (
+                                        <div className="grid gap-4 md:grid-cols-2">
+                                            <div className="space-y-2">
+                                                <Label htmlFor="trial_company_name">
+                                                    Company name
+                                                </Label>
+                                                <Input
+                                                    id="trial_company_name"
+                                                    name="company_name"
+                                                    defaultValue={
+                                                        billingDetails.company_name
+                                                    }
+                                                    required
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="trial_billing_email">
+                                                    Billing email
+                                                </Label>
+                                                <Input
+                                                    id="trial_billing_email"
+                                                    name="billing_email"
+                                                    type="email"
+                                                    defaultValue={
+                                                        billingDetails.billing_email
+                                                    }
+                                                    required
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="trial_country">
+                                                    Country
+                                                </Label>
+                                                <select
+                                                    id="trial_country"
+                                                    name="country"
+                                                    defaultValue={
+                                                        billingDetails.country
+                                                    }
+                                                    className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
+                                                    required
+                                                >
+                                                    {countries.map(
+                                                        (country) => (
+                                                            <option
+                                                                key={
+                                                                    country.code
+                                                                }
+                                                                value={
+                                                                    country.code
+                                                                }
+                                                            >
+                                                                {country.name}
+                                                            </option>
+                                                        ),
+                                                    )}
+                                                </select>
+                                            </div>
+                                            <div className="space-y-2 md:col-span-2">
+                                                <Label htmlFor="trial_address_line1">
+                                                    Address
+                                                </Label>
+                                                <Input
+                                                    id="trial_address_line1"
+                                                    name="address_line1"
+                                                    defaultValue={
+                                                        billingDetails.address_line1
+                                                    }
+                                                    required
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+                                    <InputError message={errors.trial} />
+                                    <Button
+                                        type="submit"
+                                        disabled={processing}
+                                        variant="secondary"
+                                    >
+                                        Start {plan.trial_days}-day free trial
+                                    </Button>
+                                </>
+                            )}
+                        </Form>
+                    )}
 
                 <Form
                     action={`/tenants/${tenant.id}/billing/checkout/${plan.id}`}
@@ -313,9 +440,11 @@ export default function CheckoutPage({
                                 >
                                     {isDowngrade
                                         ? `Schedule change for ${formatDate(scheduleDate, { timeZone: timezone })}`
-                                        : amountDue === 0
-                                          ? 'Confirm upgrade'
-                                          : `Pay ${formatMoney(amountDue, plan.currency)}`}
+                                        : convertingFromTrial
+                                          ? `Subscribe now — ${formatMoney(amountDue, plan.currency)}`
+                                          : amountDue === 0
+                                            ? 'Confirm upgrade'
+                                            : `Pay ${formatMoney(amountDue, plan.currency)}`}
                                 </Button>
                                 <Button asChild variant="outline">
                                     <Link href="/billing/plans">

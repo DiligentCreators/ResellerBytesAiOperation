@@ -25,6 +25,11 @@ class PlanFactory extends Factory
             'price_yearly_minor' => 29000,
             'currency' => 'USD',
             'trial_days' => 14,
+            'trial_enabled' => false,
+            'features' => null,
+            'monthly_active' => true,
+            'yearly_active' => true,
+            'prices_confirmed_at' => null,
             'entitlements' => [
                 'diagnostics.analysis' => true,
                 'diagnostics.reanalyze' => true,

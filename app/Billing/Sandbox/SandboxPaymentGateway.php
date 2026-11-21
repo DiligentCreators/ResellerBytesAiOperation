@@ -55,6 +55,19 @@ class SandboxPaymentGateway implements PaymentGateway
     public function approve(TenantBillingInvoice $invoice): void
     {
         $this->assertUsable();
+
+        // Card-required trial: zero-amount session confirms the card hold only.
+        // Keep the subscription trialing; payment webhooks require amount >= 1.
+        if ($this->isTrialCheckout($invoice)) {
+            $invoice->forceFill([
+                'status' => 'paid',
+                'amount_paid_minor' => 0,
+                'paid_at' => now('UTC'),
+            ])->save();
+
+            return;
+        }
+
         $this->dispatchWebhook($invoice, 'invoice.payment_succeeded', [
             'provider_invoice_id' => $invoice->provider_invoice_id,
             'payment_id' => 'pay_sandbox_'.Str::lower(Str::random(16)),
@@ -67,11 +80,34 @@ class SandboxPaymentGateway implements PaymentGateway
     public function decline(TenantBillingInvoice $invoice): void
     {
         $this->assertUsable();
+
+        if ($this->isTrialCheckout($invoice)) {
+            $invoice->forceFill(['status' => 'void'])->save();
+            $subscription = $invoice->subscription;
+            if ($subscription !== null && $subscription->status === 'trialing') {
+                $subscription->forceFill([
+                    'status' => 'canceled',
+                    'canceled_at' => now('UTC'),
+                ])->save();
+            }
+
+            return;
+        }
+
         $this->dispatchWebhook($invoice, 'invoice.payment_failed', [
             'provider_invoice_id' => $invoice->provider_invoice_id,
             'failure_code' => 'sandbox_declined',
         ]);
         Artisan::call('billing:webhooks:reconcile', ['--limit' => 50]);
+    }
+
+    private function isTrialCheckout(TenantBillingInvoice $invoice): bool
+    {
+        $details = is_array($invoice->billing_details) ? $invoice->billing_details : [];
+
+        return ($details['checkout_kind'] ?? null) === 'trial'
+            || ((int) $invoice->amount_due_minor === 0
+                && $invoice->subscription?->status === 'trialing');
     }
 
     /**

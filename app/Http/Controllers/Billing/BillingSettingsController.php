@@ -95,6 +95,11 @@ class BillingSettingsController extends Controller
                 'cancel_at_period_end' => $subscription->cancel_at_period_end,
                 'current_period_starts_at' => $subscription->current_period_starts_at?->toIso8601String(),
                 'current_period_ends_at' => $subscription->current_period_ends_at?->toIso8601String(),
+                'trial_ends_at' => $subscription->trial_ends_at?->toIso8601String(),
+                'trial_days_remaining' => $subscription->status === 'trialing'
+                    ? $subscription->trialDaysRemaining()
+                    : null,
+                'is_convertible_trial' => $subscription->isConvertibleTrial(),
                 'entitlements' => $subscription->entitlements,
             ] : null,
             'scheduledChange' => $this->scheduledChangePayload($subscription),

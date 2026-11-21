@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Platform;
 use App\Http\Controllers\Controller;
 use App\Jobs\ProcessBillingWebhookReconcile;
 use App\Models\TenantBillingWebhookEvent;
+use App\Services\Billing\BillingSettings;
 use App\Services\CentralStaffAuthorization;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -14,7 +15,7 @@ use Inertia\Response;
 
 class PlatformBillingGatewayController extends Controller
 {
-    public function show(Request $request): Response
+    public function show(Request $request, BillingSettings $settings): Response
     {
         $this->authorizeBilling($request);
 
@@ -34,16 +35,20 @@ class PlatformBillingGatewayController extends Controller
             ->limit(25)
             ->get(['id', 'event_type', 'status', 'received_at', 'tenant_id', 'attempts', 'last_error_code']);
 
+        $canManageSettings = app(CentralStaffAuthorization::class)
+            ->can($request->user(), 'billing.settings.manage');
+
         return Inertia::render('platform/billing/gateway', [
             'gateway' => [
-                'driver' => (string) config('billing.default_gateway'),
-                'kelviq_mode' => (string) config('billing.kelviq.mode', 'sandbox'),
-                'api_key_configured' => (string) config('billing.kelviq.api_key') !== '',
-                'webhook_secret_configured' => (string) config('billing.kelviq.webhook_secret') !== '',
+                'driver' => $settings->gateway(),
+                'kelviq_mode' => $settings->kelviqMode(),
+                'api_key_configured' => $settings->kelviqApiKey() !== '',
+                'webhook_secret_configured' => $settings->kelviqWebhookSecret() !== '',
                 'webhook_url' => url('/webhooks/kelviq'),
                 'last_webhook_received_at' => $lastWebhook?->received_at?->toIso8601String(),
                 'failed_webhook_count' => $failedCount,
             ],
+            'canManageSettings' => $canManageSettings,
             'recentWebhooks' => $recent,
         ]);
     }

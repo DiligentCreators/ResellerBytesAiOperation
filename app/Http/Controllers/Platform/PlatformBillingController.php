@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Platform;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Platform\UpdateBillingSellerRequest;
+use App\Models\Plan;
 use App\Models\Tenant;
 use App\Models\TenantBillingInvoice;
 use App\Models\TenantBillingPayment;
@@ -78,7 +79,7 @@ class PlatformBillingController extends Controller
                 'status' => $request->string('status')->toString(),
                 'invoice_status' => $request->string('invoice_status')->toString(),
             ],
-            'pricesArePlaceholders' => true,
+            'pricesArePlaceholders' => Plan::catalogHasUnconfirmedPrices(),
             'seller' => BillingSeller::details(),
         ]);
     }

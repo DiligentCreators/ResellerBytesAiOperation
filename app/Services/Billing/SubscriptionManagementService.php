@@ -88,7 +88,9 @@ class SubscriptionManagementService
         string $billingPeriod,
         array $billingDetails,
     ): array {
-        if (! in_array($billingPeriod, ['monthly', 'yearly'], true) || ! $plan->is_active || $plan->is_contact_sales) {
+        if (! in_array($billingPeriod, ['monthly', 'yearly'], true)
+            || ! $plan->isCheckoutable()
+            || ! $plan->intervalIsActive($billingPeriod)) {
             throw new InvalidArgumentException('billing_plan_change_invalid');
         }
 
@@ -105,6 +107,12 @@ class SubscriptionManagementService
 
                 if (! in_array($current->status, ['trialing', 'active', 'past_due'], true)) {
                     throw new InvalidArgumentException('billing_plan_change_status_invalid');
+                }
+
+                // Unpaid trials must convert via paid CheckoutService::begin (full period,
+                // no proration credit against the unpaid trial).
+                if ($current->isConvertibleTrial()) {
+                    throw new InvalidArgumentException('billing_trial_requires_paid_checkout');
                 }
 
                 $targetAmount = $plan->priceForPeriod($billingPeriod);

@@ -33,8 +33,12 @@ class CheckoutService
             throw new InvalidArgumentException('billing_period_invalid');
         }
 
-        if (! $plan->is_active || $plan->is_contact_sales) {
+        if (! $plan->isCheckoutable()) {
             throw new InvalidArgumentException('billing_plan_not_checkoutable');
+        }
+
+        if (! $plan->intervalIsActive($billingPeriod)) {
+            throw new InvalidArgumentException('billing_interval_inactive');
         }
 
         $this->validateBillingDetails($billingDetails);
@@ -54,16 +58,28 @@ class CheckoutService
                     ->lockForUpdate()
                     ->first();
 
+                $convertibleTrial = null;
                 if ($current !== null) {
-                    throw new RuntimeException('billing_subscription_already_current');
+                    // Unpaid TrialService trials may convert to a paid subscription; any
+                    // other current subscription still blocks a fresh paid checkout.
+                    if (! $current->isConvertibleTrial()) {
+                        throw new RuntimeException('billing_subscription_already_current');
+                    }
+                    $convertibleTrial = $current;
                 }
 
                 // Abandoned paid checkouts leave provisional incomplete rows; clear them
                 // so a retry can start without blocking on the unique-current index.
+                // Also clear abandoned trial-conversion incompletes that replace this trial.
                 TenantSubscription::query()
                     ->where('tenant_id', $tenantId)
                     ->where('status', 'incomplete')
-                    ->whereNull('replaces_subscription_id')
+                    ->where(function ($query) use ($convertibleTrial): void {
+                        $query->whereNull('replaces_subscription_id');
+                        if ($convertibleTrial !== null) {
+                            $query->orWhere('replaces_subscription_id', $convertibleTrial->id);
+                        }
+                    })
                     ->lockForUpdate()
                     ->get()
                     ->each(function (TenantSubscription $abandoned): void {
@@ -100,9 +116,10 @@ class CheckoutService
                 }
 
                 $now = CarbonImmutable::now('UTC');
-                // Paid checkout charges the first period up front, so the period is the
-                // full billing interval (calendar month/year). Plan.trial_days is kept for
-                // a future no-card trial enrollment path and must not shorten paid periods.
+                // RB-2: Paid checkout always charges the first period up front. Trials are a
+                // separate TrialService action and must never shorten this period or send
+                // trialPeriod to Kelviq from this path. Conversion starts a full paid period
+                // at payment time (no trial days added or subtracted).
                 $periodEnds = $billingPeriod === 'yearly' ? $now->addYear() : $now->addMonth();
 
                 $amount = $plan->priceForPeriod($billingPeriod);
@@ -126,6 +143,7 @@ class CheckoutService
                     'charge_period' => $billingPeriod,
                     'entitlements' => $plan->entitlements,
                     'cancel_at_period_end' => false,
+                    'replaces_subscription_id' => $convertibleTrial?->id,
                     'current_period_starts_at' => $now,
                     'current_period_ends_at' => $periodEnds,
                     'created_by_user_id' => $actor->id,
@@ -196,7 +214,7 @@ class CheckoutService
     /**
      * @param  array<string, mixed>  $billingDetails
      */
-    private function persistTenantBillingDetails(string $tenantId, array $billingDetails): void
+    public function persistTenantBillingDetails(string $tenantId, array $billingDetails): void
     {
         $tenant = Tenant::query()->whereKey($tenantId)->lockForUpdate()->firstOrFail();
         $settings = (array) $tenant->settings;

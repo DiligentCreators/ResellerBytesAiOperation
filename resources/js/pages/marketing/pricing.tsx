@@ -15,7 +15,11 @@ type Plan = {
     price_yearly_minor: number;
     currency: string;
     trial_days: number;
+    trial_enabled: boolean;
+    monthly_active: boolean;
+    yearly_active: boolean;
     is_contact_sales: boolean;
+    features: string[] | null;
     entitlements: {
         limits?: Record<string, number>;
         support_level?: string;
@@ -42,10 +46,24 @@ export default function PricingPage({
         return growth?.code ?? plans[1]?.code ?? plans[0]?.code;
     }, [plans]);
 
+    const hasMonthly = plans.some((plan) => plan.monthly_active);
+    const hasYearly = plans.some((plan) => plan.yearly_active);
+    const periodIsYearly = hasYearly && (yearly || !hasMonthly);
+
+    const visiblePlans = useMemo(
+        () =>
+            plans.filter((plan) =>
+                periodIsYearly ? plan.yearly_active : plan.monthly_active,
+            ),
+        [plans, periodIsYearly],
+    );
+
     const yearlySavePercent = useMemo(() => {
         const sample = plans.find(
             (plan) =>
                 !plan.is_contact_sales &&
+                plan.monthly_active &&
+                plan.yearly_active &&
                 plan.price_monthly_minor > 0 &&
                 plan.price_yearly_minor > 0,
         );
@@ -87,61 +105,63 @@ export default function PricingPage({
                             role="status"
                             className="mt-6 rounded-md border border-warning/25 bg-warning-soft px-4 py-3 text-sm text-warning-fg"
                         >
-                            Placeholder seed prices — platform admins must edit
-                            amounts before commercial launch.
+                            Prices shown here are temporary. Platform admins
+                            must confirm amounts before commercial launch.
                         </p>
                     )}
 
-                    <div
-                        className="mt-10 inline-flex rounded-lg bg-muted p-1"
-                        role="radiogroup"
-                        aria-label="Billing period"
-                    >
-                        <button
-                            type="button"
-                            role="radio"
-                            aria-checked={!yearly}
-                            onClick={() => setYearly(false)}
-                            className={`h-8 rounded-md px-4 text-sm font-medium transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none ${
-                                !yearly
-                                    ? 'bg-white text-foreground shadow-xs'
-                                    : 'text-muted-foreground'
-                            }`}
+                    {hasMonthly && hasYearly ? (
+                        <div
+                            className="mt-10 inline-flex rounded-lg bg-muted p-1"
+                            role="radiogroup"
+                            aria-label="Billing period"
                         >
-                            Monthly
-                        </button>
-                        <button
-                            type="button"
-                            role="radio"
-                            aria-checked={yearly}
-                            onClick={() => setYearly(true)}
-                            className={`inline-flex h-8 items-center gap-2 rounded-md px-4 text-sm font-medium transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none ${
-                                yearly
-                                    ? 'bg-white text-foreground shadow-xs'
-                                    : 'text-muted-foreground'
-                            }`}
-                        >
-                            Yearly
-                            {yearlySavePercent ? (
-                                <Badge variant="success">
-                                    save {yearlySavePercent}%
-                                </Badge>
-                            ) : null}
-                        </button>
-                    </div>
+                            <button
+                                type="button"
+                                role="radio"
+                                aria-checked={!yearly}
+                                onClick={() => setYearly(false)}
+                                className={`h-8 rounded-md px-4 text-sm font-medium transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none ${
+                                    !yearly
+                                        ? 'bg-white text-foreground shadow-xs'
+                                        : 'text-muted-foreground'
+                                }`}
+                            >
+                                Monthly
+                            </button>
+                            <button
+                                type="button"
+                                role="radio"
+                                aria-checked={yearly}
+                                onClick={() => setYearly(true)}
+                                className={`inline-flex h-8 items-center gap-2 rounded-md px-4 text-sm font-medium transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none ${
+                                    yearly
+                                        ? 'bg-white text-foreground shadow-xs'
+                                        : 'text-muted-foreground'
+                                }`}
+                            >
+                                Yearly
+                                {yearlySavePercent ? (
+                                    <Badge variant="success">
+                                        save {yearlySavePercent}%
+                                    </Badge>
+                                ) : null}
+                            </button>
+                        </div>
+                    ) : null}
 
                     <div className="mt-12 grid items-stretch gap-6 md:grid-cols-2 lg:grid-cols-4">
-                        {plans.map((plan) => {
-                            const price = yearly
+                        {visiblePlans.map((plan) => {
+                            const price = periodIsYearly
                                 ? plan.price_yearly_minor
                                 : plan.price_monthly_minor;
                             const perMonth =
-                                yearly && !plan.is_contact_sales
+                                periodIsYearly && !plan.is_contact_sales
                                     ? Math.round(plan.price_yearly_minor / 12)
                                     : null;
                             const highlighted = plan.code === highlightedCode;
                             const checkoutHref = tenantId
-                                ? `/tenants/${tenantId}/billing/checkout/${plan.id}?period=${yearly ? 'yearly' : 'monthly'}`
+                                ? `/tenants/${tenantId}/billing/checkout/${plan.id}?period=${periodIsYearly ? 'yearly' : 'monthly'}`
                                 : register();
 
                             return (
@@ -182,7 +202,7 @@ export default function PricingPage({
                                             </span>
                                         ) : null}
                                     </div>
-                                    {yearly &&
+                                    {periodIsYearly &&
                                     !plan.is_contact_sales &&
                                     perMonth !== null ? (
                                         <p className="mt-1 text-xs text-muted-foreground">
@@ -193,53 +213,47 @@ export default function PricingPage({
                                             )}
                                         </p>
                                     ) : null}
+                                    {plan.trial_enabled &&
+                                    plan.trial_days > 0 ? (
+                                        <p className="mt-3 text-sm font-medium text-brand">
+                                            {plan.trial_days}-day free trial
+                                        </p>
+                                    ) : null}
                                     <ul className="mt-6 space-y-2.5 text-sm">
-                                        <li className="flex gap-2.5">
-                                            <Check
-                                                className="mt-0.5 size-4 text-brand"
-                                                aria-hidden
-                                            />
-                                            {plan.entitlements.limits
-                                                ?.integrations ?? 0}{' '}
-                                            WHMCS integrations
-                                        </li>
-                                        <li className="flex gap-2.5">
-                                            <Check
-                                                className="mt-0.5 size-4 text-brand"
-                                                aria-hidden
-                                            />
-                                            {plan.entitlements.limits
-                                                ?.diagnostics_per_period ??
-                                                0}{' '}
-                                            diagnostics / period
-                                        </li>
-                                        <li className="flex gap-2.5">
-                                            <Check
-                                                className="mt-0.5 size-4 text-brand"
-                                                aria-hidden
-                                            />
-                                            {plan.entitlements.limits
-                                                ?.members ?? 0}{' '}
-                                            team seats
-                                        </li>
-                                        <li className="flex gap-2.5">
-                                            <Check
-                                                className="mt-0.5 size-4 text-brand"
-                                                aria-hidden
-                                            />
-                                            {plan.entitlements.limits
-                                                ?.retention_days ?? 0}{' '}
-                                            day retention
-                                        </li>
-                                        <li className="flex gap-2.5">
-                                            <Check
-                                                className="mt-0.5 size-4 text-brand"
-                                                aria-hidden
-                                            />
-                                            Support:{' '}
-                                            {plan.entitlements.support_level ??
-                                                'standard'}
-                                        </li>
+                                        {plan.features &&
+                                        plan.features.length > 0
+                                            ? plan.features.map((feature) => (
+                                                  <li
+                                                      key={feature}
+                                                      className="flex gap-2.5"
+                                                  >
+                                                      <Check
+                                                          className="mt-0.5 size-4 text-brand"
+                                                          aria-hidden
+                                                      />
+                                                      {feature}
+                                                  </li>
+                                              ))
+                                            : (
+                                                  [
+                                                      `${plan.entitlements.limits?.integrations ?? 0} WHMCS integrations`,
+                                                      `${plan.entitlements.limits?.diagnostics_per_period ?? 0} diagnostics / period`,
+                                                      `${plan.entitlements.limits?.members ?? 0} team seats`,
+                                                      `${plan.entitlements.limits?.retention_days ?? 0} day retention`,
+                                                      `Support: ${plan.entitlements.support_level ?? 'standard'}`,
+                                                  ] as string[]
+                                              ).map((feature) => (
+                                                  <li
+                                                      key={feature}
+                                                      className="flex gap-2.5"
+                                                  >
+                                                      <Check
+                                                          className="mt-0.5 size-4 text-brand"
+                                                          aria-hidden
+                                                      />
+                                                      {feature}
+                                                  </li>
+                                              ))}
                                     </ul>
                                     <div className="mt-auto pt-8">
                                         {plan.is_contact_sales ? (
@@ -293,7 +307,7 @@ export default function PricingPage({
                                     >
                                         Feature
                                     </th>
-                                    {plans.map((plan) => (
+                                    {visiblePlans.map((plan) => (
                                         <th
                                             key={plan.id}
                                             scope="col"
@@ -326,7 +340,7 @@ export default function PricingPage({
                                         >
                                             {label}
                                         </th>
-                                        {plans.map((plan) => {
+                                        {visiblePlans.map((plan) => {
                                             const value =
                                                 plan.entitlements.limits?.[key];
                                             return (

@@ -15,6 +15,8 @@ final class BillingCustomerMessages
 
     public const CHECKOUT_ALREADY_SUBSCRIBED = 'This workspace already has an active subscription. Use Change plan from Billing settings to upgrade or switch period.';
 
+    public const CHECKOUT_TRIAL_REQUIRES_PAID = 'Your workspace is on a free trial. Subscribe now to start a paid plan — trial time is not credited toward the paid period.';
+
     public const CHECKOUT_PLAN_UNCHANGED = 'You are already on this plan and billing period.';
 
     public const CHECKOUT_SCHEDULED_CHANGE_ALREADY = 'That plan change is already scheduled.';

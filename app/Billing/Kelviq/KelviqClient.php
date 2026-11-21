@@ -2,6 +2,7 @@
 
 namespace App\Billing\Kelviq;
 
+use App\Services\Billing\BillingSettings;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\RequestException;
@@ -44,31 +45,29 @@ class KelviqClient
     }
 
     /**
-     * Harmless documented read used by billing:kelviq:check.
+     * Harmless documented read used by billing:kelviq:check and the settings test button.
      *
      * @return array<string, mixed>
      */
-    public function listWebhookLogs(): array
+    public function listWebhookLogs(?int $pageSize = null): array
     {
-        return $this->request('GET', '/webhook/logs/', null, retry: true);
+        $query = $pageSize !== null ? ['page_size' => max(1, $pageSize)] : null;
+
+        return $this->request('GET', '/webhook/logs/', $query, retry: true, asQuery: true);
     }
 
     public function baseUrl(): string
     {
-        $mode = (string) config('billing.kelviq.mode', 'sandbox');
-
-        return $mode === 'live'
-            ? (string) config('billing.kelviq.live_base_url')
-            : (string) config('billing.kelviq.sandbox_base_url');
+        return app(BillingSettings::class)->kelviqBaseUrl();
     }
 
     /**
      * @param  array<string, mixed>|null  $payload
      * @return array<string, mixed>
      */
-    private function request(string $method, string $path, ?array $payload, bool $retry): array
+    private function request(string $method, string $path, ?array $payload, bool $retry, bool $asQuery = false): array
     {
-        $apiKey = (string) config('billing.kelviq.api_key');
+        $apiKey = app(BillingSettings::class)->kelviqApiKey();
         if ($apiKey === '') {
             throw new RuntimeException('billing_kelviq_api_key_missing');
         }
@@ -83,7 +82,9 @@ class KelviqClient
         }
 
         $response = match (strtoupper($method)) {
-            'GET' => $pending->get($path),
+            'GET' => $asQuery
+                ? $pending->get($path, $payload ?? [])
+                : $pending->get($path),
             'POST' => $pending->post($path, $payload ?? []),
             default => throw new RuntimeException('billing_kelviq_method_unsupported'),
         };
