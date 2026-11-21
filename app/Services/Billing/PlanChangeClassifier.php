@@ -31,7 +31,22 @@ class PlanChangeClassifier
             < $this->normalizedMonthlyMinorFromSubscription($current, $currentPeriod);
     }
 
+    /**
+     * Stored charge_period when set; otherwise infer from unit amount vs plan yearly price.
+     */
     public function chargePeriodFor(TenantSubscription $subscription): string
+    {
+        if (in_array($subscription->charge_period, ['monthly', 'yearly'], true)) {
+            return $subscription->charge_period;
+        }
+
+        return $this->inferChargePeriod($subscription);
+    }
+
+    /**
+     * Legacy inference used for backfill and null charge_period rows.
+     */
+    public function inferChargePeriod(TenantSubscription $subscription): string
     {
         $plan = $subscription->plan;
         if ($plan !== null && $subscription->unit_amount_minor === $plan->price_yearly_minor) {

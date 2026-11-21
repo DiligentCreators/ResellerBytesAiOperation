@@ -82,3 +82,19 @@ it('treats monthly amounts as-is when the stored price matches the plan monthly 
 
     expect(app(MrrCalculator::class)->fromSubscriptions($subscriptions))->toBe(4900);
 });
+
+it('prefers stored charge_period over price inference for MRR', function (): void {
+    $plan = new Plan([
+        'price_monthly_minor' => 10000,
+        'price_yearly_minor' => 100000,
+    ]);
+    $subscription = new TenantSubscription([
+        'unit_amount_minor' => 10000,
+        'charge_period' => 'yearly',
+        'status' => 'active',
+    ]);
+    $subscription->setRelation('plan', $plan);
+
+    // 10000 / 12 = 833.333… → half-up once → 833
+    expect(app(MrrCalculator::class)->fromSubscriptions([$subscription]))->toBe(833);
+});

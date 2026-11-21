@@ -7,6 +7,7 @@ use App\Models\Plan;
 use App\Models\TenantBillingInvoice;
 use App\Models\TenantSubscription;
 use App\Models\User;
+use App\Services\Billing\PlanChangeClassifier;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
@@ -53,7 +54,7 @@ class KelviqPaymentGateway implements PaymentGateway
             throw new RuntimeException('billing_kelviq_plan_missing');
         }
 
-        $period = $this->inferPeriod($subscription, $plan);
+        $period = app(PlanChangeClassifier::class)->chargePeriodFor($subscription);
         $planIdentifier = $plan->kelviqPlanIdentifierForPeriod($period);
         if ($planIdentifier === null || $planIdentifier === '') {
             throw new RuntimeException('billing_kelviq_plan_identifier_missing');
@@ -119,14 +120,5 @@ class KelviqPaymentGateway implements PaymentGateway
         $invoice->forceFill(['billing_details' => $details])->save();
 
         return $checkout['checkoutUrl'];
-    }
-
-    private function inferPeriod(TenantSubscription $subscription, Plan $plan): string
-    {
-        if ($subscription->unit_amount_minor === $plan->price_yearly_minor) {
-            return 'yearly';
-        }
-
-        return 'monthly';
     }
 }

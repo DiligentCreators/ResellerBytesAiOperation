@@ -23,10 +23,10 @@ class MrrCalculator
     /**
      * Approximate MRR in integer minor units.
      *
-     * Interval is derived the same way as tenant billing / PlanChangeClassifier
-     * (unit_amount_minor compared to the plan's yearly price). Yearly amounts
-     * are divided by 12; monthly amounts are unchanged. Exact monthly fractions
-     * are summed, then rounded half-up once on the total.
+     * Interval comes from PlanChangeClassifier::chargePeriodFor (stored
+     * charge_period with inference fallback). Yearly amounts are divided by 12;
+     * monthly amounts are unchanged. Exact monthly fractions are summed, then
+     * rounded half-up once on the total.
      */
     public function approximateMrrMinor(): int
     {
@@ -34,7 +34,7 @@ class MrrCalculator
         $subscriptions = TenantSubscription::query()
             ->with('plan:id,price_yearly_minor')
             ->whereIn('status', self::COUNTED_STATUSES)
-            ->get(['id', 'plan_id', 'unit_amount_minor', 'status']);
+            ->get(['id', 'plan_id', 'unit_amount_minor', 'charge_period', 'status']);
 
         return $this->fromSubscriptions($subscriptions);
     }

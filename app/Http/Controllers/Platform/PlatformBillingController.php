@@ -34,12 +34,29 @@ class PlatformBillingController extends Controller
             ->whereIn('status', ['failed', 'past_due'])
             ->count();
 
+        $classifier = app(PlanChangeClassifier::class);
         $subscriptions = TenantSubscription::query()
-            ->with('tenant:id,name,slug')
+            ->with([
+                'tenant:id,name,slug',
+                'plan:id,price_yearly_minor',
+            ])
             ->when($request->string('status')->toString(), fn ($q, $status) => $q->where('status', $status))
             ->latest('id')
             ->limit(50)
-            ->get();
+            ->get()
+            ->map(fn (TenantSubscription $subscription): array => [
+                'id' => $subscription->id,
+                'plan_code' => $subscription->plan_code,
+                'status' => $subscription->status,
+                'unit_amount_minor' => $subscription->unit_amount_minor,
+                'currency' => $subscription->currency,
+                'billing_period' => $classifier->chargePeriodFor($subscription),
+                'tenant' => $subscription->tenant === null ? null : [
+                    'id' => $subscription->tenant->id,
+                    'name' => $subscription->tenant->name,
+                    'slug' => $subscription->tenant->slug,
+                ],
+            ]);
 
         $invoices = TenantBillingInvoice::query()
             ->with('tenant:id,name,slug')

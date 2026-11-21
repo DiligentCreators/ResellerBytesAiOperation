@@ -123,6 +123,7 @@ class CheckoutService
                     'provider_subscription_id' => $providerSubscriptionId,
                     'currency' => $plan->currency,
                     'unit_amount_minor' => $amount,
+                    'charge_period' => $billingPeriod,
                     'entitlements' => $plan->entitlements,
                     'cancel_at_period_end' => false,
                     'current_period_starts_at' => $now,
