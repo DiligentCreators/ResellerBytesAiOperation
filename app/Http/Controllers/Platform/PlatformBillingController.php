@@ -8,6 +8,7 @@ use App\Models\Tenant;
 use App\Models\TenantBillingInvoice;
 use App\Models\TenantBillingPayment;
 use App\Models\TenantSubscription;
+use App\Services\Billing\PlanChangeClassifier;
 use App\Services\CentralStaffAuthorization;
 use App\Support\BillingSeller;
 use Illuminate\Http\RedirectResponse;
@@ -71,10 +72,17 @@ class PlatformBillingController extends Controller
         $this->authorizeBilling($request);
 
         $subscription = TenantSubscription::query()
-            ->with('plan:id,code,name')
+            ->with([
+                'plan:id,code,name,price_monthly_minor,price_yearly_minor',
+                'scheduledPlan:id,code,name',
+            ])
             ->where('tenant_id', $tenant->id)
             ->latest('id')
             ->first();
+
+        $billing = (array) (($tenant->settings['billing'] ?? []) ?: []);
+        $classifier = app(PlanChangeClassifier::class);
+        $billingPeriod = $subscription !== null ? $classifier->chargePeriodFor($subscription) : null;
 
         return Inertia::render('platform/billing/tenant', [
             'tenant' => [
@@ -82,7 +90,16 @@ class PlatformBillingController extends Controller
                 'name' => $tenant->name,
                 'slug' => $tenant->slug,
                 'timezone' => $tenant->timezone ?: 'UTC',
-                'billing' => $tenant->settings['billing'] ?? null,
+            ],
+            'billingDetails' => [
+                'company_name' => $this->nullableString($billing['company_name'] ?? null),
+                'billing_email' => $this->nullableString($billing['billing_email'] ?? null),
+                'country' => $this->nullableString($billing['country'] ?? null),
+                'address_line1' => $this->nullableString($billing['address_line1'] ?? null),
+                'address_line2' => $this->nullableString($billing['address_line2'] ?? null),
+                'city' => $this->nullableString($billing['city'] ?? null),
+                'postal_code' => $this->nullableString($billing['postal_code'] ?? null),
+                'tax_id' => $this->nullableString($billing['tax_id'] ?? null),
             ],
             'subscription' => $subscription ? [
                 'id' => $subscription->id,
@@ -91,8 +108,14 @@ class PlatformBillingController extends Controller
                 'status' => $subscription->status,
                 'unit_amount_minor' => $subscription->unit_amount_minor,
                 'currency' => $subscription->currency,
+                'billing_period' => $billingPeriod,
+                'cancel_at_period_end' => $subscription->cancel_at_period_end,
+                'billing_provider' => $subscription->billing_provider,
+                'billing_mode' => $subscription->billing_mode,
+                'current_period_starts_at' => $subscription->current_period_starts_at?->toIso8601String(),
                 'current_period_ends_at' => $subscription->current_period_ends_at?->toIso8601String(),
             ] : null,
+            'scheduledChange' => $this->scheduledChangePayload($subscription),
             'invoices' => TenantBillingInvoice::query()->where('tenant_id', $tenant->id)->latest('id')->limit(50)->get(),
             'payments' => TenantBillingPayment::query()->where('tenant_id', $tenant->id)->latest('id')->limit(50)->get(),
             'revenue_paid_minor' => (int) TenantBillingPayment::query()
@@ -125,5 +148,39 @@ class PlatformBillingController extends Controller
     private function authorizeBilling(Request $request): void
     {
         abort_unless(app(CentralStaffAuthorization::class)->can($request->user(), 'billing'), 403);
+    }
+
+    /**
+     * @return array{plan_id: int, plan_code: string, plan_name: string, charge_period: string, change_at: string}|null
+     */
+    private function scheduledChangePayload(?TenantSubscription $subscription): ?array
+    {
+        if ($subscription === null
+            || $subscription->scheduled_plan_id === null
+            || $subscription->scheduled_change_at === null
+            || ! in_array($subscription->scheduled_charge_period, ['monthly', 'yearly'], true)) {
+            return null;
+        }
+
+        $scheduledPlan = $subscription->scheduledPlan;
+
+        return [
+            'plan_id' => (int) $subscription->scheduled_plan_id,
+            'plan_code' => $scheduledPlan->code ?? '',
+            'plan_name' => $scheduledPlan->name ?? (string) $subscription->scheduled_plan_id,
+            'charge_period' => $subscription->scheduled_charge_period,
+            'change_at' => $subscription->scheduled_change_at->toIso8601String(),
+        ];
+    }
+
+    private function nullableString(mixed $value): ?string
+    {
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $trimmed = trim($value);
+
+        return $trimmed === '' ? null : $trimmed;
     }
 }
