@@ -77,6 +77,19 @@ Configure Forge's scheduler to run php artisan schedule:run every minute. The ap
 
 Verify Redis recovery, queue processing, scheduler execution, and failure logging before connecting WHMCS.
 
+### Inertia SSR (Forge)
+
+SSR is opt-in via `INERTIA_SSR_ENABLED` (default `false` in `config/inertia.php`). The standard deploy build is client-only (`npm run build` / `vp build`), not `npm run build:ssr`.
+
+Before deploying on Forge:
+
+1. Set `INERTIA_SSR_ENABLED=false` in the site `.env` unless an SSR bundle and healthy daemon are intentionally provisioned.
+2. If the deploy script runs `php artisan inertia:stop-ssr` or `inertia:start-ssr`, remove those lines or make them non-fatal (`|| true`) while SSR is disabled.
+3. Stop or delete any Exited **Inertia SSR** background process. Keep the Redis queue worker daemon.
+4. After a successful deploy, run `php artisan queue:restart` if workers did not pick up the new release.
+
+Leaving SSR enabled while the daemon is down causes deploy activation to fail with `Unable to connect to Inertia SSR server`.
+
 ## 5. Create the WHMCS integration
 
 1. In Forge SSH, run php artisan whmcs:integration:create "ResellerBytes Production WHMCS".
