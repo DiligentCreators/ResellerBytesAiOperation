@@ -107,6 +107,7 @@ it('charges the gateway only for total_due and writes plan plus credit invoice l
 
     expect($change['mode'])->toBe('upgrade')
         ->and($change['invoice']->amount_due_minor)->toBe($expected->totalDueMinor)
+        ->and($change['invoice']->subtotal_minor)->toBe($expected->newPriceMinor)
         ->and($change['proration']['total_due_minor'])->toBe($expected->totalDueMinor)
         ->and($change['invoice']->service_period_starts_at)->not->toBeNull()
         ->and($change['invoice']->line_items)->toHaveCount(2)

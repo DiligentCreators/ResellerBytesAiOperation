@@ -19,6 +19,10 @@ type Invoice = {
         quantity?: number;
         amount_minor: number;
     }>;
+    credit_lines?: Array<{
+        description: string;
+        amount_minor: number;
+    }>;
     billing_details: Record<string, string>;
     issued_at: string | null;
     due_at: string | null;
@@ -200,6 +204,22 @@ export default function InvoiceShow({
                                 )}
                             </span>
                         </div>
+                        {(invoice.credit_lines ?? []).map((credit) => (
+                            <div
+                                key={credit.description}
+                                className="flex justify-between gap-4"
+                            >
+                                <span className="text-muted-foreground">
+                                    {credit.description}
+                                </span>
+                                <span className="shrink-0 tabular-nums">
+                                    {formatMoney(
+                                        credit.amount_minor,
+                                        invoice.currency,
+                                    )}
+                                </span>
+                            </div>
+                        ))}
                         <div className="flex justify-between">
                             <span className="text-muted-foreground">Tax</span>
                             <span className="tabular-nums">

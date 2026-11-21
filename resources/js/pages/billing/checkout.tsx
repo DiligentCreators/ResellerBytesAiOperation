@@ -147,9 +147,8 @@ export default function CheckoutPage({
                                     {proration.remaining_days} days)
                                 </span>
                                 <span className="tabular-nums">
-                                    −
                                     {formatMoney(
-                                        proration.credit_minor,
+                                        -proration.credit_minor,
                                         proration.currency,
                                     )}
                                 </span>
