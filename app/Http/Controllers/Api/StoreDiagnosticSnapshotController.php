@@ -9,6 +9,7 @@ use App\Models\DiagnosticRun;
 use App\Models\WhmcsIntegration;
 use App\Services\Ai\OpenAiConfiguration;
 use App\Services\Audit\AuditEventWriter;
+use App\Services\SafeActions\SafeActionExecutor;
 use App\Services\Tenancy\TenantResourceLimitService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\QueryException;
@@ -68,6 +69,8 @@ class StoreDiagnosticSnapshotController extends Controller
                     'ip_address' => $request->ip(),
                     'occurred_at' => now(),
                 ]);
+
+                app(SafeActionExecutor::class)->verifyCollectFromSnapshot($integration->fresh() ?? $integration, $run);
 
                 return $run;
             });

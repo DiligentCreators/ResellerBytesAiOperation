@@ -91,7 +91,9 @@ it('applies explicit role capability boundaries', function () {
     expect($policy->allows($memberships[0], 'tenant.close'))->toBeTrue()
         ->and($policy->allows($memberships[1], 'tenant.close'))->toBeFalse()
         ->and($policy->allows($memberships[2], 'diagnostics.reanalyze'))->toBeTrue()
+        ->and($policy->allows($memberships[2], 'diagnostics.manage_findings'))->toBeTrue()
         ->and($policy->allows($memberships[3], 'diagnostics.reanalyze'))->toBeFalse()
+        ->and($policy->allows($memberships[3], 'diagnostics.manage_findings'))->toBeFalse()
         ->and($policy->allows($memberships[4], 'billing.read'))->toBeTrue()
         ->and($policy->allows($memberships[4], 'diagnostics.read'))->toBeFalse();
 });

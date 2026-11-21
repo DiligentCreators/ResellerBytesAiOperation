@@ -49,9 +49,23 @@ type OnboardingChecklist = {
     };
 };
 
+type Installation = {
+    id: string;
+    name: string;
+    status: string;
+    addon_version: string | null;
+    last_seen_at: string | null;
+    runs_count: number;
+    open_findings: number;
+};
+
 type Props = {
     stats: DashboardStats;
     latestRuns: DiagnosticRun[];
+    installations?: Installation[];
+    health?: {
+        last_scan_clean: boolean;
+    };
     addon: {
         version: string;
         download_available: boolean;
@@ -63,6 +77,8 @@ type Props = {
 export default function Dashboard({
     stats,
     latestRuns,
+    installations = [],
+    health,
     addon,
     onboarding: onboardingState,
 }: Props) {
@@ -167,6 +183,51 @@ export default function Dashboard({
                             )
                         }
                     />
+                ) : null}
+
+                {installations.length > 1 ? (
+                    <section className="rounded-lg border border-border bg-card p-5 shadow-xs">
+                        <div className="flex items-center justify-between gap-3">
+                            <div>
+                                <h2 className="text-sm font-semibold">
+                                    Multi-install ops board
+                                </h2>
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                    Cross-install priority for your WHMCS
+                                    estate — the hero demo for ops buyers.
+                                </p>
+                            </div>
+                            <Button variant="ghost" size="sm" asChild>
+                                <Link href="/integrations">Manage</Link>
+                            </Button>
+                        </div>
+                        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                            {installations.map((install) => (
+                                <div
+                                    key={install.id}
+                                    className="rounded-md border border-border bg-surface/40 px-3 py-3"
+                                >
+                                    <div className="flex items-center justify-between gap-2">
+                                        <p className="truncate text-sm font-medium">
+                                            {install.name}
+                                        </p>
+                                        <StatusBadge status={install.status} />
+                                    </div>
+                                    <p className="mt-2 text-xs text-muted-foreground">
+                                        {install.open_findings} active findings
+                                        · {install.runs_count} runs
+                                    </p>
+                                    <p className="mt-1 text-xs text-muted-foreground">
+                                        Last seen{' '}
+                                        {formatDateTime(
+                                            install.last_seen_at,
+                                            timezone,
+                                        )}
+                                    </p>
+                                </div>
+                            ))}
+                        </div>
+                    </section>
                 ) : null}
 
                 <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -340,10 +401,14 @@ export default function Dashboard({
                                         className="mt-2 h-auto px-0"
                                         asChild
                                     >
-                                        <Link href="/findings">
-                                            Review findings
+                                        <Link href="/findings?status=active">
+                                            Open Fix Center
                                         </Link>
                                     </Button>
+                                ) : health?.last_scan_clean ? (
+                                    <p className="mt-2 text-xs text-success-fg">
+                                        Last scan clean — no active findings.
+                                    </p>
                                 ) : (
                                     <p className="mt-2 text-xs text-muted-foreground">
                                         No open findings yet.

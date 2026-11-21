@@ -7,6 +7,7 @@ use App\Http\Controllers\Billing\InvoiceController;
 use App\Http\Controllers\Billing\SandboxCheckoutController;
 use App\Http\Controllers\Billing\TrialController;
 use App\Http\Controllers\BillingPlansController;
+use App\Http\Controllers\CaseStudiesController;
 use App\Http\Controllers\CentralStaffController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DiagnosticRunController;
@@ -19,6 +20,8 @@ use App\Http\Controllers\Platform\PlatformPlanController;
 use App\Http\Controllers\PlatformAiSettingsController;
 use App\Http\Controllers\PlatformMailSettingsController;
 use App\Http\Controllers\PricingController;
+use App\Http\Controllers\ProductController;
+use App\Http\Controllers\SafeActionController;
 use App\Http\Controllers\TenantAuditExportController;
 use App\Http\Controllers\TenantMembershipController;
 use App\Http\Controllers\TenantNotificationController;
@@ -33,6 +36,8 @@ use Illuminate\Support\Facades\Route;
 
 Route::inertia('/', 'welcome')->name('home');
 Route::get('pricing', PricingController::class)->name('pricing');
+Route::get('product', ProductController::class)->name('product');
+Route::get('case-studies', CaseStudiesController::class)->name('case-studies');
 Route::inertia('terms', 'legal/terms')->name('terms');
 Route::inertia('privacy', 'legal/privacy')->name('privacy');
 
@@ -122,6 +127,12 @@ Route::middleware(['auth', 'verified', EnsureTwoFactorEnabled::class])->group(fu
     Route::post('diagnostic-runs/{diagnosticRun}/reanalyze', [DiagnosticRunController::class, 'reanalyze'])->middleware('throttle:diagnostic-runs-reanalyze')->name('diagnostic-runs.reanalyze');
     Route::get('findings', [FindingController::class, 'index'])->name('findings.index');
     Route::get('findings/{finding}', [FindingController::class, 'show'])->name('findings.show');
+    Route::patch('findings/{finding}', [FindingController::class, 'update'])->middleware('throttle:60,1')->name('findings.update');
+    Route::post('findings/{finding}/recheck', [FindingController::class, 'recheck'])->middleware('throttle:30,1')->name('findings.recheck');
+    Route::get('safe-actions', [SafeActionController::class, 'index'])->name('safe-actions.index');
+    Route::post('safe-actions', [SafeActionController::class, 'store'])->middleware('throttle:30,1')->name('safe-actions.store');
+    Route::get('safe-actions/{safeAction}', [SafeActionController::class, 'show'])->name('safe-actions.show');
+    Route::post('safe-actions/{safeAction}/approve', [SafeActionController::class, 'approve'])->middleware('throttle:20,1')->name('safe-actions.approve');
     Route::get('whmcs-addon/download', WhmcsAddonDownloadController::class)->middleware('throttle:whmcs-addon-download')->name('whmcs-addon.download');
     Route::get('whmcs-addon/signing-key-fingerprint', WhmcsAddonSigningFingerprintController::class)->name('whmcs-addon.signing-key-fingerprint');
     Route::get('whmcs-addon/setup', WhmcsAddonSetupController::class)->name('whmcs-addon.setup');

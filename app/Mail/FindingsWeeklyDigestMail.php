@@ -1,0 +1,80 @@
+<?php
+
+namespace App\Mail;
+
+use Illuminate\Bus\Queueable;
+use Illuminate\Mail\Mailable;
+use Illuminate\Mail\Mailables\Content;
+use Illuminate\Mail\Mailables\Envelope;
+use Illuminate\Queue\SerializesModels;
+
+class FindingsWeeklyDigestMail extends Mailable
+{
+    use Queueable;
+    use SerializesModels;
+
+    /**
+     * @param  array{
+     *     tenant_name: string,
+     *     open: int,
+     *     in_progress: int,
+     *     critical: int,
+     *     resolved_this_week: int,
+     *     accepted_risk: int,
+     *     top_findings: list<array{title: string, severity: string, status: string, integration_name: string}>,
+     *     findings_url: string
+     * }  $digest
+     */
+    public function __construct(public readonly array $digest) {}
+
+    public function envelope(): Envelope
+    {
+        $open = $this->digest['open'] + $this->digest['in_progress'];
+
+        return new Envelope(
+            subject: sprintf(
+                '[%s] Weekly WHMCS ops digest — %d active finding%s',
+                $this->digest['tenant_name'],
+                $open,
+                $open === 1 ? '' : 's',
+            ),
+        );
+    }
+
+    public function content(): Content
+    {
+        return new Content(
+            htmlString: $this->renderHtml(),
+        );
+    }
+
+    private function renderHtml(): string
+    {
+        $lines = [
+            '<p>Weekly ops digest for <strong>'.e($this->digest['tenant_name']).'</strong>.</p>',
+            '<ul>',
+            '<li>Open: '.e((string) $this->digest['open']).'</li>',
+            '<li>In progress: '.e((string) $this->digest['in_progress']).'</li>',
+            '<li>Critical (active): '.e((string) $this->digest['critical']).'</li>',
+            '<li>Resolved this week: '.e((string) $this->digest['resolved_this_week']).'</li>',
+            '<li>Accepted risk: '.e((string) $this->digest['accepted_risk']).'</li>',
+            '</ul>',
+        ];
+
+        if ($this->digest['top_findings'] === []) {
+            $lines[] = '<p><strong>Last scan clean</strong> — no active findings need attention this week.</p>';
+        } else {
+            $lines[] = '<p>Top active findings:</p><ol>';
+            foreach ($this->digest['top_findings'] as $finding) {
+                $lines[] = '<li>'.e($finding['title'])
+                    .' ('.e($finding['severity']).' · '.e($finding['status']).' · '.e($finding['integration_name']).')</li>';
+            }
+            $lines[] = '</ol>';
+        }
+
+        $lines[] = '<p><a href="'.e($this->digest['findings_url']).'">Open Fix Center</a></p>';
+        $lines[] = '<p>WHMCS stays the execution surface. This digest is advice and workflow only — no WHMCS writes.</p>';
+
+        return implode("\n", $lines);
+    }
+}

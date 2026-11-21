@@ -1,9 +1,10 @@
-import { Head, Link } from '@inertiajs/react';
-import { ShieldAlert } from 'lucide-react';
+import { Head, Link, router } from '@inertiajs/react';
+import { CheckCircle2, ShieldAlert } from 'lucide-react';
 import { EmptyState } from '@/components/empty-state';
 import { PageHeader } from '@/components/page-header';
 import { Pagination } from '@/components/pagination';
 import { StatusBadge } from '@/components/status-badge';
+import { Button } from '@/components/ui/button';
 
 type Finding = {
     id: string;
@@ -14,29 +15,105 @@ type Finding = {
     created_at: string | null;
     integration_name: string;
     diagnostic_run_id: string;
+    assignee_name: string | null;
 };
+
 type Props = {
     findings: {
         data: Finding[];
         links: { url: string | null; label: string; active: boolean }[];
     };
+    filters: {
+        status: string;
+    };
+    health: {
+        last_scan_clean: boolean;
+        active_count: number;
+        analyzed_runs: number;
+    };
 };
 
-export default function FindingsIndex({ findings }: Props) {
+const statusFilters = [
+    { value: 'all', label: 'All' },
+    { value: 'active', label: 'Active' },
+    { value: 'open', label: 'Open' },
+    { value: 'in_progress', label: 'In progress' },
+    { value: 'resolved', label: 'Resolved' },
+    { value: 'accepted_risk', label: 'Accepted risk' },
+] as const;
+
+export default function FindingsIndex({ findings, filters, health }: Props) {
+    const setStatus = (status: string) => {
+        router.get(
+            '/findings',
+            status === 'all' ? {} : { status },
+            { preserveState: true, replace: true },
+        );
+    };
+
     return (
         <>
             <Head title="Findings" />
             <div className="space-y-6">
                 <PageHeader
                     title="Findings"
-                    description="Evidence-backed operational issues identified from diagnostic snapshots."
+                    description="Evidence-backed ops issues with guided WHMCS fix playbooks — priority and accountability, not autopilot."
                 />
+
+                {health.last_scan_clean ? (
+                    <section className="rounded-lg border border-success/20 bg-success-soft p-5">
+                        <div className="flex items-start gap-3">
+                            <CheckCircle2
+                                className="mt-0.5 size-5 text-success-fg"
+                                aria-hidden
+                            />
+                            <div>
+                                <h2 className="text-sm font-semibold text-success-fg">
+                                    Last scan clean
+                                </h2>
+                                <p className="mt-1 text-sm text-success-fg/90">
+                                    Analyzed diagnostics show no active findings.
+                                    Keep the weekly digest on and re-check after
+                                    the next WHMCS change window.
+                                </p>
+                            </div>
+                        </div>
+                    </section>
+                ) : null}
+
+                <div className="flex flex-wrap gap-2">
+                    {statusFilters.map((filter) => (
+                        <Button
+                            key={filter.value}
+                            type="button"
+                            size="sm"
+                            variant={
+                                filters.status === filter.value
+                                    ? 'default'
+                                    : 'outline'
+                            }
+                            onClick={() => setStatus(filter.value)}
+                        >
+                            {filter.label}
+                        </Button>
+                    ))}
+                </div>
 
                 {findings.data.length === 0 ? (
                     <EmptyState
-                        icon={ShieldAlert}
-                        title="No findings recorded"
-                        description="Findings will appear here after diagnostic analysis has run."
+                        icon={health.last_scan_clean ? CheckCircle2 : ShieldAlert}
+                        title={
+                            health.last_scan_clean
+                                ? 'Last scan clean'
+                                : 'No findings in this view'
+                        }
+                        description={
+                            health.last_scan_clean
+                                ? 'Your latest analyzed WHMCS diagnostics did not produce active findings.'
+                                : health.analyzed_runs === 0
+                                  ? 'Findings appear after diagnostic analysis has run.'
+                                  : 'Try another status filter or wait for the next scan.'
+                        }
                     />
                 ) : (
                     <div className="overflow-hidden rounded-lg border border-border bg-card shadow-xs">
@@ -58,6 +135,9 @@ export default function FindingsIndex({ findings }: Props) {
                                     </th>
                                     <th scope="col" className="h-9 px-4">
                                         Status
+                                    </th>
+                                    <th scope="col" className="h-9 px-4">
+                                        Assignee
                                     </th>
                                 </tr>
                             </thead>
@@ -90,6 +170,9 @@ export default function FindingsIndex({ findings }: Props) {
                                             <StatusBadge
                                                 status={finding.status}
                                             />
+                                        </td>
+                                        <td className="px-4 text-muted-foreground">
+                                            {finding.assignee_name ?? '—'}
                                         </td>
                                     </tr>
                                 ))}

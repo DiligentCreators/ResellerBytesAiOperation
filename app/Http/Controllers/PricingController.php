@@ -43,6 +43,18 @@ class PricingController extends Controller
                     'answer' => 'Yes. Toggle monthly or yearly on this page before checkout. Some plans may offer only one interval.',
                 ],
                 [
+                    'question' => 'WHMCS already shows this — why pay?',
+                    'answer' => 'WHMCS shows per-install signals. We correlate and prioritize across installs, bind AI to evidence, track closure, and run weekly digests — the ops workflow WHMCS does not productize.',
+                ],
+                [
+                    'question' => 'Will AI break our WHMCS?',
+                    'answer' => 'No. Collect is read-only. Recommendations are evidence-bound. Safe Actions are allowlisted, human-approved, audited, and verified. The model cannot invent free-form shell, SQL, or API writes.',
+                ],
+                [
+                    'question' => 'Is this another script?',
+                    'answer' => 'No. You get a signed addon, multi-tenant SaaS, no customer/invoice/payment data in snapshots, guided playbooks, and Safe Actions with an audit trail.',
+                ],
+                [
                     'question' => 'Are these launch prices final?',
                     'answer' => $pricesArePlaceholders
                         ? 'Not yet. Some public plans still show unconfirmed placeholder amounts until platform admins save confirmed prices.'

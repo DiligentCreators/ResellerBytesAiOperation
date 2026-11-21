@@ -14,6 +14,8 @@ class TenantRoleAuthorization
         'tenant.read' => [TenantMembership::ROLE_OWNER, TenantMembership::ROLE_ADMIN, TenantMembership::ROLE_OPERATOR, TenantMembership::ROLE_VIEWER, TenantMembership::ROLE_BILLING],
         'diagnostics.read' => [TenantMembership::ROLE_OWNER, TenantMembership::ROLE_ADMIN, TenantMembership::ROLE_OPERATOR, TenantMembership::ROLE_VIEWER],
         'diagnostics.reanalyze' => [TenantMembership::ROLE_OWNER, TenantMembership::ROLE_ADMIN, TenantMembership::ROLE_OPERATOR],
+        'diagnostics.manage_findings' => [TenantMembership::ROLE_OWNER, TenantMembership::ROLE_ADMIN, TenantMembership::ROLE_OPERATOR],
+        'safe_actions.execute' => [TenantMembership::ROLE_OWNER, TenantMembership::ROLE_ADMIN, TenantMembership::ROLE_OPERATOR],
         'integrations.manage' => [TenantMembership::ROLE_OWNER, TenantMembership::ROLE_ADMIN],
         'members.manage' => [TenantMembership::ROLE_OWNER, TenantMembership::ROLE_ADMIN],
         'billing.read' => [TenantMembership::ROLE_OWNER, TenantMembership::ROLE_ADMIN, TenantMembership::ROLE_BILLING],

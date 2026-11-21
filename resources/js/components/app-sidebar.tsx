@@ -13,6 +13,7 @@ import {
     Server,
     Settings,
     ShieldAlert,
+    ShieldCheck,
     Users,
 } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
@@ -55,6 +56,7 @@ export function AppSidebar() {
     const diagnosticsItems: NavItem[] = [
         { title: 'Diagnostic Runs', href: '/diagnostic-runs', icon: Activity },
         { title: 'Findings', href: '/findings', icon: ShieldAlert },
+        { title: 'Safe Actions', href: '/safe-actions', icon: ShieldCheck },
     ];
 
     const integrationsItems: NavItem[] = [
