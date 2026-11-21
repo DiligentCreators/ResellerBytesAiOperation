@@ -16,7 +16,7 @@ final class BillingCustomerMessages
     public const PAYMENT_APPROVED = 'Payment approved. Your subscription is active.';
 
     /**
-     * Flash after a card-required trial checkout is confirmed (sandbox or Kelviq return).
+     * Flash after a trial starts (no-card begin, sandbox approve, or Kelviq return).
      */
     public static function trialStarted(
         CarbonInterface|DateTimeInterface|string $endsAt,

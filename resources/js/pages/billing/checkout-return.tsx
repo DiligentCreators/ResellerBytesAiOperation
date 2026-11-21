@@ -48,8 +48,8 @@ export default function CheckoutReturnPage({
         : isTrial
           ? (successMessage ??
             (trialEndsLabel
-                ? `Trial started, ends ${trialEndsLabel}.`
-                : 'Your free trial has started. Card required — you will not be charged until the trial ends.'))
+                ? `Trial started, ends ${trialEndsLabel}. Card required — you will not be charged until the trial ends.`
+                : 'Trial started. Card required — you will not be charged until the trial ends.'))
           : processing
             ? 'Your checkout completed on the payment provider. We activate your plan only after the signed webhook arrives — this page does not turn access on by itself.'
             : 'Your invoice is marked paid and entitlements should be active.';

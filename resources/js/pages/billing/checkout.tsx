@@ -219,7 +219,8 @@ export default function CheckoutPage({
                                         value={period}
                                     />
                                     <p className="text-sm text-muted-foreground">
-                                        Start a {plan.trial_days}-day free trial
+                                        Start your {plan.trial_days}-day free
+                                        trial
                                         {trialCardRequired
                                             ? ' (card required; you will not be charged until the trial ends).'
                                             : ' with no card required.'}
@@ -303,7 +304,7 @@ export default function CheckoutPage({
                                         disabled={processing}
                                         variant="secondary"
                                     >
-                                        Start {plan.trial_days}-day free trial
+                                        Start free trial
                                     </Button>
                                 </>
                             )}

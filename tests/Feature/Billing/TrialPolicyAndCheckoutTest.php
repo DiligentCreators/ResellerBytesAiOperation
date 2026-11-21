@@ -196,6 +196,25 @@ it('starts a no-card trial without invoice or gateway call', function () {
     Http::assertNothingSent();
 });
 
+it('flashes Trial started, ends with the end date after a no-card trial store', function () {
+    [$tenant, $user, $plan] = trialFixture(['trial_days' => 7]);
+    enableTrials(cardRequired: false);
+
+    CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-11-20 12:00:00', 'UTC'));
+
+    $this->actingAs($user)
+        ->post(route('billing.trial.store', [$tenant, $plan]), [
+            'period' => 'monthly',
+        ])
+        ->assertRedirect(route('billing.settings.show', $tenant))
+        ->assertSessionHas('status', function (string $status): bool {
+            return str_contains($status, 'Trial started, ends')
+                && str_contains($status, 'Nov 27, 2026');
+        });
+
+    CarbonImmutable::setTestNow();
+});
+
 it('sends trialPeriod to Kelviq when a card is required for trial', function () {
     [$tenant, $user, $plan] = trialFixture(['trial_days' => 14]);
     enableTrials(cardRequired: true);
