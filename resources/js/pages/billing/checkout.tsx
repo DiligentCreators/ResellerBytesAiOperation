@@ -3,7 +3,25 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import InputError from '@/components/input-error';
+import { formatDate } from '@/lib/dates';
 import { formatMoney } from '@/lib/money';
+
+type ScheduledChange = {
+    plan_id: number;
+    plan_code: string;
+    plan_name: string;
+    charge_period: string;
+    change_at: string;
+};
+
+type Proration = {
+    new_price_minor: number;
+    credit_minor: number;
+    total_due_minor: number;
+    remaining_days: number;
+    total_days: number;
+    currency: string;
+};
 
 type Props = {
     tenant: { id: string; name: string };
@@ -21,6 +39,17 @@ type Props = {
     countries: Array<{ code: string; name: string }>;
     billingDetails: Record<string, string>;
     pricesArePlaceholders: boolean;
+    changeMode?: 'new' | 'upgrade' | 'downgrade';
+    proration?: Proration | null;
+    currentPlan?: {
+        id: number;
+        plan_code: string;
+        plan_name: string;
+        billing_period: string;
+        current_period_ends_at: string | null;
+    } | null;
+    scheduledChange?: ScheduledChange | null;
+    timezone?: string;
 };
 
 export default function CheckoutPage({
@@ -30,11 +59,19 @@ export default function CheckoutPage({
     countries,
     billingDetails,
     pricesArePlaceholders,
+    changeMode = 'new',
+    proration = null,
+    currentPlan = null,
+    scheduledChange = null,
+    timezone = 'UTC',
 }: Props) {
-    const amount =
+    const listPrice =
         period === 'yearly'
             ? plan.price_yearly_minor
             : plan.price_monthly_minor;
+    const amountDue = proration?.total_due_minor ?? listPrice;
+    const isDowngrade = changeMode === 'downgrade';
+    const scheduleDate = currentPlan?.current_period_ends_at;
 
     return (
         <>
@@ -45,7 +82,7 @@ export default function CheckoutPage({
                         Checkout
                     </p>
                     <h1 className="mt-2 text-2xl font-bold tracking-tight">
-                        Review & pay
+                        {isDowngrade ? 'Schedule plan change' : 'Review & pay'}
                     </h1>
                     <p className="mt-2 text-sm text-muted-foreground">
                         {tenant.name} · {plan.name} · {period}
@@ -53,6 +90,19 @@ export default function CheckoutPage({
                     {pricesArePlaceholders && (
                         <p className="mt-3 rounded-lg bg-warning-soft px-4 py-3 text-sm text-warning-fg">
                             Placeholder seed price.
+                        </p>
+                    )}
+                    {scheduledChange && (
+                        <p
+                            role="status"
+                            className="mt-3 rounded-md border border-border bg-surface px-4 py-3 text-sm"
+                        >
+                            Your plan changes to {scheduledChange.plan_name} (
+                            {scheduledChange.charge_period}) on{' '}
+                            {formatDate(scheduledChange.change_at, {
+                                timeZone: timezone,
+                            })}
+                            .
                         </p>
                     )}
                 </div>
@@ -66,9 +116,55 @@ export default function CheckoutPage({
                             </p>
                         </div>
                         <p className="text-xl font-bold tabular-nums">
-                            {formatMoney(amount, plan.currency)}
+                            {formatMoney(listPrice, plan.currency)}
                         </p>
                     </div>
+
+                    {isDowngrade && scheduleDate && (
+                        <p className="mt-4 rounded-md border border-border bg-surface px-4 py-3 text-sm">
+                            This is a downgrade. Your current plan stays active
+                            until{' '}
+                            {formatDate(scheduleDate, { timeZone: timezone })}.
+                            No payment is taken today.
+                        </p>
+                    )}
+
+                    {proration && changeMode === 'upgrade' && (
+                        <div className="mt-4 space-y-2 border-t border-border pt-4 text-sm">
+                            <div className="flex justify-between">
+                                <span>New plan price</span>
+                                <span className="tabular-nums">
+                                    {formatMoney(
+                                        proration.new_price_minor,
+                                        proration.currency,
+                                    )}
+                                </span>
+                            </div>
+                            <div className="flex justify-between text-muted-foreground">
+                                <span>
+                                    Credit for unused time on{' '}
+                                    {currentPlan?.plan_name ?? 'current plan'} (
+                                    {proration.remaining_days} days)
+                                </span>
+                                <span className="tabular-nums">
+                                    −
+                                    {formatMoney(
+                                        proration.credit_minor,
+                                        proration.currency,
+                                    )}
+                                </span>
+                            </div>
+                            <div className="flex justify-between border-t border-border pt-2 font-semibold">
+                                <span>Total due today</span>
+                                <span className="tabular-nums">
+                                    {formatMoney(
+                                        proration.total_due_minor,
+                                        proration.currency,
+                                    )}
+                                </span>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 <Form
@@ -185,7 +281,11 @@ export default function CheckoutPage({
                                     disabled={processing}
                                     className="bg-primary hover:bg-primary-hover"
                                 >
-                                    Pay {formatMoney(amount, plan.currency)}
+                                    {isDowngrade
+                                        ? `Schedule change for ${formatDate(scheduleDate, { timeZone: timezone })}`
+                                        : amountDue === 0
+                                          ? 'Confirm upgrade'
+                                          : `Pay ${formatMoney(amountDue, plan.currency)}`}
                                 </Button>
                                 <Button asChild variant="outline">
                                     <Link href="/billing/plans">

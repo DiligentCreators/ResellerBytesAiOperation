@@ -154,6 +154,8 @@ class CheckoutService
                     'billing_details' => $billingDetails,
                     'issued_at' => $now,
                     'due_at' => $now->addDays(7),
+                    'service_period_starts_at' => $now,
+                    'service_period_ends_at' => $periodEnds,
                 ]);
 
                 $this->persistTenantBillingDetails($tenantId, $billingDetails);

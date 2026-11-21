@@ -97,6 +97,7 @@ Route::middleware(['auth', 'verified', EnsureTwoFactorEnabled::class])->group(fu
     Route::put('tenants/{tenant}/billing/details', [BillingSettingsController::class, 'updateDetails'])->middleware('throttle:billing-settings-details')->name('billing.settings.details');
     Route::post('tenants/{tenant}/billing/subscriptions/{subscription}/cancel', [BillingSettingsController::class, 'cancel'])->middleware('throttle:billing-subscriptions-cancel')->name('billing.subscriptions.cancel');
     Route::post('tenants/{tenant}/billing/subscriptions/{subscription}/resume', [BillingSettingsController::class, 'resume'])->middleware('throttle:billing-subscriptions-resume')->name('billing.subscriptions.resume');
+    Route::delete('tenants/{tenant}/billing/subscriptions/{subscription}/scheduled-change', [BillingSettingsController::class, 'cancelScheduledChange'])->middleware('throttle:billing-subscriptions-cancel')->name('billing.subscriptions.scheduled-change.cancel');
     Route::get('tenants/{tenant}/billing/invoices', [InvoiceController::class, 'index'])->name('billing.invoices.index');
     Route::get('tenants/{tenant}/billing/invoices/{invoice}', [InvoiceController::class, 'show'])->name('billing.invoices.show');
     Route::get('tenants/{tenant}/billing/invoices/{invoice}/print', [InvoiceController::class, 'print'])->name('billing.invoices.print');

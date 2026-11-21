@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Plan;
+use App\Models\TenantSubscription;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -27,10 +28,41 @@ class BillingPlansController extends Controller
             'entitlements' => $plan->entitlements,
         ]);
 
+        $tenant = $request->user()?->tenants()->first();
+        $scheduledChange = null;
+        $timezone = 'UTC';
+
+        if ($tenant !== null) {
+            $timezone = $tenant->timezone ?: 'UTC';
+            $subscription = TenantSubscription::query()
+                ->with('scheduledPlan:id,code,name')
+                ->where('tenant_id', $tenant->id)
+                ->whereIn('status', ['trialing', 'active', 'past_due', 'suspended'])
+                ->whereNotNull('scheduled_plan_id')
+                ->latest('id')
+                ->first();
+
+            if ($subscription !== null
+                && $subscription->scheduled_plan_id !== null
+                && $subscription->scheduled_change_at !== null
+                && in_array($subscription->scheduled_charge_period, ['monthly', 'yearly'], true)) {
+                $scheduledPlan = $subscription->scheduledPlan;
+                $scheduledChange = [
+                    'plan_id' => (int) $subscription->scheduled_plan_id,
+                    'plan_code' => $scheduledPlan->code ?? '',
+                    'plan_name' => $scheduledPlan->name ?? (string) $subscription->scheduled_plan_id,
+                    'charge_period' => $subscription->scheduled_charge_period,
+                    'change_at' => $subscription->scheduled_change_at->toIso8601String(),
+                ];
+            }
+        }
+
         return Inertia::render('billing/plans', [
             'plans' => $plans,
             'pricesArePlaceholders' => true,
-            'tenantId' => $request->user()?->tenants()->first()?->id,
+            'tenantId' => $tenant?->id,
+            'scheduledChange' => $scheduledChange,
+            'timezone' => $timezone,
         ]);
     }
 }

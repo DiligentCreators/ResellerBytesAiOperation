@@ -2,8 +2,12 @@
 
 namespace App\Http\Requests\Billing;
 
+use App\Models\Tenant;
+use App\Models\User;
+use App\Services\Tenancy\TenantAccess;
 use App\Support\CountryCodes;
 use Illuminate\Contracts\Validation\ValidationRule;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -11,6 +15,23 @@ class UpdateBillingDetailsRequest extends FormRequest
 {
     public function authorize(): bool
     {
+        $user = $this->user();
+        if (! $user instanceof User) {
+            return false;
+        }
+
+        $tenant = $this->route('tenant');
+        if (! $tenant instanceof Tenant) {
+            abort(404);
+        }
+
+        // Membership before validation so outsiders always get 404 (not 422).
+        try {
+            app(TenantAccess::class)->requireMembership($user, $tenant->id);
+        } catch (ModelNotFoundException) {
+            abort(404);
+        }
+
         return true;
     }
 

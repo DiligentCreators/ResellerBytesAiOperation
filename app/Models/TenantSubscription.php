@@ -13,6 +13,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property CarbonImmutable $current_period_ends_at
  * @property CarbonImmutable|null $grace_ends_at
  * @property CarbonImmutable|null $canceled_at
+ * @property CarbonImmutable|null $scheduled_change_at
+ * @property int|null $scheduled_plan_id
+ * @property string|null $scheduled_charge_period
  */
 class TenantSubscription extends Model
 {
@@ -34,6 +37,9 @@ class TenantSubscription extends Model
         'grace_ends_at',
         'canceled_at',
         'replaces_subscription_id',
+        'scheduled_plan_id',
+        'scheduled_charge_period',
+        'scheduled_change_at',
         'created_by_user_id',
     ];
 
@@ -47,6 +53,7 @@ class TenantSubscription extends Model
             'current_period_ends_at' => 'immutable_datetime',
             'grace_ends_at' => 'immutable_datetime',
             'canceled_at' => 'immutable_datetime',
+            'scheduled_change_at' => 'immutable_datetime',
         ];
     }
 
@@ -60,6 +67,12 @@ class TenantSubscription extends Model
     public function plan(): BelongsTo
     {
         return $this->belongsTo(Plan::class);
+    }
+
+    /** @return BelongsTo<Plan, $this> */
+    public function scheduledPlan(): BelongsTo
+    {
+        return $this->belongsTo(Plan::class, 'scheduled_plan_id');
     }
 
     /** @return HasMany<TenantBillingInvoice, $this> */

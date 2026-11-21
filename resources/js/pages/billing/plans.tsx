@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { formatDate } from '@/lib/dates';
 import { formatMoney } from '@/lib/money';
 import { show as onboarding } from '@/routes/onboarding';
 import { dashboard } from '@/routes';
@@ -20,16 +21,28 @@ type Plan = {
     is_contact_sales: boolean;
 };
 
+type ScheduledChange = {
+    plan_id: number;
+    plan_code: string;
+    plan_name: string;
+    charge_period: string;
+    change_at: string;
+};
+
 type Props = {
     plans: Plan[];
     pricesArePlaceholders: boolean;
     tenantId?: string | null;
+    scheduledChange?: ScheduledChange | null;
+    timezone?: string;
 };
 
 export default function BillingPlans({
     plans,
     pricesArePlaceholders,
     tenantId,
+    scheduledChange = null,
+    timezone = 'UTC',
 }: Props) {
     const { auth } = usePage().props;
     const resolvedTenantId = tenantId ?? auth.tenants?.[0]?.id;
@@ -86,6 +99,27 @@ export default function BillingPlans({
                         Placeholder seed prices — edit in platform billing
                         before launch.
                     </p>
+                )}
+
+                {scheduledChange && resolvedTenantId && (
+                    <div
+                        role="status"
+                        className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-card px-4 py-3 text-sm shadow-xs"
+                    >
+                        <p>
+                            Your plan changes to {scheduledChange.plan_name} (
+                            {scheduledChange.charge_period}) on{' '}
+                            {formatDate(scheduledChange.change_at, {
+                                timeZone: timezone,
+                            })}
+                            .
+                        </p>
+                        <Button asChild variant="outline" size="sm">
+                            <Link href={`/tenants/${resolvedTenantId}/billing`}>
+                                Manage in billing
+                            </Link>
+                        </Button>
+                    </div>
                 )}
 
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">

@@ -9,6 +9,8 @@ use App\Models\Tenant;
 use App\Models\TenantSubscription;
 use App\Models\User;
 use App\Services\Billing\CheckoutService;
+use App\Services\Billing\PlanChangeClassifier;
+use App\Services\Billing\ProrationCalculator;
 use App\Services\Billing\SubscriptionManagementService;
 use App\Services\Tenancy\TenantRoleAuthorization;
 use App\Support\BillingCustomerMessages;
@@ -34,6 +36,31 @@ class CheckoutController extends Controller
 
         $period = $request->string('period')->toString() === 'yearly' ? 'yearly' : 'monthly';
         $billing = (array) (($tenant->settings['billing'] ?? []) ?: []);
+
+        $current = TenantSubscription::query()
+            ->with(['plan:id,code,name,price_monthly_minor,price_yearly_minor', 'scheduledPlan:id,code,name'])
+            ->where('tenant_id', $tenant->id)
+            ->whereIn('status', ['trialing', 'active', 'past_due'])
+            ->orderByDesc('id')
+            ->first();
+
+        $classifier = app(PlanChangeClassifier::class);
+        $isDowngrade = $current !== null && $classifier->isDowngrade($current, $plan, $period);
+        $proration = null;
+        $changeMode = 'new';
+
+        if ($current !== null) {
+            $changeMode = $isDowngrade ? 'downgrade' : 'upgrade';
+            if (! $isDowngrade) {
+                $proration = app(ProrationCalculator::class)->forUpgrade(
+                    $plan->priceForPeriod($period),
+                    (int) $current->unit_amount_minor,
+                    $current->current_period_starts_at,
+                    $current->current_period_ends_at,
+                    $plan->currency,
+                )->toArray();
+            }
+        }
 
         return Inertia::render('billing/checkout', [
             'tenant' => ['id' => $tenant->id, 'name' => $tenant->name],
@@ -61,6 +88,17 @@ class CheckoutController extends Controller
                 'tax_id' => $billing['tax_id'] ?? '',
             ],
             'pricesArePlaceholders' => true,
+            'changeMode' => $changeMode,
+            'proration' => $proration,
+            'currentPlan' => $current ? [
+                'id' => $current->id,
+                'plan_code' => $current->plan_code,
+                'plan_name' => $current->plan->name ?? $current->plan_code,
+                'billing_period' => $classifier->chargePeriodFor($current),
+                'current_period_ends_at' => $current->current_period_ends_at?->toIso8601String(),
+            ] : null,
+            'scheduledChange' => $this->scheduledChangePayload($current),
+            'timezone' => $tenant->timezone ?: 'UTC',
         ]);
     }
 
@@ -108,6 +146,7 @@ class CheckoutController extends Controller
                     $data['period'],
                     $billingDetails,
                 );
+                $result['mode'] = 'new';
             }
         } catch (AuthorizationException) {
             return back()->withErrors([
@@ -125,7 +164,22 @@ class CheckoutController extends Controller
             ]);
         }
 
-        $checkoutUrl = (string) $result['checkout_url'];
+        if (($result['mode'] ?? null) === 'downgrade') {
+            $scheduled = $result['scheduled_change'] ?? [];
+            $when = is_array($scheduled) ? (string) ($scheduled['change_at'] ?? '') : '';
+
+            return redirect()
+                ->route('billing.settings.show', $tenant)
+                ->with('status', 'Plan change scheduled'.($when !== '' ? ' for '.$when : '').'.');
+        }
+
+        if (($result['mode'] ?? null) === 'zero_upgrade') {
+            return redirect()
+                ->route('billing.settings.show', $tenant)
+                ->with('status', 'Plan upgraded. No payment was due.');
+        }
+
+        $checkoutUrl = (string) ($result['checkout_url'] ?? '');
         abort_unless($this->checkoutUrlIsAllowed($checkoutUrl), 500, 'Checkout redirect was rejected.');
 
         return redirect()->away($checkoutUrl);
@@ -189,5 +243,28 @@ class CheckoutController extends Controller
         }
 
         return false;
+    }
+
+    /**
+     * @return array{plan_id: int, plan_code: string, plan_name: string, charge_period: string, change_at: string}|null
+     */
+    private function scheduledChangePayload(?TenantSubscription $subscription): ?array
+    {
+        if ($subscription === null
+            || $subscription->scheduled_plan_id === null
+            || $subscription->scheduled_change_at === null
+            || ! in_array($subscription->scheduled_charge_period, ['monthly', 'yearly'], true)) {
+            return null;
+        }
+
+        $scheduledPlan = $subscription->scheduledPlan;
+
+        return [
+            'plan_id' => (int) $subscription->scheduled_plan_id,
+            'plan_code' => $scheduledPlan->code ?? '',
+            'plan_name' => $scheduledPlan->name ?? (string) $subscription->scheduled_plan_id,
+            'charge_period' => $subscription->scheduled_charge_period,
+            'change_at' => $subscription->scheduled_change_at->toIso8601String(),
+        ];
     }
 }
