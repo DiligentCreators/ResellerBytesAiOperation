@@ -27,6 +27,7 @@ type DashboardStats = {
     open_findings: number;
     critical_findings: number;
     awaiting_safe_actions?: number;
+    needs_recheck?: number;
 };
 
 type DiagnosticRun = {
@@ -254,6 +255,12 @@ export default function Dashboard({
                         label="Safe Actions awaiting apply"
                         value={stats.awaiting_safe_actions ?? 0}
                         description="Approved remediations waiting in the WHMCS addon"
+                        icon={ShieldAlert}
+                    />
+                    <StatCard
+                        label="Applied, needs verify"
+                        value={stats.needs_recheck ?? 0}
+                        description="Applied remediations waiting for runtime proof"
                         icon={ShieldAlert}
                     />
                 </div>

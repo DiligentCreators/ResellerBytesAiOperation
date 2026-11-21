@@ -6,8 +6,10 @@ use App\Jobs\Middleware\SetTenantDatabaseContext;
 use App\Models\DiagnosticFinding;
 use App\Models\DiagnosticRun;
 use App\Models\TenantMembership;
+use App\Models\User;
 use App\Services\Ai\OpenAiConfiguration;
 use App\Services\Diagnostics\AiBudgetService;
+use App\Services\Diagnostics\FindingContinuityService;
 use App\Services\Diagnostics\WhmcsDiagnosticAnalyzer;
 use App\Services\Tenancy\TenantDatabaseContext;
 use App\Services\Tenancy\TenantEntitlementService;
@@ -178,17 +180,11 @@ class AnalyzeDiagnosticRun implements ShouldQueue
 
             $lockedRun->findings()->delete();
             $createdFingerprints = [];
+            $continuity = app(FindingContinuityService::class);
 
             foreach ($result['findings'] as $findingData) {
-                $evidencePaths = array_values(array_unique($findingData['evidence_paths']));
-                sort($evidencePaths, SORT_STRING);
-
-                $fingerprint = hash('sha256', implode('
-', [
-                    $findingData['category'],
-                    mb_strtolower($findingData['title']),
-                    implode('|', $evidencePaths),
-                ]));
+                $findingData = $continuity->stabilizeFindingData($findingData);
+                $fingerprint = $continuity->fingerprintFor($findingData);
 
                 if (isset($createdFingerprints[$fingerprint])) {
                     continue;
@@ -196,7 +192,7 @@ class AnalyzeDiagnosticRun implements ShouldQueue
 
                 $createdFingerprints[$fingerprint] = true;
                 $evidence = [];
-                foreach ($evidencePaths as $path) {
+                foreach ($findingData['evidence_paths'] as $path) {
                     $evidence[$path] = data_get($lockedRun->payload, $path);
                 }
 
@@ -222,6 +218,8 @@ class AnalyzeDiagnosticRun implements ShouldQueue
                         'requires_manual_action' => true,
                     ]);
                 }
+
+                $continuity->inheritActiveWorkflow($finding);
             }
 
             $lockedRun->forceFill([
@@ -235,6 +233,11 @@ class AnalyzeDiagnosticRun implements ShouldQueue
                 'analysis_error_code' => null,
                 'analysis_usage' => $result['usage'],
             ])->save();
+
+            $actor = User::query()->find($this->ownerUserId);
+            if ($actor !== null) {
+                $continuity->clearAbsentActiveFindings($lockedRun->fresh() ?? $lockedRun, $actor);
+            }
 
             if ($this->tenantId !== null) {
                 $recipientIds = TenantMembership::query()

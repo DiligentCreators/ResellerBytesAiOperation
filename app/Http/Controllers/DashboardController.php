@@ -60,28 +60,36 @@ class DashboardController extends Controller
                 'last_seen_at' => $integration->last_seen_at?->toIso8601String(),
                 'runs_count' => $integration->runs_count,
                 'open_findings' => $tenantRecords->findings($user)
+                    ->currentIssues()
                     ->whereHas('diagnosticRun', fn ($query) => $query->where('integration_id', $integration->id))
                     ->active()
                     ->count(),
             ]);
 
+        $integrationIds = $tenantRecords->integrations($user)->pluck('id');
+
         return Inertia::render('dashboard', [
             'stats' => [
                 'active_integrations' => $tenantRecords->integrations($user)->where('status', 'active')->count(),
                 'total_runs' => $tenantRecords->runs($user)->count(),
-                'open_findings' => $tenantRecords->findings($user)->active()->count(),
+                'open_findings' => $tenantRecords->findings($user)->currentIssues()->active()->count(),
                 'critical_findings' => $tenantRecords->findings($user)
+                    ->currentIssues()
                     ->active()
                     ->where('severity', 'critical')
                     ->count(),
                 'awaiting_safe_actions' => SafeActionExecution::query()
-                    ->whereIn('integration_id', $tenantRecords->integrations($user)->pluck('id'))
+                    ->whereIn('integration_id', $integrationIds)
                     ->where('status', SafeActionExecution::STATUS_AWAITING_AGENT)
+                    ->count(),
+                'needs_recheck' => SafeActionExecution::query()
+                    ->whereIn('integration_id', $integrationIds)
+                    ->where('status', SafeActionExecution::STATUS_COMPLETED)
                     ->count(),
             ],
             'health' => [
                 'last_scan_clean' => $tenantRecords->runs($user)->where('status', 'analyzed')->exists()
-                    && ! $tenantRecords->findings($user)->active()->exists(),
+                    && ! $tenantRecords->findings($user)->currentIssues()->active()->exists(),
             ],
             'installations' => $installations,
             'latestRuns' => $latestRuns,

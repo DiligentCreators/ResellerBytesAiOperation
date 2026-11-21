@@ -95,8 +95,9 @@ class FindingsWeeklyDigestService
     public function buildDigest(Tenant $tenant, CarbonInterface $since): array
     {
         $base = DiagnosticFinding::query()->where('tenant_id', $tenant->id);
+        $current = (clone $base)->currentIssues();
 
-        $topFindings = (clone $base)
+        $topFindings = (clone $current)
             ->active()
             ->with('diagnosticRun.integration:id,name')
             ->orderByRaw("CASE severity WHEN 'critical' THEN 1 WHEN 'warning' THEN 2 ELSE 3 END")
@@ -116,17 +117,23 @@ class FindingsWeeklyDigestService
             ->where('status', SafeActionExecution::STATUS_AWAITING_AGENT)
             ->count();
 
+        $needsRecheck = SafeActionExecution::query()
+            ->where('tenant_id', $tenant->id)
+            ->where('status', SafeActionExecution::STATUS_COMPLETED)
+            ->count();
+
         return [
             'tenant_name' => $tenant->name,
-            'open' => (clone $base)->where('status', DiagnosticFinding::STATUS_OPEN)->count(),
-            'in_progress' => (clone $base)->where('status', DiagnosticFinding::STATUS_IN_PROGRESS)->count(),
-            'critical' => (clone $base)->active()->where('severity', 'critical')->count(),
+            'open' => (clone $current)->where('status', DiagnosticFinding::STATUS_OPEN)->count(),
+            'in_progress' => (clone $current)->where('status', DiagnosticFinding::STATUS_IN_PROGRESS)->count(),
+            'critical' => (clone $current)->active()->where('severity', 'critical')->count(),
             'resolved_this_week' => (clone $base)
                 ->where('status', DiagnosticFinding::STATUS_RESOLVED)
                 ->where('resolved_at', '>=', $since)
                 ->count(),
-            'accepted_risk' => (clone $base)->where('status', DiagnosticFinding::STATUS_ACCEPTED_RISK)->count(),
+            'accepted_risk' => (clone $current)->where('status', DiagnosticFinding::STATUS_ACCEPTED_RISK)->count(),
             'awaiting_safe_actions' => $awaitingSafeActions,
+            'needs_recheck' => $needsRecheck,
             'top_findings' => $topFindings,
             'findings_url' => URL::route('findings.index', ['status' => 'active']),
             'safe_actions_url' => URL::route('safe-actions.index'),

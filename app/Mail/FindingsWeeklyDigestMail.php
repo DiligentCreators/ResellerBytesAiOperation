@@ -63,10 +63,15 @@ class FindingsWeeklyDigestMail extends Mailable
             '<li>Resolved this week: '.e((string) $this->digest['resolved_this_week']).'</li>',
             '<li>Accepted risk: '.e((string) $this->digest['accepted_risk']).'</li>',
             '<li>Approved Safe Actions awaiting WHMCS apply: '.e((string) ($this->digest['awaiting_safe_actions'] ?? 0)).'</li>',
+            '<li>Applied Safe Actions awaiting verify scan: '.e((string) ($this->digest['needs_recheck'] ?? 0)).'</li>',
             '</ul>',
         ];
 
-        if ($this->digest['top_findings'] === [] && (int) ($this->digest['awaiting_safe_actions'] ?? 0) === 0) {
+        if (
+            $this->digest['top_findings'] === []
+            && (int) ($this->digest['awaiting_safe_actions'] ?? 0) === 0
+            && (int) ($this->digest['needs_recheck'] ?? 0) === 0
+        ) {
             $lines[] = '<p><strong>Last scan clean</strong> — no active findings need attention this week.</p>';
         } else {
             if ($this->digest['top_findings'] !== []) {
@@ -80,6 +85,10 @@ class FindingsWeeklyDigestMail extends Mailable
 
             if ((int) ($this->digest['awaiting_safe_actions'] ?? 0) > 0) {
                 $lines[] = '<p>Approved Safe Actions are waiting in WHMCS. Open Addons → ResellerBytes AI Operations → <strong>Apply approved Safe Actions</strong>.</p>';
+            }
+
+            if ((int) ($this->digest['needs_recheck'] ?? 0) > 0) {
+                $lines[] = '<p>Some remediations were applied but still need a verify scan before the finding can clear.</p>';
             }
         }
 

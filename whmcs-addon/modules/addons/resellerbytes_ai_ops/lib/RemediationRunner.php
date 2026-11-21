@@ -91,14 +91,17 @@ final class RemediationRunner
         $local = $this->writeUserIniLocally($target, $line);
         if ($local['ok']) {
             $collector = (new DiagnosticCollector)->collect();
+            $disabled = (bool) ($collector['system']['error_display_disabled'] ?? false);
 
             return [
                 'status' => 'success',
-                'summary' => 'Wrote allowlisted .user.ini display_errors=Off override using the web user.',
+                'summary' => $disabled
+                    ? 'Wrote allowlisted .user.ini display_errors=Off override using the web user and runtime proof confirms display_errors is Off.'
+                    : 'Wrote allowlisted .user.ini display_errors=Off override using the web user. Runtime still reports display_errors on — waiting for verify scan / PHP reload.',
                 'evidence' => [
                     'remediation_applied' => true,
                     'method' => 'local_user_ini',
-                    'error_display_disabled' => (bool) ($collector['system']['error_display_disabled'] ?? false),
+                    'error_display_disabled' => $disabled,
                 ],
             ];
         }
