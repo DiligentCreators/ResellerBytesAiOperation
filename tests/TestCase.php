@@ -14,6 +14,7 @@ abstract class TestCase extends BaseTestCase
 
         config([
             'billing.sandbox.signing_secret' => Str::random(64),
+            'operations.demo_accounts.password' => Str::random(32),
         ]);
     }
 
