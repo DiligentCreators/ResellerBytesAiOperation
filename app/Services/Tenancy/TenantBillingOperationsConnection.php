@@ -14,7 +14,8 @@ class TenantBillingOperationsConnection
      * subject to tenant RLS and must not receive cross-tenant bypass rights.
      *
      * @template T
-     * @param Closure(): T $callback
+     *
+     * @param  Closure(): T  $callback
      * @return T
      */
     public function run(Closure $callback): mixed

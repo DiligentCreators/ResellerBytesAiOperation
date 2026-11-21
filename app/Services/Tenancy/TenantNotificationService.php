@@ -12,7 +12,7 @@ use InvalidArgumentException;
 class TenantNotificationService
 {
     /**
-     * @param array<string, mixed> $payload
+     * @param  array<string, mixed>  $payload
      */
     public function publish(string $tenantId, int $userId, string $eventType, array $payload, string $notificationKey): TenantNotification
     {
@@ -27,7 +27,7 @@ class TenantNotificationService
         return app(TenantDatabaseContext::class)->run($tenantId, $userId, fn (): TenantNotification => DB::transaction(function () use ($tenantId, $userId, $eventType, $payload, $notificationKey): TenantNotification {
             $tenant = Tenant::query()->whereKey($tenantId)->where('status', Tenant::STATUS_ACTIVE)->lockForUpdate()->first();
             if ($tenant === null) {
-                throw (new ModelNotFoundException())->setModel(Tenant::class, [$tenantId]);
+                throw (new ModelNotFoundException)->setModel(Tenant::class, [$tenantId]);
             }
 
             $membership = TenantMembership::query()
@@ -38,7 +38,7 @@ class TenantNotificationService
                 ->firstOrFail();
 
             if (! $membership->isActive()) {
-                throw (new ModelNotFoundException())->setModel(TenantMembership::class);
+                throw (new ModelNotFoundException)->setModel(TenantMembership::class);
             }
 
             $existing = TenantNotification::query()->where('tenant_id', $tenantId)->where('user_id', $userId)

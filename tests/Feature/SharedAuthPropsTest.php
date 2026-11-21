@@ -22,7 +22,7 @@ it('shares platform operator flags and empty tenants for the configured owner', 
             ->where('auth.is_platform_operator', true)
             ->where('auth.can_manage_integrations', false)
             ->where('auth.tenants', [])
-            ->where('auth.central_permissions', ['tenants', 'billing', 'support', 'settings', 'audit']));
+            ->where('auth.central_permissions', ['tenants', 'billing', 'billing.settings.manage', 'support', 'settings', 'audit']));
 });
 
 it('shares tenant memberships and integration manage capability for a workspace owner', function () {

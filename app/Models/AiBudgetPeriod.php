@@ -3,8 +3,9 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 
-/** @property \Illuminate\Support\Carbon $period_start */
+/** @property Carbon $period_start */
 class AiBudgetPeriod extends Model
 {
     protected $fillable = [

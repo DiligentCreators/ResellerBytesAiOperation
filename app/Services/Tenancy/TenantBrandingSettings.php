@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\DB;
 class TenantBrandingSettings
 {
     /**
-     * @param array{display_name?: string, support_email?: string, primary_color?: string, logo_url?: string|null} $branding
+     * @param  array{display_name?: string, support_email?: string, primary_color?: string, logo_url?: string|null}  $branding
      */
     public function update(User $actor, string $tenantId, array $branding, ?string $ip = null): Tenant
     {

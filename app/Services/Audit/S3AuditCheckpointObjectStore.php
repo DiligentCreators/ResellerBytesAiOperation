@@ -15,6 +15,7 @@ use Throwable;
 final class S3AuditCheckpointObjectStore implements AuditCheckpointObjectStore
 {
     private const MAX_CHECKPOINT_BYTES = 65536;
+
     public function createImmutableIfAbsent(
         string $objectKey,
         string $contents,

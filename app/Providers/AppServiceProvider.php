@@ -4,11 +4,12 @@ namespace App\Providers;
 
 use App\Contracts\AuditCheckpointObjectStore;
 use App\Services\Audit\S3AuditCheckpointObjectStore;
-use App\Services\Mail\PlatformMailTransport;
 use App\Services\Mail\CentralOutboundMailer;
-use Illuminate\Support\Facades\Mail;
+use App\Services\Mail\PlatformMailTransport;
 use App\Services\Operations\QueueJobMetricsTracker;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\Middleware\TrustProxies;
 use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Queue\Events\JobProcessed;
 use Illuminate\Queue\Events\JobProcessing;
@@ -17,6 +18,7 @@ use Illuminate\Queue\Events\JobReleasedAfterException;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 
@@ -37,8 +39,30 @@ class AppServiceProvider extends ServiceProvider
     {
         Mail::extend('platform', fn () => new PlatformMailTransport(app(CentralOutboundMailer::class)));
 
+        $this->configureTrustedProxies();
         $this->configureDefaults();
         $this->registerQueueMetricsListeners();
+    }
+
+    /**
+     * Empty TRUSTED_PROXIES keeps forwarded headers untrusted (safe default).
+     * Set comma-separated IPs/CIDRs or * behind Cloudflare/load balancers.
+     */
+    private function configureTrustedProxies(): void
+    {
+        $trustedProxies = trim((string) config('app.trusted_proxies', ''));
+        if ($trustedProxies === '') {
+            return;
+        }
+
+        TrustProxies::at(
+            $trustedProxies === '*'
+                ? '*'
+                : array_values(array_filter(array_map(
+                    static fn (string $proxy): string => trim($proxy),
+                    explode(',', $trustedProxies),
+                ))),
+        );
     }
 
     private function registerQueueMetricsListeners(): void
@@ -102,6 +126,8 @@ class AppServiceProvider extends ServiceProvider
         DB::prohibitDestructiveCommands(
             app()->isProduction(),
         );
+
+        Model::preventLazyLoading(! $this->app->isProduction());
 
         Password::defaults(fn (): ?Password => app()->isProduction()
             ? Password::min(12)

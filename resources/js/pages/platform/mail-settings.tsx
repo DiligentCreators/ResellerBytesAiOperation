@@ -2,6 +2,7 @@ import { Form, Head } from '@inertiajs/react';
 import { Mail, Send } from 'lucide-react';
 
 import InputError from '@/components/input-error';
+import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -22,32 +23,27 @@ type Props = {
 
 const selectClassName =
     'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm';
-const checkboxLabelClassName = 'flex items-center gap-2 text-sm text-muted-foreground';
+const checkboxLabelClassName =
+    'flex items-center gap-2 text-sm text-muted-foreground';
 
 export default function MailSettings(props: Props) {
     return (
         <>
             <Head title="Platform mail settings" />
-            <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 p-4 md:p-6">
-                <div>
-                    <h1 className="text-2xl font-semibold tracking-tight">
-                        Outbound email
-                    </h1>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                        Central mail transport for platform alerts, invitations,
-                        and verification messages. Secrets stay encrypted and are
-                        never shown again after save.
-                    </p>
-                </div>
+            <div className="space-y-6">
+                <PageHeader
+                    title="Outbound email"
+                    description="Central mail transport for platform alerts, invitations, and verification messages. Secrets stay encrypted and are never shown again after save."
+                />
 
-                {props.status && (
+                {props.status ? (
                     <p
                         role="status"
-                        className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-300"
+                        className="rounded-md border border-success/20 bg-success-soft px-3 py-2 text-sm text-success-fg"
                     >
                         {props.status}
                     </p>
-                )}
+                ) : null}
 
                 <Form
                     action="/platform/mail-settings"
@@ -56,10 +52,15 @@ export default function MailSettings(props: Props) {
                 >
                     {({ errors, processing }) => (
                         <>
-                            <section className="rounded-xl border bg-card p-5">
-                                <div className="flex items-center gap-2">
-                                    <Mail className="size-5" />
-                                    <h2 className="font-semibold">Transport</h2>
+                            <section className="rounded-lg border border-border bg-card p-5 shadow-xs">
+                                <div className="mb-4 flex items-center gap-2">
+                                    <Mail
+                                        className="size-4 text-slate-brand"
+                                        aria-hidden
+                                    />
+                                    <h2 className="text-sm font-semibold">
+                                        Transport
+                                    </h2>
                                 </div>
                                 <div className="mt-4 grid gap-4 md:grid-cols-2">
                                     <div className="grid gap-2 md:col-span-2">
@@ -110,8 +111,8 @@ export default function MailSettings(props: Props) {
                                 </div>
                             </section>
 
-                            <section className="rounded-xl border bg-card p-5">
-                                <h2 className="font-semibold">SMTP</h2>
+                            <section className="rounded-lg border border-border bg-card p-5 shadow-xs">
+                                <h2 className="text-sm font-semibold">SMTP</h2>
                                 <p className="mt-1 text-sm text-muted-foreground">
                                     Used when the driver is SMTP.
                                 </p>
@@ -146,9 +147,7 @@ export default function MailSettings(props: Props) {
                                         <select
                                             id="smtp_encryption"
                                             name="smtp_encryption"
-                                            defaultValue={
-                                                props.smtp_encryption
-                                            }
+                                            defaultValue={props.smtp_encryption}
                                             className={selectClassName}
                                         >
                                             <option value="tls">
@@ -231,8 +230,10 @@ export default function MailSettings(props: Props) {
                                 </div>
                             </section>
 
-                            <section className="rounded-xl border bg-card p-5">
-                                <h2 className="font-semibold">Postmark</h2>
+                            <section className="rounded-lg border border-border bg-card p-5 shadow-xs">
+                                <h2 className="text-sm font-semibold">
+                                    Postmark
+                                </h2>
                                 <p className="mt-1 text-sm text-muted-foreground">
                                     Used when the driver is Postmark.
                                 </p>
@@ -297,10 +298,10 @@ export default function MailSettings(props: Props) {
                     )}
                 </Form>
 
-                <section className="rounded-xl border bg-card p-5">
-                    <div className="flex items-center gap-2">
-                        <Send className="size-5" />
-                        <h2 className="font-semibold">Send a test</h2>
+                <section className="rounded-lg border border-border bg-card p-5 shadow-xs">
+                    <div className="mb-4 flex items-center gap-2">
+                        <Send className="size-4 text-slate-brand" aria-hidden />
+                        <h2 className="text-sm font-semibold">Send a test</h2>
                     </div>
                     <p className="mt-1 text-sm text-muted-foreground">
                         Uses the currently saved transport.

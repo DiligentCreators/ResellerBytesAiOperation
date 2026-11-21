@@ -24,7 +24,15 @@ class TenantRoleAuthorization
 
     public function allows(TenantMembership $membership, string $capability): bool
     {
-        return $membership->isActive() && in_array($membership->role, self::CAPABILITIES[$capability] ?? [], true);
+        return $membership->isActive() && in_array($membership->role, $this->rolesFor($capability), true);
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function rolesFor(string $capability): array
+    {
+        return self::CAPABILITIES[$capability] ?? [];
     }
 
     public function require(User $user, string $tenantId, string $capability): TenantMembership
@@ -33,6 +41,7 @@ class TenantRoleAuthorization
         if (! $this->allows($membership, $capability)) {
             throw new AuthorizationException('The active tenant role does not grant this capability.');
         }
+
         return $membership;
     }
 }

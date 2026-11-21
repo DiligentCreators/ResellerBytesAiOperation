@@ -2,19 +2,24 @@
 
 namespace App\Models;
 
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-/** @property \Carbon\CarbonImmutable|null $accepted_at */
+/** @property CarbonImmutable|null $accepted_at */
 class TenantMembership extends Model
 {
     use HasUuids;
 
     public const ROLE_OWNER = 'owner';
+
     public const ROLE_ADMIN = 'admin';
+
     public const ROLE_OPERATOR = 'operator';
+
     public const ROLE_VIEWER = 'viewer';
+
     public const ROLE_BILLING = 'billing';
 
     public const ROLES = [
@@ -26,8 +31,11 @@ class TenantMembership extends Model
     ];
 
     public const STATUS_INVITED = 'invited';
+
     public const STATUS_ACTIVE = 'active';
+
     public const STATUS_SUSPENDED = 'suspended';
+
     public const STATUS_REVOKED = 'revoked';
 
     public const STATUSES = [

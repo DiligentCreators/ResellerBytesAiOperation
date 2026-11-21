@@ -32,9 +32,12 @@ class HandleInertiaRequests extends Middleware
                 'name' => (string) $membership->tenant->name,
                 'slug' => (string) $membership->tenant->slug,
                 'role' => (string) $membership->role,
+                'timezone' => (string) ($membership->tenant->timezone ?: 'UTC'),
             ])
             ->values()
             ->all();
+
+        $twoFactorEnabled = $user instanceof User && $user->hasEnabledTwoFactorAuthentication();
 
         return [
             ...parent::share($request),
@@ -48,9 +51,12 @@ class HandleInertiaRequests extends Middleware
                 'can_manage_integrations' => $memberships->contains(
                     fn (TenantMembership $membership): bool => $roleAuthorization->allows($membership, 'integrations.manage')
                 ),
+                'two_factor_enabled' => $twoFactorEnabled,
+                'encourage_two_factor' => $user instanceof User && ! $twoFactorEnabled,
             ],
             'flash' => [
                 'integration_credentials' => fn () => $request->session()->get('integration_credentials'),
+                'status' => fn () => $request->session()->get('status'),
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];
@@ -68,7 +74,7 @@ class HandleInertiaRequests extends Middleware
         return $user->tenantMemberships()
             ->where('status', TenantMembership::STATUS_ACTIVE)
             ->whereHas('tenant', fn ($query) => $query->where('status', Tenant::STATUS_ACTIVE))
-            ->with(['tenant:id,name,slug,status'])
+            ->with(['tenant:id,name,slug,status,timezone'])
             ->orderBy('created_at')
             ->get();
     }

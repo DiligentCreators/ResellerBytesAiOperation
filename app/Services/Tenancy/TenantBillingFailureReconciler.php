@@ -39,9 +39,7 @@ class TenantBillingFailureReconciler
                 }
 
                 $previousStatus = $invoice->status;
-                if ($invoice->status !== 'past_due') {
-                    $invoice->forceFill(['status' => 'past_due'])->save();
-                }
+                $subscription = null;
 
                 if ($invoice->tenant_subscription_id !== null) {
                     $subscription = $invoice->subscription()
@@ -52,8 +50,33 @@ class TenantBillingFailureReconciler
                     if ($subscription->billing_provider !== $provider || $subscription->provider_account_id !== $providerAccountId) {
                         throw new InvalidArgumentException('billing_subscription_provider_account_mismatch');
                     }
+                }
 
-                    if (in_array($subscription->status, ['active', 'trialing'], true)) {
+                // Declined first-checkout / abandoned plan-change invoices mark failed
+                // and cancel only the provisional subscription. Current plan stays active.
+                $isProvisionalCheckout = $subscription !== null
+                    && in_array($subscription->status, ['trialing', 'incomplete'], true)
+                    && $invoice->amount_paid_minor === 0
+                    && in_array($invoice->status, ['open', 'draft'], true);
+
+                if ($isProvisionalCheckout) {
+                    $invoice->forceFill(['status' => 'failed'])->save();
+                    app(TenantSubscriptionLifecycle::class)->transition(
+                        $tenantId,
+                        (int) $subscription->id,
+                        'canceled',
+                        null,
+                        null,
+                        null,
+                        $provider,
+                        $providerAccountId,
+                    );
+                } else {
+                    if ($invoice->status !== 'past_due') {
+                        $invoice->forceFill(['status' => 'past_due'])->save();
+                    }
+
+                    if ($subscription !== null && in_array($subscription->status, ['active', 'trialing'], true)) {
                         $graceDays = max(1, min(30, (int) config('billing.payment_failure_grace_days', 7)));
                         app(TenantSubscriptionLifecycle::class)->transition(
                             $tenantId,

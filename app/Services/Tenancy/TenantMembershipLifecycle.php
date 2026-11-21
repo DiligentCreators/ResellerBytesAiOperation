@@ -2,8 +2,8 @@
 
 namespace App\Services\Tenancy;
 
-use App\Models\Tenant;
 use App\Jobs\SendTenantMembershipInvitation;
+use App\Models\Tenant;
 use App\Models\TenantMembership;
 use App\Models\User;
 use App\Services\Audit\AuditEventWriter;
@@ -15,6 +15,9 @@ class TenantMembershipLifecycle
 {
     public function invite(User $actor, string $tenantId, string $email, string $role, ?string $ip = null): TenantMembership
     {
+        // Capability check before email lookup so unauthorized callers cannot probe accounts.
+        app(TenantRoleAuthorization::class)->require($actor, $tenantId, 'members.manage');
+
         if (! in_array($role, [TenantMembership::ROLE_ADMIN, TenantMembership::ROLE_OPERATOR, TenantMembership::ROLE_VIEWER, TenantMembership::ROLE_BILLING], true)) {
             throw ValidationException::withMessages(['role' => 'The requested invitation role is not assignable.']);
         }
@@ -25,9 +28,7 @@ class TenantMembershipLifecycle
         }
 
         return $this->inTenant($tenantId, (int) $actor->getKey(), function () use ($actor, $tenantId, $target, $role, $ip): TenantMembership {
-            app(TenantRoleAuthorization::class)->require($actor, $tenantId, 'members.manage');
             $tenant = Tenant::query()->whereKey($tenantId)->where('status', Tenant::STATUS_ACTIVE)->lockForUpdate()->firstOrFail();
-
             $existing = TenantMembership::query()->where('tenant_id', $tenantId)->where('user_id', $target->getKey())->lockForUpdate()->first();
             if ($existing && in_array($existing->status, [TenantMembership::STATUS_ACTIVE, TenantMembership::STATUS_SUSPENDED], true)) {
                 throw ValidationException::withMessages(['email' => 'This account already has an active, pending, or suspended membership.']);
@@ -85,6 +86,7 @@ class TenantMembershipLifecycle
             }
             $membership->forceFill(['status' => TenantMembership::STATUS_ACTIVE, 'accepted_at' => now()])->save();
             $this->audit($user, $tenantId, 'tenant.membership.accepted', $membership, ['role' => $membership->role], $ip);
+
             return $membership->refresh();
         });
     }
@@ -104,6 +106,7 @@ class TenantMembershipLifecycle
             $oldRole = $membership->role;
             $membership->forceFill(['role' => $role])->save();
             $this->audit($actor, $tenantId, 'tenant.membership.role_changed', $membership, ['previous_role' => $oldRole, 'new_role' => $role], $ip);
+
             return $membership->refresh();
         });
     }
@@ -132,6 +135,7 @@ class TenantMembershipLifecycle
             $oldStatus = $membership->status;
             $membership->forceFill(['status' => $status])->save();
             $this->audit($actor, $tenantId, 'tenant.membership.'.$status, $membership, ['previous_status' => $oldStatus, 'new_status' => $status], $ip);
+
             return $membership->refresh();
         });
     }
@@ -140,6 +144,7 @@ class TenantMembershipLifecycle
     {
         return app(TenantDatabaseContext::class)->run($tenantId, $userId, fn () => DB::transaction(function () use ($tenantId, $callback) {
             Tenant::query()->whereKey($tenantId)->where('status', Tenant::STATUS_ACTIVE)->lockForUpdate()->firstOrFail();
+
             return $callback();
         }, 3));
     }

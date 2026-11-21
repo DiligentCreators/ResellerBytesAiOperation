@@ -15,6 +15,7 @@ export type AuthTenant = {
     name: string;
     slug: string;
     role: string;
+    timezone?: string;
 };
 
 export type Auth = {
@@ -24,6 +25,8 @@ export type Auth = {
     can_manage_integrations: boolean;
     central_permissions: string[];
     tenants: AuthTenant[];
+    two_factor_enabled?: boolean;
+    encourage_two_factor?: boolean;
 };
 
 export type Passkey = {

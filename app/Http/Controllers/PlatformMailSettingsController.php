@@ -45,6 +45,7 @@ class PlatformMailSettingsController extends Controller
                 $fallback[$key] = '';
             }
         }
+
         return $fallback;
     }
 
@@ -53,6 +54,7 @@ class PlatformMailSettingsController extends Controller
         $this->authorizePlatformAdmin($request);
         $settings = PlatformMailSettings::query()->find(1);
         $config = $this->effectiveConfiguration($settings);
+
         return Inertia::render('platform/mail-settings', [
             'driver' => $settings instanceof PlatformMailSettings ? $settings->driver : config('platform_mail.driver', 'log'),
             'from_address' => $config['from_address'] ?? '',
@@ -147,6 +149,7 @@ class PlatformMailSettingsController extends Controller
                 'updated_by_user_id' => $request->user()->getKey(),
             ]);
         });
+
         return back()->with('status', 'Platform mail settings saved. Secrets are encrypted and will not be shown again.');
     }
 
@@ -166,6 +169,7 @@ class PlatformMailSettingsController extends Controller
         $status = $driver === 'log'
             ? 'Log driver is active; a redacted preview was recorded and no email was sent.'
             : 'Test email accepted by the configured mail driver.';
+
         return back()->with('status', $status);
     }
 }

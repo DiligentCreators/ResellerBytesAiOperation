@@ -18,6 +18,8 @@ class TenantSubscriptionLifecycle
 {
     private const TRANSITIONS = [
         'trialing' => ['active', 'past_due', 'canceled', 'expired'],
+        // Pending paid plan-change; activates only after webhook settlement.
+        'incomplete' => ['active', 'canceled', 'expired'],
         'active' => ['past_due', 'suspended', 'canceled', 'expired'],
         'past_due' => ['active', 'suspended', 'canceled', 'expired'],
         'suspended' => ['active', 'canceled', 'expired'],
@@ -122,7 +124,12 @@ class TenantSubscriptionLifecycle
                 }
 
                 if ($targetStatus === 'active' && in_array($subscription->status, ['past_due', 'suspended'], true)) {
-                    $this->requireSettledInvoice($tenantId, $subscription, $settledInvoiceId, $settlementProvider, $settlementProviderAccountId);
+                    if ($settledInvoiceId !== null) {
+                        $this->requireSettledInvoice($tenantId, $subscription, $settledInvoiceId, $settlementProvider, $settlementProviderAccountId);
+                    } elseif ($subscription->status === 'past_due' || $settlementProvider === null) {
+                        // past_due always needs a settled invoice; suspended may resume via provider attestation.
+                        throw new InvalidArgumentException('billing_webhook_settled_invoice_required');
+                    }
                 }
 
                 if ($targetStatus !== 'past_due') {

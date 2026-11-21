@@ -7,7 +7,7 @@ class TenantBillingOutboxPublished
     /**
      * Delivery is at-least-once. Listeners must deduplicate by outboxId.
      *
-     * @param array<string, mixed> $payload
+     * @param  array<string, mixed>  $payload
      */
     public function __construct(
         public readonly string $tenantId,
@@ -16,6 +16,5 @@ class TenantBillingOutboxPublished
         public readonly string $aggregateType,
         public readonly string $aggregateId,
         public readonly array $payload,
-    ) {
-    }
+    ) {}
 }

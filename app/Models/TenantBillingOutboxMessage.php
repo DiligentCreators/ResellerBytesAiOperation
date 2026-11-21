@@ -2,15 +2,16 @@
 
 namespace App\Models;
 
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * @property array<string, mixed> $payload
- * @property \Carbon\CarbonImmutable $available_at
- * @property \Carbon\CarbonImmutable|null $locked_at
- * @property \Carbon\CarbonImmutable|null $delivered_at
- * @property \Carbon\CarbonImmutable|null $failed_at
+ * @property CarbonImmutable $available_at
+ * @property CarbonImmutable|null $locked_at
+ * @property CarbonImmutable|null $delivered_at
+ * @property CarbonImmutable|null $failed_at
  */
 class TenantBillingOutboxMessage extends Model
 {

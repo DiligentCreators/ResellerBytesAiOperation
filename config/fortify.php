@@ -118,6 +118,9 @@ return [
         'login' => 'login',
         'two-factor' => 'two-factor',
         'passkeys' => 'passkeys',
+        'register' => 'register',
+        'verification' => 'verification',
+        'password-reset' => 'password-reset',
     ],
 
     /*
@@ -161,6 +164,7 @@ return [
     */
 
     'features' => [
+        Features::registration(),
         Features::resetPasswords(),
         Features::emailVerification(),
         Features::twoFactorAuthentication([

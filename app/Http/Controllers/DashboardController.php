@@ -3,7 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\DiagnosticRun;
+use App\Models\Tenant;
+use App\Models\TenantMembership;
+use App\Models\User;
 use App\Services\Ai\OpenAiConfiguration;
+use App\Services\Tenancy\OnboardingProgress;
 use App\Services\Tenancy\TenantRecordQuery;
 use App\Support\WhmcsAddonPackageSigner;
 use Illuminate\Support\Facades\Auth;
@@ -12,8 +16,12 @@ use Inertia\Response;
 
 class DashboardController extends Controller
 {
-    public function __invoke(WhmcsAddonPackageSigner $signer, OpenAiConfiguration $openAi): Response
-    {
+    public function __invoke(
+        WhmcsAddonPackageSigner $signer,
+        OpenAiConfiguration $openAi,
+        OnboardingProgress $onboardingProgress,
+    ): Response {
+        /** @var User|null $user */
         $user = Auth::user();
         $tenantRecords = app(TenantRecordQuery::class);
 
@@ -52,6 +60,39 @@ class DashboardController extends Controller
                 'download_available' => class_exists(\ZipArchive::class) && $signingConfigured,
                 'ai_configured' => $openAi->isConfigured(),
             ],
+            'onboarding' => $this->onboardingChecklist($user, $onboardingProgress),
         ]);
+    }
+
+    /**
+     * @return array{needed: bool, tenant_id: ?string, steps: array{workspace: bool, plan: bool, whmcs: bool}}|null
+     */
+    private function onboardingChecklist(?User $user, OnboardingProgress $onboardingProgress): ?array
+    {
+        if ($user === null) {
+            return null;
+        }
+
+        $membership = $user->tenantMemberships()
+            ->where('status', TenantMembership::STATUS_ACTIVE)
+            ->where('role', TenantMembership::ROLE_OWNER)
+            ->whereHas('tenant', fn ($query) => $query->where('status', Tenant::STATUS_ACTIVE))
+            ->with('tenant')
+            ->orderBy('created_at')
+            ->first();
+
+        if ($membership === null) {
+            return null;
+        }
+
+        /** @var Tenant $tenant */
+        $tenant = $membership->tenant;
+        $progress = $onboardingProgress->forTenant($tenant);
+
+        return [
+            'needed' => $progress['needed'],
+            'tenant_id' => $progress['tenant_id'],
+            'steps' => $progress['steps'],
+        ];
     }
 }

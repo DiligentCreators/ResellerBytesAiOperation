@@ -1,6 +1,9 @@
 <?php
 
 use App\Models\AuditEvent;
+use App\Models\Tenant;
+use App\Models\TenantMembership;
+use App\Models\TenantSubscription;
 use App\Models\User;
 use App\Models\WhmcsIntegration;
 use Illuminate\Database\QueryException;
@@ -171,24 +174,23 @@ test('does not reassign an integration that already has an owner', function () {
         ->and(AuditEvent::where('event_type', 'whmcs_integration.owner_assigned')->count())->toBe(0);
 });
 
-
 test('provisions tenant integrations only for authorized members within the active plan limit', function () {
     $owner = User::factory()->withTwoFactor()->create([
         'email' => 'tenant-owner@example.test',
         'email_verified_at' => now(),
     ]);
-    $tenant = \App\Models\Tenant::create([
+    $tenant = Tenant::create([
         'name' => 'Provisioning Workspace',
         'slug' => 'provisioning-workspace',
-        'status' => \App\Models\Tenant::STATUS_ACTIVE,
+        'status' => Tenant::STATUS_ACTIVE,
     ]);
     $tenant->memberships()->create([
         'user_id' => $owner->id,
-        'role' => \App\Models\TenantMembership::ROLE_OWNER,
-        'status' => \App\Models\TenantMembership::STATUS_ACTIVE,
+        'role' => TenantMembership::ROLE_OWNER,
+        'status' => TenantMembership::STATUS_ACTIVE,
         'accepted_at' => now(),
     ]);
-    \App\Models\TenantSubscription::create([
+    TenantSubscription::create([
         'tenant_id' => $tenant->id,
         'plan_code' => 'tenant-provisioning-test',
         'billing_mode' => 'manual',

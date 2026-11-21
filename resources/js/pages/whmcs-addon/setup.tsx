@@ -7,6 +7,9 @@ import {
     Link2,
     ShieldCheck,
 } from 'lucide-react';
+import { PageHeader } from '@/components/page-header';
+import { StatusBadge } from '@/components/status-badge';
+import { Button } from '@/components/ui/button';
 
 type Props = {
     addonVersion: string;
@@ -54,28 +57,26 @@ export default function WhmcsAddonSetup({
     return (
         <>
             <Head title="WHMCS Addon & Setup" />
-            <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 p-4 md:p-6">
-                <div>
-                    <h1 className="text-2xl font-semibold tracking-tight">
-                        Connect your WHMCS
-                    </h1>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                        Install the read-only diagnostic addon on your WHMCS
-                        control panel and link it to this workspace.
-                    </p>
-                </div>
+            <div className="space-y-6">
+                <PageHeader
+                    title="Connect your WHMCS"
+                    description="Install the read-only diagnostic addon on your WHMCS control panel and link it to this workspace."
+                />
 
-                <section className="rounded-xl border bg-card p-5">
+                <section className="rounded-lg border border-border bg-card p-5 shadow-xs">
                     <div className="flex items-start gap-4">
-                        <div className="rounded-lg bg-muted p-3">
-                            <FileArchive className="size-6" />
+                        <div className="grid size-11 place-items-center rounded-lg border border-border bg-surface shadow-xs">
+                            <FileArchive
+                                className="size-5 text-slate-brand"
+                                aria-hidden
+                            />
                         </div>
                         <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-2">
-                                <h2 className="font-semibold">
+                                <h2 className="text-sm font-semibold">
                                     ResellerBytes AI Operations for WHMCS
                                 </h2>
-                                <span className="rounded-full border px-2 py-0.5 text-xs">
+                                <span className="inline-flex h-5 items-center rounded-md bg-muted px-1.5 text-xs font-medium text-muted-foreground ring-1 ring-border ring-inset">
                                     v{addonVersion}
                                 </span>
                             </div>
@@ -88,57 +89,66 @@ export default function WhmcsAddonSetup({
                                 customers, invoices, payments, hosting, domains,
                                 or your existing registrar/hosting modules.
                             </p>
-                            <div className="mt-3 flex flex-wrap gap-2 text-xs">
-                                <span className="rounded-full border px-2.5 py-1">
-                                    AI analysis:{' '}
-                                    {aiConfigured
-                                        ? 'Available'
-                                        : 'Pending platform configuration'}
+                            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+                                <span className="text-muted-foreground">
+                                    AI analysis:
                                 </span>
+                                <StatusBadge
+                                    status={
+                                        aiConfigured ? 'available' : 'pending'
+                                    }
+                                    tone={aiConfigured ? 'success' : 'warning'}
+                                />
                             </div>
                             <div className="mt-4 flex flex-wrap gap-2">
                                 {downloadAvailable ? (
-                                    <a
-                                        href="/whmcs-addon/download"
-                                        className="inline-flex h-10 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-                                    >
-                                        <ArrowDownToLine className="size-4" />
-                                        Download addon ZIP
-                                    </a>
+                                    <Button asChild size="sm">
+                                        <a href="/whmcs-addon/download">
+                                            <ArrowDownToLine className="size-4" />
+                                            Download addon ZIP
+                                        </a>
+                                    </Button>
                                 ) : (
                                     <span className="text-sm text-destructive">
                                         {downloadUnavailableReason}
                                     </span>
                                 )}
-                                {canManage && (
-                                    <Link
-                                        href="/integrations"
-                                        className="inline-flex h-10 items-center gap-2 rounded-md border px-4 text-sm font-medium hover:bg-muted"
+                                {canManage ? (
+                                    <Button
+                                        variant="secondary"
+                                        size="sm"
+                                        asChild
                                     >
-                                        <Link2 className="size-4" />
-                                        Create integration
+                                        <Link href="/integrations">
+                                            <Link2 className="size-4" />
+                                            Create integration
+                                        </Link>
+                                    </Button>
+                                ) : null}
+                                <Button variant="secondary" size="sm" asChild>
+                                    <Link href="/dashboard">
+                                        Back to overview
                                     </Link>
-                                )}
-                                <Link
-                                    href="/dashboard"
-                                    className="inline-flex h-10 items-center rounded-md border px-4 text-sm font-medium hover:bg-muted"
-                                >
-                                    Back to overview
-                                </Link>
+                                </Button>
                             </div>
                         </div>
                     </div>
                 </section>
 
-                <section className="rounded-xl border bg-card p-5">
-                    <div className="flex items-center gap-2">
-                        <FolderOpen className="size-5" />
-                        <h2 className="font-semibold">How to set it up</h2>
+                <section className="rounded-lg border border-border bg-card p-5 shadow-xs">
+                    <div className="mb-4 flex items-center gap-2">
+                        <FolderOpen
+                            className="size-4 text-slate-brand"
+                            aria-hidden
+                        />
+                        <h2 className="text-sm font-semibold">
+                            How to set it up
+                        </h2>
                     </div>
-                    <ol className="mt-5 space-y-4">
+                    <ol className="space-y-4">
                         {steps.map((step, index) => (
                             <li key={step.title} className="flex gap-3">
-                                <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold">
+                                <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-surface text-xs font-semibold ring-1 ring-border">
                                     {index + 1}
                                 </span>
                                 <div className="pt-0.5">
@@ -154,14 +164,17 @@ export default function WhmcsAddonSetup({
                     </ol>
                 </section>
 
-                <section className="rounded-xl border bg-card p-5">
-                    <div className="flex items-center gap-2">
-                        <ShieldCheck className="size-5" />
-                        <h2 className="font-semibold">
+                <section className="rounded-lg border border-border bg-card p-5 shadow-xs">
+                    <div className="mb-4 flex items-center gap-2">
+                        <ShieldCheck
+                            className="size-4 text-slate-brand"
+                            aria-hidden
+                        />
+                        <h2 className="text-sm font-semibold">
                             Credentials file requirements
                         </h2>
                     </div>
-                    <ul className="mt-4 list-disc space-y-2 pl-5 text-sm leading-6 text-muted-foreground">
+                    <ul className="list-disc space-y-2 pl-5 text-sm leading-6 text-muted-foreground">
                         <li>
                             Store the JSON file outside the WHMCS installation
                             root and outside the public document root.
@@ -190,7 +203,7 @@ export default function WhmcsAddonSetup({
                     <p className="mt-4 text-sm font-medium">
                         Credentials JSON format
                     </p>
-                    <pre className="mt-2 overflow-x-auto rounded-lg bg-muted p-3 text-xs leading-6">
+                    <pre className="mt-2 overflow-x-auto rounded-lg border border-border bg-surface p-3 text-xs leading-6">
                         <code>{`{
   "integration_id": "YOUR-INTEGRATION-UUID",
   "secret": "YOUR-64-CHARACTER-HEX-SECRET"
@@ -202,12 +215,17 @@ export default function WhmcsAddonSetup({
                     </p>
                 </section>
 
-                <section className="rounded-xl border bg-card p-5">
-                    <div className="flex items-center gap-2">
-                        <CheckCircle2 className="size-5" />
-                        <h2 className="font-semibold">Safety and rollback</h2>
+                <section className="rounded-lg border border-border bg-card p-5 shadow-xs">
+                    <div className="mb-4 flex items-center gap-2">
+                        <CheckCircle2
+                            className="size-4 text-slate-brand"
+                            aria-hidden
+                        />
+                        <h2 className="text-sm font-semibold">
+                            Safety and rollback
+                        </h2>
                     </div>
-                    <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                    <p className="text-sm leading-6 text-muted-foreground">
                         The addon is manual and read-only. Do not configure a
                         WHMCS cron for it in this release.
                     </p>

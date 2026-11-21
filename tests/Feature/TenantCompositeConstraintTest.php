@@ -1,11 +1,18 @@
 <?php
 
+use App\Models\DiagnosticFinding;
+use App\Models\DiagnosticRecommendation;
+use App\Models\DiagnosticRun;
 use App\Models\Tenant;
 use App\Models\TenantMembership;
+use App\Models\TenantSubscription;
 use App\Models\User;
+use App\Models\WhmcsIntegration;
+use App\Services\Tenancy\TenantResourceLimitService;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\QueryException;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 it('rejects cross-tenant diagnostic findings at the database boundary', function () {
@@ -13,7 +20,7 @@ it('rejects cross-tenant diagnostic findings at the database boundary', function
     $tenantB = Tenant::create(['name' => 'Constraint Tenant B', 'slug' => 'constraint-tenant-b', 'status' => Tenant::STATUS_ACTIVE]);
     $owner = User::factory()->create();
 
-    $integration = \App\Models\WhmcsIntegration::create([
+    $integration = WhmcsIntegration::create([
         'tenant_id' => $tenantA->id,
         'owner_user_id' => $owner->id,
         'name' => 'Tenant A Integration',
@@ -107,7 +114,6 @@ it('rejects notification recipients without a membership in the same tenant', fu
     ])))->toThrow(QueryException::class);
 });
 
-
 it('rejects invoices and payments linked across tenant billing boundaries', function () {
     $tenantA = Tenant::create(['name' => 'Billing Tenant A', 'slug' => 'billing-tenant-a', 'status' => Tenant::STATUS_ACTIVE]);
     $tenantB = Tenant::create(['name' => 'Billing Tenant B', 'slug' => 'billing-tenant-b', 'status' => Tenant::STATUS_ACTIVE]);
@@ -165,17 +171,16 @@ it('rejects invoices and payments linked across tenant billing boundaries', func
     ])))->toThrow(QueryException::class);
 });
 
-
 it('atomically assigns a legacy integration and its diagnostic descendants to a tenant', function () {
     $owner = User::factory()->create();
     $tenant = Tenant::create(['name' => 'Backfill Tenant', 'slug' => 'backfill-tenant', 'status' => Tenant::STATUS_ACTIVE]);
-    $integration = \App\Models\WhmcsIntegration::create([
+    $integration = WhmcsIntegration::create([
         'owner_user_id' => $owner->id,
         'name' => 'Legacy integration for tenant backfill',
         'status' => 'active',
         'secret' => 'legacy-backfill-secret',
     ]);
-    $run = \App\Models\DiagnosticRun::create([
+    $run = DiagnosticRun::create([
         'integration_id' => $integration->id,
         'snapshot_uuid' => (string) Str::uuid(),
         'schema_version' => '1.0',
@@ -186,7 +191,7 @@ it('atomically assigns a legacy integration and its diagnostic descendants to a 
         'payload' => ['source' => 'legacy'],
         'payload_sha256' => hash('sha256', 'legacy'),
     ]);
-    $finding = \App\Models\DiagnosticFinding::create([
+    $finding = DiagnosticFinding::create([
         'diagnostic_run_id' => $run->id,
         'fingerprint' => hash('sha256', 'legacy-finding'),
         'category' => 'security',
@@ -196,7 +201,7 @@ it('atomically assigns a legacy integration and its diagnostic descendants to a 
         'evidence' => json_encode([]),
         'status' => 'open',
     ]);
-    $recommendation = \App\Models\DiagnosticRecommendation::create([
+    $recommendation = DiagnosticRecommendation::create([
         'diagnostic_finding_id' => $finding->id,
         'recommendation' => 'Review legacy configuration.',
         'rationale' => 'Tenant attribution backfill fixture.',
@@ -221,14 +226,13 @@ it('atomically assigns a legacy integration and its diagnostic descendants to a 
     ]))->toBe(1);
 });
 
-
 it('enforces subscription integration and diagnostic-period quotas from the entitlement snapshot', function () {
     $tenant = Tenant::create([
         'name' => 'Quota Workspace',
         'slug' => 'quota-workspace',
         'status' => Tenant::STATUS_ACTIVE,
     ]);
-    \App\Models\TenantSubscription::create([
+    TenantSubscription::create([
         'tenant_id' => $tenant->id,
         'plan_code' => 'quota-test-plan',
         'billing_mode' => 'manual',
@@ -245,10 +249,10 @@ it('enforces subscription integration and diagnostic-period quotas from the enti
         'current_period_ends_at' => now()->addMonth(),
     ]);
 
-    $limits = app(\App\Services\Tenancy\TenantResourceLimitService::class);
+    $limits = app(TenantResourceLimitService::class);
     $limits->requireIntegrationCapacity($tenant->id);
 
-    \App\Models\WhmcsIntegration::create([
+    WhmcsIntegration::create([
         'tenant_id' => $tenant->id,
         'name' => 'Quota Integration',
         'status' => 'active',
@@ -256,9 +260,9 @@ it('enforces subscription integration and diagnostic-period quotas from the enti
     ]);
 
     expect(fn () => $limits->requireIntegrationCapacity($tenant->id))
-        ->toThrow(\Illuminate\Auth\Access\AuthorizationException::class);
+        ->toThrow(AuthorizationException::class);
 
-    $run = \App\Models\DiagnosticRun::create([
+    $run = DiagnosticRun::create([
         'integration_id' => $tenant->integrations()->firstOrFail()->id,
         'tenant_id' => $tenant->id,
         'snapshot_uuid' => (string) Str::uuid(),
@@ -272,6 +276,6 @@ it('enforces subscription integration and diagnostic-period quotas from the enti
     ]);
 
     expect(fn () => $limits->requireDiagnosticCapacity($tenant->id))
-        ->toThrow(\Illuminate\Auth\Access\AuthorizationException::class);
+        ->toThrow(AuthorizationException::class);
 
 });

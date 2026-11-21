@@ -306,7 +306,6 @@ it('refuses to reserve against an expired model price card', function () {
         ->toThrow(RuntimeException::class, 'budget_price_card_expired');
 });
 
-
 it('enforces tenant daily and monthly budgets while retaining the platform-wide caps', function () {
     config()->set('ai_budget.tenant_daily_limit_micro_usd', 400_000);
     config()->set('ai_budget.tenant_monthly_limit_micro_usd', 500_000);
@@ -375,7 +374,6 @@ it('releases tenant reservations with the same two-person audited reconciliation
         ->and(AiTenantBudgetPeriod::query()->where('tenant_id', $tenant->id)->where('period_type', 'monthly')->sole()->reserved_micro_usd)->toBe(0);
 });
 
-
 it('keeps tenant attribution immutable on an AI usage attempt', function () {
     $tenantA = Tenant::create(['name' => 'Immutable Tenant A', 'slug' => 'immutable-tenant-a', 'status' => Tenant::STATUS_ACTIVE]);
     $tenantB = Tenant::create(['name' => 'Immutable Tenant B', 'slug' => 'immutable-tenant-b', 'status' => Tenant::STATUS_ACTIVE]);
@@ -386,7 +384,6 @@ it('keeps tenant attribution immutable on an AI usage attempt', function () {
 
     expect($attempt->fresh()->tenant_id)->toBe($tenantA->id);
 });
-
 
 it('prevents integration tenant remapping after diagnostic history is captured', function () {
     $tenantA = Tenant::create(['name' => 'Captured Billing Tenant A', 'slug' => 'captured-billing-tenant-a', 'status' => Tenant::STATUS_ACTIVE]);

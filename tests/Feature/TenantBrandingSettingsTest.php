@@ -5,6 +5,7 @@ use App\Models\TenantMembership;
 use App\Models\User;
 use App\Services\Tenancy\TenantBrandingSettings;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Support\Facades\DB;
 
 it('allows owner and admin to update only the tenant branding settings with audit evidence', function () {
     $tenant = Tenant::create([
@@ -31,7 +32,7 @@ it('allows owner and admin to update only the tenant branding settings with audi
     expect($updated->settings['locale'])->toBe('en')
         ->and($updated->settings['branding']['display_name'])->toBe('New Brand')
         ->and($updated->settings['branding']['support_email'])->toBe('support@example.test')
-        ->and(\Illuminate\Support\Facades\DB::table('audit_events')
+        ->and(DB::table('audit_events')
             ->where('tenant_id', $tenant->id)
             ->where('event_type', 'tenant.branding.updated')
             ->exists())->toBeTrue();

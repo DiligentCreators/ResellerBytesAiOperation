@@ -58,6 +58,7 @@ class ProfileController extends Controller
         });
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Profile updated.')]);
+
         return to_route('profile.edit');
     }
 
@@ -86,6 +87,7 @@ class ProfileController extends Controller
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
+
         return redirect('/');
     }
 }

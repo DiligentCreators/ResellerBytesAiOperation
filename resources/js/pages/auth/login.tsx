@@ -9,14 +9,20 @@ import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { store } from '@/routes/login';
 import { request } from '@/routes/password';
+import { register } from '@/routes';
 import PasskeyVerify from '@/components/passkey-verify';
 
 type Props = {
     status?: string;
     canResetPassword: boolean;
+    canRegister?: boolean;
 };
 
-export default function Login({ status, canResetPassword }: Props) {
+export default function Login({
+    status,
+    canResetPassword,
+    canRegister = false,
+}: Props) {
     return (
         <>
             <Head title="Log in" />
@@ -90,12 +96,24 @@ export default function Login({ status, canResetPassword }: Props) {
                                 Log in
                             </Button>
                         </div>
+
+                        {canRegister && (
+                            <p className="text-center text-sm text-muted-foreground">
+                                New here?{' '}
+                                <TextLink href={register()} tabIndex={5}>
+                                    Create an account
+                                </TextLink>
+                            </p>
+                        )}
                     </>
                 )}
             </Form>
 
             {status && (
-                <div className="mb-4 text-center text-sm font-medium text-green-600">
+                <div
+                    role="status"
+                    className="rounded-md border border-success/20 bg-success-soft px-3 py-2 text-sm text-success-fg"
+                >
                     {status}
                 </div>
             )}
@@ -104,6 +122,6 @@ export default function Login({ status, canResetPassword }: Props) {
 }
 
 Login.layout = {
-    title: 'Log in to your account',
-    description: 'Enter your email and password below to log in',
+    title: 'Sign in to AI Operations',
+    description: 'Welcome back. Enter your details to continue.',
 };

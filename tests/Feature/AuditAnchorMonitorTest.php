@@ -70,7 +70,6 @@ it('fails when the local audit chain has an unanchored tail above threshold', fu
     }
 });
 
-
 it('fails closed when a chained checkpoint is monitored without its expected predecessor', function () {
     appendAuditAnchorMonitorFixtureEvent('test.anchor.monitor.previous-required');
     $path = tempnam(sys_get_temp_dir(), 'rb-anchor-monitor-chain-');
@@ -328,7 +327,6 @@ it('emits redacted schema-conformant evidence when the signed checkpoint timesta
         @unlink($path);
     }
 });
-
 
 it('rejects an oversized checkpoint without parsing it', function () {
     $path = tempnam(sys_get_temp_dir(), 'rb-anchor-large-');

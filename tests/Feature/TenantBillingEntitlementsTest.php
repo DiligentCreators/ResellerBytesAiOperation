@@ -1,21 +1,22 @@
 <?php
 
+use App\Models\DiagnosticRun;
 use App\Models\Tenant;
 use App\Models\TenantBillingInvoice;
-use App\Models\DiagnosticRun;
-use App\Models\WhmcsIntegration;
-use App\Services\Tenancy\TenantResourceLimitService;
-use Illuminate\Support\Str;
 use App\Models\TenantMembership;
 use App\Models\TenantSubscription;
 use App\Models\User;
+use App\Models\WhmcsIntegration;
+use App\Services\Audit\AuditEventWriter;
 use App\Services\Tenancy\TenantBillingLedgerService;
 use App\Services\Tenancy\TenantEntitlementService;
+use App\Services\Tenancy\TenantResourceLimitService;
 use App\Services\Tenancy\TenantRoleAuthorization;
 use Illuminate\Auth\Access\AuthorizationException;
-use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Artisan;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use RuntimeException;
 
 function createTenantSubscriptionFixture(Tenant $tenant, array $overrides = []): TenantSubscription
@@ -168,14 +169,13 @@ it('rejects cross-tenant invoice payment and overpayment without ledger mutation
     $payment = ['collection_mode' => 'automated', 'idempotency_key' => 'wrong-tenant', 'amount_minor' => 1001, 'currency' => 'USD', 'provider' => 'approved_gateway', 'provider_account_id' => 'acct_approved_gateway_test', 'provider_payment_id' => 'PAY-WRONG', 'received_at' => now()];
 
     expect(fn () => $service->recordConfirmedPayment($tenantB->id, $invoice->id, $payment))
-        ->toThrow(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
+        ->toThrow(ModelNotFoundException::class);
     expect(fn () => $service->recordConfirmedPayment($tenantA->id, $invoice->id, $payment))
         ->toThrow(RuntimeException::class, 'billing_invoice_payment_invariant_failed');
 
     expect($invoice->fresh()->amount_paid_minor)->toBe(0)
         ->and($invoice->payments()->count())->toBe(0);
 });
-
 
 it('enforces tenant diagnostic quota at the exact inclusive limit', function () {
     $tenant = Tenant::create(['name' => 'Quota Workspace', 'slug' => 'quota-workspace', 'status' => Tenant::STATUS_ACTIVE]);
@@ -272,19 +272,19 @@ it('preserves billing identity, append-only, and audit tenant triggers after com
         'received_at' => now(),
     ]);
 
-    expect(fn () => \Illuminate\Support\Facades\DB::table('tenant_billing_invoices')
+    expect(fn () => DB::table('tenant_billing_invoices')
         ->where('id', $invoice->id)->update(['provider_invoice_id' => 'tampered-invoice']))
         ->toThrow(QueryException::class, 'tenant_billing_invoice_provider_identity_immutable');
 
-    expect(fn () => \Illuminate\Support\Facades\DB::table('tenant_billing_payments')
+    expect(fn () => DB::table('tenant_billing_payments')
         ->where('id', $payment->id)->update(['reference' => 'tampered-payment']))
         ->toThrow(QueryException::class, 'tenant_billing_payment_append_only');
 
-    expect(fn () => \Illuminate\Support\Facades\DB::table('tenant_billing_payments')
+    expect(fn () => DB::table('tenant_billing_payments')
         ->where('id', $payment->id)->delete())
         ->toThrow(QueryException::class, 'tenant_billing_payment_append_only');
 
-    expect(fn () => app(\App\Services\Audit\AuditEventWriter::class)->append([
+    expect(fn () => app(AuditEventWriter::class)->append([
         'actor_type' => 'user',
         'actor_id' => (string) $operator->id,
         'tenant_id' => $otherTenant->id,

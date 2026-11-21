@@ -4,6 +4,13 @@ return [
     // The sole legal-hold authority. Configure this to the verified operations account email.
     'owner_email' => env('OPERATIONS_OWNER_EMAIL'),
 
+    // Local demo accounts only (DemoAccountsSeeder). Never seed or default a password in production.
+    'demo_accounts' => [
+        'password' => env('APP_ENV') === 'production'
+            ? env('DEMO_ACCOUNTS_PASSWORD')
+            : env('DEMO_ACCOUNTS_PASSWORD', 'Local-Test-Passw0rd!'),
+    ],
+
     'monitoring' => [
         'error_rate' => ['window_minutes' => (int) env('OPERATIONS_ALERT_ERROR_RATE_WINDOW_MINUTES', 5), 'threshold_percent' => (float) env('OPERATIONS_ALERT_ERROR_RATE_PERCENT', 2)],
         'api_p95_latency_ms' => (int) env('OPERATIONS_ALERT_API_P95_LATENCY_MS', 1500),

@@ -1,15 +1,17 @@
 <?php
 
+use App\Models\DiagnosticFinding;
+use App\Models\DiagnosticRun;
 use App\Models\Tenant;
 use App\Models\TenantMembership;
+use App\Models\TenantSubscription;
 use App\Models\User;
 use App\Models\WhmcsIntegration;
-use App\Models\DiagnosticRun;
-use App\Models\DiagnosticFinding;
-use App\Services\Tenancy\TenantRecordQuery;
 use App\Services\Tenancy\TenantAccess;
+use App\Services\Tenancy\TenantRecordQuery;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Str;
 
 it('creates an isolated tenant and explicit role-based memberships without implicit access', function () {
     $creator = User::factory()->withTwoFactor()->create();
@@ -72,7 +74,6 @@ it('supports nullable tenant assignment for legacy integrations without guessing
         ->and($integration->tenant()->exists())->toBeFalse();
 });
 
-
 it('requires an active tenant and active membership before granting tenant access', function () {
     $user = User::factory()->withTwoFactor()->create();
     $tenant = Tenant::create([
@@ -100,7 +101,6 @@ it('requires an active tenant and active membership before granting tenant acces
         ->toThrow(ModelNotFoundException::class);
 });
 
-
 it('uses active tenant membership instead of historical integration ownership for tenant records', function () {
     $historicalOwner = User::factory()->withTwoFactor()->create();
     $member = User::factory()->withTwoFactor()->create();
@@ -118,7 +118,7 @@ it('uses active tenant membership instead of historical integration ownership fo
         'status' => TenantMembership::STATUS_ACTIVE,
         'accepted_at' => now(),
     ]);
-    \App\Models\TenantSubscription::create([
+    TenantSubscription::create([
         'tenant_id' => $tenant->id,
         'plan_code' => 'shared-workspace-test',
         'billing_mode' => 'manual',
@@ -140,7 +140,7 @@ it('uses active tenant membership instead of historical integration ownership fo
     $run = DiagnosticRun::create([
         'integration_id' => $integration->id,
         'tenant_id' => $tenant->id,
-        'snapshot_uuid' => (string) Illuminate\Support\Str::uuid(),
+        'snapshot_uuid' => (string) Str::uuid(),
         'schema_version' => '1.0',
         'addon_version' => '1.0.0',
         'status' => 'received',

@@ -30,7 +30,6 @@ it('aggregates five-minute API error rate and p95 latency without request payloa
         ['status_code' => 200, 'duration_ms' => 900, 'created_at' => $observedAt->subMinutes(6)],
     ]);
 
-
     DB::table('tenant_billing_outbox')->insert([
         'tenant_id' => $tenant->id, 'idempotency_key' => 'metrics-outbox-processing',
         'event_type' => 'billing.invoice.issued', 'aggregate_type' => 'billing_invoice', 'aggregate_id' => '2',
@@ -127,7 +126,6 @@ it('treats malformed and future backup success markers as unavailable', function
     @unlink($markerPath);
 });
 
-
 it('schedules hourly pruning of operational metric samples', function () {
     $scheduled = collect(Schedule::events())->contains(
         static fn ($event): bool => str_contains((string) $event->command, 'operations:metrics'),
@@ -135,7 +133,6 @@ it('schedules hourly pruning of operational metric samples', function () {
 
     expect($scheduled)->toBeTrue();
 });
-
 
 it('collects billing queue health as aggregate-only operational metrics', function () {
     $tenant = Tenant::create(['name' => 'Metrics tenant', 'slug' => 'metrics-tenant', 'status' => Tenant::STATUS_ACTIVE]);
@@ -168,7 +165,6 @@ it('collects billing queue health as aggregate-only operational metrics', functi
     expect(json_encode($metrics, JSON_THROW_ON_ERROR))
         ->not->toContain('private-account')->not->toContain('never-return')->not->toContain($tenant->id);
 });
-
 
 it('treats an oversized backup success marker as unavailable without reading it unbounded', function () {
     $markerPath = tempnam(sys_get_temp_dir(), 'rb-backup-marker-large-');

@@ -1,11 +1,17 @@
-import { Form, Head, usePage } from '@inertiajs/react';
+import { Form, Head, Link, usePage } from '@inertiajs/react';
 import { Copy, KeyRound, Server } from 'lucide-react';
 import { useState } from 'react';
-import { Pagination } from '@/components/pagination';
+import { EmptyState } from '@/components/empty-state';
 import InputError from '@/components/input-error';
+import { PageHeader } from '@/components/page-header';
+import { Pagination } from '@/components/pagination';
+import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useWorkspaceTimezone } from '@/hooks/use-workspace-timezone';
+import { formatDateTime } from '@/lib/dates';
+import { edit as editSecurity } from '@/routes/security';
 import type { IntegrationCredentialsFlash } from '@/types/auth';
 
 type Integration = {
@@ -25,13 +31,12 @@ type Props = {
     };
 };
 
-function date(value: string | null) {
-    return value
-        ? new Intl.DateTimeFormat(undefined, {
-              dateStyle: 'medium',
-              timeStyle: 'short',
-          }).format(new Date(value))
-        : 'Never connected';
+function formatLastSeen(value: string | null, timeZone?: string): string {
+    if (!value) {
+        return 'Never connected';
+    }
+
+    return formatDateTime(value, timeZone);
 }
 
 function credentialsJson(credentials: IntegrationCredentialsFlash): string {
@@ -47,8 +52,10 @@ function credentialsJson(credentials: IntegrationCredentialsFlash): string {
 
 export default function IntegrationsIndex({ integrations }: Props) {
     const { auth, flash } = usePage().props;
+    const timezone = useWorkspaceTimezone();
     const credentials = flash?.integration_credentials ?? null;
     const canManage = auth.can_manage_integrations;
+    const ownerHasConfirmedTwoFactor = Boolean(auth.two_factor_enabled);
     const isPlatformOperator = auth.is_platform_operator;
     const manageableTenants = (auth.tenants ?? []).filter((tenant) =>
         ['owner', 'admin'].includes(tenant.role),
@@ -59,20 +66,15 @@ export default function IntegrationsIndex({ integrations }: Props) {
     return (
         <>
             <Head title="WHMCS Integrations" />
-            <div className="flex flex-1 flex-col gap-6 p-4 md:p-6">
-                <div>
-                    <h1 className="text-2xl font-semibold tracking-tight">
-                        WHMCS Integrations
-                    </h1>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                        Connected WHMCS installations and their diagnostic
-                        activity.
-                    </p>
-                </div>
+            <div className="space-y-6">
+                <PageHeader
+                    title="WHMCS Integrations"
+                    description="Connected WHMCS installations and their diagnostic activity."
+                />
 
-                {showCredentials && credentials && (
-                    <section className="rounded-xl border border-amber-500/40 bg-amber-500/5 p-5">
-                        <h2 className="font-semibold">
+                {showCredentials && credentials ? (
+                    <section className="rounded-lg border border-warning/30 bg-warning-soft/30 p-5 shadow-xs">
+                        <h2 className="text-sm font-semibold">
                             {credentials.action === 'rotated'
                                 ? 'New integration secret'
                                 : 'Integration credentials'}
@@ -96,7 +98,7 @@ export default function IntegrationsIndex({ integrations }: Props) {
                                 <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
                                     Integration ID
                                 </p>
-                                <div className="mt-1 flex items-center gap-2 rounded-lg bg-muted p-3">
+                                <div className="mt-1 flex items-center gap-2 rounded-lg border border-border bg-surface p-3">
                                     <code className="min-w-0 flex-1 text-sm break-all">
                                         {credentials.integration_id}
                                     </code>
@@ -107,7 +109,7 @@ export default function IntegrationsIndex({ integrations }: Props) {
                                                 credentials.integration_id,
                                             )
                                         }
-                                        className="rounded-md p-2 hover:bg-background"
+                                        className="rounded-md p-2 hover:bg-card"
                                         aria-label="Copy integration ID"
                                     >
                                         <Copy className="size-4" />
@@ -118,7 +120,7 @@ export default function IntegrationsIndex({ integrations }: Props) {
                                 <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
                                     Secret
                                 </p>
-                                <div className="mt-1 flex items-center gap-2 rounded-lg bg-muted p-3">
+                                <div className="mt-1 flex items-center gap-2 rounded-lg border border-border bg-surface p-3">
                                     <code className="min-w-0 flex-1 text-sm break-all">
                                         {credentials.secret}
                                     </code>
@@ -129,7 +131,7 @@ export default function IntegrationsIndex({ integrations }: Props) {
                                                 credentials.secret,
                                             )
                                         }
-                                        className="rounded-md p-2 hover:bg-background"
+                                        className="rounded-md p-2 hover:bg-card"
                                         aria-label="Copy secret"
                                     >
                                         <Copy className="size-4" />
@@ -140,7 +142,7 @@ export default function IntegrationsIndex({ integrations }: Props) {
                                 <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
                                     Credentials JSON
                                 </p>
-                                <div className="mt-1 flex items-start gap-2 rounded-lg bg-muted p-3">
+                                <div className="mt-1 flex items-start gap-2 rounded-lg border border-border bg-surface p-3">
                                     <pre className="min-w-0 flex-1 overflow-x-auto text-xs leading-5">
                                         <code>
                                             {credentialsJson(credentials)}
@@ -153,7 +155,7 @@ export default function IntegrationsIndex({ integrations }: Props) {
                                                 credentialsJson(credentials),
                                             )
                                         }
-                                        className="rounded-md p-2 hover:bg-background"
+                                        className="rounded-md p-2 hover:bg-card"
                                         aria-label="Copy credentials JSON"
                                     >
                                         <Copy className="size-4" />
@@ -170,16 +172,34 @@ export default function IntegrationsIndex({ integrations }: Props) {
                             I have saved these credentials
                         </Button>
                     </section>
-                )}
+                ) : null}
 
-                {canManage && (
-                    <section className="rounded-xl border bg-card p-5">
-                        <h2 className="font-semibold">Connect WHMCS</h2>
+                {canManage ? (
+                    <section className="rounded-lg border border-border bg-card p-5 shadow-xs">
+                        <h2 className="text-sm font-semibold">Connect WHMCS</h2>
                         <p className="mt-1 text-sm text-muted-foreground">
                             Create an integration for your workspace. The secret
                             is shown once so you can place it on your WHMCS
                             server.
                         </p>
+                        {!ownerHasConfirmedTwoFactor ? (
+                            <div
+                                role="status"
+                                className="mt-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100"
+                            >
+                                <p>
+                                    The workspace owner must confirm two-factor
+                                    authentication (TOTP) before creating an
+                                    integration.
+                                </p>
+                                <Link
+                                    href={editSecurity()}
+                                    className="mt-2 inline-flex font-medium underline underline-offset-4 hover:no-underline"
+                                >
+                                    Enable 2FA
+                                </Link>
+                            </div>
+                        ) : null}
                         <Form
                             action="/integrations"
                             method="post"
@@ -198,10 +218,13 @@ export default function IntegrationsIndex({ integrations }: Props) {
                                             required
                                             maxLength={120}
                                             placeholder="Production WHMCS"
+                                            disabled={
+                                                !ownerHasConfirmedTwoFactor
+                                            }
                                         />
                                         <InputError message={errors.name} />
                                     </div>
-                                    {manageableTenants.length > 1 && (
+                                    {manageableTenants.length > 1 ? (
                                         <div className="grid gap-2">
                                             <Label htmlFor="tenant_id">
                                                 Workspace
@@ -210,7 +233,10 @@ export default function IntegrationsIndex({ integrations }: Props) {
                                                 id="tenant_id"
                                                 name="tenant_id"
                                                 required
-                                                className="rounded-md border bg-background p-2 text-sm"
+                                                disabled={
+                                                    !ownerHasConfirmedTwoFactor
+                                                }
+                                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                                                 defaultValue=""
                                             >
                                                 <option value="" disabled>
@@ -231,17 +257,20 @@ export default function IntegrationsIndex({ integrations }: Props) {
                                                 message={errors.tenant_id}
                                             />
                                         </div>
-                                    )}
-                                    {manageableTenants.length === 1 && (
+                                    ) : null}
+                                    {manageableTenants.length === 1 ? (
                                         <input
                                             type="hidden"
                                             name="tenant_id"
                                             value={manageableTenants[0].id}
                                         />
-                                    )}
+                                    ) : null}
                                     <Button
                                         type="submit"
-                                        disabled={processing}
+                                        disabled={
+                                            processing ||
+                                            !ownerHasConfirmedTwoFactor
+                                        }
                                     >
                                         Create integration
                                     </Button>
@@ -249,18 +278,18 @@ export default function IntegrationsIndex({ integrations }: Props) {
                             )}
                         </Form>
                     </section>
-                )}
+                ) : null}
 
-                {isPlatformOperator && (
-                    <details className="rounded-xl border bg-card p-5">
-                        <summary className="cursor-pointer font-semibold">
+                {isPlatformOperator ? (
+                    <details className="rounded-lg border border-border bg-card p-5 shadow-xs">
+                        <summary className="cursor-pointer text-sm font-semibold">
                             Platform: CLI create
                         </summary>
                         <p className="mt-2 text-sm text-muted-foreground">
                             Optional Forge-shell provisioning for operators.
                             Prefer the Connect WHMCS form for tenant workspaces.
                         </p>
-                        <div className="mt-4 flex items-center gap-2 rounded-lg bg-muted p-3">
+                        <div className="mt-4 flex items-center gap-2 rounded-lg border border-border bg-surface p-3">
                             <code className="min-w-0 flex-1 text-sm break-all">
                                 php artisan whmcs:integration:create
                                 &quot;ResellerBytes Production WHMCS&quot;
@@ -274,137 +303,136 @@ export default function IntegrationsIndex({ integrations }: Props) {
                                         'php artisan whmcs:integration:create "ResellerBytes Production WHMCS" --owner=verified@example.com --tenant=<tenant-uuid>',
                                     )
                                 }
-                                className="rounded-md p-2 hover:bg-background"
+                                className="rounded-md p-2 hover:bg-card"
                                 aria-label="Copy integration command"
                             >
                                 <Copy className="size-4" />
                             </button>
                         </div>
                     </details>
-                )}
+                ) : null}
 
-                <section className="overflow-hidden rounded-xl border bg-card">
-                    <div className="border-b p-5">
-                        <h2 className="font-semibold">
-                            Registered installations
-                        </h2>
-                    </div>
-                    {integrations.data.length === 0 ? (
-                        <div className="px-5 py-12 text-center">
-                            <Server className="mx-auto size-8 text-muted-foreground" />
-                            <p className="mt-3 font-medium">
-                                No WHMCS connected yet
-                            </p>
-                            <p className="mt-1 text-sm text-muted-foreground">
-                                {canManage
-                                    ? 'Create an integration above, then install the WHMCS addon and credentials JSON on your WHMCS server.'
-                                    : 'Ask a workspace owner or admin to connect WHMCS, then download the addon from Setup.'}
-                            </p>
+                {integrations.data.length === 0 ? (
+                    <EmptyState
+                        icon={Server}
+                        title="No WHMCS connected yet"
+                        description={
+                            canManage
+                                ? 'Create an integration above, then install the WHMCS addon and credentials JSON on your WHMCS server.'
+                                : 'Ask a workspace owner or admin to connect WHMCS, then download the addon from Setup.'
+                        }
+                    />
+                ) : (
+                    <div className="overflow-hidden rounded-lg border border-border bg-card shadow-xs">
+                        <div className="border-b border-border px-5 py-4">
+                            <h2 className="text-sm font-semibold">
+                                Registered installations
+                            </h2>
                         </div>
-                    ) : (
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left text-sm">
-                                <thead className="bg-muted/40 text-xs text-muted-foreground uppercase">
-                                    <tr>
-                                        <th className="px-5 py-3 font-medium">
-                                            Installation
+                        <table className="w-full text-left text-sm">
+                            <caption className="sr-only">
+                                WHMCS integrations
+                            </caption>
+                            <thead className="border-b border-border bg-surface text-xs font-medium text-muted-foreground">
+                                <tr>
+                                    <th scope="col" className="h-9 px-4">
+                                        Installation
+                                    </th>
+                                    <th scope="col" className="h-9 px-4">
+                                        Status
+                                    </th>
+                                    <th scope="col" className="h-9 px-4">
+                                        Addon
+                                    </th>
+                                    <th scope="col" className="h-9 px-4">
+                                        Last seen
+                                    </th>
+                                    <th scope="col" className="h-9 px-4">
+                                        Snapshots
+                                    </th>
+                                    {canManage ? (
+                                        <th scope="col" className="h-9 px-4">
+                                            Actions
                                         </th>
-                                        <th className="px-5 py-3 font-medium">
-                                            Status
-                                        </th>
-                                        <th className="px-5 py-3 font-medium">
-                                            Addon
-                                        </th>
-                                        <th className="px-5 py-3 font-medium">
-                                            Last seen
-                                        </th>
-                                        <th className="px-5 py-3 font-medium">
-                                            Snapshots
-                                        </th>
-                                        {canManage && (
-                                            <th className="px-5 py-3 font-medium">
-                                                Actions
-                                            </th>
-                                        )}
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y">
-                                    {integrations.data.map((item) => (
-                                        <tr key={item.id}>
-                                            <td className="px-5 py-4">
-                                                <p className="font-medium">
-                                                    {item.name}
-                                                </p>
-                                                <p className="mt-1 font-mono text-xs text-muted-foreground">
-                                                    {item.id}
-                                                </p>
-                                            </td>
-                                            <td className="px-5 py-4">
-                                                <span className="rounded-full border px-2.5 py-1 text-xs capitalize">
-                                                    {item.status}
-                                                </span>
-                                            </td>
-                                            <td className="px-5 py-4 text-muted-foreground">
-                                                {item.addon_version ??
-                                                    'Not reported'}
-                                            </td>
-                                            <td className="px-5 py-4 text-muted-foreground">
-                                                {date(item.last_seen_at)}
-                                            </td>
-                                            <td className="px-5 py-4">
-                                                {item.diagnostic_runs_count}
-                                            </td>
-                                            {canManage && (
-                                                <td className="px-5 py-4">
-                                                    {item.status ===
-                                                        'active' &&
-                                                        item.tenant_id && (
-                                                            <Form
-                                                                action={`/integrations/${item.id}/rotate`}
-                                                                method="post"
-                                                                options={{
-                                                                    preserveScroll: true,
+                                    ) : null}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {integrations.data.map((item) => (
+                                    <tr
+                                        key={item.id}
+                                        className="h-11 border-b border-border last:border-0 hover:bg-surface/70"
+                                    >
+                                        <td className="px-4">
+                                            <p className="font-medium">
+                                                {item.name}
+                                            </p>
+                                            <p className="mt-0.5 font-mono text-xs text-muted-foreground">
+                                                {item.id}
+                                            </p>
+                                        </td>
+                                        <td className="px-4">
+                                            <StatusBadge status={item.status} />
+                                        </td>
+                                        <td className="px-4 text-muted-foreground">
+                                            {item.addon_version ??
+                                                'Not reported'}
+                                        </td>
+                                        <td className="px-4 text-muted-foreground">
+                                            {formatLastSeen(
+                                                item.last_seen_at,
+                                                timezone,
+                                            )}
+                                        </td>
+                                        <td className="px-4 tabular-nums">
+                                            {item.diagnostic_runs_count}
+                                        </td>
+                                        {canManage ? (
+                                            <td className="px-4">
+                                                {item.status === 'active' &&
+                                                item.tenant_id ? (
+                                                    <Form
+                                                        action={`/integrations/${item.id}/rotate`}
+                                                        method="post"
+                                                        options={{
+                                                            preserveScroll: true,
+                                                        }}
+                                                    >
+                                                        {({ processing }) => (
+                                                            <Button
+                                                                type="submit"
+                                                                variant="outline"
+                                                                size="sm"
+                                                                disabled={
+                                                                    processing
+                                                                }
+                                                                onClick={(
+                                                                    event,
+                                                                ) => {
+                                                                    if (
+                                                                        !confirm(
+                                                                            'Rotate this secret? The previous secret stops working immediately.',
+                                                                        )
+                                                                    ) {
+                                                                        event.preventDefault();
+                                                                    }
                                                                 }}
                                                             >
-                                                                {({
-                                                                    processing,
-                                                                }) => (
-                                                                    <Button
-                                                                        type="submit"
-                                                                        variant="outline"
-                                                                        size="sm"
-                                                                        disabled={
-                                                                            processing
-                                                                        }
-                                                                        onClick={(
-                                                                            event,
-                                                                        ) => {
-                                                                            if (
-                                                                                !confirm(
-                                                                                    'Rotate this secret? The previous secret stops working immediately.',
-                                                                                )
-                                                                            ) {
-                                                                                event.preventDefault();
-                                                                            }
-                                                                        }}
-                                                                    >
-                                                                        <KeyRound className="size-3.5" />
-                                                                        Rotate
-                                                                        secret
-                                                                    </Button>
-                                                                )}
-                                                            </Form>
+                                                                <KeyRound className="size-3.5" />
+                                                                Rotate secret
+                                                            </Button>
                                                         )}
-                                                </td>
-                                            )}
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
-                    <Pagination links={integrations.links} />
-                </section>
+                                                    </Form>
+                                                ) : null}
+                                            </td>
+                                        ) : null}
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                        <Pagination links={integrations.links} />
+                    </div>
+                )}
             </div>
         </>
     );

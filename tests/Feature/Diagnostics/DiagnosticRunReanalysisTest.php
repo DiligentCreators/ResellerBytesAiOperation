@@ -61,11 +61,14 @@ it('does not allow analysis to be queued when the AI provider is not configured'
     Queue::assertNothingPushed();
 });
 
-it('blocks diagnostic reanalysis until two-factor authentication is confirmed', function () {
-    config(['services.openai.key' => 'test-api-key']);
+it('blocks diagnostic reanalysis for platform staff until two-factor authentication is confirmed', function () {
+    config([
+        'services.openai.key' => 'test-api-key',
+        'operations.owner_email' => 'reanalyze-owner@example.test',
+    ]);
     Queue::fake();
 
-    $user = User::factory()->create();
+    $user = User::factory()->create(['email' => 'reanalyze-owner@example.test']);
     $run = createReanalysisTestRun($user);
 
     $this->actingAs($user)

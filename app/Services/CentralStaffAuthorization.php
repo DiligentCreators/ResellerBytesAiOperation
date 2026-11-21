@@ -7,7 +7,7 @@ use App\Models\User;
 
 class CentralStaffAuthorization
 {
-    public const PERMISSIONS = ['tenants', 'billing', 'support', 'settings', 'audit'];
+    public const PERMISSIONS = ['tenants', 'billing', 'billing.settings.manage', 'support', 'settings', 'audit'];
 
     public function isSuperAdmin(?User $user): bool
     {

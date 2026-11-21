@@ -305,7 +305,6 @@ it('uses an inclusive UTC cutoff and expires active diagnostic runs at the absol
     }
 });
 
-
 it('rejects a legal hold after the diagnostic retention cutoff', function () {
     $owner = legalHoldOwner();
     $run = legalHoldDiagnosticRun();

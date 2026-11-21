@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\DiagnosticFinding;
 use App\Services\Tenancy\TenantRecordQuery;
+use App\Support\AssertsTenantDiagnosticsAccess;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -13,6 +14,8 @@ class FindingController extends Controller
 {
     public function index(): Response
     {
+        AssertsTenantDiagnosticsAccess::forIndex(Auth::user());
+
         $findings = app(TenantRecordQuery::class)->findings(Auth::user())
             ->with('diagnosticRun.integration:id,name')
             ->latest()
@@ -36,7 +39,7 @@ class FindingController extends Controller
     public function show(DiagnosticFinding $finding): Response
     {
         if (! app(TenantRecordQuery::class)->findings(Auth::user())->whereKey($finding->id)->exists()) {
-            throw new NotFoundHttpException();
+            throw new NotFoundHttpException;
         }
 
         $finding->load([
