@@ -29,5 +29,10 @@ namespace {
         'Unknown actions must report action_not_allowlisted.',
     );
 
+    assertRemediationCondition(
+        ! array_key_exists('error_display_disabled', $rejected['evidence'] ?? []),
+        'Rejected actions must not invent runtime proof evidence.',
+    );
+
     echo "RemediationRunner allowlist checks passed.\n";
 }

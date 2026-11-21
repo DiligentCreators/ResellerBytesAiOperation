@@ -65,13 +65,15 @@ it('builds a weekly digest payload for a tenant', function () {
         ->and($digest['open'])->toBe(1)
         ->and($digest['critical'])->toBe(1)
         ->and($digest['awaiting_safe_actions'])->toBe(0)
+        ->and($digest['needs_recheck'])->toBe(0)
         ->and($digest['top_findings'][0]['title'])->toBe('TLS cipher suite outdated')
         ->and($digest['findings_url'])->toContain('/findings')
         ->and($digest['safe_actions_url'])->toContain('/safe-actions');
 
     $mailable = new FindingsWeeklyDigestMail($digest);
     expect($mailable->envelope()->subject)->toContain('1 active finding')
-        ->and($mailable->render())->toContain('TLS cipher suite outdated');
+        ->and($mailable->render())->toContain('TLS cipher suite outdated')
+        ->and($mailable->render())->toContain('awaiting verify scan');
 });
 
 it('sends weekly digests through platform mail for owner admin and operator roles only', function () {

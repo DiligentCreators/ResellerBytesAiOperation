@@ -63,7 +63,7 @@ export default function SafeActionShow({
                 </Link>
                 <PageHeader
                     title={definition.label}
-                    description={`${execution.integration_name ?? 'Installation'} · Approve → Done → Verified`}
+                    description={`${execution.integration_name ?? 'Installation'} · Approve → Apply → Verify → Cleared`}
                     actions={
                         <div className="flex flex-wrap gap-2">
                             <StatusBadge status={execution.status} />
@@ -165,6 +165,20 @@ export default function SafeActionShow({
                         </h2>
                         <p className="mt-2 text-sm whitespace-pre-wrap">
                             {execution.approval_reason}
+                        </p>
+                    </section>
+                ) : null}
+
+                {execution.status === 'completed' ? (
+                    <section className="rounded-lg border border-warning/20 bg-warning-soft/40 p-5 shadow-xs">
+                        <h2 className="text-sm font-semibold">
+                            Applied — waiting for verify
+                        </h2>
+                        <p className="mt-2 text-sm text-muted-foreground">
+                            The allowlisted change was applied, but runtime
+                            proof is not confirmed yet. Keep the finding in
+                            progress until a verify scan shows the issue is
+                            gone — do not request the same Safe Action again.
                         </p>
                     </section>
                 ) : null}

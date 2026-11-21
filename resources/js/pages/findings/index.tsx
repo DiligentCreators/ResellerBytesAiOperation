@@ -34,12 +34,13 @@ type Props = {
 };
 
 const statusFilters = [
-    { value: 'all', label: 'All' },
+    { value: 'all', label: 'Current' },
     { value: 'active', label: 'Active' },
     { value: 'open', label: 'Open' },
     { value: 'in_progress', label: 'In progress' },
     { value: 'resolved', label: 'Resolved' },
     { value: 'accepted_risk', label: 'Accepted risk' },
+    { value: 'history', label: 'History' },
 ] as const;
 
 export default function FindingsIndex({ findings, filters, health }: Props) {
@@ -57,7 +58,7 @@ export default function FindingsIndex({ findings, filters, health }: Props) {
             <div className="space-y-6">
                 <PageHeader
                     title="Findings"
-                    description="Evidence-backed ops issues with guided WHMCS fix playbooks — priority and accountability, not autopilot."
+                    description="One current issue per installation signal. History keeps older scan rows. Approve → Apply in WHMCS → Verify scan."
                 />
 
                 {health.last_scan_clean ? (

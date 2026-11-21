@@ -7,6 +7,7 @@ use App\Models\Tenant;
 use App\Models\TenantMembership;
 use App\Models\User;
 use App\Models\WhmcsIntegration;
+use App\Services\Diagnostics\FindingContinuityService;
 use App\Services\Diagnostics\FindingPlaybookBuilder;
 use App\Services\Diagnostics\FindingRecheckComparer;
 use Illuminate\Support\Str;
@@ -238,6 +239,70 @@ it('shows last scan clean on findings index when analyzed and no active findings
             ->has('filters.status'));
 
     expect($finding->status)->toBe(DiagnosticFinding::STATUS_RESOLVED);
+});
+
+it('dedupes the findings index to one current issue per fingerprint', function () {
+    ['owner' => $owner, 'integration' => $integration, 'tenant' => $tenant, 'finding' => $finding] = createFindingWorkspace();
+
+    $olderRun = DiagnosticRun::create([
+        'integration_id' => $integration->id,
+        'tenant_id' => $tenant->id,
+        'snapshot_uuid' => (string) Str::uuid(),
+        'schema_version' => '1.0',
+        'addon_version' => '1.0.0',
+        'status' => 'analyzed',
+        'collected_at' => now()->subDay(),
+        'received_at' => now()->subDay(),
+        'payload' => ['system' => ['whmcs_version' => '8.13.7']],
+        'payload_sha256' => str_repeat('e', 64),
+        'analysis_summary' => 'Older',
+    ]);
+
+    $olderFinding = DiagnosticFinding::create([
+        'diagnostic_run_id' => $olderRun->id,
+        'tenant_id' => $tenant->id,
+        'fingerprint' => $finding->fingerprint,
+        'category' => $finding->category,
+        'severity' => $finding->severity,
+        'title' => $finding->title,
+        'summary' => 'Older sighting of the same issue.',
+        'evidence' => $finding->evidence,
+        'status' => DiagnosticFinding::STATUS_OPEN,
+    ]);
+    $olderFinding->forceFill(['created_at' => now()->subDay()])->save();
+
+    $this->actingAs($owner)
+        ->get('/findings?status=active')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('findings/index')
+            ->where('health.active_count', 1)
+            ->has('findings.data', 1)
+            ->where('findings.data.0.id', $finding->id));
+
+    $this->actingAs($owner)
+        ->get('/findings?status=history')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('findings/index')
+            ->has('findings.data', 2));
+});
+
+it('stabilizes known finding titles for fingerprint continuity', function () {
+    $continuity = app(FindingContinuityService::class);
+
+    $stabilized = $continuity->stabilizeFindingData([
+        'category' => 'security',
+        'title' => 'PHP error display is enabled',
+        'evidence_paths' => ['system.error_display_disabled'],
+    ]);
+
+    expect($stabilized['title'])->toBe('PHP error display is not disabled')
+        ->and($continuity->fingerprintFor($stabilized))->toBe($continuity->fingerprintFor([
+            'category' => 'security',
+            'title' => 'PHP error display is not disabled',
+            'evidence_paths' => ['system.error_display_disabled'],
+        ]));
 });
 
 it('builds human-readable playbook checklist text', function () {

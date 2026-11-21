@@ -6,6 +6,7 @@ use App\Http\Requests\UpdateFindingWorkflowRequest;
 use App\Models\DiagnosticFinding;
 use App\Models\TenantMembership;
 use App\Models\User;
+use App\Services\Diagnostics\FindingContinuityService;
 use App\Services\Diagnostics\FindingPlaybookBuilder;
 use App\Services\Diagnostics\FindingRecheckComparer;
 use App\Services\Diagnostics\FindingWorkflowService;
@@ -38,6 +39,11 @@ class FindingController extends Controller
             ])
             ->latest();
 
+        $allowedFilters = ['active', 'history', ...DiagnosticFinding::STATUSES];
+        if ($statusFilter !== 'history') {
+            $query->currentIssues();
+        }
+
         if ($statusFilter === 'active') {
             $query->active();
         } elseif (in_array($statusFilter, DiagnosticFinding::STATUSES, true)) {
@@ -60,13 +66,14 @@ class FindingController extends Controller
             ]);
 
         $records = app(TenantRecordQuery::class);
-        $activeCount = $records->findings(Auth::user())->active()->count();
+        $continuity = app(FindingContinuityService::class);
+        $activeCount = $continuity->countCurrentActiveIssues($records->findings(Auth::user()));
         $analyzedRuns = $records->runs(Auth::user())->where('status', 'analyzed')->count();
 
         return Inertia::render('findings/index', [
             'findings' => $findings,
             'filters' => [
-                'status' => in_array($statusFilter, ['active', ...DiagnosticFinding::STATUSES], true)
+                'status' => in_array($statusFilter, $allowedFilters, true)
                     ? $statusFilter
                     : 'all',
             ],
@@ -83,6 +90,7 @@ class FindingController extends Controller
         FindingPlaybookBuilder $playbookBuilder,
         FindingRecheckComparer $recheckComparer,
         FindingSafeActionMapper $safeActionMapper,
+        FindingContinuityService $continuity,
     ): Response {
         $this->authorizeFinding($finding);
 
@@ -105,6 +113,16 @@ class FindingController extends Controller
                 $safeActionsEnabled = false;
             }
         }
+
+        $blockedKeys = $safeActionsEnabled && $canManage
+            ? $continuity->blockedSafeActionKeys($finding)
+            : [];
+        $suggested = $safeActionsEnabled && $canManage
+            ? collect($safeActionMapper->suggestedActions($finding))
+                ->reject(fn (array $action): bool => in_array($action['key'], $blockedKeys, true))
+                ->values()
+                ->all()
+            : [];
 
         return Inertia::render('findings/show', [
             'finding' => [
@@ -141,9 +159,8 @@ class FindingController extends Controller
             'assignees' => $this->assignableMembers($finding),
             'can_manage' => $canManage,
             'statuses' => DiagnosticFinding::STATUSES,
-            'suggested_safe_actions' => $safeActionsEnabled && $canManage
-                ? $safeActionMapper->suggestedActions($finding)
-                : [],
+            'suggested_safe_actions' => $suggested,
+            'blocked_safe_action_keys' => $blockedKeys,
             'safe_actions_enabled' => $safeActionsEnabled,
         ]);
     }

@@ -8,8 +8,8 @@ use App\Models\SafeActionExecution;
 use App\Models\User;
 use App\Models\WhmcsIntegration;
 use App\Services\Audit\AuditEventWriter;
+use App\Services\Diagnostics\FindingContinuityService;
 use App\Services\Diagnostics\FindingPlaybookBuilder;
-use App\Services\Diagnostics\FindingWorkflowService;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 use RuntimeException;
@@ -20,6 +20,7 @@ class SafeActionExecutor
         private readonly SafeActionRegistry $registry,
         private readonly AuditEventWriter $audit,
         private readonly FindingPlaybookBuilder $playbookBuilder,
+        private readonly FindingContinuityService $continuity,
     ) {}
 
     /**
@@ -144,8 +145,9 @@ class SafeActionExecutor
                 'instructions' => [
                     'Open Addons → ResellerBytes AI Operations in WHMCS.',
                     'Click “Apply approved Safe Actions”.',
-                    'The addon applies only allowlisted keys, then submits a fresh diagnostic snapshot.',
+                    'After apply, the addon submits a verify scan. The finding clears only when runtime proof matches.',
                 ],
+                'lifecycle' => ['approve', 'apply', 'verify', 'cleared_or_still_present'],
                 'addon_path' => 'addonmodules.php?module=resellerbytes_ai_ops',
                 'execution_target' => 'addon',
             ],
@@ -200,16 +202,23 @@ class SafeActionExecutor
             }
 
             if ($status === 'success') {
+                $proven = $this->hasRuntimeProof($locked->action_key, $evidence);
                 $locked->forceFill([
-                    'status' => SafeActionExecution::STATUS_VERIFIED,
+                    'status' => $proven
+                        ? SafeActionExecution::STATUS_VERIFIED
+                        : SafeActionExecution::STATUS_COMPLETED,
                     'result' => [
                         'summary' => $summary,
                         'evidence' => $evidence,
                         'applied_by' => 'whmcs_addon',
+                        'runtime_proven' => $proven,
+                        'lifecycle' => $proven
+                            ? 'verified'
+                            : 'applied_awaiting_verify',
                     ],
                     'after_evidence' => $evidence,
                     'executed_at' => now(),
-                    'verified_at' => now(),
+                    'verified_at' => $proven ? now() : null,
                 ])->save();
 
                 if ($integration->pending_diagnostic_collect_execution_id === $locked->id) {
@@ -219,18 +228,19 @@ class SafeActionExecutor
                     ])->save();
                 }
 
-                $this->maybeResolveFinding($locked, $evidence);
+                $this->syncFindingAfterAddonResult($locked, $evidence, $proven);
 
                 $this->audit->append([
                     'actor_type' => 'integration',
                     'actor_id' => $integration->id,
                     'tenant_id' => $locked->tenant_id,
-                    'event_type' => 'safe_action.verified',
+                    'event_type' => $proven ? 'safe_action.verified' : 'safe_action.completed',
                     'subject_type' => 'safe_action_execution',
                     'subject_id' => $locked->id,
                     'metadata' => [
                         'action_key' => $locked->action_key,
                         'summary' => $summary,
+                        'runtime_proven' => $proven,
                     ],
                     'occurred_at' => now(),
                 ]);
@@ -269,25 +279,29 @@ class SafeActionExecutor
     /**
      * @param  array<string, mixed>  $evidence
      */
-    private function maybeResolveFinding(SafeActionExecution $execution, array $evidence): void
+    private function hasRuntimeProof(string $actionKey, array $evidence): bool
+    {
+        return match ($actionKey) {
+            'disable_php_display_errors' => ($evidence['error_display_disabled'] ?? null) === true,
+            'harden_configuration_php_mode' => ($evidence['configuration_file_writable'] ?? null) === false,
+            'pull_and_run_diagnostic_collect', 'request_diagnostic_collect' => ($evidence['remediation_applied'] ?? false) === true
+                || array_key_exists('duplicate', $evidence)
+                || array_key_exists('http_status', $evidence),
+            default => false,
+        };
+    }
+
+    /**
+     * @param  array<string, mixed>  $evidence
+     */
+    private function syncFindingAfterAddonResult(SafeActionExecution $execution, array $evidence, bool $proven): void
     {
         if ($execution->finding_id === null) {
             return;
         }
 
         $finding = DiagnosticFinding::query()->find($execution->finding_id);
-        if ($finding === null || ! in_array($finding->status, [
-            DiagnosticFinding::STATUS_OPEN,
-            DiagnosticFinding::STATUS_IN_PROGRESS,
-        ], true)) {
-            return;
-        }
-
-        $fixed = ($evidence['remediation_applied'] ?? false) === true
-            || ($evidence['configuration_file_writable'] ?? null) === false
-            || ($evidence['error_display_disabled'] ?? null) === true;
-
-        if (! $fixed) {
+        if ($finding === null || ! $finding->isActive()) {
             return;
         }
 
@@ -297,11 +311,15 @@ class SafeActionExecutor
             return;
         }
 
-        app(FindingWorkflowService::class)->update($finding, $actor, [
-            'status' => DiagnosticFinding::STATUS_RESOLVED,
-            'assignee_user_id' => $finding->assignee_user_id,
-            'status_note' => 'Auto-resolved after verified Safe Action '.$execution->action_key.'.',
-        ]);
+        if ($proven) {
+            $this->continuity->resolveProvenSiblings($finding, $actor, $execution->action_key);
+
+            return;
+        }
+
+        if (($evidence['remediation_applied'] ?? false) === true) {
+            $this->continuity->markAppliedAwaitingVerify($finding, $actor, $execution->action_key);
+        }
     }
 
     /**

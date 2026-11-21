@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\Diagnostics\FindingContinuityService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -127,6 +128,18 @@ class DiagnosticFinding extends Model
     public function scopeActive(Builder $query): Builder
     {
         return $query->whereIn('status', self::ACTIVE_STATUSES);
+    }
+
+    /**
+     * One row per installation + fingerprint (newest sighting).
+     *
+     * @param  Builder<static>  $query
+     * @return Builder<static>
+     */
+    public function scopeCurrentIssues(Builder $query): Builder
+    {
+        return app(FindingContinuityService::class)
+            ->scopeCurrentIssues($query);
     }
 
     public function isActive(): bool

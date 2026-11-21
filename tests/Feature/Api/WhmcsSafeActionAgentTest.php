@@ -1,5 +1,7 @@
 <?php
 
+use App\Models\DiagnosticFinding;
+use App\Models\DiagnosticRun;
 use App\Models\SafeActionExecution;
 use App\Models\Tenant;
 use App\Models\TenantMembership;
@@ -155,6 +157,150 @@ it('records addon success results and verifies the execution', function () {
         ->assertJsonPath('data.status', SafeActionExecution::STATUS_VERIFIED);
 
     expect($execution->fresh()->status)->toBe(SafeActionExecution::STATUS_VERIFIED);
+});
+
+it('does not resolve a finding when remediation applied without runtime proof', function () {
+    ['owner' => $owner, 'tenant' => $tenant, 'integration' => $integration] = createSafeActionAgentWorkspace();
+
+    $run = DiagnosticRun::create([
+        'integration_id' => $integration->id,
+        'tenant_id' => $tenant->id,
+        'snapshot_uuid' => (string) Str::uuid(),
+        'schema_version' => '1.0',
+        'addon_version' => '1.1.0',
+        'status' => 'analyzed',
+        'collected_at' => now()->subHour(),
+        'received_at' => now()->subHour(),
+        'payload' => ['system' => ['error_display_disabled' => false]],
+        'payload_sha256' => str_repeat('a', 64),
+    ]);
+    $fingerprint = hash('sha256', "security\nphp error display is not disabled\nsystem.error_display_disabled");
+    $finding = DiagnosticFinding::create([
+        'diagnostic_run_id' => $run->id,
+        'tenant_id' => $tenant->id,
+        'fingerprint' => $fingerprint,
+        'category' => 'security',
+        'severity' => 'warning',
+        'title' => 'PHP error display is not disabled',
+        'summary' => 'display_errors is on',
+        'evidence' => ['system.error_display_disabled' => false],
+        'status' => 'open',
+    ]);
+
+    $this->actingAs($owner)
+        ->withSession(['auth.password_confirmed_at' => time()])
+        ->post('/safe-actions', [
+            'integration_id' => $integration->id,
+            'action_key' => 'disable_php_display_errors',
+            'finding_id' => $finding->id,
+        ]);
+    $execution = SafeActionExecution::query()->firstOrFail();
+    $this->actingAs($owner)
+        ->withSession(['auth.password_confirmed_at' => time()])
+        ->post('/safe-actions/'.$execution->id.'/approve', [
+            'approval_reason' => 'Turn off display_errors carefully',
+        ]);
+
+    $path = '/api/v1/whmcs/safe-actions/'.$execution->id.'/result';
+    $signed = makeSignedWhmcsRequest($integration, 'POST', $path, [
+        'status' => 'success',
+        'summary' => 'Wrote .user.ini but runtime still shows display_errors on',
+        'evidence' => [
+            'remediation_applied' => true,
+            'error_display_disabled' => false,
+        ],
+    ]);
+
+    $this->call('POST', $path, [], [], [], $signed['headers'], $signed['body'])
+        ->assertOk()
+        ->assertJsonPath('data.status', SafeActionExecution::STATUS_COMPLETED);
+
+    expect($execution->fresh()->status)->toBe(SafeActionExecution::STATUS_COMPLETED)
+        ->and($finding->fresh()->status)->toBe(DiagnosticFinding::STATUS_IN_PROGRESS);
+});
+
+it('resolves sibling findings when runtime proof confirms the fix', function () {
+    ['owner' => $owner, 'tenant' => $tenant, 'integration' => $integration] = createSafeActionAgentWorkspace();
+
+    $fingerprint = hash('sha256', "security\nphp error display is not disabled\nsystem.error_display_disabled");
+    $olderRun = DiagnosticRun::create([
+        'integration_id' => $integration->id,
+        'tenant_id' => $tenant->id,
+        'snapshot_uuid' => (string) Str::uuid(),
+        'schema_version' => '1.0',
+        'addon_version' => '1.1.0',
+        'status' => 'analyzed',
+        'collected_at' => now()->subDays(2),
+        'received_at' => now()->subDays(2),
+        'payload' => ['system' => ['error_display_disabled' => false]],
+        'payload_sha256' => str_repeat('b', 64),
+    ]);
+    $older = DiagnosticFinding::create([
+        'diagnostic_run_id' => $olderRun->id,
+        'tenant_id' => $tenant->id,
+        'fingerprint' => $fingerprint,
+        'category' => 'security',
+        'severity' => 'warning',
+        'title' => 'PHP error display is not disabled',
+        'summary' => 'old',
+        'evidence' => ['system.error_display_disabled' => false],
+        'status' => 'open',
+    ]);
+    $older->forceFill(['created_at' => now()->subDays(2)])->save();
+    $run = DiagnosticRun::create([
+        'integration_id' => $integration->id,
+        'tenant_id' => $tenant->id,
+        'snapshot_uuid' => (string) Str::uuid(),
+        'schema_version' => '1.0',
+        'addon_version' => '1.1.0',
+        'status' => 'analyzed',
+        'collected_at' => now()->subHour(),
+        'received_at' => now()->subHour(),
+        'payload' => ['system' => ['error_display_disabled' => false]],
+        'payload_sha256' => str_repeat('c', 64),
+    ]);
+    $finding = DiagnosticFinding::create([
+        'diagnostic_run_id' => $run->id,
+        'tenant_id' => $tenant->id,
+        'fingerprint' => $fingerprint,
+        'category' => 'security',
+        'severity' => 'warning',
+        'title' => 'PHP error display is not disabled',
+        'summary' => 'current',
+        'evidence' => ['system.error_display_disabled' => false],
+        'status' => 'open',
+    ]);
+
+    $this->actingAs($owner)
+        ->withSession(['auth.password_confirmed_at' => time()])
+        ->post('/safe-actions', [
+            'integration_id' => $integration->id,
+            'action_key' => 'disable_php_display_errors',
+            'finding_id' => $finding->id,
+        ]);
+    $execution = SafeActionExecution::query()->firstOrFail();
+    $this->actingAs($owner)
+        ->withSession(['auth.password_confirmed_at' => time()])
+        ->post('/safe-actions/'.$execution->id.'/approve', [
+            'approval_reason' => 'Confirm display_errors is off',
+        ]);
+
+    $path = '/api/v1/whmcs/safe-actions/'.$execution->id.'/result';
+    $signed = makeSignedWhmcsRequest($integration, 'POST', $path, [
+        'status' => 'success',
+        'summary' => 'Runtime confirms display_errors Off',
+        'evidence' => [
+            'remediation_applied' => true,
+            'error_display_disabled' => true,
+        ],
+    ]);
+
+    $this->call('POST', $path, [], [], [], $signed['headers'], $signed['body'])
+        ->assertOk()
+        ->assertJsonPath('data.status', SafeActionExecution::STATUS_VERIFIED);
+
+    expect($finding->fresh()->status)->toBe(DiagnosticFinding::STATUS_RESOLVED)
+        ->and($older->fresh()->status)->toBe(DiagnosticFinding::STATUS_RESOLVED);
 });
 
 it('rejects addon results for a different integration', function () {
