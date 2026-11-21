@@ -14,6 +14,7 @@ import {
     Settings,
     ShieldAlert,
     ShieldCheck,
+    SlidersHorizontal,
     Users,
 } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
@@ -145,6 +146,11 @@ export function AppSidebar() {
 
     if (permissions.includes('settings')) {
         platformItems.push(
+            {
+                title: 'Platform settings',
+                href: '/platform/settings',
+                icon: SlidersHorizontal,
+            },
             {
                 title: 'Mail Settings',
                 href: '/platform/mail-settings',

@@ -7,6 +7,8 @@ use App\Services\Audit\S3AuditCheckpointObjectStore;
 use App\Services\Mail\CentralOutboundMailer;
 use App\Services\Mail\PlatformMailTransport;
 use App\Services\Operations\QueueJobMetricsTracker;
+use App\Services\PlatformSettings;
+use App\Support\PlatformSettings\PlatformSettingsRegistry;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Middleware\TrustProxies;
@@ -21,6 +23,7 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
+use Throwable;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -30,6 +33,8 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->bind(AuditCheckpointObjectStore::class, S3AuditCheckpointObjectStore::class);
+        $this->app->singleton(PlatformSettingsRegistry::class);
+        $this->app->singleton(PlatformSettings::class);
     }
 
     /**
@@ -42,6 +47,20 @@ class AppServiceProvider extends ServiceProvider
         $this->configureTrustedProxies();
         $this->configureDefaults();
         $this->registerQueueMetricsListeners();
+        $this->overlayPlatformSettings();
+    }
+
+    /**
+     * Push DB-backed platform settings onto config() so existing consumers see them.
+     * Guarded so artisan, migrations, and fresh installs never break.
+     */
+    private function overlayPlatformSettings(): void
+    {
+        try {
+            $this->app->make(PlatformSettings::class)->overlayOntoConfig();
+        } catch (Throwable) {
+            //
+        }
     }
 
     /**

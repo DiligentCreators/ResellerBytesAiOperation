@@ -30,6 +30,8 @@ class RouteRateLimiterServiceProvider extends ServiceProvider
         'platform-staff-destroy' => 10,
         'platform-mail-settings-update' => 10,
         'platform-mail-settings-test' => 3,
+        'platform-settings-update' => 10,
+        'platform-settings-reset' => 20,
         'platform-ai-settings-update' => 10,
         'platform-ai-settings-generate-signing-keys' => 5,
         'platform-billing-gateway-replay' => 20,

@@ -17,6 +17,7 @@ use App\Http\Controllers\Platform\PlatformBillingController;
 use App\Http\Controllers\Platform\PlatformBillingGatewayController;
 use App\Http\Controllers\Platform\PlatformBillingSettingsController;
 use App\Http\Controllers\Platform\PlatformPlanController;
+use App\Http\Controllers\Platform\PlatformSettingsController;
 use App\Http\Controllers\PlatformAiSettingsController;
 use App\Http\Controllers\PlatformMailSettingsController;
 use App\Http\Controllers\PricingController;
@@ -68,6 +69,9 @@ Route::middleware(['auth', 'verified', EnsureTwoFactorEnabled::class])->group(fu
     Route::delete('platform/staff/{staff}', [CentralStaffController::class, 'destroy'])->middleware('throttle:platform-staff-destroy')->name('platform.staff.destroy');
 
     Route::middleware('central.permission:settings')->group(function () {
+        Route::get('platform/settings', [PlatformSettingsController::class, 'show'])->name('platform.settings.show');
+        Route::put('platform/settings/{group}', [PlatformSettingsController::class, 'update'])->middleware('throttle:platform-settings-update')->name('platform.settings.update');
+        Route::delete('platform/settings/key/{key}', [PlatformSettingsController::class, 'reset'])->middleware('throttle:platform-settings-reset')->name('platform.settings.reset');
         Route::get('platform/mail-settings', [PlatformMailSettingsController::class, 'show'])->name('platform.mail-settings.show');
         Route::put('platform/mail-settings', [PlatformMailSettingsController::class, 'update'])->middleware('throttle:platform-mail-settings-update')->name('platform.mail-settings.update');
         Route::post('platform/mail-settings/test', [PlatformMailSettingsController::class, 'test'])->middleware('throttle:platform-mail-settings-test')->name('platform.mail-settings.test');
