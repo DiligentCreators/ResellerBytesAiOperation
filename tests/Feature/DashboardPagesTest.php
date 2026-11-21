@@ -18,7 +18,7 @@ it('renders the operations dashboard with its initial metrics', function () {
             ->has('stats.total_runs')
             ->has('stats.open_findings')
             ->has('latestRuns')
-            ->where('addon.version', '1.0.0'));
+            ->where('addon.version', config('services.whmcs_addon.version')));
 });
 
 it('renders the WHMCS addon setup page with download capability props', function () {
@@ -26,7 +26,7 @@ it('renders the WHMCS addon setup page with download capability props', function
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('whmcs-addon/setup')
-            ->where('addonVersion', '1.0.0')
+            ->where('addonVersion', config('services.whmcs_addon.version'))
             ->has('downloadAvailable')
             ->has('aiConfigured'));
 });

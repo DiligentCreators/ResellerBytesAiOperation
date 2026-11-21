@@ -92,7 +92,7 @@ it('lists allowlisted safe actions for entitled operators', function () {
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('safe-actions/index')
-            ->has('actions', 4)
+            ->has('actions', 7)
             ->has('integrations', 1)
             ->has('executions.data'));
 });
@@ -168,14 +168,14 @@ it('generates whmcs admin deep links without secrets', function () {
         ->and(json_encode($result))->not->toContain($integration->secret);
 });
 
-it('requests diagnostic collect and verifies when a newer snapshot arrives', function () {
+it('queues diagnostic collect for the WHMCS addon after approval', function () {
     ['owner' => $owner, 'integration' => $integration] = createSafeActionWorkspace();
 
     $this->actingAs($owner)
         ->withSession(['auth.password_confirmed_at' => time()])
         ->post('/safe-actions', [
             'integration_id' => $integration->id,
-            'action_key' => 'request_diagnostic_collect',
+            'action_key' => 'pull_and_run_diagnostic_collect',
         ]);
 
     $execution = SafeActionExecution::query()->firstOrFail();
@@ -189,23 +189,16 @@ it('requests diagnostic collect and verifies when a newer snapshot arrives', fun
 
     $execution->refresh();
     $integration->refresh();
-    expect($execution->status)->toBe(SafeActionExecution::STATUS_COMPLETED)
+    expect($execution->status)->toBe(SafeActionExecution::STATUS_AWAITING_AGENT)
         ->and($integration->pending_diagnostic_collect_execution_id)->toBe($execution->id);
 
-    $newer = DiagnosticRun::create([
-        'integration_id' => $integration->id,
-        'tenant_id' => $integration->tenant_id,
-        'snapshot_uuid' => (string) Str::uuid(),
-        'schema_version' => '1.0',
-        'addon_version' => '1.0.0',
-        'status' => 'received',
-        'collected_at' => now(),
-        'received_at' => now(),
-        'payload' => ['system' => ['whmcs_version' => '8.13.7']],
-        'payload_sha256' => str_repeat('1', 64),
-    ]);
-
-    app(SafeActionExecutor::class)->verifyCollectFromSnapshot($integration->fresh(), $newer);
+    app(SafeActionExecutor::class)->recordAddonResult(
+        $execution,
+        $integration,
+        'success',
+        'Diagnostic snapshot submitted by addon.',
+        ['remediation_applied' => true, 'duplicate' => false],
+    );
 
     expect($execution->fresh()->status)->toBe(SafeActionExecution::STATUS_VERIFIED)
         ->and($integration->fresh()->pending_diagnostic_collect_at)->toBeNull();

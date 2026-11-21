@@ -4,6 +4,7 @@ namespace App\Services\Diagnostics;
 
 use App\Mail\FindingsWeeklyDigestMail;
 use App\Models\DiagnosticFinding;
+use App\Models\SafeActionExecution;
 use App\Models\Tenant;
 use App\Models\TenantMembership;
 use App\Services\Mail\CentralOutboundMailer;
@@ -32,7 +33,10 @@ class FindingsWeeklyDigestService
                     $digest = $this->buildDigest($tenant, $since);
                     $tenants++;
 
-                    if ($digest['open'] === 0 && $digest['in_progress'] === 0 && $digest['resolved_this_week'] === 0) {
+                    if ($digest['open'] === 0
+                        && $digest['in_progress'] === 0
+                        && $digest['resolved_this_week'] === 0
+                        && $digest['awaiting_safe_actions'] === 0) {
                         $skippedClean++;
                         // Still send a clean digest so owners see "Last scan clean".
                     }
@@ -82,8 +86,10 @@ class FindingsWeeklyDigestService
      *     critical: int,
      *     resolved_this_week: int,
      *     accepted_risk: int,
+     *     awaiting_safe_actions: int,
      *     top_findings: list<array{title: string, severity: string, status: string, integration_name: string}>,
-     *     findings_url: string
+     *     findings_url: string,
+     *     safe_actions_url: string
      * }
      */
     public function buildDigest(Tenant $tenant, CarbonInterface $since): array
@@ -105,6 +111,11 @@ class FindingsWeeklyDigestService
             ])
             ->all();
 
+        $awaitingSafeActions = SafeActionExecution::query()
+            ->where('tenant_id', $tenant->id)
+            ->where('status', SafeActionExecution::STATUS_AWAITING_AGENT)
+            ->count();
+
         return [
             'tenant_name' => $tenant->name,
             'open' => (clone $base)->where('status', DiagnosticFinding::STATUS_OPEN)->count(),
@@ -115,8 +126,10 @@ class FindingsWeeklyDigestService
                 ->where('resolved_at', '>=', $since)
                 ->count(),
             'accepted_risk' => (clone $base)->where('status', DiagnosticFinding::STATUS_ACCEPTED_RISK)->count(),
+            'awaiting_safe_actions' => $awaitingSafeActions,
             'top_findings' => $topFindings,
             'findings_url' => URL::route('findings.index', ['status' => 'active']),
+            'safe_actions_url' => URL::route('safe-actions.index'),
         ];
     }
 }

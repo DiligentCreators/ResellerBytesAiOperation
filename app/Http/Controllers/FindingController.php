@@ -9,6 +9,8 @@ use App\Models\User;
 use App\Services\Diagnostics\FindingPlaybookBuilder;
 use App\Services\Diagnostics\FindingRecheckComparer;
 use App\Services\Diagnostics\FindingWorkflowService;
+use App\Services\SafeActions\FindingSafeActionMapper;
+use App\Services\Tenancy\TenantEntitlementService;
 use App\Services\Tenancy\TenantRecordQuery;
 use App\Services\Tenancy\TenantRoleAuthorization;
 use App\Support\AssertsTenantDiagnosticsAccess;
@@ -80,6 +82,7 @@ class FindingController extends Controller
         DiagnosticFinding $finding,
         FindingPlaybookBuilder $playbookBuilder,
         FindingRecheckComparer $recheckComparer,
+        FindingSafeActionMapper $safeActionMapper,
     ): Response {
         $this->authorizeFinding($finding);
 
@@ -91,6 +94,17 @@ class FindingController extends Controller
 
         $user = Auth::user();
         $canManage = $this->canManageFindings($user, $finding);
+        $integration = $finding->diagnosticRun->integration;
+        $safeActionsEnabled = false;
+
+        if ($integration?->tenant_id !== null) {
+            try {
+                app(TenantEntitlementService::class)->requireFeature($integration->tenant_id, 'safe_actions.enabled');
+                $safeActionsEnabled = true;
+            } catch (AuthorizationException) {
+                $safeActionsEnabled = false;
+            }
+        }
 
         return Inertia::render('findings/show', [
             'finding' => [
@@ -106,7 +120,8 @@ class FindingController extends Controller
                 'status_updated_at' => $finding->status_updated_at?->toIso8601String(),
                 'resolved_at' => $finding->resolved_at?->toIso8601String(),
                 'status_note' => $finding->status_note,
-                'integration_name' => $finding->diagnosticRun->integration->name,
+                'integration_id' => $integration?->id,
+                'integration_name' => $integration?->name,
                 'diagnostic_run_id' => $finding->diagnostic_run_id,
                 'assignee' => $finding->assignee === null ? null : [
                     'id' => $finding->assignee->id,
@@ -126,6 +141,10 @@ class FindingController extends Controller
             'assignees' => $this->assignableMembers($finding),
             'can_manage' => $canManage,
             'statuses' => DiagnosticFinding::STATUSES,
+            'suggested_safe_actions' => $safeActionsEnabled && $canManage
+                ? $safeActionMapper->suggestedActions($finding)
+                : [],
+            'safe_actions_enabled' => $safeActionsEnabled,
         ]);
     }
 

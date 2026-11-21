@@ -23,6 +23,7 @@ use LogicException;
  * @property Carbon|null $last_seen_at
  * @property Carbon|null $pending_diagnostic_collect_at
  * @property string|null $pending_diagnostic_collect_execution_id
+ * @property array<string, mixed>|null $host_connection
  * @property-read User|null $owner
  * @property-read Collection<int, DiagnosticRun> $diagnosticRuns
  * @property-read int $diagnostic_runs_count
@@ -42,10 +43,12 @@ class WhmcsIntegration extends Model
         'last_seen_at',
         'pending_diagnostic_collect_at',
         'pending_diagnostic_collect_execution_id',
+        'host_connection',
     ];
 
     protected $hidden = [
         'secret',
+        'host_connection',
     ];
 
     protected static function booted(): void
@@ -65,7 +68,23 @@ class WhmcsIntegration extends Model
             'secret_version' => 'integer',
             'last_seen_at' => 'immutable_datetime',
             'pending_diagnostic_collect_at' => 'immutable_datetime',
+            'host_connection' => 'encrypted:array',
         ];
+    }
+
+    public function hasHostConnection(): bool
+    {
+        $connection = $this->host_connection;
+
+        return is_array($connection)
+            && is_string($connection['host'] ?? null)
+            && $connection['host'] !== ''
+            && is_string($connection['username'] ?? null)
+            && $connection['username'] !== ''
+            && is_string($connection['password'] ?? null)
+            && $connection['password'] !== ''
+            && is_string($connection['remote_whmcs_root'] ?? null)
+            && $connection['remote_whmcs_root'] !== '';
     }
 
     /**

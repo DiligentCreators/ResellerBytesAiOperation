@@ -122,6 +122,7 @@ Route::middleware(['auth', 'verified', EnsureTwoFactorEnabled::class])->group(fu
     Route::get('integrations', [WhmcsIntegrationController::class, 'index'])->name('integrations.index');
     Route::post('integrations', [WhmcsIntegrationController::class, 'store'])->middleware('throttle:integrations-store')->name('integrations.store');
     Route::post('integrations/{integration}/rotate', [WhmcsIntegrationController::class, 'rotate'])->middleware('throttle:integrations-rotate')->name('integrations.rotate');
+    Route::put('integrations/{integration}/host-connection', [WhmcsIntegrationController::class, 'updateHostConnection'])->name('integrations.host-connection.update');
     Route::get('diagnostic-runs', [DiagnosticRunController::class, 'index'])->name('diagnostic-runs.index');
     Route::get('diagnostic-runs/{diagnosticRun}', [DiagnosticRunController::class, 'show'])->name('diagnostic-runs.show');
     Route::post('diagnostic-runs/{diagnosticRun}/reanalyze', [DiagnosticRunController::class, 'reanalyze'])->middleware('throttle:diagnostic-runs-reanalyze')->name('diagnostic-runs.reanalyze');

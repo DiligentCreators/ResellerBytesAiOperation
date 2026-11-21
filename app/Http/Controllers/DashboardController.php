@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\DiagnosticRun;
+use App\Models\SafeActionExecution;
 use App\Models\Tenant;
 use App\Models\TenantMembership;
 use App\Models\User;
@@ -72,6 +73,10 @@ class DashboardController extends Controller
                 'critical_findings' => $tenantRecords->findings($user)
                     ->active()
                     ->where('severity', 'critical')
+                    ->count(),
+                'awaiting_safe_actions' => SafeActionExecution::query()
+                    ->whereIn('integration_id', $tenantRecords->integrations($user)->pluck('id'))
+                    ->where('status', SafeActionExecution::STATUS_AWAITING_AGENT)
                     ->count(),
             ],
             'health' => [
