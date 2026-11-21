@@ -25,7 +25,13 @@ class TrialController extends Controller
         $user = $request->user();
         abort_unless($user instanceof User, 403);
         app(TenantRoleAuthorization::class)->require($user, $tenant->id, 'billing.manage');
-        abort_unless($plan->isCheckoutable(), 404);
+        if (! $plan->isCheckoutable()) {
+            return back()->withErrors([
+                'trial' => $plan->hasPrices()
+                    ? BillingCustomerMessages::CHECKOUT_GENERIC_FAILURE
+                    : BillingCustomerMessages::CHECKOUT_PLAN_NEEDS_PRICING,
+            ]);
+        }
 
         $data = $request->validated();
         $billingDetails = [
@@ -85,7 +91,8 @@ class TrialController extends Controller
             'billing_trial_not_eligible' => 'This workspace is not eligible for a free trial on this plan.',
             'billing_interval_inactive' => 'That billing interval is not available for this plan.',
             'billing_subscription_already_current' => BillingCustomerMessages::CHECKOUT_ALREADY_SUBSCRIBED,
-            'billing_plan_not_checkoutable', 'billing_period_invalid',
+            'billing_plan_not_checkoutable', 'billing_plan_price_missing' => BillingCustomerMessages::CHECKOUT_PLAN_NEEDS_PRICING,
+            'billing_period_invalid',
             'billing_details_incomplete', 'billing_email_invalid', 'billing_country_invalid' => BillingCustomerMessages::CHECKOUT_GENERIC_FAILURE,
             default => BillingCustomerMessages::CHECKOUT_GENERIC_FAILURE,
         };

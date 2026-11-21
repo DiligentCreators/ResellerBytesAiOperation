@@ -13,6 +13,7 @@ use Database\Seeders\PlanSeeder;
 function platformBillingTenantFixture(): array
 {
     test()->seed(PlanSeeder::class);
+    priceSeededCatalog();
     config()->set('billing.default_gateway', 'sandbox');
 
     $granter = User::factory()->create(['email_verified_at' => now()]);

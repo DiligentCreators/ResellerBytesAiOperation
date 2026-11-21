@@ -11,10 +11,10 @@ type Plan = {
     code: string;
     name: string;
     description: string | null;
-    price_monthly_minor: number;
-    price_yearly_minor: number;
-    price_monthly: string;
-    price_yearly: string;
+    price_monthly_minor: number | null;
+    price_yearly_minor: number | null;
+    price_monthly: string | null;
+    price_yearly: string | null;
     currency: string;
     trial_days: number;
     trial_enabled: boolean;
@@ -26,6 +26,7 @@ type Plan = {
     monthly_active: boolean;
     yearly_active: boolean;
     prices_confirmed_at: string | null;
+    needs_pricing: boolean;
     code_locked: boolean;
     kelviq_plan_identifier_monthly: string | null;
     kelviq_plan_identifier_yearly: string | null;
@@ -257,9 +258,10 @@ function PlanFields({
                     type="number"
                     step="0.01"
                     min="0"
-                    defaultValue={plan?.price_monthly ?? '0.00'}
+                    defaultValue={plan?.price_monthly ?? ''}
                     required
                     disabled={disabled}
+                    placeholder="Set in major units"
                 />
                 <InputError message={errors.price_monthly} />
             </div>
@@ -270,9 +272,10 @@ function PlanFields({
                     type="number"
                     step="0.01"
                     min="0"
-                    defaultValue={plan?.price_yearly ?? '0.00'}
+                    defaultValue={plan?.price_yearly ?? ''}
                     required
                     disabled={disabled}
+                    placeholder="Set in major units"
                 />
                 <InputError message={errors.price_yearly} />
             </div>
@@ -569,13 +572,17 @@ export default function PlatformPlansPage({
                                                         deactivated
                                                     </span>
                                                 )}
+                                                {plan.needs_pricing && (
+                                                    <span className="ml-2 text-xs text-warning-fg">
+                                                        needs pricing
+                                                    </span>
+                                                )}
                                             </h2>
                                             <p className="text-sm text-muted-foreground tabular-nums">
-                                                {formatMoney(
-                                                    plan.price_monthly_minor,
-                                                    plan.currency,
-                                                )}
-                                                /mo
+                                                {plan.price_monthly_minor ===
+                                                null
+                                                    ? 'Not priced'
+                                                    : `${formatMoney(plan.price_monthly_minor, plan.currency)}/mo`}
                                             </p>
                                         </div>
                                         <FormErrorSummary errors={errors} />

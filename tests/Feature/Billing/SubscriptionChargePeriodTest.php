@@ -45,6 +45,7 @@ function chargePeriodOwnerTenant(): array
 
 it('stores charge_period on checkout create for monthly and yearly', function (): void {
     test()->seed(PlanSeeder::class);
+    priceSeededCatalog();
     config()->set('billing.default_gateway', 'sandbox');
 
     [$tenant, $owner] = chargePeriodOwnerTenant();
@@ -85,6 +86,7 @@ it('stores charge_period on checkout create for monthly and yearly', function ()
 
 it('stores charge_period on upgrade replacement and scheduled-change apply', function (): void {
     test()->seed(PlanSeeder::class);
+    priceSeededCatalog();
     config()->set('billing.default_gateway', 'sandbox');
 
     [$tenant, $owner] = chargePeriodOwnerTenant();

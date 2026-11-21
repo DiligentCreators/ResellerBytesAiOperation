@@ -324,7 +324,7 @@ export default function FindingShow({
                         <Form
                             {...updateFinding.form(finding.id)}
                             className="mt-4 grid gap-4 sm:grid-cols-2"
-                            preserveScroll
+                            options={{ preserveScroll: true }}
                         >
                             {({ processing }) => (
                                 <>

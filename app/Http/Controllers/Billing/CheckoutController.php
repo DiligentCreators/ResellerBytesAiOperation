@@ -130,7 +130,13 @@ class CheckoutController extends Controller
         $user = $request->user();
         abort_unless($user instanceof User, 403);
         app(TenantRoleAuthorization::class)->require($user, $tenant->id, 'billing.manage');
-        abort_unless($plan->isCheckoutable(), 404);
+        if (! $plan->isCheckoutable()) {
+            return back()->withErrors([
+                'checkout' => $plan->hasPrices()
+                    ? BillingCustomerMessages::CHECKOUT_GENERIC_FAILURE
+                    : BillingCustomerMessages::CHECKOUT_PLAN_NEEDS_PRICING,
+            ]);
+        }
 
         $data = $request->validated();
         if (! $plan->intervalIsActive($data['period'])) {
@@ -221,7 +227,8 @@ class CheckoutController extends Controller
             'billing_scheduled_change_already_pending' => BillingCustomerMessages::CHECKOUT_SCHEDULED_CHANGE_ALREADY,
             'billing_plan_change_already_pending' => BillingCustomerMessages::CHECKOUT_PLAN_CHANGE_PENDING,
             'billing_plan_change_status_invalid', 'billing_plan_change_invalid',
-            'billing_period_invalid', 'billing_plan_not_checkoutable', 'billing_interval_inactive',
+            'billing_plan_not_checkoutable', 'billing_plan_price_missing' => BillingCustomerMessages::CHECKOUT_PLAN_NEEDS_PRICING,
+            'billing_period_invalid', 'billing_interval_inactive',
             'billing_details_incomplete', 'billing_email_invalid', 'billing_country_invalid' => BillingCustomerMessages::CHECKOUT_GENERIC_FAILURE,
             default => BillingCustomerMessages::CHECKOUT_GENERIC_FAILURE,
         };

@@ -17,7 +17,7 @@ return [
     'sandbox' => [
         'enabled' => filter_var(env('BILLING_SANDBOX_ENABLED', true), FILTER_VALIDATE_BOOLEAN),
         'allow_in_production' => filter_var(env('BILLING_SANDBOX_ALLOW_IN_PRODUCTION', false), FILTER_VALIDATE_BOOLEAN),
-        'signing_secret' => env('BILLING_SANDBOX_SIGNING_SECRET', 'local-sandbox-billing-secret'),
+        'signing_secret' => env('BILLING_SANDBOX_SIGNING_SECRET'),
     ],
 
     'kelviq' => [

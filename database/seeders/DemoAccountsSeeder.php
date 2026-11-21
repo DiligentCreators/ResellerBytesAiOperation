@@ -128,14 +128,13 @@ class DemoAccountsSeeder extends Seeder
                 ]);
             }
 
-            if (Plan::query()->where('code', 'growth')->doesntExist()) {
-                $this->call(PlanSeeder::class);
-            }
+            // PlanSeeder only creates missing codes and never overwrites live prices.
+            $this->call(PlanSeeder::class);
 
             $growth = Plan::query()->where('code', 'growth')->firstOrFail();
-
             if (! TenantSubscription::query()->where('tenant_id', $tenant->id)->exists()) {
-                $amount = $growth->price_monthly_minor;
+                // Snapshot amount for demo invoices only — never hardcode catalog prices.
+                $amount = $growth->price_monthly_minor ?? random_int(1_000, 99_999);
                 $entitlements = $growth->entitlements;
 
                 $subscription = TenantSubscription::create([

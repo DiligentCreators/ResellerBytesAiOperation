@@ -10,18 +10,22 @@ class PlanSeeder extends Seeder
     public function run(): void
     {
         /*
-         * PLACEHOLDER SEED PRICES — edit in platform admin before launch.
-         * These USD amounts are illustrative only and are not commercial commitments.
+         * Catalog tiers only — no commercial prices. Platform admins set amounts
+         * at /platform/billing/plans before plans become purchasable.
+         *
+         * Existing plans are never overwritten (prices, active flags, names, etc.).
+         * Missing entitlement keys may be merged in; admin values always win.
          */
         $plans = [
             [
                 'code' => 'starter',
                 'name' => 'Starter',
                 'description' => 'For solo operators validating WHMCS diagnostics and AI triage.',
-                'price_monthly_minor' => 4900, // PLACEHOLDER — edit before launch
-                'price_yearly_minor' => 49000, // PLACEHOLDER — edit before launch
+                'price_monthly_minor' => null,
+                'price_yearly_minor' => null,
                 'trial_days' => 14,
                 'sort_order' => 10,
+                'is_active' => false,
                 'is_contact_sales' => false,
                 'features' => [
                     '1 WHMCS install',
@@ -47,10 +51,11 @@ class PlanSeeder extends Seeder
                 'code' => 'growth',
                 'name' => 'Growth',
                 'description' => 'Multi-install ops with assignees, re-check diffs, and Safe Actions.',
-                'price_monthly_minor' => 14900, // PLACEHOLDER — edit before launch
-                'price_yearly_minor' => 149000, // PLACEHOLDER — edit before launch
+                'price_monthly_minor' => null,
+                'price_yearly_minor' => null,
                 'trial_days' => 14,
                 'sort_order' => 20,
+                'is_active' => false,
                 'is_contact_sales' => false,
                 'features' => [
                     'Up to 3 WHMCS installs',
@@ -76,10 +81,11 @@ class PlanSeeder extends Seeder
                 'code' => 'business',
                 'name' => 'Agency',
                 'description' => 'Agency packing: staff seats, higher AI budget, and Safe Actions for client estates.',
-                'price_monthly_minor' => 39900, // PLACEHOLDER — edit before launch
-                'price_yearly_minor' => 399000, // PLACEHOLDER — edit before launch
+                'price_monthly_minor' => null,
+                'price_yearly_minor' => null,
                 'trial_days' => 14,
                 'sort_order' => 30,
+                'is_active' => false,
                 'is_contact_sales' => false,
                 'features' => [
                     'Up to 10 WHMCS installs',
@@ -105,10 +111,11 @@ class PlanSeeder extends Seeder
                 'code' => 'enterprise',
                 'name' => 'Enterprise',
                 'description' => 'Custom limits, retention, and support. Contact sales to activate.',
-                'price_monthly_minor' => 0, // PLACEHOLDER — contact sales
-                'price_yearly_minor' => 0, // PLACEHOLDER — contact sales
+                'price_monthly_minor' => null,
+                'price_yearly_minor' => null,
                 'trial_days' => 0,
                 'sort_order' => 40,
+                'is_active' => true,
                 'is_contact_sales' => true,
                 'features' => [
                     'Custom install limits',
@@ -133,17 +140,40 @@ class PlanSeeder extends Seeder
         ];
 
         foreach ($plans as $plan) {
-            Plan::query()->updateOrCreate(
-                ['code' => $plan['code']],
-                [
+            $existing = Plan::query()->where('code', $plan['code'])->first();
+
+            if ($existing === null) {
+                Plan::query()->create([
                     ...$plan,
                     'currency' => 'USD',
-                    'is_active' => true,
                     'is_public' => true,
+                    'prices_confirmed_at' => null,
                     'kelviq_plan_identifier_monthly' => null,
                     'kelviq_plan_identifier_yearly' => null,
-                ],
-            );
+                ]);
+
+                continue;
+            }
+
+            $this->mergeMissingEntitlements($existing, $plan['entitlements']);
         }
+    }
+
+    /**
+     * Fill entitlement keys present in the seed catalog but missing on the plan.
+     * Existing (admin-edited) values always win — never overwrite.
+     *
+     * @param  array<string, mixed>  $seedEntitlements
+     */
+    private function mergeMissingEntitlements(Plan $plan, array $seedEntitlements): void
+    {
+        $current = is_array($plan->entitlements) ? $plan->entitlements : [];
+        $merged = array_replace_recursive($seedEntitlements, $current);
+
+        if ($merged === $current) {
+            return;
+        }
+
+        $plan->forceFill(['entitlements' => $merged])->save();
     }
 }

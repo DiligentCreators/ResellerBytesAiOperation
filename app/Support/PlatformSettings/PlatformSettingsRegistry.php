@@ -522,6 +522,15 @@ final class PlatformSettingsRegistry
                 default: static fn (): bool => filter_var(config('billing.sandbox.allow_in_production'), FILTER_VALIDATE_BOOLEAN),
                 rules: ['boolean'],
             ),
+            new PlatformSettingDefinition(
+                key: 'billing.sandbox.signing_secret',
+                group: 'billing',
+                label: 'Sandbox billing signing secret',
+                help: 'HMAC secret for sandbox payment webhooks. Stored encrypted; never shown again. Outside production a random value is generated automatically when missing.',
+                type: PlatformSettingDefinition::TYPE_SECRET,
+                default: static fn (): ?string => config('billing.sandbox.signing_secret'),
+                rules: ['nullable', 'string', 'min:32', 'max:255'],
+            ),
 
             // Branding
             new PlatformSettingDefinition(

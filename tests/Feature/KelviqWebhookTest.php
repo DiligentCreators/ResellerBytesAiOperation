@@ -20,6 +20,7 @@ function kelviqWebhookSign(string $body, string $id, string $timestamp, string $
 function kelviqWebhookFixture(): array
 {
     test()->seed(PlanSeeder::class);
+    priceSeededCatalog();
     config()->set('billing.default_gateway', 'kelviq');
     config()->set('billing.kelviq.mode', 'sandbox');
     config()->set('billing.kelviq.api_key', 'kq_test_key');

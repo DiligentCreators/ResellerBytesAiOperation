@@ -14,6 +14,7 @@ use Database\Seeders\PlanSeeder;
 function paidPeriodFixture(): array
 {
     test()->seed(PlanSeeder::class);
+    priceSeededCatalog();
     config()->set('billing.default_gateway', 'sandbox');
 
     $tenant = Tenant::create([

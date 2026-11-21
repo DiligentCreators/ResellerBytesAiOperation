@@ -3,17 +3,33 @@
 use App\Models\Plan;
 use Database\Seeders\PlanSeeder;
 
-it('seeds the public plan catalog with placeholder tiers', function () {
+it('seeds the public plan catalog without prices and keeps purchasable tiers inactive', function () {
     $this->seed(PlanSeeder::class);
 
     expect(Plan::query()->count())->toBe(4)
         ->and(Plan::query()->where('code', 'starter')->value('is_public'))->toBeTrue()
+        ->and(Plan::query()->where('code', 'starter')->value('is_active'))->toBeFalse()
+        ->and(Plan::query()->where('code', 'starter')->value('price_monthly_minor'))->toBeNull()
+        ->and(Plan::query()->where('code', 'starter')->value('price_yearly_minor'))->toBeNull()
         ->and(Plan::query()->where('code', 'enterprise')->value('is_contact_sales'))->toBeTrue()
         ->and(Plan::query()->where('code', 'growth')->value('entitlements'))->toHaveKey('limits');
 });
 
-it('exposes only public active plans on the pricing page', function () {
+it('hides unpriced plans from the public pricing page', function () {
     $this->seed(PlanSeeder::class);
+
+    $this->get(route('pricing'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('marketing/pricing')
+            ->has('plans', 1)
+            ->where('plans.0.code', 'enterprise')
+            ->where('pricesArePlaceholders', false));
+});
+
+it('exposes priced active plans on the pricing page', function () {
+    $this->seed(PlanSeeder::class);
+    priceSeededCatalog();
     Plan::query()->where('code', 'business')->update(['is_public' => false]);
 
     $this->get(route('pricing'))
@@ -21,5 +37,5 @@ it('exposes only public active plans on the pricing page', function () {
         ->assertInertia(fn ($page) => $page
             ->component('marketing/pricing')
             ->has('plans', 3)
-            ->where('pricesArePlaceholders', true));
+            ->where('pricesArePlaceholders', false));
 });

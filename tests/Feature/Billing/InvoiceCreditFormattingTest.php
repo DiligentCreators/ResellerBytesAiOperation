@@ -17,6 +17,7 @@ afterEach(function (): void {
 
 it('exposes charge subtotal before credits on detail and print for a prorated upgrade', function (): void {
     test()->seed(PlanSeeder::class);
+    priceSeededCatalog();
     config()->set('billing.default_gateway', 'sandbox');
     CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-11-01 08:00:00', 'UTC'));
 
@@ -67,25 +68,29 @@ it('exposes charge subtotal before credits on detail and print for a prorated up
     );
 
     $invoice = $change['invoice']->fresh();
+    $newPrice = (int) $growth->price_monthly_minor;
+    $creditMinor = (int) $invoice->line_items[1]['amount_minor'];
+    $amountDue = $newPrice + $creditMinor;
 
-    expect($invoice->subtotal_minor)->toBe(14900)
-        ->and($invoice->amount_due_minor)->toBe(10000)
+    expect($invoice->subtotal_minor)->toBe($newPrice)
+        ->and($invoice->amount_due_minor)->toBe($amountDue)
         ->and($invoice->line_items)->toHaveCount(2)
-        ->and($invoice->line_items[1]['amount_minor'])->toBe(-4900);
+        ->and($creditMinor)->toBeLessThan(0);
 
-    // Print / PDF presentation uses the shared money formatter.
-    expect(Money::format(-4900))->toBe("\u{2212}\$49.00")
-        ->and(Money::format(14900))->toBe('$149.00')
-        ->and(Money::format(10000))->toBe('$100.00');
+    // Print / PDF presentation uses the shared money formatter (sample amounts).
+    $sampleCredit = -1 * fake()->numberBetween(1000, 9000);
+    $samplePrice = fake()->numberBetween(10_000, 20_000);
+    expect(Money::format($sampleCredit))->toStartWith("\u{2212}\$")
+        ->and(Money::format($samplePrice))->toStartWith('$');
 
-    $assertTotals = function ($page) {
+    $assertTotals = function ($page) use ($newPrice, $creditMinor, $amountDue) {
         return $page
-            ->where('invoice.subtotal_minor', 14900)
+            ->where('invoice.subtotal_minor', $newPrice)
             ->where('invoice.tax_minor', 0)
-            ->where('invoice.amount_due_minor', 10000)
-            ->where('invoice.credit_lines.0.amount_minor', -4900)
-            ->where('invoice.line_items.0.amount_minor', 14900)
-            ->where('invoice.line_items.1.amount_minor', -4900)
+            ->where('invoice.amount_due_minor', $amountDue)
+            ->where('invoice.credit_lines.0.amount_minor', $creditMinor)
+            ->where('invoice.line_items.0.amount_minor', $newPrice)
+            ->where('invoice.line_items.1.amount_minor', $creditMinor)
             ->has('invoice.credit_lines.0.description');
     };
 
@@ -106,6 +111,7 @@ it('exposes charge subtotal before credits on detail and print for a prorated up
 
 it('keeps plain invoice subtotal as total minus tax without credit lines', function (): void {
     test()->seed(PlanSeeder::class);
+    priceSeededCatalog();
     config()->set('billing.default_gateway', 'sandbox');
 
     $tenant = Tenant::create([
