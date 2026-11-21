@@ -51,7 +51,10 @@ class CheckoutController extends Controller
             ->first();
 
         $classifier = app(PlanChangeClassifier::class);
-        $isDowngrade = $current !== null && $classifier->isDowngrade($current, $plan, $period);
+        $convertingFromTrial = $current !== null && $current->isConvertibleTrial();
+        $isDowngrade = $current !== null
+            && ! $convertingFromTrial
+            && $classifier->isDowngrade($current, $plan, $period);
         $proration = null;
         $changeMode = 'new';
         $scheduledChange = $this->scheduledChangePayload($current);
@@ -59,7 +62,8 @@ class CheckoutController extends Controller
             && (int) $scheduledChange['plan_id'] === (int) $plan->id
             && $scheduledChange['charge_period'] === $period;
 
-        if ($current !== null) {
+        // Convertible trials use paid checkout (full period, no proration) — not plan-change.
+        if ($current !== null && ! $convertingFromTrial) {
             $changeMode = $isDowngrade ? 'downgrade' : 'upgrade';
             if (! $isDowngrade) {
                 $proration = app(ProrationCalculator::class)->forUpgrade(
@@ -103,8 +107,9 @@ class CheckoutController extends Controller
             'pricesArePlaceholders' => Plan::catalogHasUnconfirmedPrices(),
             'trialCardRequired' => app(TrialPolicy::class)->cardRequired(),
             'changeMode' => $changeMode,
+            'convertingFromTrial' => $convertingFromTrial,
             'proration' => $proration,
-            'currentPlan' => $current ? [
+            'currentPlan' => $current && ! $convertingFromTrial ? [
                 'id' => $current->id,
                 'plan_code' => $current->plan_code,
                 'plan_name' => $current->plan->name ?? $current->plan_code,
@@ -152,7 +157,9 @@ class CheckoutController extends Controller
                 ->orderByDesc('id')
                 ->first();
 
-            if ($current !== null) {
+            // Paid conversion of an unpaid trial uses CheckoutService (full period,
+            // replaces_subscription_id). Plan changes never prorate against a trial.
+            if ($current !== null && ! $current->isConvertibleTrial()) {
                 $result = app(SubscriptionManagementService::class)->changePlan(
                     $tenant->id,
                     (int) $current->id,
@@ -209,6 +216,7 @@ class CheckoutController extends Controller
     {
         return match ($code) {
             'billing_subscription_already_current' => BillingCustomerMessages::CHECKOUT_ALREADY_SUBSCRIBED,
+            'billing_trial_requires_paid_checkout' => BillingCustomerMessages::CHECKOUT_TRIAL_REQUIRES_PAID,
             'billing_plan_unchanged' => BillingCustomerMessages::CHECKOUT_PLAN_UNCHANGED,
             'billing_scheduled_change_already_pending' => BillingCustomerMessages::CHECKOUT_SCHEDULED_CHANGE_ALREADY,
             'billing_plan_change_already_pending' => BillingCustomerMessages::CHECKOUT_PLAN_CHANGE_PENDING,

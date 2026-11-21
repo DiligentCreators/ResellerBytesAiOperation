@@ -44,6 +44,7 @@ type Props = {
     pricesArePlaceholders: boolean;
     trialCardRequired?: boolean;
     changeMode?: 'new' | 'upgrade' | 'downgrade';
+    convertingFromTrial?: boolean;
     proration?: Proration | null;
     currentPlan?: {
         id: number;
@@ -67,6 +68,7 @@ export default function CheckoutPage({
     pricesArePlaceholders,
     trialCardRequired = true,
     changeMode = 'new',
+    convertingFromTrial = false,
     proration = null,
     currentPlan = null,
     scheduledChange = null,
@@ -102,6 +104,17 @@ export default function CheckoutPage({
                     {pricesArePlaceholders && (
                         <p className="mt-3 rounded-lg bg-warning-soft px-4 py-3 text-sm text-warning-fg">
                             Placeholder seed price.
+                        </p>
+                    )}
+                    {convertingFromTrial && (
+                        <p
+                            role="status"
+                            className="mt-3 rounded-md border border-border bg-surface px-4 py-3 text-sm"
+                        >
+                            You are converting from a free trial. The paid
+                            period starts when payment succeeds and is a full{' '}
+                            {period} interval — unused trial days are not
+                            credited.
                         </p>
                     )}
                     {scheduledChange && scheduledChangeIsSameTarget && (
@@ -189,6 +202,7 @@ export default function CheckoutPage({
                 </div>
 
                 {changeMode === 'new' &&
+                    !convertingFromTrial &&
                     plan.trial_eligible &&
                     plan.trial_days > 0 && (
                         <Form
@@ -425,9 +439,11 @@ export default function CheckoutPage({
                                 >
                                     {isDowngrade
                                         ? `Schedule change for ${formatDate(scheduleDate, { timeZone: timezone })}`
-                                        : amountDue === 0
-                                          ? 'Confirm upgrade'
-                                          : `Pay ${formatMoney(amountDue, plan.currency)}`}
+                                        : convertingFromTrial
+                                          ? `Subscribe now — ${formatMoney(amountDue, plan.currency)}`
+                                          : amountDue === 0
+                                            ? 'Confirm upgrade'
+                                            : `Pay ${formatMoney(amountDue, plan.currency)}`}
                                 </Button>
                                 <Button asChild variant="outline">
                                     <Link href="/billing/plans">

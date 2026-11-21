@@ -43,17 +43,25 @@ class BillingPlansController extends Controller
         });
 
         $scheduledChange = null;
+        $currentTrial = null;
         $timezone = 'UTC';
 
         if ($tenant !== null) {
             $timezone = $tenant->timezone ?: 'UTC';
             $subscription = TenantSubscription::query()
-                ->with('scheduledPlan:id,code,name')
+                ->with(['plan:id,code,name', 'scheduledPlan:id,code,name'])
                 ->where('tenant_id', $tenant->id)
                 ->whereIn('status', ['trialing', 'active', 'past_due', 'suspended'])
-                ->whereNotNull('scheduled_plan_id')
                 ->latest('id')
                 ->first();
+
+            if ($subscription !== null && $subscription->isConvertibleTrial()) {
+                $currentTrial = [
+                    'plan_name' => $subscription->plan->name ?? $subscription->plan_code,
+                    'trial_ends_at' => $subscription->trial_ends_at?->toIso8601String(),
+                    'days_remaining' => $subscription->trialDaysRemaining() ?? 0,
+                ];
+            }
 
             if ($subscription !== null
                 && $subscription->scheduled_plan_id !== null
@@ -75,6 +83,7 @@ class BillingPlansController extends Controller
             'pricesArePlaceholders' => Plan::catalogHasUnconfirmedPrices(),
             'tenantId' => $tenant?->id,
             'scheduledChange' => $scheduledChange,
+            'currentTrial' => $currentTrial,
             'timezone' => $timezone,
         ]);
     }

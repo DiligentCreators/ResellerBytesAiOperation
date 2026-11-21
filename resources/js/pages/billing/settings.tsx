@@ -28,6 +28,9 @@ type Props = {
         billing_period: string;
         cancel_at_period_end: boolean;
         current_period_ends_at: string | null;
+        trial_ends_at?: string | null;
+        trial_days_remaining?: number | null;
+        is_convertible_trial?: boolean;
         entitlements: { limits?: Record<string, number> };
     } | null;
     scheduledChange?: ScheduledChange | null;
@@ -200,13 +203,30 @@ export default function BillingSettingsPage(props: Props) {
                                 )}{' '}
                                 / {periodLabel}
                             </p>
-                            <p className="text-muted-foreground">
-                                Renews / period ends:{' '}
-                                {formatDate(
-                                    subscription.current_period_ends_at,
-                                    { timeZone: timezone },
-                                )}
-                            </p>
+                            {subscription.is_convertible_trial &&
+                            subscription.trial_ends_at ? (
+                                <p className="text-muted-foreground">
+                                    Trial ends on{' '}
+                                    {formatDate(subscription.trial_ends_at, {
+                                        timeZone: timezone,
+                                    })}
+                                    ,{' '}
+                                    {subscription.trial_days_remaining ?? 0}{' '}
+                                    {(subscription.trial_days_remaining ?? 0) ===
+                                    1
+                                        ? 'day'
+                                        : 'days'}{' '}
+                                    left
+                                </p>
+                            ) : (
+                                <p className="text-muted-foreground">
+                                    Renews / period ends:{' '}
+                                    {formatDate(
+                                        subscription.current_period_ends_at,
+                                        { timeZone: timezone },
+                                    )}
+                                </p>
+                            )}
                             {subscription.cancel_at_period_end && (
                                 <p className="text-warning-fg">
                                     Cancels at period end
@@ -231,42 +251,60 @@ export default function BillingSettingsPage(props: Props) {
                             </div>
                             {canManage && (
                                 <div className="mt-4 flex flex-wrap gap-3">
-                                    {!subscription.cancel_at_period_end ? (
-                                        <Form
-                                            action={`/tenants/${tenant.id}/billing/subscriptions/${subscription.id}/cancel`}
-                                            method="post"
+                                    {subscription.is_convertible_trial ? (
+                                        <Button
+                                            asChild
+                                            className="bg-primary hover:bg-primary-hover"
                                         >
-                                            {({ processing }) => (
-                                                <Button
-                                                    type="submit"
-                                                    variant="outline"
-                                                    disabled={processing}
-                                                >
-                                                    Cancel at period end
-                                                </Button>
-                                            )}
-                                        </Form>
+                                            <Link href="/billing/plans">
+                                                Subscribe now
+                                            </Link>
+                                        </Button>
                                     ) : (
-                                        <Form
-                                            action={`/tenants/${tenant.id}/billing/subscriptions/${subscription.id}/resume`}
-                                            method="post"
-                                        >
-                                            {({ processing }) => (
-                                                <Button
-                                                    type="submit"
-                                                    disabled={processing}
-                                                    className="bg-primary hover:bg-primary-hover"
+                                        <>
+                                            {!subscription.cancel_at_period_end ? (
+                                                <Form
+                                                    action={`/tenants/${tenant.id}/billing/subscriptions/${subscription.id}/cancel`}
+                                                    method="post"
                                                 >
-                                                    Resume
-                                                </Button>
+                                                    {({ processing }) => (
+                                                        <Button
+                                                            type="submit"
+                                                            variant="outline"
+                                                            disabled={
+                                                                processing
+                                                            }
+                                                        >
+                                                            Cancel at period
+                                                            end
+                                                        </Button>
+                                                    )}
+                                                </Form>
+                                            ) : (
+                                                <Form
+                                                    action={`/tenants/${tenant.id}/billing/subscriptions/${subscription.id}/resume`}
+                                                    method="post"
+                                                >
+                                                    {({ processing }) => (
+                                                        <Button
+                                                            type="submit"
+                                                            disabled={
+                                                                processing
+                                                            }
+                                                            className="bg-primary hover:bg-primary-hover"
+                                                        >
+                                                            Resume
+                                                        </Button>
+                                                    )}
+                                                </Form>
                                             )}
-                                        </Form>
+                                            <Button asChild variant="outline">
+                                                <Link href="/billing/plans">
+                                                    Change plan
+                                                </Link>
+                                            </Button>
+                                        </>
                                     )}
-                                    <Button asChild variant="outline">
-                                        <Link href="/billing/plans">
-                                            Change plan
-                                        </Link>
-                                    </Button>
                                 </div>
                             )}
                         </div>

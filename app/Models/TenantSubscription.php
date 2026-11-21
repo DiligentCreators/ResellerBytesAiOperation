@@ -85,4 +85,33 @@ class TenantSubscription extends Model
     {
         return $this->hasMany(TenantBillingInvoice::class);
     }
+
+    /**
+     * TrialService-created trial that may convert via paid CheckoutService::begin.
+     * Paid checkout never sets trial_ends_at; any amount_paid_minor > 0 means not unpaid.
+     */
+    public function isConvertibleTrial(): bool
+    {
+        if ($this->status !== 'trialing' || $this->trial_ends_at === null) {
+            return false;
+        }
+
+        return ! $this->invoices()
+            ->where('amount_paid_minor', '>', 0)
+            ->exists();
+    }
+
+    /**
+     * Whole days remaining until trial_ends_at (UTC), or null when not a trial.
+     */
+    public function trialDaysRemaining(?CarbonImmutable $now = null): ?int
+    {
+        if ($this->trial_ends_at === null) {
+            return null;
+        }
+
+        $now ??= CarbonImmutable::now('UTC');
+
+        return max(0, (int) $now->diffInDays($this->trial_ends_at, false));
+    }
 }

@@ -58,16 +58,28 @@ class CheckoutService
                     ->lockForUpdate()
                     ->first();
 
+                $convertibleTrial = null;
                 if ($current !== null) {
-                    throw new RuntimeException('billing_subscription_already_current');
+                    // Unpaid TrialService trials may convert to a paid subscription; any
+                    // other current subscription still blocks a fresh paid checkout.
+                    if (! $current->isConvertibleTrial()) {
+                        throw new RuntimeException('billing_subscription_already_current');
+                    }
+                    $convertibleTrial = $current;
                 }
 
                 // Abandoned paid checkouts leave provisional incomplete rows; clear them
                 // so a retry can start without blocking on the unique-current index.
+                // Also clear abandoned trial-conversion incompletes that replace this trial.
                 TenantSubscription::query()
                     ->where('tenant_id', $tenantId)
                     ->where('status', 'incomplete')
-                    ->whereNull('replaces_subscription_id')
+                    ->where(function ($query) use ($convertibleTrial): void {
+                        $query->whereNull('replaces_subscription_id');
+                        if ($convertibleTrial !== null) {
+                            $query->orWhere('replaces_subscription_id', $convertibleTrial->id);
+                        }
+                    })
                     ->lockForUpdate()
                     ->get()
                     ->each(function (TenantSubscription $abandoned): void {
@@ -106,7 +118,8 @@ class CheckoutService
                 $now = CarbonImmutable::now('UTC');
                 // RB-2: Paid checkout always charges the first period up front. Trials are a
                 // separate TrialService action and must never shorten this period or send
-                // trialPeriod to Kelviq from this path.
+                // trialPeriod to Kelviq from this path. Conversion starts a full paid period
+                // at payment time (no trial days added or subtracted).
                 $periodEnds = $billingPeriod === 'yearly' ? $now->addYear() : $now->addMonth();
 
                 $amount = $plan->priceForPeriod($billingPeriod);
@@ -130,6 +143,7 @@ class CheckoutService
                     'charge_period' => $billingPeriod,
                     'entitlements' => $plan->entitlements,
                     'cancel_at_period_end' => false,
+                    'replaces_subscription_id' => $convertibleTrial?->id,
                     'current_period_starts_at' => $now,
                     'current_period_ends_at' => $periodEnds,
                     'created_by_user_id' => $actor->id,

@@ -1,5 +1,6 @@
 <?php
 
+use App\Billing\Sandbox\SandboxPaymentGateway;
 use App\Models\BillingGatewaySetting;
 use App\Models\Plan;
 use App\Models\Tenant;
@@ -8,11 +9,14 @@ use App\Models\TenantMembership;
 use App\Models\TenantSubscription;
 use App\Models\User;
 use App\Services\Billing\CheckoutService;
+use App\Services\Billing\SubscriptionManagementService;
 use App\Services\Billing\TrialPolicy;
 use App\Services\Billing\TrialService;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Http;
+use InvalidArgumentException;
 
 uses(RefreshDatabase::class);
 
@@ -235,4 +239,224 @@ it('sends trialPeriod to Kelviq when a card is required for trial', function () 
         return ($data['trialPeriod'] ?? null) === 14
             && ($data['metadata']['checkout_kind'] ?? null) === 'trial';
     });
+});
+
+it('converts a no-card trial to a paid subscription with a full period after sandbox approval', function () {
+    [$tenant, $user, $plan] = trialFixture();
+    enableTrials(cardRequired: false);
+
+    CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-11-20 12:00:00', 'UTC'));
+
+    $trial = app(TrialService::class)->begin($tenant->id, $user, $plan, 'monthly');
+    $trialSub = $trial['subscription'];
+
+    $otherPlan = Plan::factory()->create([
+        'trial_enabled' => true,
+        'trial_days' => 14,
+        'is_active' => true,
+        'is_public' => true,
+        'is_contact_sales' => false,
+        'monthly_active' => true,
+        'yearly_active' => true,
+        'price_monthly_minor' => 9900,
+        'price_yearly_minor' => 99000,
+        'kelviq_plan_identifier_monthly' => 'kq_growth_m',
+        'kelviq_plan_identifier_yearly' => 'kq_growth_y',
+    ]);
+
+    $checkout = app(CheckoutService::class)->begin(
+        $tenant->id,
+        $user,
+        $otherPlan,
+        'monthly',
+        trialDetails(),
+    );
+
+    expect($checkout['subscription']->status)->toBe('incomplete')
+        ->and($checkout['subscription']->replaces_subscription_id)->toBe($trialSub->id)
+        ->and($checkout['subscription']->trial_ends_at)->toBeNull()
+        ->and($checkout['invoice']->amount_due_minor)->toBe(9900)
+        ->and($checkout['subscription']->current_period_ends_at->equalTo(
+            CarbonImmutable::parse('2026-12-20 12:00:00', 'UTC'),
+        ))->toBeTrue()
+        ->and($trialSub->fresh()->status)->toBe('trialing');
+
+    app(SandboxPaymentGateway::class)->approve($checkout['invoice']);
+
+    expect($checkout['subscription']->fresh()->status)->toBe('active')
+        ->and($checkout['subscription']->fresh()->current_period_ends_at->equalTo(
+            CarbonImmutable::parse('2026-12-20 12:00:00', 'UTC'),
+        ))->toBeTrue()
+        ->and($checkout['invoice']->fresh()->amount_paid_minor)->toBe(9900)
+        ->and($trialSub->fresh()->status)->toBe('canceled')
+        ->and($trialSub->fresh()->canceled_at)->not->toBeNull();
+});
+
+it('leaves the trial intact when paid conversion is declined or abandoned', function () {
+    [$tenant, $user, $plan] = trialFixture();
+    enableTrials(cardRequired: false);
+
+    $trial = app(TrialService::class)->begin($tenant->id, $user, $plan, 'monthly');
+    $trialSub = $trial['subscription'];
+
+    $abandoned = app(CheckoutService::class)->begin(
+        $tenant->id,
+        $user,
+        $plan,
+        'yearly',
+        trialDetails(),
+    );
+
+    expect($abandoned['subscription']->status)->toBe('incomplete')
+        ->and($abandoned['subscription']->replaces_subscription_id)->toBe($trialSub->id)
+        ->and($trialSub->fresh()->status)->toBe('trialing')
+        ->and($trialSub->fresh()->trial_ends_at)->not->toBeNull();
+
+    app(SandboxPaymentGateway::class)->decline($abandoned['invoice']);
+
+    expect($abandoned['subscription']->fresh()->status)->toBe('canceled')
+        ->and($abandoned['invoice']->fresh()->status)->toBe('failed')
+        ->and($trialSub->fresh()->status)->toBe('trialing')
+        ->and($trialSub->fresh()->canceled_at)->toBeNull();
+});
+
+it('rejects plan changes on a convertible trial without creating a proration invoice', function () {
+    [$tenant, $user, $plan] = trialFixture();
+    enableTrials(cardRequired: false);
+
+    $trial = app(TrialService::class)->begin($tenant->id, $user, $plan, 'monthly');
+    $trialSub = $trial['subscription'];
+
+    $upgradePlan = Plan::factory()->create([
+        'is_active' => true,
+        'is_public' => true,
+        'is_contact_sales' => false,
+        'monthly_active' => true,
+        'yearly_active' => true,
+        'price_monthly_minor' => 9900,
+        'price_yearly_minor' => 99000,
+        'kelviq_plan_identifier_monthly' => 'kq_pro_m',
+        'kelviq_plan_identifier_yearly' => 'kq_pro_y',
+    ]);
+
+    $invoiceCountBefore = TenantBillingInvoice::query()->count();
+
+    expect(fn () => app(SubscriptionManagementService::class)->changePlan(
+        $tenant->id,
+        (int) $trialSub->id,
+        $user,
+        $upgradePlan,
+        'monthly',
+        trialDetails(),
+    ))->toThrow(InvalidArgumentException::class, 'billing_trial_requires_paid_checkout');
+
+    expect(TenantBillingInvoice::query()->count())->toBe($invoiceCountBefore)
+        ->and($trialSub->fresh()->status)->toBe('trialing')
+        ->and(TenantSubscription::query()->where('status', 'incomplete')->count())->toBe(0);
+
+    $this->actingAs($user)
+        ->post(route('billing.checkout.store', [$tenant, $upgradePlan]), [
+            ...trialDetails(),
+            'period' => 'monthly',
+        ])
+        ->assertRedirect();
+
+    $paid = TenantSubscription::query()
+        ->where('tenant_id', $tenant->id)
+        ->where('status', 'incomplete')
+        ->first();
+
+    expect($paid)->not->toBeNull()
+        ->and($paid->replaces_subscription_id)->toBe($trialSub->id)
+        ->and($paid->unit_amount_minor)->toBe(9900);
+
+    $invoice = TenantBillingInvoice::query()
+        ->where('tenant_subscription_id', $paid->id)
+        ->first();
+
+    expect($invoice)->not->toBeNull()
+        ->and($invoice->amount_due_minor)->toBe(9900)
+        ->and(collect($invoice->line_items)->contains(
+            fn (array $line): bool => ($line['amount_minor'] ?? 0) < 0,
+        ))->toBeFalse();
+});
+
+it('does not expire a trial that was converted to paid', function () {
+    [$tenant, $user, $plan] = trialFixture();
+    enableTrials(cardRequired: false);
+
+    CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-11-01 12:00:00', 'UTC'));
+
+    $trial = app(TrialService::class)->begin($tenant->id, $user, $plan, 'monthly');
+    $trialSub = $trial['subscription'];
+
+    $checkout = app(CheckoutService::class)->begin(
+        $tenant->id,
+        $user,
+        $plan,
+        'monthly',
+        trialDetails(),
+    );
+    app(SandboxPaymentGateway::class)->approve($checkout['invoice']);
+
+    expect($trialSub->fresh()->status)->toBe('canceled')
+        ->and($checkout['subscription']->fresh()->status)->toBe('active');
+
+    CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-12-01 12:00:00', 'UTC'));
+
+    Artisan::call('billing:expire-trials');
+
+    expect($trialSub->fresh()->status)->toBe('canceled')
+        ->and($checkout['subscription']->fresh()->status)->toBe('active');
+});
+
+it('denies a second trial after conversion when first-time-only is enabled', function () {
+    [$tenant, $user, $plan] = trialFixture();
+    enableTrials(cardRequired: false, firstTimeOnly: true);
+
+    app(TrialService::class)->begin($tenant->id, $user, $plan, 'monthly');
+    $checkout = app(CheckoutService::class)->begin(
+        $tenant->id,
+        $user,
+        $plan,
+        'monthly',
+        trialDetails(),
+    );
+    app(SandboxPaymentGateway::class)->approve($checkout['invoice']);
+
+    expect(app(TrialPolicy::class)->trialDaysFor($tenant->fresh(), $plan->fresh()))->toBe(0);
+
+    expect(fn () => app(TrialService::class)->begin(
+        $tenant->id,
+        $user,
+        $plan,
+        'monthly',
+    ))->toThrow(InvalidArgumentException::class, 'billing_trial_not_eligible');
+});
+
+it('shows trial status and subscribe CTA on billing settings and plans while trialing', function () {
+    [$tenant, $user, $plan] = trialFixture();
+    enableTrials(cardRequired: false);
+
+    CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-11-20 12:00:00', 'UTC'));
+
+    app(TrialService::class)->begin($tenant->id, $user, $plan, 'monthly');
+
+    $this->actingAs($user)
+        ->get(route('billing.settings.show', $tenant))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('billing/settings')
+            ->where('subscription.status', 'trialing')
+            ->where('subscription.is_convertible_trial', true)
+            ->where('subscription.trial_days_remaining', 14)
+            ->has('subscription.trial_ends_at'));
+
+    $this->actingAs($user)
+        ->get(route('billing.plans'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('billing/plans')
+            ->where('currentTrial.days_remaining', 14)
+            ->where('currentTrial.plan_name', $plan->name));
 });

@@ -109,6 +109,12 @@ class SubscriptionManagementService
                     throw new InvalidArgumentException('billing_plan_change_status_invalid');
                 }
 
+                // Unpaid trials must convert via paid CheckoutService::begin (full period,
+                // no proration credit against the unpaid trial).
+                if ($current->isConvertibleTrial()) {
+                    throw new InvalidArgumentException('billing_trial_requires_paid_checkout');
+                }
+
                 $targetAmount = $plan->priceForPeriod($billingPeriod);
                 if ($current->plan_code === $plan->code && $current->unit_amount_minor === $targetAmount) {
                     throw new InvalidArgumentException('billing_plan_unchanged');

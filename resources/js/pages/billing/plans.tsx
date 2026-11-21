@@ -32,11 +32,18 @@ type ScheduledChange = {
     change_at: string;
 };
 
+type CurrentTrial = {
+    plan_name: string;
+    trial_ends_at: string | null;
+    days_remaining: number;
+};
+
 type Props = {
     plans: Plan[];
     pricesArePlaceholders: boolean;
     tenantId?: string | null;
     scheduledChange?: ScheduledChange | null;
+    currentTrial?: CurrentTrial | null;
     timezone?: string;
 };
 
@@ -45,6 +52,7 @@ export default function BillingPlans({
     pricesArePlaceholders,
     tenantId,
     scheduledChange = null,
+    currentTrial = null,
     timezone = 'UTC',
 }: Props) {
     const { auth } = usePage().props;
@@ -110,6 +118,26 @@ export default function BillingPlans({
                         Placeholder seed prices — edit in platform billing
                         before launch.
                     </p>
+                )}
+
+                {currentTrial && (
+                    <div
+                        role="status"
+                        className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-card px-4 py-3 text-sm shadow-xs"
+                    >
+                        <p>
+                            Trial ends on{' '}
+                            {formatDate(currentTrial.trial_ends_at, {
+                                timeZone: timezone,
+                            })}
+                            , {currentTrial.days_remaining}{' '}
+                            {currentTrial.days_remaining === 1
+                                ? 'day'
+                                : 'days'}{' '}
+                            left on {currentTrial.plan_name}. Choose any plan to
+                            subscribe now — the paid period starts at payment.
+                        </p>
+                    </div>
                 )}
 
                 {scheduledChange && resolvedTenantId && (
@@ -200,7 +228,8 @@ export default function BillingPlans({
                                         </Button>
                                     ) : resolvedTenantId ? (
                                         <>
-                                            {plan.trial_enabled &&
+                                            {!currentTrial &&
+                                            plan.trial_enabled &&
                                             plan.trial_days > 0 ? (
                                                 <Button
                                                     asChild
@@ -219,7 +248,9 @@ export default function BillingPlans({
                                                 <Link
                                                     href={`/tenants/${resolvedTenantId}/billing/checkout/${plan.id}?period=${periodIsYearly ? 'yearly' : 'monthly'}`}
                                                 >
-                                                    Continue to checkout
+                                                    {currentTrial
+                                                        ? 'Subscribe now'
+                                                        : 'Continue to checkout'}
                                                 </Link>
                                             </Button>
                                         </>
