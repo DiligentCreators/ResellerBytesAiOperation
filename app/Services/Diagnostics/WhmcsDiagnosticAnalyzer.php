@@ -169,7 +169,7 @@ Rules:
 - Distinguish observed facts, reasonable inferences, and unknowns.
 - Missing data or collector limitations must never be treated as healthy.
 - Report only issues supported by the snapshot. Do not invent modules, paths, PHP runtimes, versions, or server configuration.
-- Every finding must cite one or more exact dot-separated evidence paths that exist in the supplied snapshot.
+- Every finding must cite one or more exact dot-separated evidence paths that exist in the supplied snapshot under system, php, or warnings only (for example warnings.0.code or system.whmcs_version). Never cite collector, invented fields, null values, or unknown strings.
 - If there is insufficient evidence for a finding, do not create it. Explain uncertainty in the overall summary or no_findings_reason.
 - Use critical only for an evidenced immediate security or availability risk; otherwise use warning or info.
 - Recommendations are advice for a human operator only. Never claim a change was made.
@@ -307,24 +307,55 @@ PROMPT;
             throw new RuntimeException('provider_no_findings_reason_unexpected');
         }
 
-        foreach ($validated['findings'] as $finding) {
-            foreach ($finding['evidence_paths'] as $path) {
-                if (! $this->hasEvidencePath($payload, $path)) {
-                    throw new RuntimeException('provider_evidence_reference_invalid');
-                }
-            }
-        }
-
         /** @var array<int, array<string, mixed>> $findings */
-        $findings = array_values($validated['findings']);
+        $findings = $this->filterFindingsByEvidence(array_values($validated['findings']), $payload);
+
+        $noFindingsReason = is_string($validated['no_findings_reason'])
+            ? $validated['no_findings_reason']
+            : null;
+
+        // Soft-drop unverifiable findings instead of failing the whole analysis.
+        // If every finding is dropped, surface an explicit no-findings reason.
+        if ($findings === [] && $validated['findings'] !== []) {
+            $noFindingsReason = 'Model findings were dropped because their evidence paths were not present in the snapshot.';
+        }
 
         return [
             'summary' => (string) $validated['summary'],
-            'no_findings_reason' => is_string($validated['no_findings_reason'])
-                ? $validated['no_findings_reason']
-                : null,
+            'no_findings_reason' => $noFindingsReason,
             'findings' => $findings,
         ];
+    }
+
+    /**
+     * Keep findings that still have at least one verified evidence path; strip unverifiable paths.
+     *
+     * @param  array<int, array<string, mixed>>  $findings
+     * @param  array<string, mixed>  $payload
+     * @return array<int, array<string, mixed>>
+     */
+    private function filterFindingsByEvidence(array $findings, array $payload): array
+    {
+        $kept = [];
+
+        foreach ($findings as $finding) {
+            $validPaths = [];
+
+            foreach ($finding['evidence_paths'] as $path) {
+                if (is_string($path) && $this->hasEvidencePath($payload, $path)) {
+                    $validPaths[] = $path;
+                }
+            }
+
+            if ($validPaths === []) {
+                continue;
+            }
+
+            $finding['evidence_paths'] = array_values($validPaths);
+            $kept[] = $finding;
+        }
+
+        return $kept;
     }
 
     /**
