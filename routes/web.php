@@ -5,6 +5,7 @@ use App\Http\Controllers\Billing\CheckoutController;
 use App\Http\Controllers\Billing\CheckoutReturnController;
 use App\Http\Controllers\Billing\InvoiceController;
 use App\Http\Controllers\Billing\SandboxCheckoutController;
+use App\Http\Controllers\Billing\TrialController;
 use App\Http\Controllers\BillingPlansController;
 use App\Http\Controllers\CentralStaffController;
 use App\Http\Controllers\DashboardController;
@@ -48,6 +49,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('tenants/{tenant}/billing/checkout/{plan}', [CheckoutController::class, 'show'])->name('billing.checkout.show');
     Route::post('tenants/{tenant}/billing/checkout/{plan}', [CheckoutController::class, 'store'])->middleware('throttle:billing-checkout-store')->name('billing.checkout.store');
+    Route::post('tenants/{tenant}/billing/trial/{plan}', [TrialController::class, 'store'])->middleware('throttle:billing-trial-store')->name('billing.trial.store');
     Route::get('tenants/{tenant}/billing/checkout-return/{invoice}', CheckoutReturnController::class)->name('billing.checkout.return');
     Route::get('tenants/{tenant}/billing/sandbox/{invoice}', [SandboxCheckoutController::class, 'show'])->name('billing.sandbox.checkout.show');
     Route::post('tenants/{tenant}/billing/sandbox/{invoice}/approve', [SandboxCheckoutController::class, 'approve'])->middleware('throttle:billing-sandbox-approve')->name('billing.sandbox.checkout.approve');
@@ -76,14 +78,17 @@ Route::middleware(['auth', 'verified', EnsureTwoFactorEnabled::class])->group(fu
         Route::get('platform/billing/tenants/{tenant}', [PlatformBillingController::class, 'tenant'])->name('platform.billing.tenant');
         Route::put('platform/billing/seller', [PlatformBillingController::class, 'updateSeller'])->middleware('throttle:platform-billing-seller-update')->name('platform.billing.seller.update');
         Route::get('platform/billing/plans', [PlatformPlanController::class, 'index'])->name('platform.billing.plans.index');
-        Route::post('platform/billing/plans', [PlatformPlanController::class, 'store'])->middleware('throttle:platform-billing-plans-store')->name('platform.billing.plans.store');
-        Route::put('platform/billing/plans/{plan}', [PlatformPlanController::class, 'update'])->middleware('throttle:platform-billing-plans-update')->name('platform.billing.plans.update');
     });
 
     Route::middleware('central.permission:billing.settings.manage')->group(function () {
         Route::get('platform/billing/settings', [PlatformBillingSettingsController::class, 'edit'])->name('platform.billing.settings.edit');
         Route::put('platform/billing/settings', [PlatformBillingSettingsController::class, 'update'])->middleware('throttle:platform-billing-settings-update')->name('platform.billing.settings.update');
         Route::post('platform/billing/settings/test-connection', [PlatformBillingSettingsController::class, 'testConnection'])->middleware('throttle:platform-billing-settings-test')->name('platform.billing.settings.test');
+        Route::post('platform/billing/plans', [PlatformPlanController::class, 'store'])->middleware('throttle:platform-billing-plans-store')->name('platform.billing.plans.store');
+        Route::put('platform/billing/plans/{plan}', [PlatformPlanController::class, 'update'])->middleware('throttle:platform-billing-plans-update')->name('platform.billing.plans.update');
+        Route::post('platform/billing/plans/{plan}/deactivate', [PlatformPlanController::class, 'deactivate'])->middleware('throttle:platform-billing-plans-update')->name('platform.billing.plans.deactivate');
+        Route::post('platform/billing/plans/{plan}/reactivate', [PlatformPlanController::class, 'reactivate'])->middleware('throttle:platform-billing-plans-update')->name('platform.billing.plans.reactivate');
+        Route::delete('platform/billing/plans/{plan}', [PlatformPlanController::class, 'destroy'])->middleware('throttle:platform-billing-plans-destroy')->name('platform.billing.plans.destroy');
     });
 
     Route::get('dashboard', DashboardController::class)->name('dashboard');

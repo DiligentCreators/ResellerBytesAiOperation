@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property CarbonImmutable $current_period_ends_at
  * @property CarbonImmutable|null $grace_ends_at
  * @property CarbonImmutable|null $canceled_at
+ * @property CarbonImmutable|null $trial_ends_at
  * @property CarbonImmutable|null $scheduled_change_at
  * @property int|null $scheduled_plan_id
  * @property string|null $charge_period
@@ -36,6 +37,7 @@ class TenantSubscription extends Model
         'cancel_at_period_end',
         'current_period_starts_at',
         'current_period_ends_at',
+        'trial_ends_at',
         'grace_ends_at',
         'canceled_at',
         'replaces_subscription_id',
@@ -53,6 +55,7 @@ class TenantSubscription extends Model
             'cancel_at_period_end' => 'boolean',
             'current_period_starts_at' => 'immutable_datetime',
             'current_period_ends_at' => 'immutable_datetime',
+            'trial_ends_at' => 'immutable_datetime',
             'grace_ends_at' => 'immutable_datetime',
             'canceled_at' => 'immutable_datetime',
             'scheduled_change_at' => 'immutable_datetime',

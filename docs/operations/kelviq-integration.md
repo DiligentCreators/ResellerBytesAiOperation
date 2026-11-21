@@ -12,7 +12,7 @@ Platform operators with the `billing.settings.manage` central permission (the co
 | Kelviq mode + secrets | Mode `sandbox` \| `live`. Separate sandbox/live API keys and webhook secrets. The browser only receives configured yes/no, source (`database` \| `env`), and a last-4 mask (`••••1234`). Blank input keeps the current stored value. An explicit **Clear** checkbox nulls the DB column so env/config applies again. Live mode requires a resolvable live API key and live webhook secret. |
 | Webhook URL | Read-only copy of `{APP_URL}/webhooks/kelviq` (named route `webhooks.kelviq`). |
 | Test connection | Throttled POST that calls Kelviq `GET /webhook/logs/?page_size=1` with the resolved key for the current mode. Reports success or HTTP/connection failure only — never the key. Audited as `billing.settings.connection_tested`. |
-| Trial rules (global) | `trials_enabled`, `trial_card_required`, `trial_first_time_only` stored on the single settings row and exposed via `App\Services\Billing\BillingSettings`. Per-plan trial days come later. |
+| Trial rules (global) | `trials_enabled`, `trial_card_required`, `trial_first_time_only` stored on the single settings row and exposed via `App\Services\Billing\BillingSettings`. Per-plan `trial_enabled` + `trial_days` are managed on Platform → Billing → Plans. |
 
 **Fallback order** (resolver `App\Services\Billing\BillingSettings`): non-empty database value wins; otherwise `config('billing.*')` / env; otherwise defaults (`gateway=sandbox`, `mode=sandbox`). Mode-specific DB keys fall back to the single env pair `KELVIQ_API_KEY` / `KELVIQ_WEBHOOK_SECRET`. If the `billing_gateway_settings` table is not migrated yet, the resolver falls back to config so Artisan commands do not crash.
 
@@ -49,12 +49,42 @@ KELVIQ_CONNECT_TIMEOUT=5
 - Success redirect lands on **Payment processing** and does **not** activate entitlements.
 - Activation happens only after signed webhook → inbox → `billing:webhooks:reconcile` (also queued from the webhook controller).
 
+## Plans & prices
+
+Platform operators with `billing.settings.manage` create and edit the catalog at **Platform → Billing → Plans**. Prices are entered as major units in the UI and stored as integer minor units. Saving a plan sets `prices_confirmed_at`; the public pricing page treats the catalog as placeholders while any public active plan still has that column null.
+
+| Interval flags | Effect |
+| -------------- | ------ |
+| `monthly_active` / `yearly_active` | Inactive intervals are hidden on pricing / plans / checkout and rejected at checkout (validation error). |
+| `is_active` | Deactivated plans disappear from the public catalog and new checkouts; existing subscriptions keep their stored snapshot. |
+
+### Price-change effect on existing subscriptions
+
+Checkout and plan-change flows snapshot `unit_amount_minor`, `currency`, and `charge_period` on the subscription (and amounts/currency on invoices). Editing a plan price does **not** reprice existing subscriptions or past invoices. MRR and proration use the stored subscription amount. Prefer the stored `charge_period`; the legacy null-period inference that compares `unit_amount_minor` to the current plan yearly price is only for backfill and can misclassify after a price edit — run the charge-period backfill command for null rows.
+
+Kelviq renewals bill whatever price is configured on the **Kelviq** plan. When you change a price here, also update the matching Kelviq plan amount. Do **not** rely on Kelviq plan-level trials for ResellerBytes eligibility; trials are gated by `BillingSettings` + per-plan flags and started only via the explicit trial action.
+
 ## Plan mapping
 
 | Local field                            | Kelviq                                    |
 | -------------------------------------- | ----------------------------------------- |
 | `plans.kelviq_plan_identifier_monthly` | `planIdentifier` + `chargePeriod=MONTHLY` |
 | `plans.kelviq_plan_identifier_yearly`  | `planIdentifier` + `chargePeriod=YEARLY`  |
+
+Configure matching Kelviq plan identifiers (monthly + yearly) and keep Kelviq list prices aligned with the catalog. Paid checkout never sends `trialPeriod`.
+
+## Trials
+
+Trials are an **explicit** separate action (`POST tenants/{tenant}/billing/trial/{plan}`), never part of paid checkout (RB-2).
+
+Eligibility (`TrialPolicy::trialDaysFor`): global `trialsEnabled` AND plan `trial_enabled` AND `trial_days >= 1` AND (if `trialFirstTimeOnly`) the tenant has never had any subscription row.
+
+| Mode | Behaviour |
+| ---- | --------- |
+| Card not required | Local `trialing` subscription, no invoice, no gateway call. `trial_ends_at` / period end = now + trial days. Snapshot stores the chosen interval amount for later paid conversion. |
+| Card required | Zero-amount open invoice for session tracking + gateway checkout with `checkout_kind=trial`. Kelviq receives `trialPeriod` as integer days (>= 1), which overrides any Kelviq plan trial. Sandbox confirms the card hold without activating. |
+
+`billing:expire-trials` (every five minutes) expires `trialing` rows whose `trial_ends_at` has passed. A later paid invoice webhook can still move `trialing` → `active` when a real charge succeeds.
 
 ## Sandbox testing (from Kelviq docs)
 
@@ -83,7 +113,7 @@ Never use real cards in sandbox.
 ## What we need from Kelviq / Shahrukh
 
 1. Confirm whether `POST /customers/` is upsert-safe on duplicate `customerId`, or which status code means “already exists”.
-2. Confirm `trialPeriod` request shape/units before we enable trials on checkout.
+2. ~~Confirm `trialPeriod` request shape/units~~ — treated as integer days (>= 1); only sent on explicit trial checkouts.
 3. Sandbox + live API keys and webhook secrets for ResellerBytes (custody with ops; not in git).
 4. Canonical plan identifiers for Starter / Growth / Business (monthly + yearly).
 5. Confirm invoices list/retrieve paths if we add customer portal deep-links beyond Kelviq’s hosted portal.

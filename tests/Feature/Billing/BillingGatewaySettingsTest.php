@@ -145,6 +145,16 @@ it('sends only masked secret props to the browser', function () {
             ->etc());
 });
 
+it('masks short secrets without a suffix', function () {
+    $settings = app(BillingSettings::class);
+
+    expect($settings->maskSecret('short'))->toBe('••••')
+        ->and($settings->maskSecret('12345678901'))->toBe('••••')
+        ->and($settings->maskSecret('123456789012'))->toBe('••••9012')
+        ->and(mb_strlen('kq_ui_secret_9999'))->toBeGreaterThanOrEqual(12)
+        ->and($settings->maskSecret('kq_ui_secret_9999'))->toBe('••••9999');
+});
+
 it('keeps the stored secret when the input is blank', function () {
     $owner = billingSettingsOwner();
     BillingGatewaySetting::query()->create([

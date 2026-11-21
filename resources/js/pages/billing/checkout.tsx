@@ -34,11 +34,15 @@ type Props = {
         price_yearly_minor: number;
         currency: string;
         trial_days: number;
+        trial_eligible?: boolean;
+        monthly_active?: boolean;
+        yearly_active?: boolean;
     };
     period: 'monthly' | 'yearly';
     countries: Array<{ code: string; name: string }>;
     billingDetails: Record<string, string>;
     pricesArePlaceholders: boolean;
+    trialCardRequired?: boolean;
     changeMode?: 'new' | 'upgrade' | 'downgrade';
     proration?: Proration | null;
     currentPlan?: {
@@ -61,6 +65,7 @@ export default function CheckoutPage({
     countries,
     billingDetails,
     pricesArePlaceholders,
+    trialCardRequired = true,
     changeMode = 'new',
     proration = null,
     currentPlan = null,
@@ -182,6 +187,113 @@ export default function CheckoutPage({
                         </div>
                     )}
                 </div>
+
+                {changeMode === 'new' &&
+                    plan.trial_eligible &&
+                    plan.trial_days > 0 && (
+                        <Form
+                            action={`/tenants/${tenant.id}/billing/trial/${plan.id}`}
+                            method="post"
+                            className="space-y-4 rounded-lg border border-border bg-white p-5"
+                        >
+                            {({ errors, processing }) => (
+                                <>
+                                    <input
+                                        type="hidden"
+                                        name="period"
+                                        value={period}
+                                    />
+                                    <p className="text-sm text-muted-foreground">
+                                        Start a {plan.trial_days}-day free trial
+                                        {trialCardRequired
+                                            ? ' (card required; you will not be charged until the trial ends).'
+                                            : ' with no card required.'}
+                                    </p>
+                                    {trialCardRequired && (
+                                        <div className="grid gap-4 md:grid-cols-2">
+                                            <div className="space-y-2">
+                                                <Label htmlFor="trial_company_name">
+                                                    Company name
+                                                </Label>
+                                                <Input
+                                                    id="trial_company_name"
+                                                    name="company_name"
+                                                    defaultValue={
+                                                        billingDetails.company_name
+                                                    }
+                                                    required
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="trial_billing_email">
+                                                    Billing email
+                                                </Label>
+                                                <Input
+                                                    id="trial_billing_email"
+                                                    name="billing_email"
+                                                    type="email"
+                                                    defaultValue={
+                                                        billingDetails.billing_email
+                                                    }
+                                                    required
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="trial_country">
+                                                    Country
+                                                </Label>
+                                                <select
+                                                    id="trial_country"
+                                                    name="country"
+                                                    defaultValue={
+                                                        billingDetails.country
+                                                    }
+                                                    className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
+                                                    required
+                                                >
+                                                    {countries.map(
+                                                        (country) => (
+                                                            <option
+                                                                key={
+                                                                    country.code
+                                                                }
+                                                                value={
+                                                                    country.code
+                                                                }
+                                                            >
+                                                                {country.name}
+                                                            </option>
+                                                        ),
+                                                    )}
+                                                </select>
+                                            </div>
+                                            <div className="space-y-2 md:col-span-2">
+                                                <Label htmlFor="trial_address_line1">
+                                                    Address
+                                                </Label>
+                                                <Input
+                                                    id="trial_address_line1"
+                                                    name="address_line1"
+                                                    defaultValue={
+                                                        billingDetails.address_line1
+                                                    }
+                                                    required
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+                                    <InputError message={errors.trial} />
+                                    <Button
+                                        type="submit"
+                                        disabled={processing}
+                                        variant="secondary"
+                                    >
+                                        Start {plan.trial_days}-day free trial
+                                    </Button>
+                                </>
+                            )}
+                        </Form>
+                    )}
 
                 <Form
                     action={`/tenants/${tenant.id}/billing/checkout/${plan.id}`}

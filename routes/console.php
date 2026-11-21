@@ -326,3 +326,7 @@ Schedule::command('billing:webhooks:reconcile')
 Schedule::command('billing:apply-scheduled-plan-changes')
     ->everyFiveMinutes()
     ->withoutOverlapping();
+
+Schedule::command('billing:expire-trials')
+    ->everyFiveMinutes()
+    ->withoutOverlapping();

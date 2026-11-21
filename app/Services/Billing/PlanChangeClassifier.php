@@ -32,7 +32,13 @@ class PlanChangeClassifier
     }
 
     /**
-     * Stored charge_period when set; otherwise infer from unit amount vs plan yearly price.
+     * Prefer the price snapshot's stored charge_period.
+     *
+     * Fallback (legacy null rows only): infer yearly only when unit_amount_minor
+     * equals the plan's *current* yearly price and does not also equal the monthly
+     * price. After a catalog price edit those amounts may no longer match the
+     * snapshot, so the fallback defaults to monthly rather than misclassify.
+     * Run billing:backfill-tenant-subscription-charge-periods for null rows.
      */
     public function chargePeriodFor(TenantSubscription $subscription): string
     {
@@ -45,11 +51,14 @@ class PlanChangeClassifier
 
     /**
      * Legacy inference used for backfill and null charge_period rows.
+     * Unsafe after plan price edits — prefer stored charge_period.
      */
     public function inferChargePeriod(TenantSubscription $subscription): string
     {
         $plan = $subscription->plan;
-        if ($plan !== null && $subscription->unit_amount_minor === $plan->price_yearly_minor) {
+        if ($plan !== null
+            && $subscription->unit_amount_minor === $plan->price_yearly_minor
+            && $subscription->unit_amount_minor !== $plan->price_monthly_minor) {
             return 'yearly';
         }
 

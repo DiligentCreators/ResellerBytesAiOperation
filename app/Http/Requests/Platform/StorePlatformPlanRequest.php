@@ -3,8 +3,10 @@
 namespace App\Http\Requests\Platform;
 
 use App\Http\Requests\Platform\Concerns\ValidatesPlatformPlan;
+use App\Services\CentralStaffAuthorization;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Validator;
 
 class StorePlatformPlanRequest extends FormRequest
 {
@@ -12,7 +14,7 @@ class StorePlatformPlanRequest extends FormRequest
 
     public function authorize(): bool
     {
-        return true;
+        return app(CentralStaffAuthorization::class)->can($this->user(), 'billing.settings.manage');
     }
 
     /**
@@ -21,5 +23,13 @@ class StorePlatformPlanRequest extends FormRequest
     public function rules(): array
     {
         return $this->planRules();
+    }
+
+    /**
+     * @return array<int, callable(Validator): void>
+     */
+    public function after(): array
+    {
+        return $this->planAfterValidation();
     }
 }

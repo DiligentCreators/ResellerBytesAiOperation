@@ -18,6 +18,9 @@ type Plan = {
     price_yearly_minor: number;
     currency: string;
     trial_days: number;
+    trial_enabled: boolean;
+    monthly_active: boolean;
+    yearly_active: boolean;
     is_contact_sales: boolean;
 };
 
@@ -47,6 +50,12 @@ export default function BillingPlans({
     const { auth } = usePage().props;
     const resolvedTenantId = tenantId ?? auth.tenants?.[0]?.id;
     const [yearly, setYearly] = useState(false);
+    const hasMonthly = plans.some((plan) => plan.monthly_active);
+    const hasYearly = plans.some((plan) => plan.yearly_active);
+    const periodIsYearly = hasYearly && (yearly || !hasMonthly);
+    const visiblePlans = plans.filter((plan) =>
+        periodIsYearly ? plan.yearly_active : plan.monthly_active,
+    );
 
     return (
         <>
@@ -56,38 +65,40 @@ export default function BillingPlans({
                     title="Choose a plan"
                     description="Select entitlements for this workspace. You can change plans later from billing settings."
                     actions={
-                        <div
-                            className="inline-flex rounded-lg bg-muted p-1"
-                            role="radiogroup"
-                            aria-label="Billing period"
-                        >
-                            <button
-                                type="button"
-                                role="radio"
-                                aria-checked={!yearly}
-                                onClick={() => setYearly(false)}
-                                className={`h-8 rounded-md px-4 text-sm font-medium ${
-                                    !yearly
-                                        ? 'bg-white text-foreground shadow-xs'
-                                        : 'text-muted-foreground'
-                                }`}
+                        hasMonthly && hasYearly ? (
+                            <div
+                                className="inline-flex rounded-lg bg-muted p-1"
+                                role="radiogroup"
+                                aria-label="Billing period"
                             >
-                                Monthly
-                            </button>
-                            <button
-                                type="button"
-                                role="radio"
-                                aria-checked={yearly}
-                                onClick={() => setYearly(true)}
-                                className={`h-8 rounded-md px-4 text-sm font-medium ${
-                                    yearly
-                                        ? 'bg-white text-foreground shadow-xs'
-                                        : 'text-muted-foreground'
-                                }`}
-                            >
-                                Yearly
-                            </button>
-                        </div>
+                                <button
+                                    type="button"
+                                    role="radio"
+                                    aria-checked={!periodIsYearly}
+                                    onClick={() => setYearly(false)}
+                                    className={`h-8 rounded-md px-4 text-sm font-medium ${
+                                        !periodIsYearly
+                                            ? 'bg-white text-foreground shadow-xs'
+                                            : 'text-muted-foreground'
+                                    }`}
+                                >
+                                    Monthly
+                                </button>
+                                <button
+                                    type="button"
+                                    role="radio"
+                                    aria-checked={periodIsYearly}
+                                    onClick={() => setYearly(true)}
+                                    className={`h-8 rounded-md px-4 text-sm font-medium ${
+                                        periodIsYearly
+                                            ? 'bg-white text-foreground shadow-xs'
+                                            : 'text-muted-foreground'
+                                    }`}
+                                >
+                                    Yearly
+                                </button>
+                            </div>
+                        ) : null
                     }
                 />
 
@@ -123,8 +134,8 @@ export default function BillingPlans({
                 )}
 
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                    {plans.map((plan) => {
-                        const price = yearly
+                    {visiblePlans.map((plan) => {
+                        const price = periodIsYearly
                             ? plan.price_yearly_minor
                             : plan.price_monthly_minor;
                         const highlighted = plan.code === 'growth';
@@ -160,7 +171,7 @@ export default function BillingPlans({
                                 <p className="text-xs text-muted-foreground">
                                     {plan.is_contact_sales
                                         ? 'Talk to sales'
-                                        : yearly
+                                        : periodIsYearly
                                           ? 'per year'
                                           : 'per month'}
                                 </p>
@@ -170,12 +181,13 @@ export default function BillingPlans({
                                             className="mt-0.5 size-4 text-brand"
                                             aria-hidden
                                         />
-                                        {plan.trial_days > 0
-                                            ? `${plan.trial_days}-day trial`
+                                        {plan.trial_enabled &&
+                                        plan.trial_days > 0
+                                            ? `${plan.trial_days}-day free trial`
                                             : 'No trial'}
                                     </li>
                                 </ul>
-                                <div className="mt-auto pt-5">
+                                <div className="mt-auto space-y-2 pt-5">
                                     {plan.is_contact_sales ? (
                                         <Button
                                             asChild
@@ -187,13 +199,30 @@ export default function BillingPlans({
                                             </a>
                                         </Button>
                                     ) : resolvedTenantId ? (
-                                        <Button asChild className="w-full">
-                                            <Link
-                                                href={`/tenants/${resolvedTenantId}/billing/checkout/${plan.id}?period=${yearly ? 'yearly' : 'monthly'}`}
-                                            >
-                                                Continue to checkout
-                                            </Link>
-                                        </Button>
+                                        <>
+                                            {plan.trial_enabled &&
+                                            plan.trial_days > 0 ? (
+                                                <Button
+                                                    asChild
+                                                    variant="secondary"
+                                                    className="w-full"
+                                                >
+                                                    <Link
+                                                        href={`/tenants/${resolvedTenantId}/billing/checkout/${plan.id}?period=${periodIsYearly ? 'yearly' : 'monthly'}`}
+                                                    >
+                                                        Start {plan.trial_days}
+                                                        -day trial
+                                                    </Link>
+                                                </Button>
+                                            ) : null}
+                                            <Button asChild className="w-full">
+                                                <Link
+                                                    href={`/tenants/${resolvedTenantId}/billing/checkout/${plan.id}?period=${periodIsYearly ? 'yearly' : 'monthly'}`}
+                                                >
+                                                    Continue to checkout
+                                                </Link>
+                                            </Button>
+                                        </>
                                     ) : null}
                                 </div>
                             </div>

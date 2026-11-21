@@ -12,6 +12,8 @@ use Throwable;
  */
 class BillingSettings
 {
+    private ?bool $tableReady = null;
+
     public function gateway(): string
     {
         $fromDb = $this->nonEmptyString($this->record()?->gateway);
@@ -164,9 +166,11 @@ class BillingSettings
             return '';
         }
 
-        $suffix = mb_substr($value, -4);
+        if (mb_strlen($value) < 12) {
+            return '••••';
+        }
 
-        return '••••'.$suffix;
+        return '••••'.mb_substr($value, -4);
     }
 
     private function record(): ?BillingGatewaySetting
@@ -184,11 +188,17 @@ class BillingSettings
 
     private function tableReady(): bool
     {
-        try {
-            return Schema::hasTable('billing_gateway_settings');
-        } catch (Throwable) {
-            return false;
+        if ($this->tableReady !== null) {
+            return $this->tableReady;
         }
+
+        try {
+            $this->tableReady = Schema::hasTable('billing_gateway_settings');
+        } catch (Throwable) {
+            $this->tableReady = false;
+        }
+
+        return $this->tableReady;
     }
 
     private function nonEmptyString(mixed $value): ?string

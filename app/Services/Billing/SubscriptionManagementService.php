@@ -88,7 +88,9 @@ class SubscriptionManagementService
         string $billingPeriod,
         array $billingDetails,
     ): array {
-        if (! in_array($billingPeriod, ['monthly', 'yearly'], true) || ! $plan->is_active || $plan->is_contact_sales) {
+        if (! in_array($billingPeriod, ['monthly', 'yearly'], true)
+            || ! $plan->isCheckoutable()
+            || ! $plan->intervalIsActive($billingPeriod)) {
             throw new InvalidArgumentException('billing_plan_change_invalid');
         }
 

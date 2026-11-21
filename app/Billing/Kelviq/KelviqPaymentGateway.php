@@ -96,7 +96,8 @@ class KelviqPaymentGateway implements PaymentGateway
         ], absolute: true);
         $cancelUrl = route('billing.settings.show', ['tenant' => $subscription->tenant_id], absolute: true);
 
-        $checkout = $this->client->createCheckout([
+        $checkoutKind = $this->checkoutKind($subscription, $invoice);
+        $payload = [
             'planIdentifier' => $planIdentifier,
             'chargePeriod' => $period === 'yearly' ? 'YEARLY' : 'MONTHLY',
             'customerId' => $customerId,
@@ -112,15 +113,66 @@ class KelviqPaymentGateway implements PaymentGateway
                 'local_invoice_id' => (string) $invoice->id,
                 'provider_invoice_id' => (string) $invoice->provider_invoice_id,
                 'local_subscription_id' => (string) $subscription->id,
-                'checkout_kind' => $subscription->status === 'incomplete' ? 'plan_change' : 'checkout',
+                'checkout_kind' => $checkoutKind,
             ],
-            // TODO(kelviq): confirm trialPeriod units (days vs ISO duration) before enabling.
-        ]);
+        ];
+
+        // trialPeriod is integer days (>= 1) and overrides the Kelviq plan trial.
+        // Only set for explicit trial checkouts — never for paid CheckoutService::begin.
+        $trialDays = $this->trialPeriodDays($subscription, $invoice, $checkoutKind);
+        if ($trialDays !== null) {
+            $payload['trialPeriod'] = $trialDays;
+        }
+
+        $checkout = $this->client->createCheckout($payload);
 
         $details = is_array($invoice->billing_details) ? $invoice->billing_details : [];
         $details['kelviq_checkout_session_id'] = $checkout['checkoutSessionId'];
         $invoice->forceFill(['billing_details' => $details])->save();
 
         return $checkout['checkoutUrl'];
+    }
+
+    /**
+     * @return 'trial'|'plan_change'|'checkout'
+     */
+    private function checkoutKind(TenantSubscription $subscription, TenantBillingInvoice $invoice): string
+    {
+        $details = is_array($invoice->billing_details) ? $invoice->billing_details : [];
+        if (($details['checkout_kind'] ?? null) === 'trial'
+            || ($subscription->status === 'trialing' && (int) $invoice->amount_due_minor === 0)) {
+            return 'trial';
+        }
+
+        if ($subscription->status === 'incomplete' && $subscription->replaces_subscription_id !== null) {
+            return 'plan_change';
+        }
+
+        return 'checkout';
+    }
+
+    private function trialPeriodDays(
+        TenantSubscription $subscription,
+        TenantBillingInvoice $invoice,
+        string $checkoutKind,
+    ): ?int {
+        if ($checkoutKind !== 'trial') {
+            return null;
+        }
+
+        $details = is_array($invoice->billing_details) ? $invoice->billing_details : [];
+        $fromDetails = filter_var($details['trial_days'] ?? null, FILTER_VALIDATE_INT);
+        if ($fromDetails !== false && $fromDetails >= 1) {
+            return $fromDetails;
+        }
+
+        if ($subscription->trial_ends_at !== null && $subscription->current_period_starts_at !== null) {
+            $days = (int) $subscription->current_period_starts_at->diffInDays($subscription->trial_ends_at);
+            if ($days >= 1) {
+                return $days;
+            }
+        }
+
+        return null;
     }
 }
