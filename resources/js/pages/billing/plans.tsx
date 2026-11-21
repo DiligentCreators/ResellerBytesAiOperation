@@ -131,9 +131,7 @@ export default function BillingPlans({
                                 timeZone: timezone,
                             })}
                             , {currentTrial.days_remaining}{' '}
-                            {currentTrial.days_remaining === 1
-                                ? 'day'
-                                : 'days'}{' '}
+                            {currentTrial.days_remaining === 1 ? 'day' : 'days'}{' '}
                             left on {currentTrial.plan_name}. Choose any plan to
                             subscribe now — the paid period starts at payment.
                         </p>

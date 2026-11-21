@@ -203,7 +203,9 @@ export default function PlatformBillingSettingsPage({
                                     <h2 className="text-base font-semibold">
                                         Gateway
                                     </h2>
-                                    <SourceHint source={settings.gateway_source} />
+                                    <SourceHint
+                                        source={settings.gateway_source}
+                                    />
                                 </div>
                                 <div className="grid gap-3 sm:grid-cols-2">
                                     <label className="flex items-center gap-3 rounded-lg border border-border p-3 text-sm">

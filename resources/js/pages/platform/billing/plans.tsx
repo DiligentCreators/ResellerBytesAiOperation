@@ -126,7 +126,11 @@ function FeatureListEditor({
             </p>
             {lines.map((line, index) => (
                 <div key={index} className="flex gap-2">
-                    <input type="hidden" name={`${name}[${index}]`} value={line} />
+                    <input
+                        type="hidden"
+                        name={`${name}[${index}]`}
+                        value={line}
+                    />
                     <Input
                         value={line}
                         maxLength={120}
@@ -370,7 +374,9 @@ function PlanFields({
                 <Input
                     name="entitlements[limits][retention_days]"
                     type="number"
-                    defaultValue={plan?.entitlements.limits?.retention_days ?? 30}
+                    defaultValue={
+                        plan?.entitlements.limits?.retention_days ?? 30
+                    }
                     required
                     disabled={disabled}
                 />

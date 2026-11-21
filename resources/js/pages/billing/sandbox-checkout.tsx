@@ -49,15 +49,17 @@ export default function SandboxCheckoutPage({
                 </div>
 
                 <div className="rounded-lg border border-border bg-white p-5">
-                    <h1 className="text-xl font-bold tracking-tight">{title}</h1>
+                    <h1 className="text-xl font-bold tracking-tight">
+                        {title}
+                    </h1>
                     <p className="mt-2 text-sm text-muted-foreground">
                         {tenant.name}
                     </p>
                     {isTrial && trialEndsAt ? (
                         <p className="mt-4 text-sm text-muted-foreground">
                             Card required · trial ends{' '}
-                            {formatDate(trialEndsAt, { timeZone: 'UTC' })}.
-                            You will not be charged today.
+                            {formatDate(trialEndsAt, { timeZone: 'UTC' })}. You
+                            will not be charged today.
                         </p>
                     ) : (
                         <>

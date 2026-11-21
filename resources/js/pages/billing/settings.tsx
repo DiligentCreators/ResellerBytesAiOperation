@@ -210,10 +210,9 @@ export default function BillingSettingsPage(props: Props) {
                                     {formatDate(subscription.trial_ends_at, {
                                         timeZone: timezone,
                                     })}
-                                    ,{' '}
-                                    {subscription.trial_days_remaining ?? 0}{' '}
-                                    {(subscription.trial_days_remaining ?? 0) ===
-                                    1
+                                    , {subscription.trial_days_remaining ?? 0}{' '}
+                                    {(subscription.trial_days_remaining ??
+                                        0) === 1
                                         ? 'day'
                                         : 'days'}{' '}
                                     left
@@ -275,8 +274,7 @@ export default function BillingSettingsPage(props: Props) {
                                                                 processing
                                                             }
                                                         >
-                                                            Cancel at period
-                                                            end
+                                                            Cancel at period end
                                                         </Button>
                                                     )}
                                                 </Form>
