@@ -10,6 +10,7 @@ import { formatMoney } from '@/lib/money';
 
 type Props = {
     tenant: { id: string; name: string };
+    timezone?: string;
     invoices: {
         data: Array<{
             id: number;
@@ -19,12 +20,19 @@ type Props = {
             amount_due_minor: number;
             issued_at: string | null;
             paid_at: string | null;
+            service_period_starts_at?: string | null;
+            service_period_ends_at?: string | null;
         }>;
     };
 };
 
-export default function InvoicesIndex({ tenant, invoices }: Props) {
-    const timezone = useWorkspaceTimezone();
+export default function InvoicesIndex({
+    tenant,
+    invoices,
+    timezone: timezoneProp,
+}: Props) {
+    const workspaceTimezone = useWorkspaceTimezone();
+    const timezone = timezoneProp ?? workspaceTimezone;
 
     return (
         <>
@@ -68,6 +76,9 @@ export default function InvoicesIndex({ tenant, invoices }: Props) {
                                     <th scope="col" className="h-9 px-4">
                                         Issued
                                     </th>
+                                    <th scope="col" className="h-9 px-4">
+                                        Service period
+                                    </th>
                                     <th
                                         scope="col"
                                         className="h-9 px-4 text-right"
@@ -99,6 +110,12 @@ export default function InvoicesIndex({ tenant, invoices }: Props) {
                                             {formatDate(invoice.issued_at, {
                                                 timeZone: timezone,
                                             })}
+                                        </td>
+                                        <td className="px-4 text-muted-foreground">
+                                            {invoice.service_period_starts_at &&
+                                            invoice.service_period_ends_at
+                                                ? `${formatDate(invoice.service_period_starts_at, { timeZone: timezone })} – ${formatDate(invoice.service_period_ends_at, { timeZone: timezone })}`
+                                                : '—'}
                                         </td>
                                         <td className="px-4 text-right font-medium tabular-nums">
                                             {formatMoney(

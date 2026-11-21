@@ -10,10 +10,13 @@ use App\Models\TenantBillingInvoice;
 use App\Models\TenantBillingPayment;
 use App\Models\TenantSubscription;
 use App\Models\User;
+use App\Services\Billing\PlanChangeClassifier;
 use App\Services\Billing\SubscriptionManagementService;
+use App\Services\Tenancy\TenantAccess;
 use App\Services\Tenancy\TenantRoleAuthorization;
 use App\Support\CountryCodes;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -30,7 +33,10 @@ class BillingSettingsController extends Controller
         app(TenantRoleAuthorization::class)->require($user, $tenant->id, 'billing.read');
 
         $subscription = TenantSubscription::query()
-            ->with('plan:id,code,name,price_monthly_minor,price_yearly_minor')
+            ->with([
+                'plan:id,code,name,price_monthly_minor,price_yearly_minor',
+                'scheduledPlan:id,code,name',
+            ])
             ->where('tenant_id', $tenant->id)
             ->whereIn('status', ['trialing', 'active', 'past_due', 'suspended'])
             ->latest('id')
@@ -52,7 +58,18 @@ class BillingSettingsController extends Controller
             ->where('tenant_id', $tenant->id)
             ->latest('id')
             ->limit(20)
-            ->get(['id', 'invoice_number', 'status', 'currency', 'amount_due_minor', 'amount_paid_minor', 'issued_at', 'paid_at']);
+            ->get([
+                'id',
+                'invoice_number',
+                'status',
+                'currency',
+                'amount_due_minor',
+                'amount_paid_minor',
+                'issued_at',
+                'paid_at',
+                'service_period_starts_at',
+                'service_period_ends_at',
+            ]);
 
         $payments = TenantBillingPayment::query()
             ->where('tenant_id', $tenant->id)
@@ -63,6 +80,7 @@ class BillingSettingsController extends Controller
         $billing = (array) (($tenant->settings['billing'] ?? []) ?: []);
         $membership = app(TenantRoleAuthorization::class)->require($user, $tenant->id, 'billing.read');
         $canManage = app(TenantRoleAuthorization::class)->allows($membership, 'billing.manage');
+        $timezone = $tenant->timezone ?: 'UTC';
 
         return Inertia::render('billing/settings', [
             'tenant' => ['id' => $tenant->id, 'name' => $tenant->name],
@@ -73,16 +91,36 @@ class BillingSettingsController extends Controller
                 'status' => $subscription->status,
                 'currency' => $subscription->currency,
                 'unit_amount_minor' => $subscription->unit_amount_minor,
-                'billing_period' => $this->billingPeriodFor($subscription),
+                'billing_period' => app(PlanChangeClassifier::class)->chargePeriodFor($subscription),
                 'cancel_at_period_end' => $subscription->cancel_at_period_end,
                 'current_period_starts_at' => $subscription->current_period_starts_at?->toIso8601String(),
                 'current_period_ends_at' => $subscription->current_period_ends_at?->toIso8601String(),
                 'entitlements' => $subscription->entitlements,
             ] : null,
-            'timezone' => $tenant->timezone ?: 'UTC',
+            'scheduledChange' => $this->scheduledChangePayload($subscription),
+            'timezone' => $timezone,
             'usage' => $usage,
-            'invoices' => $invoices,
-            'payments' => $payments,
+            'invoices' => $invoices->map(fn (TenantBillingInvoice $invoice): array => [
+                'id' => $invoice->id,
+                'invoice_number' => $invoice->invoice_number,
+                'status' => $invoice->status,
+                'currency' => $invoice->currency,
+                'amount_due_minor' => $invoice->amount_due_minor,
+                'amount_paid_minor' => $invoice->amount_paid_minor,
+                'issued_at' => $invoice->issued_at?->toIso8601String(),
+                'paid_at' => $invoice->paid_at?->toIso8601String(),
+                'service_period_starts_at' => $invoice->service_period_starts_at?->toIso8601String(),
+                'service_period_ends_at' => $invoice->service_period_ends_at?->toIso8601String(),
+            ]),
+            'payments' => $payments->map(fn (TenantBillingPayment $payment): array => [
+                'id' => $payment->id,
+                'tenant_billing_invoice_id' => $payment->tenant_billing_invoice_id,
+                'status' => $payment->status,
+                'currency' => $payment->currency,
+                'amount_minor' => $payment->amount_minor,
+                'received_at' => $payment->received_at?->toIso8601String(),
+                'collection_mode' => $payment->collection_mode,
+            ]),
             'plans' => Plan::query()->publicCatalog()->get(['id', 'code', 'name', 'price_monthly_minor', 'price_yearly_minor', 'currency', 'is_contact_sales']),
             'billingDetails' => $billing,
             'countries' => CountryCodes::options(),
@@ -149,14 +187,54 @@ class BillingSettingsController extends Controller
         return back()->with('status', 'Cancellation at period end cleared.');
     }
 
-    private function billingPeriodFor(TenantSubscription $subscription): string
+    public function cancelScheduledChange(Request $request, Tenant $tenant, TenantSubscription $subscription): RedirectResponse
     {
-        $plan = $subscription->plan;
+        $user = $request->user();
+        abort_unless($user instanceof User, 403);
 
-        if ($plan !== null && $subscription->unit_amount_minor === $plan->price_yearly_minor) {
-            return 'yearly';
+        // Authorize membership before any other work so outsiders always get 404.
+        try {
+            app(TenantAccess::class)->requireMembership($user, $tenant->id);
+        } catch (ModelNotFoundException) {
+            abort(404);
         }
 
-        return 'monthly';
+        abort_unless($subscription->tenant_id === $tenant->id, 404);
+        app(TenantRoleAuthorization::class)->require($user, $tenant->id, 'billing.manage');
+
+        try {
+            app(SubscriptionManagementService::class)->cancelScheduledChange($tenant->id, (int) $subscription->id, $user);
+        } catch (AuthorizationException $exception) {
+            throw $exception;
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return back()->withErrors(['subscription' => 'Unable to cancel the scheduled plan change.']);
+        }
+
+        return back()->with('status', 'Scheduled plan change canceled.');
+    }
+
+    /**
+     * @return array{plan_id: int, plan_code: string, plan_name: string, charge_period: string, change_at: string}|null
+     */
+    private function scheduledChangePayload(?TenantSubscription $subscription): ?array
+    {
+        if ($subscription === null
+            || $subscription->scheduled_plan_id === null
+            || $subscription->scheduled_change_at === null
+            || ! in_array($subscription->scheduled_charge_period, ['monthly', 'yearly'], true)) {
+            return null;
+        }
+
+        $scheduledPlan = $subscription->scheduledPlan;
+
+        return [
+            'plan_id' => (int) $subscription->scheduled_plan_id,
+            'plan_code' => $scheduledPlan->code ?? '',
+            'plan_name' => $scheduledPlan->name ?? (string) $subscription->scheduled_plan_id,
+            'charge_period' => $subscription->scheduled_charge_period,
+            'change_at' => $subscription->scheduled_change_at->toIso8601String(),
+        ];
     }
 }

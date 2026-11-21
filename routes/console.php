@@ -322,3 +322,7 @@ Schedule::command('billing:webhooks:reconcile')
     ->everyMinute()
     ->withoutOverlapping()
     ->when(fn (): bool => filled(config('database.connections.pgsql_operations.username')) || DB::connection()->getDriverName() !== 'pgsql');
+
+Schedule::command('billing:apply-scheduled-plan-changes')
+    ->everyFiveMinutes()
+    ->withoutOverlapping();

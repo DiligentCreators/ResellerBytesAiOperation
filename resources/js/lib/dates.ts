@@ -1,6 +1,8 @@
 type FormatOptions = {
     timeZone?: string | null;
     withTime?: boolean;
+    /** Append a short timezone label (e.g. "UTC", "GMT+5") when withTime is true. */
+    withTimeZoneLabel?: boolean;
 };
 
 /** Fixed locale so SSR Node and the browser render identical strings. */
@@ -17,10 +19,24 @@ function resolveTimeZone(timeZone?: string | null): string {
     try {
         // Throws RangeError for invalid IANA zones.
         new Intl.DateTimeFormat(DISPLAY_LOCALE, { timeZone }).format(0);
-
-        return timeZone;
     } catch {
         return DEFAULT_TIME_ZONE;
+    }
+
+    return timeZone;
+}
+
+function timeZoneLabel(date: Date, timeZone: string): string {
+    try {
+        const parts = new Intl.DateTimeFormat(DISPLAY_LOCALE, {
+            timeZone,
+            timeZoneName: 'short',
+        }).formatToParts(date);
+        const name = parts.find((part) => part.type === 'timeZoneName')?.value;
+
+        return name && name.trim() !== '' ? name : timeZone;
+    } catch {
+        return timeZone;
     }
 }
 
@@ -44,7 +60,7 @@ export function formatDate(
 
     const timeZone = resolveTimeZone(options.timeZone);
 
-    return new Intl.DateTimeFormat(DISPLAY_LOCALE, {
+    const formatted = new Intl.DateTimeFormat(DISPLAY_LOCALE, {
         year: 'numeric',
         month: 'short',
         day: 'numeric',
@@ -53,11 +69,21 @@ export function formatDate(
             : {}),
         timeZone,
     }).format(date);
+
+    if (options.withTime && options.withTimeZoneLabel) {
+        return `${formatted} ${timeZoneLabel(date, timeZone)}`;
+    }
+
+    return formatted;
 }
 
 export function formatDateTime(
     value: string | null | undefined,
     timeZone?: string | null,
 ): string {
-    return formatDate(value, { timeZone, withTime: true });
+    return formatDate(value, {
+        timeZone,
+        withTime: true,
+        withTimeZoneLabel: true,
+    });
 }

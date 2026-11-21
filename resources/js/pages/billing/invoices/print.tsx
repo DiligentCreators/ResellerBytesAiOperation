@@ -6,6 +6,7 @@ import { formatMoney } from '@/lib/money';
 
 type Props = {
     tenant: { id: string; name: string };
+    timezone?: string;
     invoice: {
         invoice_number: string;
         status: string;
@@ -17,6 +18,8 @@ type Props = {
         billing_details: Record<string, string>;
         issued_at: string | null;
         paid_at: string | null;
+        service_period_starts_at?: string | null;
+        service_period_ends_at?: string | null;
     };
     seller: {
         company_name: string;
@@ -26,8 +29,14 @@ type Props = {
     };
 };
 
-export default function InvoicePrint({ tenant, invoice, seller }: Props) {
-    const timezone = useWorkspaceTimezone();
+export default function InvoicePrint({
+    tenant,
+    invoice,
+    seller,
+    timezone: timezoneProp,
+}: Props) {
+    const workspaceTimezone = useWorkspaceTimezone();
+    const timezone = timezoneProp ?? workspaceTimezone;
 
     useEffect(() => {
         const timer = window.setTimeout(() => window.print(), 250);
@@ -116,6 +125,10 @@ export default function InvoicePrint({ tenant, invoice, seller }: Props) {
                 <p className="mt-10 text-xs text-muted-foreground">
                     Issued{' '}
                     {formatDate(invoice.issued_at, { timeZone: timezone })}
+                    {invoice.service_period_starts_at &&
+                    invoice.service_period_ends_at
+                        ? ` · Service period: ${formatDate(invoice.service_period_starts_at, { timeZone: timezone })} – ${formatDate(invoice.service_period_ends_at, { timeZone: timezone })}`
+                        : ''}
                     {invoice.paid_at
                         ? ` · Paid ${formatDate(invoice.paid_at, { timeZone: timezone })}`
                         : ''}

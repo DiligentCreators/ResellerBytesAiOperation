@@ -17,6 +17,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property CarbonImmutable|null $issued_at
  * @property CarbonImmutable|null $due_at
  * @property CarbonImmutable|null $paid_at
+ * @property CarbonImmutable|null $service_period_starts_at
+ * @property CarbonImmutable|null $service_period_ends_at
  */
 class TenantBillingInvoice extends Model
 {
@@ -41,6 +43,8 @@ class TenantBillingInvoice extends Model
         'issued_at',
         'due_at',
         'paid_at',
+        'service_period_starts_at',
+        'service_period_ends_at',
     ];
 
     protected function casts(): array
@@ -55,6 +59,8 @@ class TenantBillingInvoice extends Model
             'issued_at' => 'immutable_datetime',
             'due_at' => 'immutable_datetime',
             'paid_at' => 'immutable_datetime',
+            'service_period_starts_at' => 'immutable_datetime',
+            'service_period_ends_at' => 'immutable_datetime',
         ];
     }
 

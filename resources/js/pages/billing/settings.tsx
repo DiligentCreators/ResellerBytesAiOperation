@@ -7,6 +7,14 @@ import InputError from '@/components/input-error';
 import { formatDate, formatDateTime } from '@/lib/dates';
 import { formatMoney } from '@/lib/money';
 
+type ScheduledChange = {
+    plan_id: number;
+    plan_code: string;
+    plan_name: string;
+    charge_period: string;
+    change_at: string;
+};
+
 type Props = {
     tenant: { id: string; name: string };
     timezone?: string;
@@ -22,6 +30,7 @@ type Props = {
         current_period_ends_at: string | null;
         entitlements: { limits?: Record<string, number> };
     } | null;
+    scheduledChange?: ScheduledChange | null;
     usage: { members: number; integrations: number; diagnostics: number };
     invoices: Array<{
         id: number;
@@ -30,6 +39,8 @@ type Props = {
         currency: string;
         amount_due_minor: number;
         issued_at: string | null;
+        service_period_starts_at?: string | null;
+        service_period_ends_at?: string | null;
     }>;
     payments: Array<{
         id: number;
@@ -94,6 +105,7 @@ export default function BillingSettingsPage(props: Props) {
         tenant,
         timezone,
         subscription,
+        scheduledChange,
         usage,
         invoices,
         payments,
@@ -136,6 +148,38 @@ export default function BillingSettingsPage(props: Props) {
                         >
                             {checkoutError}
                         </p>
+                    )}
+                    {scheduledChange && subscription && (
+                        <div
+                            role="status"
+                            className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-surface px-4 py-3 text-sm"
+                        >
+                            <p>
+                                Your plan changes to {scheduledChange.plan_name}{' '}
+                                ({scheduledChange.charge_period}) on{' '}
+                                {formatDate(scheduledChange.change_at, {
+                                    timeZone: timezone,
+                                })}
+                                .
+                            </p>
+                            {canManage && (
+                                <Form
+                                    action={`/tenants/${tenant.id}/billing/subscriptions/${subscription.id}/scheduled-change`}
+                                    method="delete"
+                                >
+                                    {({ processing }) => (
+                                        <Button
+                                            type="submit"
+                                            variant="outline"
+                                            size="sm"
+                                            disabled={processing}
+                                        >
+                                            Cancel scheduled change
+                                        </Button>
+                                    )}
+                                </Form>
+                            )}
+                        </div>
                     )}
                 </div>
 

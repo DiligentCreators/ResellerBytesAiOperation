@@ -23,11 +23,14 @@ type Invoice = {
     issued_at: string | null;
     due_at: string | null;
     paid_at: string | null;
+    service_period_starts_at?: string | null;
+    service_period_ends_at?: string | null;
 };
 
 type Props = {
     tenant: { id: string; name: string };
     invoice: Invoice;
+    timezone?: string;
     seller: {
         company_name: string;
         address: string;
@@ -36,8 +39,14 @@ type Props = {
     };
 };
 
-export default function InvoiceShow({ tenant, invoice, seller }: Props) {
-    const timezone = useWorkspaceTimezone();
+export default function InvoiceShow({
+    tenant,
+    invoice,
+    seller,
+    timezone: timezoneProp,
+}: Props) {
+    const workspaceTimezone = useWorkspaceTimezone();
+    const timezone = timezoneProp ?? workspaceTimezone;
 
     return (
         <>
@@ -86,7 +95,7 @@ export default function InvoiceShow({ tenant, invoice, seller }: Props) {
                         </div>
                     </div>
 
-                    <div className="mt-8 grid gap-6 border-t border-border pt-6 sm:grid-cols-4">
+                    <div className="mt-8 grid gap-6 border-t border-border pt-6 sm:grid-cols-2 lg:grid-cols-5">
                         <div>
                             <p className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
                                 Billed to
@@ -117,6 +126,17 @@ export default function InvoiceShow({ tenant, invoice, seller }: Props) {
                                 {formatDate(invoice.due_at, {
                                     timeZone: timezone,
                                 })}
+                            </p>
+                        </div>
+                        <div>
+                            <p className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
+                                Service period
+                            </p>
+                            <p className="mt-1 text-sm">
+                                {invoice.service_period_starts_at &&
+                                invoice.service_period_ends_at
+                                    ? `${formatDate(invoice.service_period_starts_at, { timeZone: timezone })} – ${formatDate(invoice.service_period_ends_at, { timeZone: timezone })}`
+                                    : '—'}
                             </p>
                         </div>
                         <div>

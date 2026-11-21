@@ -33,11 +33,14 @@ class InvoiceController extends Controller
                 'amount_paid_minor' => $invoice->amount_paid_minor,
                 'issued_at' => $invoice->issued_at?->toIso8601String(),
                 'paid_at' => $invoice->paid_at?->toIso8601String(),
+                'service_period_starts_at' => $invoice->service_period_starts_at?->toIso8601String(),
+                'service_period_ends_at' => $invoice->service_period_ends_at?->toIso8601String(),
             ]);
 
         return Inertia::render('billing/invoices/index', [
             'tenant' => ['id' => $tenant->id, 'name' => $tenant->name],
             'invoices' => $invoices,
+            'timezone' => $tenant->timezone ?: 'UTC',
         ]);
     }
 
@@ -52,6 +55,7 @@ class InvoiceController extends Controller
             'tenant' => ['id' => $tenant->id, 'name' => $tenant->name],
             'invoice' => $this->payload($invoice),
             'seller' => BillingSeller::details(),
+            'timezone' => $tenant->timezone ?: 'UTC',
             'print' => false,
         ]);
     }
@@ -67,12 +71,23 @@ class InvoiceController extends Controller
             'tenant' => ['id' => $tenant->id, 'name' => $tenant->name],
             'invoice' => $this->payload($invoice),
             'seller' => BillingSeller::details(),
+            'timezone' => $tenant->timezone ?: 'UTC',
         ]);
     }
 
     /** @return array<string, mixed> */
     private function payload(TenantBillingInvoice $invoice): array
     {
+        $lineItems = $invoice->line_items ?? [];
+        if ($lineItems === []) {
+            $lineItems = [[
+                'description' => 'Invoice '.$invoice->invoice_number,
+                'quantity' => 1,
+                'unit_amount_minor' => $invoice->amount_due_minor,
+                'amount_minor' => $invoice->amount_due_minor,
+            ]];
+        }
+
         return [
             'id' => $invoice->id,
             'invoice_number' => $invoice->invoice_number,
@@ -82,11 +97,13 @@ class InvoiceController extends Controller
             'tax_minor' => $invoice->tax_minor,
             'amount_due_minor' => $invoice->amount_due_minor,
             'amount_paid_minor' => $invoice->amount_paid_minor,
-            'line_items' => $invoice->line_items ?? [],
+            'line_items' => $lineItems,
             'billing_details' => $invoice->billing_details ?? [],
             'issued_at' => $invoice->issued_at?->toIso8601String(),
             'due_at' => $invoice->due_at?->toIso8601String(),
             'paid_at' => $invoice->paid_at?->toIso8601String(),
+            'service_period_starts_at' => $invoice->service_period_starts_at?->toIso8601String(),
+            'service_period_ends_at' => $invoice->service_period_ends_at?->toIso8601String(),
         ];
     }
 }

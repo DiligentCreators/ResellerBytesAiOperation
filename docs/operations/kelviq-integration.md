@@ -71,6 +71,43 @@ Never use real cards in sandbox.
 5. Confirm invoices list/retrieve paths if we add customer portal deep-links beyond Kelviq’s hosted portal.
 6. Preferred webhook event subset if Kelviq recommends a smaller subscription than the full list above.
 
+## Plan changes & proration
+
+ResellerBytes computes plan-change economics in-app; Kelviq is used as a checkout/collection channel for amounts due today.
+
+### Immediate upgrades (higher normalized monthly price, or monthly → yearly)
+
+1. `ProrationCalculator` computes a day-based unused-time credit in integer minor units:
+    - remaining days = whole days from start of today (UTC) to `current_period_ends_at`
+    - credit = round(current period amount × remaining_days / total_days), floored at 0 and capped at the new plan price
+    - `total_due` = new plan price − credit
+2. The app creates a provisional `incomplete` subscription (`replaces_subscription_id`) and an open invoice whose line items are the full new-plan charge plus a negative credit line. Service period on the invoice is the new full interval starting now.
+3. Kelviq (or Sandbox) receives a **one-off checkout for `total_due` only** — we do not ask Kelviq to prorate.
+4. If `total_due` is `0`, the app settles locally (paid $0 invoice, activate new sub, cancel previous) with **no gateway call**.
+5. Activation for paid upgrades still waits for the signed webhook → inbox → `billing:webhooks:reconcile` path.
+
+### Scheduled downgrades (lower normalized monthly price, or any yearly → monthly)
+
+1. No Kelviq/Sandbox checkout and no charge today. The current plan and limits stay active.
+2. The pending change is stored on the subscription (`scheduled_plan_id`, `scheduled_charge_period`, `scheduled_change_at` = current period end). Scheduling again replaces the pending change; an immediate upgrade clears it.
+3. `billing:apply-scheduled-plan-changes` (every five minutes) applies due rows. Because subscription plan snapshots are immutable, apply **cancels** the current row and creates a replacement `active` subscription (`replaces_subscription_id`) with the new plan/period starting at the old period end, then issues a renewal invoice for the new plan price.
+4. Sandbox has no native renewal checkout — the command settles that renewal invoice in-ledger (paid + payment row) and writes audit/outbox events. For Kelviq live, the same app-side apply still owns the plan switch; collecting the renewal charge via Kelviq must be confirmed with Kelviq (see GAP).
+5. Subscriptions with `cancel_at_period_end` do **not** receive a scheduled plan apply — the schedule is cleared and cancellation wins.
+
+### Webhooks
+
+- Upgrades: keep relying on `invoice.paid` / `invoice.payment_succeeded` (normalized) to settle the provisional incomplete subscription.
+- Scheduled downgrades: no Kelviq call at schedule time; at period end the app applies the change. If Kelviq later emits `subscription.plan_changed` / renewal invoices for the same period, reconcile must stay idempotent and must not double-extend the period (treat as attestation only until mapping is confirmed).
+
+### GAP — Kelviq native proration / subscription-update (unverified)
+
+Kelviq’s native proration, mid-cycle subscription-update, and scheduled-plan APIs are **unverified** against current public docs used by this repo. Do **not** assume Kelviq will mirror our day-based credit or scheduled downgrade semantics. Before live traffic:
+
+1. Confirm with Kelviq whether subscription update / proration endpoints exist and how they price mid-cycle changes.
+2. Confirm how renewal invoices are created for plan changes applied at period end.
+3. Confirm webhook payload shape for `subscription.plan_changed` vs app-owned scheduled applies.
+4. Until confirmed, production must keep app-owned proration + one-off checkout for `total_due`, and app-owned scheduled downgrades.
+
 ## TODO markers in code
 
 Search for `TODO(kelviq):` — items left open where public docs were incomplete.
