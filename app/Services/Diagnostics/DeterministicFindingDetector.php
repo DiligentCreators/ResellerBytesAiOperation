@@ -126,7 +126,7 @@ class DeterministicFindingDetector
                     }
                 }
 
-                $this->continuity->inheritActiveWorkflow($finding);
+                $this->continuity->supersedePriorOpenCopies($finding);
                 $this->criticalAlerts->maybeRaise($finding);
                 $created[] = $finding;
             }

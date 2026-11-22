@@ -254,7 +254,7 @@ class AnalyzeDiagnosticRun implements ShouldQueue
                     ]);
                 }
 
-                $continuity->inheritActiveWorkflow($finding);
+                $continuity->supersedePriorOpenCopies($finding);
                 app(CriticalFindingAlertGate::class)->maybeRaise($finding);
             }
 

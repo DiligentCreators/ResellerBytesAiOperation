@@ -10,6 +10,7 @@ use App\Models\SafeActionExecution;
 use App\Models\SafeActionLateResult;
 use App\Models\User;
 use App\Models\WhmcsIntegration;
+use App\Services\Diagnostics\FindingContinuityService;
 use App\Services\SafeActions\SafeActionExecutor;
 use App\Services\SafeActions\SafeActionRegistry;
 use App\Services\Tenancy\TenantEntitlementService;
@@ -136,6 +137,7 @@ class SafeActionController extends Controller
                 && $finding->tenant_id !== $integration->tenant_id) {
                 throw new NotFoundHttpException;
             }
+            $finding = app(FindingContinuityService::class)->resolveToCurrentCopy($finding);
         }
 
         try {

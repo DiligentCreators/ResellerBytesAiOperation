@@ -7,6 +7,7 @@ use App\Models\DiagnosticRun;
 use App\Models\SafeActionExecution;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 
 class FindingContinuityService
 {
@@ -289,6 +290,127 @@ class FindingContinuityService
         ])->save();
     }
 
+    /**
+     * Keep one open copy per integration + fingerprint after a new sighting.
+     *
+     * Carries in_progress workflow onto the current copy, then resolves earlier
+     * active (non-merged) copies via the system actor and marks them merged into
+     * the current finding. Idempotent and ordered safely under concurrent ingests.
+     */
+    public function supersedePriorOpenCopies(DiagnosticFinding $current): void
+    {
+        $this->inheritActiveWorkflow($current);
+
+        $current->loadMissing('diagnosticRun');
+        $integrationId = $current->diagnosticRun?->integration_id;
+        if ($integrationId === null) {
+            return;
+        }
+
+        DB::transaction(function () use ($current, $integrationId): void {
+            $lockedCurrent = DiagnosticFinding::query()
+                ->whereKey($current->id)
+                ->lockForUpdate()
+                ->first();
+
+            if ($lockedCurrent === null || ! $lockedCurrent->isActive()) {
+                return;
+            }
+
+            $lockedCurrent->loadMissing('diagnosticRun');
+            $currentRun = $lockedCurrent->diagnosticRun;
+            if ($currentRun === null) {
+                return;
+            }
+
+            $priors = DiagnosticFinding::query()
+                ->active()
+                ->notMerged()
+                ->where('fingerprint', $lockedCurrent->fingerprint)
+                ->whereKeyNot($lockedCurrent->id)
+                ->whereHas('diagnosticRun', function (Builder $query) use ($integrationId, $currentRun): void {
+                    $query->where('integration_id', $integrationId)
+                        ->where(function (Builder $earlier) use ($currentRun): void {
+                            $earlier->where('received_at', '<', $currentRun->received_at)
+                                ->orWhere(function (Builder $sameMoment) use ($currentRun): void {
+                                    $sameMoment->where('received_at', '=', $currentRun->received_at)
+                                        ->where('id', '<', $currentRun->id);
+                                });
+                        });
+                })
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get();
+
+            foreach ($priors as $prior) {
+                if (! $prior->isActive() || $prior->merged_into_finding_id !== null) {
+                    continue;
+                }
+
+                $updated = $this->workflow->update($prior, null, [
+                    'status' => DiagnosticFinding::STATUS_RESOLVED,
+                    'assignee_user_id' => $prior->assignee_user_id,
+                    'status_note' => 'Superseded by finding '.$lockedCurrent->id
+                        .' from run '.$lockedCurrent->diagnostic_run_id,
+                ]);
+
+                $updated->forceFill([
+                    'merged_into_finding_id' => $lockedCurrent->id,
+                ])->save();
+            }
+
+            $current->refresh();
+        });
+    }
+
+    /**
+     * Follow merged_into_finding_id to the canonical copy, falling back to the
+     * newest active sibling for the same integration + fingerprint.
+     */
+    public function resolveToCurrentCopy(DiagnosticFinding $finding): DiagnosticFinding
+    {
+        $seen = [];
+        $current = $finding;
+
+        while (is_string($current->merged_into_finding_id) && $current->merged_into_finding_id !== '') {
+            if (isset($seen[$current->id])) {
+                break;
+            }
+            $seen[$current->id] = true;
+
+            $next = DiagnosticFinding::query()->find($current->merged_into_finding_id);
+            if ($next === null) {
+                break;
+            }
+
+            $current = $next;
+        }
+
+        if ($current->isActive()) {
+            return $current;
+        }
+
+        $current->loadMissing('diagnosticRun');
+        $integrationId = $current->diagnosticRun?->integration_id;
+        if ($integrationId === null) {
+            return $current;
+        }
+
+        $activeSibling = DiagnosticFinding::query()
+            ->where('fingerprint', $current->fingerprint)
+            ->active()
+            ->notMerged()
+            ->whereHas(
+                'diagnosticRun',
+                fn (Builder $query) => $query->where('integration_id', $integrationId),
+            )
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->first();
+
+        return $activeSibling ?? $current;
+    }
+
     public function clearAbsentActiveFindings(DiagnosticRun $analyzedRun, User $actor): void
     {
         $presentFingerprints = $analyzedRun->findings()->pluck('fingerprint')->all();
@@ -406,9 +528,13 @@ class FindingContinuityService
     }
 
     /**
+     * All finding IDs sharing this fingerprint on the same installation
+     * (including superseded copies). Used by Fix Center, guided steps, and
+     * safe-action continuity lookups.
+     *
      * @return list<string>
      */
-    private function relatedFindingIds(DiagnosticFinding $finding, string $integrationId): array
+    public function relatedFindingIds(DiagnosticFinding $finding, string $integrationId): array
     {
         $ids = [];
         foreach (
