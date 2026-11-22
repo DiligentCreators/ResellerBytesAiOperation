@@ -26,6 +26,7 @@ use App\Console\Commands\RotateWhmcsIntegrationSecret;
 use App\Console\Commands\VerifyAuditAnchorCheckpoint;
 use App\Console\Commands\VerifyAuditIntegrity;
 use App\Http\Middleware\CaptureOperationalMetrics;
+use App\Http\Middleware\EnsureRegistrationIsOpen;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\RequireCentralPermission;
@@ -91,6 +92,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(remove: [SubstituteBindings::class]);
         $middleware->web(append: [
             ThrottleSensitiveAuthRequests::class,
+            EnsureRegistrationIsOpen::class,
             SetTenantDatabaseContext::class,
             SubstituteBindings::class,
             HandleAppearance::class,

@@ -115,7 +115,7 @@ final class PlatformSettingsRegistry
                 key: 'security.registration_open',
                 group: 'security',
                 label: 'Public registration open',
-                help: 'When disabled, public account registration should refuse new sign-ups (enforcement wired later).',
+                help: 'On (default): anyone can create an account via /register. Off: public GET and POST /register are blocked and visitors are sent to login with a closed sign-up message. Invitation acceptance, platform/staff account creation, login, and password reset keep working either way.',
                 type: PlatformSettingDefinition::TYPE_BOOL,
                 default: static fn (): bool => (bool) config('security.registration_open', true),
                 rules: ['boolean'],
