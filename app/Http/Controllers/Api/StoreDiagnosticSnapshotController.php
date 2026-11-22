@@ -81,6 +81,9 @@ class StoreDiagnosticSnapshotController extends Controller
                     : null;
                 app(DeterministicFindingDetector::class)->detect($run, $actor);
 
+                // Guided verify needs findings from this snapshot before deciding cleared vs still present.
+                app(SafeActionExecutor::class)->verifyCollectFromSnapshot($integration->fresh() ?? $integration, $run);
+
                 return $run;
             });
         } catch (AuthorizationException $exception) {

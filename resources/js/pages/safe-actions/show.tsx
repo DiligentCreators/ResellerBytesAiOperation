@@ -86,6 +86,9 @@ export default function SafeActionShow({
                     description={`${execution.integration_name ?? 'Installation'} · Approve → Apply → Verify → Cleared`}
                     actions={
                         <div className="flex flex-wrap gap-2">
+                            <Button variant="outline" size="sm" asChild>
+                                <Link href="/fix-center">Open Fix Center</Link>
+                            </Button>
                             <StatusBadge status={execution.status} />
                             <StatusBadge status={execution.risk_level} />
                         </div>

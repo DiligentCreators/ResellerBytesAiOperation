@@ -139,6 +139,14 @@ class DiagnosticFinding extends Model
     }
 
     /**
+     * @return HasMany<GuidedFixStep, $this>
+     */
+    public function guidedFixSteps(): HasMany
+    {
+        return $this->hasMany(GuidedFixStep::class, 'finding_id');
+    }
+
+    /**
      * @param  Builder<static>  $query
      * @return Builder<static>
      */
@@ -148,10 +156,37 @@ class DiagnosticFinding extends Model
     }
 
     /**
-     * One row per installation + fingerprint (newest sighting).
-     *
      * @param  Builder<static>  $query
      * @return Builder<static>
+     */
+    public function scopeNotIgnored(Builder $query): Builder
+    {
+        return $query->where(function (Builder $inner): void {
+            $inner->whereNull('ignored_until')
+                ->orWhere('ignored_until', '<=', now());
+        });
+    }
+
+    /**
+     * @param  Builder<static>  $query
+     * @return Builder<static>
+     */
+    public function scopeIgnored(Builder $query): Builder
+    {
+        return $query->whereNotNull('ignored_until')
+            ->where('ignored_until', '>', now());
+    }
+
+    public function isIgnored(): bool
+    {
+        return $this->ignored_until !== null && $this->ignored_until->isFuture();
+    }
+
+    /**
+     * One row per installation + fingerprint (newest sighting).
+     *
+     * @param  Builder<DiagnosticFinding>  $query
+     * @return Builder<DiagnosticFinding>
      */
     public function scopeCurrentIssues(Builder $query): Builder
     {

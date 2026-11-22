@@ -409,7 +409,7 @@ export default function Dashboard({
                                         className="mt-2 h-auto px-0"
                                         asChild
                                     >
-                                        <Link href="/findings?status=active">
+                                        <Link href="/fix-center">
                                             Open Fix Center
                                         </Link>
                                     </Button>

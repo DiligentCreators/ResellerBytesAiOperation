@@ -257,8 +257,14 @@ class SafeActionExecutor
 
             if ($status === 'success') {
                 $proven = $this->hasRuntimeProof($locked->action_key, $evidence);
+                // Guided re-checks only verify when the next snapshot no longer detects the issue.
+                if ($locked->mode === SafeActionExecution::MODE_GUIDED) {
+                    $proven = false;
+                }
                 $itemsSucceeded = $this->countSucceededItems($evidence, $locked);
-                $minutes = $this->minutesSaved->calculate($locked->issue_key, $itemsSucceeded);
+                $minutes = $proven || $locked->mode !== SafeActionExecution::MODE_GUIDED
+                    ? $this->minutesSaved->calculate($locked->issue_key, $itemsSucceeded)
+                    : null;
                 $locked->forceFill([
                     'status' => $proven
                         ? SafeActionExecution::STATUS_VERIFIED
@@ -310,9 +316,21 @@ class SafeActionExecutor
                         'runtime_proven' => $proven,
                         'items_succeeded' => $itemsSucceeded,
                         'minutes_saved' => $minutes,
+                        'mode' => $locked->mode,
                     ],
                     'occurred_at' => now(),
                 ]);
+
+                if ($locked->mode === SafeActionExecution::MODE_GUIDED && ! $proven) {
+                    $latestRun = DiagnosticRun::query()
+                        ->where('integration_id', $integration->id)
+                        ->whereIn('status', ['analyzed', 'received', 'queued'])
+                        ->latest('received_at')
+                        ->first();
+                    if ($latestRun !== null) {
+                        $this->verifyCollectFromSnapshot($integration->fresh() ?? $integration, $latestRun);
+                    }
+                }
             } else {
                 $locked->forceFill([
                     'status' => SafeActionExecution::STATUS_FAILED,
@@ -600,7 +618,17 @@ class SafeActionExecutor
                 return;
             }
 
-            if (! $this->findingClearedOrReduced($execution, $run)
+            // Guided completions must wait until the rule engine no longer detects the issue.
+            // Do not treat awaiting-agent collect success as verified for guided mode.
+            if ($execution->mode === SafeActionExecution::MODE_GUIDED) {
+                if ($execution->status !== SafeActionExecution::STATUS_COMPLETED) {
+                    return;
+                }
+
+                if (! $this->findingClearedOrReduced($execution, $run)) {
+                    return;
+                }
+            } elseif (! $this->findingClearedOrReduced($execution, $run)
                 && ! in_array($execution->action_key, [
                     'pull_and_run_diagnostic_collect',
                     'request_diagnostic_collect',
@@ -609,8 +637,15 @@ class SafeActionExecutor
                 return;
             }
 
+            $minutes = $execution->minutes_saved;
+            if ($execution->mode === SafeActionExecution::MODE_GUIDED) {
+                $minutes = $this->minutesSaved->calculate($execution->issue_key, 1);
+            }
+
             $execution->forceFill([
                 'status' => SafeActionExecution::STATUS_VERIFIED,
+                'minutes_saved' => $minutes,
+                'items_succeeded' => $execution->items_succeeded ?? 1,
                 'verified_at' => now(),
                 'after_evidence' => array_merge((array) $execution->after_evidence, [
                     'verified_run_id' => $run->id,

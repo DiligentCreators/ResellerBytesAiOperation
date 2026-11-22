@@ -10,6 +10,7 @@ use App\Services\Diagnostics\FindingContinuityService;
 use App\Services\Diagnostics\FindingPlaybookBuilder;
 use App\Services\Diagnostics\FindingRecheckComparer;
 use App\Services\Diagnostics\FindingWorkflowService;
+use App\Services\Diagnostics\GuidedFixService;
 use App\Services\SafeActions\FindingSafeActionMapper;
 use App\Services\Tenancy\TenantEntitlementService;
 use App\Services\Tenancy\TenantRecordQuery;
@@ -91,6 +92,7 @@ class FindingController extends Controller
         FindingRecheckComparer $recheckComparer,
         FindingSafeActionMapper $safeActionMapper,
         FindingContinuityService $continuity,
+        GuidedFixService $guidedFix,
     ): Response {
         $this->authorizeFinding($finding);
 
@@ -98,6 +100,7 @@ class FindingController extends Controller
             'diagnosticRun.integration:id,name,owner_user_id,tenant_id',
             'recommendations',
             'assignee:id,name,email',
+            'guidedFixSteps',
         ]);
 
         $user = Auth::user();
@@ -106,6 +109,7 @@ class FindingController extends Controller
         $safeActionsEnabled = false;
         $oneClickEnabled = false;
         $bulkEnabled = false;
+        $guidedEnabled = false;
 
         if ($integration?->tenant_id !== null) {
             $entitlements = app(TenantEntitlementService::class);
@@ -129,7 +133,19 @@ class FindingController extends Controller
             } catch (AuthorizationException) {
                 $bulkEnabled = false;
             }
+
+            try {
+                $entitlements->requireFeature($integration->tenant_id, 'fixes.guided');
+                $guidedEnabled = true;
+            } catch (AuthorizationException) {
+                $guidedEnabled = false;
+            }
         }
+
+        $catalogMeta = $guidedFix->catalogMeta($finding);
+        $guidedSteps = is_string($finding->issue_key) && $finding->issue_key !== ''
+            ? $guidedFix->stepsForFinding($finding)
+            : [];
 
         $blockedKeys = $canManage
             ? $continuity->blockedSafeActionKeys($finding)
@@ -201,6 +217,10 @@ class FindingController extends Controller
             'safe_actions_enabled' => $safeActionsEnabled || $oneClickEnabled,
             'fixes_one_click_enabled' => $oneClickEnabled,
             'fixes_bulk_enabled' => $bulkEnabled,
+            'fixes_guided_enabled' => $guidedEnabled,
+            'guided_steps' => $guidedSteps,
+            'whmcs_admin_path' => $catalogMeta['whmcs_admin_path'],
+            'fix_center_url' => route('fix-center.index'),
         ]);
     }
 

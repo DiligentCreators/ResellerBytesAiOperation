@@ -189,6 +189,9 @@ export default function FindingShow({
                     description={`${finding.integration_name} · Guided Fix Center — WHMCS stays read-only for this platform`}
                     actions={
                         <div className="flex flex-wrap items-center gap-2">
+                            <Button variant="outline" size="sm" asChild>
+                                <Link href="/fix-center">Open Fix Center</Link>
+                            </Button>
                             <StatusBadge status={finding.severity} />
                             <StatusBadge status={finding.status} />
                             <StatusBadge

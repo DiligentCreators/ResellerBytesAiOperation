@@ -16,6 +16,7 @@ import {
     ShieldCheck,
     SlidersHorizontal,
     Users,
+    Wrench,
 } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
@@ -55,6 +56,7 @@ export function AppSidebar() {
     ];
 
     const diagnosticsItems: NavItem[] = [
+        { title: 'Fix Center', href: '/fix-center', icon: Wrench },
         { title: 'Diagnostic Runs', href: '/diagnostic-runs', icon: Activity },
         { title: 'Findings', href: '/findings', icon: ShieldAlert },
         { title: 'Safe Actions', href: '/safe-actions', icon: ShieldCheck },

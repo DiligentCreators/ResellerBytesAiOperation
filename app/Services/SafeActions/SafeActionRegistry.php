@@ -153,7 +153,7 @@ class SafeActionRegistry
         ];
     }
 
-    private function bulkMaxItems(): int
+    public function bulkMaxItems(): int
     {
         try {
             $value = $this->settings->get('fixes.bulk_max_items');

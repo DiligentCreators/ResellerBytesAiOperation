@@ -59,6 +59,11 @@ export default function FindingsIndex({ findings, filters, health }: Props) {
                 <PageHeader
                     title="Findings"
                     description="One current issue per installation signal. History keeps older scan rows. Approve → Apply in WHMCS → Verify scan."
+                    actions={
+                        <Button variant="outline" size="sm" asChild>
+                            <Link href="/fix-center">Open Fix Center</Link>
+                        </Button>
+                    }
                 />
 
                 {health.last_scan_clean ? (
