@@ -61,7 +61,11 @@ export default function ReportShow({ tenant, report }: Props) {
             <div className="mx-auto flex max-w-3xl flex-col gap-6 print:max-w-none">
                 <PageHeader
                     title={title}
-                    description={`${tenant.name} · ${formatDate(report.period_start, { timeZone: timezone })} – ${formatDate(report.period_end, { timeZone: timezone })}`}
+                    description={
+                        report.type === 'monthly_value'
+                            ? `${tenant.name} · Last 30 days: ${formatDate(report.period_start, { timeZone: timezone })} – ${formatDate(report.period_end, { timeZone: timezone })}`
+                            : `${tenant.name} · ${formatDate(report.period_start, { timeZone: timezone })} – ${formatDate(report.period_end, { timeZone: timezone })}`
+                    }
                     actions={
                         <div className="flex flex-wrap gap-2 print:hidden">
                             <Button variant="outline" size="sm" asChild>

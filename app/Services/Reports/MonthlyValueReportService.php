@@ -70,8 +70,11 @@ class MonthlyValueReportService
                         continue;
                     }
 
-                    $periodStart = CarbonImmutable::instance($subscription->current_period_starts_at ?? $now)->utc()->startOfDay();
-                    $periodEnd = CarbonImmutable::instance($subscription->current_period_ends_at)->utc()->startOfDay();
+                    // Metrics cover the last 30 days ending on the send day — not the
+                    // subscription term (yearly plans would otherwise show a year-long header).
+                    $period = $this->metricsPeriodFor($now);
+                    $periodStart = $period['start'];
+                    $periodEnd = $period['end'];
 
                     if (! $force && $this->alreadySent($tenant->id, $periodStart)) {
                         $skippedIdempotent++;
@@ -83,9 +86,10 @@ class MonthlyValueReportService
                         $this->forgetSendRecord($tenant->id, $periodStart);
                     }
 
-                    $summary = $this->metrics->build($tenant, $periodStart, $now);
+                    $summary = $this->metrics->build($tenant, $periodStart, $periodEnd);
                     $summary['renewal_at'] = $subscription->current_period_ends_at->toIso8601String();
                     $summary['days_before_renewal'] = $daysBefore;
+                    $summary['period_label'] = $this->periodLabel($periodStart, $periodEnd);
 
                     $recipients += $this->deliverAndRecord($tenant, $periodStart, $periodEnd, $summary);
                 }
@@ -105,6 +109,41 @@ class MonthlyValueReportService
         $days = $this->platformSettings->get('reports.value_report_days_before_renewal');
 
         return max(0, min(60, is_numeric($days) ? (int) $days : 3));
+    }
+
+    /**
+     * Rolling 30-day window ending on the send day's UTC date.
+     *
+     * @return array{start: CarbonImmutable, end: CarbonImmutable}
+     */
+    public function metricsPeriodFor(CarbonInterface $now): array
+    {
+        $end = CarbonImmutable::instance($now)->utc()->startOfDay();
+
+        return [
+            'start' => $end->subDays(30),
+            'end' => $end,
+        ];
+    }
+
+    public function periodLabel(CarbonInterface $periodStart, CarbonInterface $periodEnd): string
+    {
+        $start = CarbonImmutable::instance($periodStart)->utc();
+        $end = CarbonImmutable::instance($periodEnd)->utc();
+
+        if ($start->year === $end->year) {
+            return sprintf(
+                'Last 30 days: %s - %s',
+                $start->format('M j'),
+                $end->format('M j, Y'),
+            );
+        }
+
+        return sprintf(
+            'Last 30 days: %s - %s',
+            $start->format('M j, Y'),
+            $end->format('M j, Y'),
+        );
     }
 
     public function hasValueEntitlement(string $tenantId): bool

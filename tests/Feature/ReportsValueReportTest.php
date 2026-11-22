@@ -1,11 +1,15 @@
 <?php
 
+use App\Mail\MonthlyValueReportMail;
+use App\Models\DiagnosticFinding;
+use App\Models\DiagnosticRun;
 use App\Models\Plan;
 use App\Models\Tenant;
 use App\Models\TenantMembership;
 use App\Models\TenantReportSend;
 use App\Models\TenantSubscription;
 use App\Models\User;
+use App\Models\WhmcsIntegration;
 use App\Services\Mail\CentralOutboundMailer;
 use App\Services\PlatformSettings;
 use App\Services\Reports\MonthlyValueReportService;
@@ -169,6 +173,105 @@ it('skips value reports for workspaces with no active subscription data safely',
     $result = app(MonthlyValueReportService::class)->send(now('UTC'));
 
     expect($result['recipients'])->toBe(0);
+
+    Carbon::setTestNow();
+});
+
+it('uses a last-30-days window for yearly subscriptions, matching metrics and header period', function () {
+    Carbon::setTestNow('2026-11-22 10:00:00');
+    app(PlatformSettings::class)->set('reports.value_report_days_before_renewal', 3);
+
+    $workspace = createValueReportWorkspace(true, Carbon::parse('2026-11-25 00:00:00', 'UTC'));
+    $workspace['subscription']->forceFill([
+        'current_period_starts_at' => Carbon::parse('2025-11-25 00:00:00', 'UTC'),
+        'current_period_ends_at' => Carbon::parse('2026-11-25 00:00:00', 'UTC'),
+    ])->save();
+
+    $integration = WhmcsIntegration::create([
+        'owner_user_id' => $workspace['owner']->id,
+        'tenant_id' => $workspace['tenant']->id,
+        'name' => 'Value WHMCS',
+        'status' => 'active',
+        'secret' => bin2hex(random_bytes(32)),
+        'secret_version' => 1,
+    ]);
+
+    $run = DiagnosticRun::create([
+        'integration_id' => $integration->id,
+        'tenant_id' => $workspace['tenant']->id,
+        'snapshot_uuid' => (string) Str::uuid(),
+        'schema_version' => '1.0',
+        'addon_version' => '1.0.0',
+        'status' => 'analyzed',
+        'collected_at' => now(),
+        'received_at' => now(),
+        'payload' => [],
+        'payload_sha256' => hash('sha256', 'value-report-'.uniqid()),
+    ]);
+
+    // Inside the rolling 30-day window.
+    DiagnosticFinding::create([
+        'diagnostic_run_id' => $run->id,
+        'tenant_id' => $workspace['tenant']->id,
+        'fingerprint' => hash('sha256', 'inside-window|'.uniqid()),
+        'category' => 'security',
+        'severity' => 'warning',
+        'title' => 'Fixed recently',
+        'summary' => 'Fixed recently',
+        'evidence' => [],
+        'status' => DiagnosticFinding::STATUS_RESOLVED,
+        'resolved_at' => now('UTC')->subDays(5),
+    ]);
+
+    // Inside the yearly subscription term, but outside the last 30 days.
+    DiagnosticFinding::create([
+        'diagnostic_run_id' => $run->id,
+        'tenant_id' => $workspace['tenant']->id,
+        'fingerprint' => hash('sha256', 'outside-window|'.uniqid()),
+        'category' => 'security',
+        'severity' => 'warning',
+        'title' => 'Fixed months ago',
+        'summary' => 'Fixed months ago',
+        'evidence' => [],
+        'status' => DiagnosticFinding::STATUS_RESOLVED,
+        'resolved_at' => now('UTC')->subDays(90),
+    ]);
+
+    $bodies = [];
+    $mailer = Mockery::mock(CentralOutboundMailer::class);
+    $mailer->shouldReceive('send')
+        ->andReturnUsing(function (string $to, string $subject, string $html) use (&$bodies): void {
+            $bodies[] = $html;
+        });
+    app()->instance(CentralOutboundMailer::class, $mailer);
+
+    $service = app(MonthlyValueReportService::class);
+    $period = $service->metricsPeriodFor(now('UTC'));
+    $expectedLabel = $service->periodLabel($period['start'], $period['end']);
+
+    $result = $service->send(now('UTC'));
+
+    expect($result['recipients'])->toBe(1);
+
+    $report = TenantReportSend::query()
+        ->where('tenant_id', $workspace['tenant']->id)
+        ->where('type', TenantReportSend::TYPE_MONTHLY_VALUE)
+        ->sole();
+
+    expect($report->period_start->toDateString())->toBe($period['start']->toDateString())
+        ->and($report->period_end->toDateString())->toBe($period['end']->toDateString())
+        ->and($report->period_start->toDateString())->toBe('2026-10-23')
+        ->and($report->period_end->toDateString())->toBe('2026-11-22')
+        ->and($report->period_start->toDateString())->not->toBe('2025-11-25')
+        ->and($report->summary['period_start'])->toBe($report->period_start->toDateString())
+        ->and($report->summary['period_end'])->toBe($report->period_end->toDateString())
+        ->and($report->summary['period_label'])->toBe($expectedLabel)
+        ->and($report->summary['issues_fixed'])->toBe(1)
+        ->and($expectedLabel)->toBe('Last 30 days: Oct 23 - Nov 22, 2026')
+        ->and($bodies[0] ?? '')->toContain($expectedLabel);
+
+    $mail = new MonthlyValueReportMail($report->summary);
+    expect($mail->render())->toContain($expectedLabel);
 
     Carbon::setTestNow();
 });

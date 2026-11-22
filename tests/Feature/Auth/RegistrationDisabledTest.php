@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\EnsureTwoFactorEnabled;
+use App\Models\CentralStaffAccess;
 use App\Models\Tenant;
 use App\Models\TenantMembership;
 use App\Models\TenantSubscription;
@@ -139,6 +140,33 @@ test('when registration is off, platform admin account creation still works', fu
 
     expect($user->email_verified_at)->not->toBeNull()
         ->and(Hash::check($password, $user->password))->toBeTrue();
+});
+
+test('when registration is off, platform staff HTTP create still works', function () {
+    closePublicRegistration();
+    config(['operations.owner_email' => 'owner-when-closed@example.test']);
+
+    $owner = User::factory()->withTwoFactor()->create([
+        'email' => 'owner-when-closed@example.test',
+        'email_verified_at' => now(),
+    ]);
+
+    $password = 'Long-and-random-password-123!';
+
+    $this->actingAs($owner)
+        ->post(route('platform.staff.store'), [
+            'name' => 'Staff When Closed',
+            'email' => 'staff-when-closed@example.test',
+            'password' => $password,
+            'permissions' => ['support'],
+        ])
+        ->assertRedirect();
+
+    $staff = User::query()->where('email', 'staff-when-closed@example.test')->sole();
+
+    expect($staff->email_verified_at)->not->toBeNull()
+        ->and(Hash::check($password, $staff->password))->toBeTrue()
+        ->and(CentralStaffAccess::query()->where('user_id', $staff->id)->exists())->toBeTrue();
 });
 
 test('when registration is off, login still works', function () {

@@ -60,8 +60,9 @@ class CentralStaffController extends Controller
                 'name' => $data['name'],
                 'email' => $data['email'],
                 'password' => Hash::make($data['password']),
-                'email_verified_at' => now(),
             ]);
+            // email_verified_at is not fillable; staff accounts are provisioned verified.
+            $staff->forceFill(['email_verified_at' => now()])->save();
             $access = CentralStaffAccess::query()->create([
                 'user_id' => $staff->id,
                 'permissions' => array_values(array_unique($data['permissions'] ?? [])),
