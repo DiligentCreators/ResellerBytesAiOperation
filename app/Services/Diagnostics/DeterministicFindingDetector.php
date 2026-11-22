@@ -9,8 +9,11 @@ use App\Models\User;
 use App\Services\Alerts\CriticalFindingAlertGate;
 use App\Services\Diagnostics\Rules\DetectedIssue;
 use App\Services\Diagnostics\Rules\IssueRuleRegistry;
+use App\Services\SafeActions\AutoFixRunner;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class DeterministicFindingDetector
 {
@@ -127,6 +130,17 @@ class DeterministicFindingDetector
                 $this->resolveAbsentWithoutActor($lockedRun, array_keys($presentFingerprints));
             }
         });
+
+        if ($created !== []) {
+            try {
+                app(AutoFixRunner::class)->processFindings($run->fresh() ?? $run, $created);
+            } catch (Throwable $exception) {
+                Log::warning('Auto-fix runner failed after rule detection.', [
+                    'diagnostic_run_id' => $run->id,
+                    'exception_class' => $exception::class,
+                ]);
+            }
+        }
 
         return $created;
     }

@@ -1,9 +1,11 @@
-import { Head, Link } from '@inertiajs/react';
+import { Form, Head, Link } from '@inertiajs/react';
 import { Sparkles, Wrench } from 'lucide-react';
+import InputError from '@/components/input-error';
 import { EmptyState } from '@/components/empty-state';
 import { PageHeader } from '@/components/page-header';
-import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 type Installation = {
     id: string;
@@ -13,6 +15,21 @@ type Installation = {
     last_heartbeat_at: string | null;
 };
 
+type Action = {
+    key: string;
+    label: string;
+    description: string;
+    risk_level: string;
+};
+
+type Policy = {
+    id: string;
+    action_key: string;
+    integration_id: string | null;
+    enabled: boolean;
+    daily_cap: number | null;
+};
+
 type Props = {
     tenant: { id: string; name: string };
     canManage: boolean;
@@ -20,7 +37,25 @@ type Props = {
     billingPlansUrl: string;
     integrationsUrl: string;
     installations: Installation[];
+    actions: Action[];
+    policies: Policy[];
+    updateUrl: string;
+    status?: string;
 };
+
+function policyFor(
+    policies: Policy[],
+    actionKey: string,
+    integrationId: string | null,
+): Policy | undefined {
+    return policies.find(
+        (policy) =>
+            policy.action_key === actionKey &&
+            (integrationId === null
+                ? policy.integration_id === null
+                : policy.integration_id === integrationId),
+    );
+}
 
 export default function TenantAutoFixSettings({
     tenant,
@@ -29,15 +64,37 @@ export default function TenantAutoFixSettings({
     billingPlansUrl,
     integrationsUrl,
     installations,
+    actions,
+    policies,
+    updateUrl,
+    status,
 }: Props) {
+    const manageEnabled = canManage && proEnabled;
+    const scopes: Array<{ id: string | null; name: string }> = [
+        { id: null, name: 'All installations' },
+        ...installations.map((installation) => ({
+            id: installation.id,
+            name: installation.name,
+        })),
+    ];
+
     return (
         <>
             <Head title="Auto-fix" />
             <div className="space-y-6">
                 <PageHeader
                     title="Auto-fix"
-                    description={`One-click and automatic fix settings for ${tenant.name}.`}
+                    description={`Allowlisted automatic fixes for ${tenant.name}.`}
                 />
+
+                {status ? (
+                    <p
+                        role="status"
+                        className="rounded-md border border-success/20 bg-success-soft px-3 py-2 text-sm text-success-fg"
+                    >
+                        {status}
+                    </p>
+                ) : null}
 
                 {!proEnabled ? (
                     <section className="rounded-lg border border-border bg-card p-5 shadow-xs">
@@ -51,8 +108,12 @@ export default function TenantAutoFixSettings({
                                     Auto-fix is a Pro feature
                                 </h2>
                                 <p className="text-sm text-muted-foreground">
-                                    Upgrade to unlock one-click fixes and manage
-                                    automatic collection per installation.
+                                    Upgrade to Pro to enable automatic
+                                    allowlisted fixes after rule detection.
+                                    Refunds, terminations, invoice edits,
+                                    payments, gateway changes, GenInvoices,
+                                    order acceptance, unsuspend, and upgrades
+                                    can never run automatically.
                                 </p>
                                 <Button asChild size="sm">
                                     <Link href={billingPlansUrl}>
@@ -62,34 +123,13 @@ export default function TenantAutoFixSettings({
                             </div>
                         </div>
                     </section>
-                ) : (
-                    <section className="rounded-lg border border-border bg-card p-5 shadow-xs">
-                        <h2 className="text-sm font-semibold">
-                            Pro one-click fixes are enabled
-                        </h2>
-                        <p className="mt-1 text-sm text-muted-foreground">
-                            Approve allowlisted fixes from Fix Center. Automatic
-                            snapshot collection is controlled per installation.
-                        </p>
-                        <Button
-                            asChild
-                            size="sm"
-                            variant="outline"
-                            className="mt-4"
-                        >
-                            <Link href="/fix-center">
-                                <Wrench className="size-4" aria-hidden />
-                                Open Fix Center
-                            </Link>
-                        </Button>
-                    </section>
-                )}
+                ) : null}
 
                 {installations.length === 0 ? (
                     <EmptyState
                         icon={Wrench}
                         title="No installations yet"
-                        description="Connect a WHMCS installation before configuring auto-fix or automatic collection."
+                        description="Connect a WHMCS installation before configuring auto-fix policies."
                         action={
                             canManage ? (
                                 <Button size="sm" asChild>
@@ -100,61 +140,153 @@ export default function TenantAutoFixSettings({
                             ) : undefined
                         }
                     />
-                ) : (
-                    <section className="overflow-hidden rounded-lg border border-border bg-card shadow-xs">
-                        <div className="border-b border-border px-5 py-4">
-                            <h2 className="text-sm font-semibold">
-                                Installations
-                            </h2>
-                            <p className="mt-1 text-sm text-muted-foreground">
-                                Manage host connection and automatic collection
-                                from Installations.
-                            </p>
-                        </div>
-                        <ul className="divide-y divide-border">
-                            {installations.map((installation) => (
-                                <li
-                                    key={installation.id}
-                                    className="flex flex-wrap items-center justify-between gap-3 px-5 py-4"
-                                >
-                                    <div>
-                                        <p className="text-sm font-medium">
-                                            {installation.name}
-                                        </p>
-                                        <div className="mt-1 flex flex-wrap items-center gap-2">
-                                            <StatusBadge
-                                                status={installation.status}
-                                            />
-                                            <StatusBadge
-                                                status={
-                                                    installation.auto_collect_enabled
-                                                        ? 'active'
-                                                        : 'pending'
-                                                }
-                                                tone={
-                                                    installation.auto_collect_enabled
-                                                        ? 'success'
-                                                        : 'neutral'
-                                                }
-                                            />
-                                            <span className="text-xs text-muted-foreground">
-                                                Auto-collect{' '}
-                                                {installation.auto_collect_enabled
-                                                    ? 'on'
-                                                    : 'off'}
-                                            </span>
+                ) : null}
+
+                {proEnabled && actions.length > 0 ? (
+                    <Form
+                        action={updateUrl}
+                        method="put"
+                        className="space-y-4"
+                        options={{ preserveScroll: true }}
+                    >
+                        {({ errors, processing }) => (
+                            <>
+                                {actions.map((action, actionIndex) => (
+                                    <section
+                                        key={action.key}
+                                        className="overflow-hidden rounded-lg border border-border bg-card shadow-xs"
+                                    >
+                                        <div className="border-b border-border px-5 py-4">
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <h2 className="text-sm font-semibold">
+                                                    {action.label}
+                                                </h2>
+                                                <span className="rounded-md bg-muted px-2 py-0.5 text-xs uppercase tracking-wide text-muted-foreground">
+                                                    {action.risk_level} risk
+                                                </span>
+                                            </div>
+                                            <p className="mt-1 text-sm text-muted-foreground">
+                                                {action.description}
+                                            </p>
                                         </div>
+                                        <ul className="divide-y divide-border">
+                                            {scopes.map((scope, scopeIndex) => {
+                                                const existing = policyFor(
+                                                    policies,
+                                                    action.key,
+                                                    scope.id,
+                                                );
+                                                const rowIndex =
+                                                    actionIndex * scopes.length +
+                                                    scopeIndex;
+
+                                                return (
+                                                    <li
+                                                        key={`${action.key}-${scope.id ?? 'all'}`}
+                                                        className="grid gap-3 px-5 py-4 md:grid-cols-[minmax(0,1fr)_auto_8rem] md:items-center"
+                                                    >
+                                                        <input
+                                                            type="hidden"
+                                                            name={`policies[${rowIndex}][action_key]`}
+                                                            value={action.key}
+                                                        />
+                                                        <input
+                                                            type="hidden"
+                                                            name={`policies[${rowIndex}][integration_id]`}
+                                                            value={
+                                                                scope.id ?? ''
+                                                            }
+                                                        />
+                                                        <div>
+                                                            <p className="text-sm font-medium">
+                                                                {scope.name}
+                                                            </p>
+                                                            <p className="text-xs text-muted-foreground">
+                                                                {scope.id ===
+                                                                null
+                                                                    ? 'Applies when no installation-specific policy is enabled.'
+                                                                    : 'Overrides the all-installations policy for this host.'}
+                                                            </p>
+                                                        </div>
+                                                        <label className="flex items-center gap-2 text-sm">
+                                                            <input
+                                                                type="hidden"
+                                                                name={`policies[${rowIndex}][enabled]`}
+                                                                value="0"
+                                                            />
+                                                            <input
+                                                                type="checkbox"
+                                                                name={`policies[${rowIndex}][enabled]`}
+                                                                value="1"
+                                                                defaultChecked={
+                                                                    existing?.enabled ??
+                                                                    false
+                                                                }
+                                                                disabled={
+                                                                    !manageEnabled
+                                                                }
+                                                            />
+                                                            Enabled
+                                                        </label>
+                                                        <div className="space-y-1">
+                                                            <Label
+                                                                htmlFor={`cap-${rowIndex}`}
+                                                            >
+                                                                Daily cap
+                                                            </Label>
+                                                            <Input
+                                                                id={`cap-${rowIndex}`}
+                                                                type="number"
+                                                                min={1}
+                                                                max={65535}
+                                                                name={`policies[${rowIndex}][daily_cap]`}
+                                                                defaultValue={
+                                                                    existing?.daily_cap ??
+                                                                    ''
+                                                                }
+                                                                placeholder="None"
+                                                                disabled={
+                                                                    !manageEnabled
+                                                                }
+                                                            />
+                                                        </div>
+                                                        <InputError
+                                                            className="md:col-span-3"
+                                                            message={
+                                                                errors[
+                                                                    `policies.${rowIndex}.action_key`
+                                                                ] ??
+                                                                errors[
+                                                                    `policies.${rowIndex}.daily_cap`
+                                                                ] ??
+                                                                errors[
+                                                                    `policies.${rowIndex}.integration_id`
+                                                                ]
+                                                            }
+                                                        />
+                                                    </li>
+                                                );
+                                            })}
+                                        </ul>
+                                    </section>
+                                ))}
+
+                                <InputError message={errors.policies} />
+
+                                {manageEnabled ? (
+                                    <div className="flex justify-end">
+                                        <Button
+                                            type="submit"
+                                            disabled={processing}
+                                        >
+                                            Save auto-fix policies
+                                        </Button>
                                     </div>
-                                    <Button asChild size="sm" variant="outline">
-                                        <Link href={integrationsUrl}>
-                                            Manage
-                                        </Link>
-                                    </Button>
-                                </li>
-                            ))}
-                        </ul>
-                    </section>
-                )}
+                                ) : null}
+                            </>
+                        )}
+                    </Form>
+                ) : null}
             </div>
         </>
     );

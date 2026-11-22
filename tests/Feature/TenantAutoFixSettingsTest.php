@@ -12,7 +12,7 @@ beforeEach(function () {
     $this->skipUnlessFortifyHas(Features::emailVerification());
 });
 
-it('shows the auto-fix settings page for workspace owners', function () {
+it('shows the auto-fix settings page for workspace owners with fixes.auto', function () {
     $user = User::factory()->withTwoFactor()->create([
         'email_verified_at' => now(),
     ]);
@@ -24,10 +24,11 @@ it('shows the auto-fix settings page for workspace owners', function () {
     ]);
 
     $plan = Plan::factory()->create([
-        'code' => 'growth-autofix',
-        'name' => 'Growth',
+        'code' => 'business-autofix',
+        'name' => 'Agency',
         'entitlements' => [
             'fixes.one_click' => true,
+            'fixes.auto' => true,
             'limits' => ['members' => 10, 'integrations' => 3],
         ],
     ]);
@@ -53,5 +54,8 @@ it('shows the auto-fix settings page for workspace owners', function () {
         ->assertInertia(fn ($page) => $page
             ->component('tenants/auto-fix')
             ->where('proEnabled', true)
-            ->where('tenant.id', $tenant->id));
+            ->where('tenant.id', $tenant->id)
+            ->has('actions')
+            ->has('policies')
+            ->has('updateUrl'));
 });

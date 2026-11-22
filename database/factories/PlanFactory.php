@@ -39,6 +39,7 @@ class PlanFactory extends Factory
                 'fixes.guided' => true,
                 'fixes.one_click' => true,
                 'fixes.bulk' => true,
+                'fixes.auto' => true,
                 'alerts.channels' => true,
                 'reports.value' => true,
                 'limits' => [

@@ -30,6 +30,7 @@ return [
         'installation.heartbeat.recovery',
         'finding.critical',
         'fix.failed',
+        'fix.auto_queued',
         'alert.test',
     ],
 ];

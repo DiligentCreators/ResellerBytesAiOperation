@@ -128,6 +128,7 @@ Route::middleware(['auth', 'verified', EnsureTwoFactorEnabled::class])->group(fu
     Route::put('tenants/{tenant}/settings/branding', [TenantSettingsController::class, 'update'])->middleware('throttle:tenants-settings-branding-update')->name('tenants.settings.branding.update');
     Route::put('tenants/{tenant}/settings/hourly-rate', [TenantSettingsController::class, 'updateHourlyRate'])->middleware('throttle:tenants-settings-branding-update')->name('tenants.settings.hourly-rate.update');
     Route::get('tenants/{tenant}/auto-fix', [TenantAutoFixSettingsController::class, 'show'])->name('tenants.auto-fix.show');
+    Route::put('tenants/{tenant}/auto-fix', [TenantAutoFixSettingsController::class, 'update'])->middleware('throttle:tenants-auto-fix-update')->name('tenants.auto-fix.update');
     Route::get('tenants/{tenant}/memberships', [TenantMembershipController::class, 'index'])->name('tenants.memberships.index');
     Route::post('tenants/{tenant}/memberships', [TenantMembershipController::class, 'invite'])->middleware('throttle:tenants-memberships-invite')->name('tenants.memberships.invite');
     Route::get('tenants/{tenantId}/membership/invitation/{membershipId}', [TenantMembershipController::class, 'showInvitation'])->middleware(['signed', 'throttle:tenants-memberships-invitation-show'])->name('tenants.memberships.invitation.show');

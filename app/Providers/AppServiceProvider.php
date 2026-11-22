@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Contracts\AuditCheckpointObjectStore;
 use App\Events\CriticalFindingRaised;
+use App\Events\FixActionAutoQueued;
 use App\Events\FixActionFailed;
 use App\Events\InstallationHeartbeatStateChanged;
 use App\Listeners\RecomputeHealthScoreOnHeartbeatChange;
@@ -74,6 +75,10 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(
             FixActionFailed::class,
             [AlertDispatcher::class, 'handleFixActionFailed'],
+        );
+        Event::listen(
+            FixActionAutoQueued::class,
+            [AlertDispatcher::class, 'handleFixActionAutoQueued'],
         );
         $this->overlayPlatformSettings();
     }

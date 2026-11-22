@@ -3,6 +3,7 @@
 namespace App\Services\Alerts;
 
 use App\Events\CriticalFindingRaised;
+use App\Events\FixActionAutoQueued;
 use App\Events\FixActionFailed;
 use App\Events\InstallationHeartbeatStateChanged;
 use App\Models\DiagnosticFinding;
@@ -115,6 +116,28 @@ class AlertDispatcher
             new AlertMessage(
                 title: 'Fix failed',
                 body: 'A one-click or guided fix ('.$actionKey.') did not complete successfully. Open Fix Center to retry or follow the guided steps.',
+                installationName: $execution->integration?->name,
+                fixCenterUrl: $this->fixCenterUrl(),
+            ),
+        );
+    }
+
+    public function handleFixActionAutoQueued(FixActionAutoQueued $event): void
+    {
+        $execution = SafeActionExecution::query()->with('integration')->find($event->executionId);
+        if ($execution === null || $execution->tenant_id === null) {
+            return;
+        }
+
+        $actionKey = is_string($execution->action_key) ? $execution->action_key : 'fix';
+
+        $this->dispatch(
+            $execution->tenant_id,
+            'fix.auto_queued',
+            'fix.auto_queued:'.$execution->id,
+            new AlertMessage(
+                title: 'Auto-fix queued',
+                body: 'An automatic fix ('.$actionKey.') was queued for the WHMCS addon on the next heartbeat. Review it in Fix Center / Fix Log.',
                 installationName: $execution->integration?->name,
                 fixCenterUrl: $this->fixCenterUrl(),
             ),
