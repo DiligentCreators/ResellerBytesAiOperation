@@ -41,7 +41,9 @@ class FixCenterIssueBuilder
      *     guided_steps: list<array{step_index: int, action: string, completed: bool, completed_at: string|null, completed_by_user_id: int|null}>,
      *     suggested_actions: list<array<string, mixed>>,
      *     blocked_action_keys: list<string>,
+     *     fix_state: 'pending_approval'|'awaiting_agent'|'awaiting_verification'|null,
      *     pending_safe_action: array{id: string, status: string, url: string, can_reject: bool, reject_blocked_reason: string|null}|null,
+     *     awaiting_verification_safe_action: array{id: string, url: string}|null,
      *     affected_ids: list<int>,
      *     fixes_unavailable: bool
      * }
@@ -66,10 +68,12 @@ class FixCenterIssueBuilder
         $canGuide = $capabilities['can_guide'];
         $upgradeToOneClick = $capabilities['upgrade_to_one_click'];
         $primary = $capabilities['primary_action'];
+        $fixState = $capabilities['fix_state'];
+        $blocked = $capabilities['blocked_action_keys'];
+        $pendingExecution = $capabilities['pending_execution'];
+        $awaitingVerificationExecution = $capabilities['awaiting_verification_execution'];
         $meta = $this->guided->catalogMeta($finding);
 
-        $blocked = $canManage ? $this->continuity->blockedSafeActionKeys($finding) : [];
-        $pendingExecution = $canManage ? $this->continuity->pendingSafeActionExecution($finding) : null;
         $suggested = [];
         if ($canManage && ($canOneClick || $upgradeToOneClick)) {
             foreach ($this->safeActionMapper->suggestedActions($finding) as $action) {
@@ -123,7 +127,11 @@ class FixCenterIssueBuilder
                 : [],
             'suggested_actions' => $suggested,
             'blocked_action_keys' => $blocked,
+            'fix_state' => $fixState,
             'pending_safe_action' => $this->serializePendingSafeAction($pendingExecution),
+            'awaiting_verification_safe_action' => $this->serializeAwaitingVerificationSafeAction(
+                $awaitingVerificationExecution,
+            ),
             'affected_ids' => $this->affectedIds(is_array($finding->evidence) ? $finding->evidence : []),
             'fixes_unavailable' => ! $platformFixesEnabled,
         ];
@@ -156,7 +164,11 @@ class FixCenterIssueBuilder
      *     can_one_click: bool,
      *     can_guide: bool,
      *     upgrade_to_one_click: bool,
-     *     primary_action: 'fix_now'|'start_guide'|'learn_more'
+     *     primary_action: 'fix_now'|'start_guide'|'learn_more',
+     *     fix_state: 'pending_approval'|'awaiting_agent'|'awaiting_verification'|null,
+     *     blocked_action_keys: list<string>,
+     *     pending_execution: SafeActionExecution|null,
+     *     awaiting_verification_execution: SafeActionExecution|null
      * }
      */
     private function capabilities(
@@ -167,7 +179,8 @@ class FixCenterIssueBuilder
         bool $platformFixesEnabled,
     ): array {
         $meta = $this->guided->catalogMeta($finding);
-        $hasAllowlistedOneClick = $this->hasAllowlistedOneClickActions($finding);
+        $allowlistedOneClickKeys = $this->allowlistedOneClickActionKeys($finding);
+        $hasAllowlistedOneClick = $allowlistedOneClickKeys !== [];
         $fixMode = $this->resolveFixMode($finding, $meta, $hasAllowlistedOneClick);
         $neverOneClick = $meta['never_one_click'] || $fixMode === 'guided' || $fixMode === 'info';
         $canOneClick = $canManage
@@ -188,12 +201,44 @@ class FixCenterIssueBuilder
             && $finding->issue_key !== ''
             && $fixMode !== 'info';
 
+        $blocked = [];
+        $pendingExecution = null;
+        $awaitingVerificationExecution = null;
+        $fixState = null;
+
+        if ($canManage) {
+            $blocked = $this->continuity->blockedSafeActionKeys($finding);
+            $pendingExecution = $this->continuity->pendingSafeActionExecution($finding);
+
+            if ($pendingExecution !== null) {
+                $fixState = match ($pendingExecution->status) {
+                    SafeActionExecution::STATUS_PENDING_APPROVAL => 'pending_approval',
+                    default => 'awaiting_agent',
+                };
+            } elseif ($this->allKeysBlocked($allowlistedOneClickKeys, $blocked)) {
+                $awaitingVerificationExecution = $this->continuity->awaitingVerificationSafeActionExecution($finding);
+                if ($awaitingVerificationExecution !== null) {
+                    $fixState = 'awaiting_verification';
+                    $canOneClick = false;
+                    $upgradeToOneClick = false;
+                }
+            }
+        }
+
+        $primary = $fixState === 'awaiting_verification'
+            ? 'learn_more'
+            : $this->primaryAction($fixMode, $canOneClick, $canGuide, $upgradeToOneClick);
+
         return [
             'fix_mode' => $fixMode,
             'can_one_click' => $canOneClick,
             'can_guide' => $canGuide,
             'upgrade_to_one_click' => $upgradeToOneClick,
-            'primary_action' => $this->primaryAction($fixMode, $canOneClick, $canGuide, $upgradeToOneClick),
+            'primary_action' => $primary,
+            'fix_state' => $fixState,
+            'blocked_action_keys' => $blocked,
+            'pending_execution' => $pendingExecution,
+            'awaiting_verification_execution' => $awaitingVerificationExecution,
         ];
     }
 
@@ -218,13 +263,17 @@ class FixCenterIssueBuilder
         return 'guided';
     }
 
-    private function hasAllowlistedOneClickActions(DiagnosticFinding $finding): bool
+    /**
+     * @return list<string>
+     */
+    private function allowlistedOneClickActionKeys(DiagnosticFinding $finding): array
     {
         $issueKey = $finding->issue_key;
         if (! is_string($issueKey) || $issueKey === '') {
-            return false;
+            return [];
         }
 
+        $keys = [];
         foreach (WhmcsIssueCatalog::actionKeys($issueKey) as $key) {
             if (! $this->registry->isAllowlisted($key)) {
                 continue;
@@ -232,11 +281,30 @@ class FixCenterIssueBuilder
 
             $definition = $this->registry->get($key);
             if (($definition['entitlement'] ?? '') === 'fixes.one_click') {
-                return true;
+                $keys[] = $key;
             }
         }
 
-        return false;
+        return $keys;
+    }
+
+    /**
+     * @param  list<string>  $keys
+     * @param  list<string>  $blocked
+     */
+    private function allKeysBlocked(array $keys, array $blocked): bool
+    {
+        if ($keys === []) {
+            return false;
+        }
+
+        foreach ($keys as $key) {
+            if (! in_array($key, $blocked, true)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**
@@ -260,6 +328,21 @@ class FixCenterIssueBuilder
                 && $execution->wasPickedUpByAgent()
                 ? SafeActionExecution::REJECT_AFTER_PICKUP_MESSAGE
                 : null,
+        ];
+    }
+
+    /**
+     * @return array{id: string, url: string}|null
+     */
+    private function serializeAwaitingVerificationSafeAction(?SafeActionExecution $execution): ?array
+    {
+        if ($execution === null) {
+            return null;
+        }
+
+        return [
+            'id' => $execution->id,
+            'url' => URL::route('safe-actions.show', $execution),
         ];
     }
 

@@ -49,6 +49,11 @@ type PendingSafeAction = {
     reject_blocked_reason: string | null;
 };
 
+type AwaitingVerificationSafeAction = {
+    id: string;
+    url: string;
+};
+
 type Issue = {
     id: string;
     title: string;
@@ -72,7 +77,13 @@ type Issue = {
     guided_steps: GuidedStep[];
     suggested_actions: SuggestedAction[];
     blocked_action_keys: string[];
+    fix_state:
+        | 'pending_approval'
+        | 'awaiting_agent'
+        | 'awaiting_verification'
+        | null;
     pending_safe_action: PendingSafeAction | null;
+    awaiting_verification_safe_action: AwaitingVerificationSafeAction | null;
     affected_ids: number[];
 };
 
@@ -237,7 +248,13 @@ export default function FixCenterIndex({
                 onSuccess: () => {
                     setConfirmReject(false);
                     setRejectReason('');
-                    setFixPhase('status');
+                    setPendingFixId(null);
+                    router.reload({
+                        only: ['issues', 'counts', 'flash'],
+                        onSuccess: () => {
+                            closeDrawer();
+                        },
+                    });
                 },
             },
         );
@@ -391,8 +408,19 @@ export default function FixCenterIndex({
                                         </div>
 
                                         <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-                                            {issue.primary_action ===
-                                            'fix_now' ? (
+                                            {issue.fix_state ===
+                                            'awaiting_verification' ? (
+                                                <Button
+                                                    type="button"
+                                                    size="sm"
+                                                    onClick={() =>
+                                                        openDrawer(issue, 'fix')
+                                                    }
+                                                >
+                                                    View fix
+                                                </Button>
+                                            ) : issue.primary_action ===
+                                              'fix_now' ? (
                                                 <Button
                                                     type="button"
                                                     size="sm"
@@ -403,8 +431,10 @@ export default function FixCenterIndex({
                                                     Fix now
                                                 </Button>
                                             ) : null}
-                                            {issue.primary_action ===
-                                            'start_guide' ? (
+                                            {issue.fix_state !==
+                                                'awaiting_verification' &&
+                                            issue.primary_action ===
+                                                'start_guide' ? (
                                                 <Button
                                                     type="button"
                                                     size="sm"
@@ -418,8 +448,10 @@ export default function FixCenterIndex({
                                                     Start guide
                                                 </Button>
                                             ) : null}
-                                            {issue.primary_action ===
-                                            'learn_more' ? (
+                                            {issue.fix_state !==
+                                                'awaiting_verification' &&
+                                            issue.primary_action ===
+                                                'learn_more' ? (
                                                 <Button
                                                     type="button"
                                                     size="sm"
@@ -710,19 +742,25 @@ export default function FixCenterIndex({
                                                 </Button>
                                             ) : (
                                                 <div className="flex flex-col gap-2">
-                                                    <textarea
-                                                        value={rejectReason}
-                                                        onChange={(event) =>
-                                                            setRejectReason(
-                                                                event.target
-                                                                    .value,
-                                                            )
-                                                        }
-                                                        maxLength={1000}
-                                                        rows={2}
-                                                        className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs"
-                                                        placeholder="Optional rejection reason"
-                                                    />
+                                                    <label className="block space-y-1.5 text-sm">
+                                                        <span className="font-medium">
+                                                            Optional rejection
+                                                            reason
+                                                        </span>
+                                                        <textarea
+                                                            value={rejectReason}
+                                                            onChange={(event) =>
+                                                                setRejectReason(
+                                                                    event.target
+                                                                        .value,
+                                                                )
+                                                            }
+                                                            maxLength={1000}
+                                                            rows={2}
+                                                            className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs"
+                                                            placeholder="Optional note for the audit trail"
+                                                        />
+                                                    </label>
                                                     <div className="flex flex-wrap gap-2">
                                                         <Button
                                                             type="button"
@@ -767,6 +805,23 @@ export default function FixCenterIndex({
                                             </p>
                                         ) : null}
                                     </div>
+                                ) : activeIssue.fix_state ===
+                                      'awaiting_verification' &&
+                                  activeIssue.awaiting_verification_safe_action ? (
+                                    <p className="text-sm text-muted-foreground">
+                                        Fix applied, waiting for the next scan
+                                        to verify.{' '}
+                                        <Link
+                                            href={
+                                                activeIssue
+                                                    .awaiting_verification_safe_action
+                                                    .url
+                                            }
+                                            className="font-medium text-primary hover:underline"
+                                        >
+                                            View fix
+                                        </Link>
+                                    </p>
                                 ) : (
                                     <p className="text-sm text-muted-foreground">
                                         No one-click fix is available for this

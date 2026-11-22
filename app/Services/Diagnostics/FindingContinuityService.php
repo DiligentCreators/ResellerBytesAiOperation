@@ -235,6 +235,32 @@ class FindingContinuityService
     }
 
     /**
+     * Latest completed fix still waiting for the next snapshot to verify.
+     */
+    public function awaitingVerificationSafeActionExecution(DiagnosticFinding $finding): ?SafeActionExecution
+    {
+        $finding->loadMissing('diagnosticRun');
+        $integrationId = $finding->diagnosticRun?->integration_id;
+        if ($integrationId === null) {
+            return null;
+        }
+
+        $findingIds = $this->relatedFindingIds($finding, $integrationId);
+        if ($findingIds === []) {
+            return null;
+        }
+
+        return SafeActionExecution::query()
+            ->where('integration_id', $integrationId)
+            ->whereIn('finding_id', $findingIds)
+            ->where('status', SafeActionExecution::STATUS_COMPLETED)
+            ->orderByDesc('executed_at')
+            ->orderByDesc('requested_at')
+            ->orderByDesc('id')
+            ->first();
+    }
+
+    /**
      * @return list<string>
      */
     private function relatedFindingIds(DiagnosticFinding $finding, string $integrationId): array

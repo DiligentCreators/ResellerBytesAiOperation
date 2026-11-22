@@ -90,6 +90,9 @@ class FixLogQuery
             'issue',
             'mode',
             'approved_by',
+            'rejected_by',
+            'rejected_at',
+            'rejection_reason',
             'result',
             'minutes_saved',
         ];
@@ -100,21 +103,19 @@ class FixLogQuery
      */
     public function csvRow(SafeActionExecution $execution): array
     {
-        $finding = $execution->finding;
-        $issue = ($finding !== null ? $finding->title : null)
-            ?? $execution->issue_key
-            ?? $execution->action_key;
-
-        $integration = $execution->integration;
+        $row = $this->presentRow($execution);
 
         return [
-            $execution->requested_at?->toIso8601String(),
-            $integration !== null ? $integration->name : null,
-            $this->csvSafe(is_string($issue) ? $issue : null),
-            $execution->mode,
-            $this->csvSafe($this->actorName($execution)),
-            $execution->status,
-            $execution->minutes_saved,
+            $row['date'],
+            $row['installation'],
+            $this->csvSafe($row['issue']),
+            $row['mode'],
+            $this->csvSafe($row['approved_by']),
+            $this->csvSafe($row['rejected_by']),
+            $row['rejected_at'],
+            $this->csvSafe($row['rejection_reason']),
+            $row['result'],
+            $row['minutes_saved'],
         ];
     }
 
@@ -126,7 +127,12 @@ class FixLogQuery
      *     installation: string|null,
      *     issue: string|null,
      *     mode: string,
+     *     decision_label: string,
      *     approved_by: string|null,
+     *     decided_by: string|null,
+     *     rejected_by: string|null,
+     *     rejected_at: string|null,
+     *     rejection_reason: string|null,
      *     result: string,
      *     minutes_saved: int|null
      * }>
@@ -135,40 +141,86 @@ class FixLogQuery
     {
         $rows = [];
         foreach ($executions as $execution) {
-            $finding = $execution->finding;
-            $issue = ($finding !== null ? $finding->title : null)
-                ?? $execution->issue_key
-                ?? $execution->action_key;
-
-            $integration = $execution->integration;
-
-            $rows[] = [
-                'id' => $execution->id,
-                'date' => $execution->requested_at?->toIso8601String(),
-                'installation' => $integration !== null ? $integration->name : null,
-                'issue' => is_string($issue) ? $issue : null,
-                'mode' => $execution->mode,
-                'approved_by' => $this->actorName($execution),
-                'result' => $execution->status,
-                'minutes_saved' => $execution->minutes_saved,
-            ];
+            $rows[] = $this->presentRow($execution);
         }
 
         return $rows;
     }
 
-    private function actorName(SafeActionExecution $execution): ?string
+    /**
+     * @return array{
+     *     id: string,
+     *     date: string|null,
+     *     installation: string|null,
+     *     issue: string|null,
+     *     mode: string,
+     *     decision_label: string,
+     *     approved_by: string|null,
+     *     decided_by: string|null,
+     *     rejected_by: string|null,
+     *     rejected_at: string|null,
+     *     rejection_reason: string|null,
+     *     result: string,
+     *     minutes_saved: int|null
+     * }
+     */
+    public function presentRow(SafeActionExecution $execution): array
     {
-        if (in_array($execution->status, [
+        $finding = $execution->finding;
+        $issue = ($finding !== null ? $finding->title : null)
+            ?? $execution->issue_key
+            ?? $execution->action_key;
+
+        $integration = $execution->integration;
+        $isRejection = $this->isRejectionStatus($execution->status);
+        $rejectedBy = $isRejection ? $this->rejectorName($execution) : null;
+        $approvedBy = $isRejection ? null : $this->approverName($execution);
+
+        return [
+            'id' => $execution->id,
+            'date' => $isRejection
+                ? ($execution->rejected_at?->toIso8601String() ?? $execution->requested_at?->toIso8601String())
+                : $execution->requested_at?->toIso8601String(),
+            'installation' => $integration !== null ? $integration->name : null,
+            'issue' => is_string($issue) ? $issue : null,
+            'mode' => $execution->mode,
+            'decision_label' => $this->decisionLabel($execution->status),
+            'approved_by' => $approvedBy,
+            'decided_by' => $isRejection ? $rejectedBy : $approvedBy,
+            'rejected_by' => $rejectedBy,
+            'rejected_at' => $isRejection ? $execution->rejected_at?->toIso8601String() : null,
+            'rejection_reason' => $isRejection ? $execution->rejection_reason : null,
+            'result' => $execution->status,
+            'minutes_saved' => $execution->minutes_saved,
+        ];
+    }
+
+    private function isRejectionStatus(string $status): bool
+    {
+        return in_array($status, [
             SafeActionExecution::STATUS_REJECTED,
             SafeActionExecution::STATUS_CANCELLED,
-        ], true)) {
-            $rejector = $execution->rejector;
-            if ($rejector !== null) {
-                return $rejector->name;
-            }
-        }
+        ], true);
+    }
 
+    private function decisionLabel(string $status): string
+    {
+        return match ($status) {
+            SafeActionExecution::STATUS_REJECTED => 'Rejected by',
+            SafeActionExecution::STATUS_CANCELLED => 'Cancelled by',
+            default => 'Approved by',
+        };
+    }
+
+    private function rejectorName(SafeActionExecution $execution): ?string
+    {
+        $rejector = $execution->rejector;
+
+        return $rejector !== null ? $rejector->name : null;
+    }
+
+    private function approverName(SafeActionExecution $execution): ?string
+    {
         $approver = $execution->approver;
         if ($approver !== null) {
             return $approver->name;

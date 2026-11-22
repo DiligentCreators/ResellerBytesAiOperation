@@ -217,11 +217,49 @@ it('exposes a pending safe action when a fix is waiting for approval or the addo
         ->assertInertia(fn (Assert $page) => $page
             ->component('fix-center/index')
             ->where('issues.data.0.can_one_click', true)
+            ->where('issues.data.0.primary_action', 'fix_now')
+            ->where('issues.data.0.fix_state', 'pending_approval')
             ->where('issues.data.0.pending_safe_action.id', $execution->id)
             ->where('issues.data.0.pending_safe_action.status', SafeActionExecution::STATUS_PENDING_APPROVAL)
             ->where('issues.data.0.pending_safe_action.url', route('safe-actions.show', $execution))
             ->where('issues.data.0.pending_safe_action.can_reject', true)
             ->where('issues.data.0.pending_safe_action.reject_blocked_reason', null)
+            ->where('issues.data.0.awaiting_verification_safe_action', null)
+            ->where('issues.data.0.suggested_actions', []));
+});
+
+it('exposes awaiting verification instead of fix_now when the only allowlisted action already ran', function () {
+    $workspace = createFixCenterWorkspace();
+    $finding = createFixCenterFinding($workspace, 'service.suspended_but_paid');
+
+    $execution = SafeActionExecution::create([
+        'tenant_id' => $workspace['tenant']->id,
+        'integration_id' => $workspace['integration']->id,
+        'finding_id' => $finding->id,
+        'issue_key' => $finding->issue_key,
+        'action_key' => 'service_unsuspend_paid',
+        'mode' => SafeActionExecution::MODE_ONE_CLICK,
+        'status' => SafeActionExecution::STATUS_COMPLETED,
+        'risk_level' => 'low',
+        'requested_by_user_id' => $workspace['owner']->id,
+        'approved_by_user_id' => $workspace['owner']->id,
+        'requires_password_confirm' => false,
+        'requested_at' => now()->subHour(),
+        'approved_at' => now()->subHour(),
+        'executed_at' => now()->subMinutes(30),
+    ]);
+
+    $this->actingAs($workspace['owner'])
+        ->get('/fix-center?tab=open')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('fix-center/index')
+            ->where('issues.data.0.can_one_click', false)
+            ->where('issues.data.0.primary_action', 'learn_more')
+            ->where('issues.data.0.fix_state', 'awaiting_verification')
+            ->where('issues.data.0.pending_safe_action', null)
+            ->where('issues.data.0.awaiting_verification_safe_action.id', $execution->id)
+            ->where('issues.data.0.awaiting_verification_safe_action.url', route('safe-actions.show', $execution))
             ->where('issues.data.0.suggested_actions', []));
 });
 

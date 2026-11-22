@@ -8,7 +8,12 @@ type FixRow = {
     installation: string | null;
     issue: string | null;
     mode: string;
+    decision_label: string;
     approved_by: string | null;
+    decided_by: string | null;
+    rejected_by: string | null;
+    rejected_at: string | null;
+    rejection_reason: string | null;
     result: string;
     minutes_saved: number | null;
 };
@@ -46,9 +51,7 @@ export default function FixLogPrint({ tenant, generated_at, rows }: Props) {
                             </th>
                             <th className="py-2 pr-3 font-medium">Issue</th>
                             <th className="py-2 pr-3 font-medium">Mode</th>
-                            <th className="py-2 pr-3 font-medium">
-                                Approved by
-                            </th>
+                            <th className="py-2 pr-3 font-medium">Decision</th>
                             <th className="py-2 pr-3 font-medium">Result</th>
                             <th className="py-2 font-medium">Minutes saved</th>
                         </tr>
@@ -72,7 +75,17 @@ export default function FixLogPrint({ tenant, generated_at, rows }: Props) {
                                     {row.mode.replace('_', '-')}
                                 </td>
                                 <td className="py-2 pr-3">
-                                    {row.approved_by ?? '—'}
+                                    <div className="space-y-0.5">
+                                        <p>
+                                            {row.decision_label}{' '}
+                                            {row.decided_by ?? '—'}
+                                        </p>
+                                        {row.rejection_reason ? (
+                                            <p className="text-xs text-muted-foreground">
+                                                {row.rejection_reason}
+                                            </p>
+                                        ) : null}
+                                    </div>
                                 </td>
                                 <td className="py-2 pr-3">{row.result}</td>
                                 <td className="py-2 tabular-nums">

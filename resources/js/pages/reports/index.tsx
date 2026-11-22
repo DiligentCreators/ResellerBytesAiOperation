@@ -40,7 +40,12 @@ type FixRow = {
     installation: string | null;
     issue: string | null;
     mode: string;
+    decision_label: string;
     approved_by: string | null;
+    decided_by: string | null;
+    rejected_by: string | null;
+    rejected_at: string | null;
+    rejection_reason: string | null;
     result: string;
     minutes_saved: number | null;
 };
@@ -417,7 +422,7 @@ export default function ReportsIndex({
                                             Mode
                                         </th>
                                         <th className="px-2 py-2 font-medium">
-                                            Approved by
+                                            Decision
                                         </th>
                                         <th className="px-2 py-2 font-medium">
                                             Result
@@ -449,7 +454,19 @@ export default function ReportsIndex({
                                                 {row.mode.replace('_', '-')}
                                             </td>
                                             <td className="px-2 py-3">
-                                                {row.approved_by ?? '—'}
+                                                <div className="space-y-0.5">
+                                                    <p>
+                                                        {row.decision_label}{' '}
+                                                        {row.decided_by ?? '—'}
+                                                    </p>
+                                                    {row.rejection_reason ? (
+                                                        <p className="text-xs text-muted-foreground">
+                                                            {
+                                                                row.rejection_reason
+                                                            }
+                                                        </p>
+                                                    ) : null}
+                                                </div>
                                             </td>
                                             <td className="px-2 py-3">
                                                 {row.result}

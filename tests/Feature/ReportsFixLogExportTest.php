@@ -75,13 +75,79 @@ it('streams a tenant-scoped fix log csv with expected columns and no secrets', f
     $csv = $response->streamedContent();
     $lines = array_values(array_filter(preg_split("/\r\n|\n|\r/", trim($csv)) ?: []));
 
-    expect($lines[0])->toBe('date,installation,issue,mode,approved_by,result,minutes_saved');
+    expect($lines[0])->toBe('date,installation,issue,mode,approved_by,rejected_by,rejected_at,rejection_reason,result,minutes_saved');
     expect($csv)->toContain('Alpha WHMCS')
         ->and($csv)->toContain('one_click')
         ->and($csv)->toContain('45')
         ->and($csv)->not->toContain('secret_should_not_appear')
         ->and($csv)->not->toContain('other_tenant_action')
         ->and($csv)->not->toContain('Bravo WHMCS');
+});
+
+it('presents rejected and cancelled fix log rows with rejector date and reason', function () {
+    $this->withoutVite();
+    $workspace = createFixLogWorkspace('Reject Log WHMCS');
+    $rejector = $workspace['owner'];
+    $rejectedAt = now()->subMinutes(12);
+
+    SafeActionExecution::create([
+        'tenant_id' => $workspace['tenant']->id,
+        'integration_id' => $workspace['integration']->id,
+        'action_key' => 'service_unsuspend_paid',
+        'issue_key' => 'billing.suspended_paid',
+        'mode' => SafeActionExecution::MODE_ONE_CLICK,
+        'status' => SafeActionExecution::STATUS_REJECTED,
+        'risk_level' => 'low',
+        'requested_by_user_id' => $rejector->id,
+        'rejected_by_user_id' => $rejector->id,
+        'rejection_reason' => 'Not needed this maintenance window',
+        'requested_at' => now()->subHour(),
+        'rejected_at' => $rejectedAt,
+    ]);
+
+    SafeActionExecution::create([
+        'tenant_id' => $workspace['tenant']->id,
+        'integration_id' => $workspace['integration']->id,
+        'action_key' => 'service_unsuspend_paid',
+        'issue_key' => 'billing.suspended_paid',
+        'mode' => SafeActionExecution::MODE_ONE_CLICK,
+        'status' => SafeActionExecution::STATUS_CANCELLED,
+        'risk_level' => 'low',
+        'requested_by_user_id' => $rejector->id,
+        'rejected_by_user_id' => $rejector->id,
+        'rejection_reason' => 'Cancel before addon pickup',
+        'requested_at' => now()->subHours(2),
+        'rejected_at' => now()->subMinutes(30),
+    ]);
+
+    $this->actingAs($rejector)
+        ->get(route('reports.fix-log.print', $workspace['tenant']))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('reports/fix-log-print')
+            ->has('rows', 2)
+            ->where('rows.0.decision_label', 'Rejected by')
+            ->where('rows.0.decided_by', $rejector->name)
+            ->where('rows.0.approved_by', null)
+            ->where('rows.0.rejected_by', $rejector->name)
+            ->where('rows.0.rejection_reason', 'Not needed this maintenance window')
+            ->where('rows.0.date', $rejectedAt->toIso8601String())
+            ->where('rows.1.decision_label', 'Cancelled by')
+            ->where('rows.1.rejected_by', $rejector->name)
+            ->where('rows.1.rejection_reason', 'Cancel before addon pickup'));
+
+    $csv = $this->actingAs($rejector)
+        ->get(route('reports.fix-log.export', $workspace['tenant']))
+        ->assertOk()
+        ->streamedContent();
+
+    $lines = array_values(array_filter(preg_split("/\r\n|\n|\r/", trim($csv)) ?: []));
+    expect($lines[0])->toBe('date,installation,issue,mode,approved_by,rejected_by,rejected_at,rejection_reason,result,minutes_saved');
+    expect($csv)->toContain($rejector->name)
+        ->and($csv)->toContain('Not needed this maintenance window')
+        ->and($csv)->toContain('Cancel before addon pickup')
+        ->and($csv)->toContain('rejected')
+        ->and($csv)->toContain('cancelled');
 });
 
 it('rejects fix log export for outsiders', function () {
