@@ -39,6 +39,11 @@ jobs:
           php whmcs-addon/tests/diagnostic_collector_test.php
           php whmcs-addon/tests/signed_api_client_test.php
           php whmcs-addon/tests/remediation_runner_test.php
+          php whmcs-addon/tests/heartbeat_test.php
+          php whmcs-addon/tests/cron_monitor_test.php
+          php whmcs-addon/tests/remediation_localapi_test.php
+          php whmcs-addon/tests/runtime_roots_test.php
+          php whmcs-addon/tests/cron_hook_test.php
 
   ci:
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false

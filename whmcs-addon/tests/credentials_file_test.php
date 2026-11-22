@@ -61,6 +61,24 @@ try {
         'Credentials file inside the web root was accepted.',
     );
 
+    // CLI fallback: RuntimeRoots returns the WHMCS root as documentRoot when DOCUMENT_ROOT is empty.
+    assertCredentialsFailure(
+        static fn () => CredentialsFile::load($insidePath, $whmcsRoot, $whmcsRoot),
+        'CLI fallback: credentials file inside the WHMCS root was accepted when documentRoot equals whmcsRoot.',
+    );
+
+    $loadedCliFallback = CredentialsFile::load($credentialsPath, $whmcsRoot, $whmcsRoot);
+    assertSameValue(
+        $credentials['integration_id'],
+        $loadedCliFallback['integration_id'],
+        'CLI fallback: external credentials file was rejected when documentRoot equals whmcsRoot.',
+    );
+    assertSameValue(
+        $credentials['secret'],
+        $loadedCliFallback['secret'],
+        'CLI fallback: external credentials secret did not load when documentRoot equals whmcsRoot.',
+    );
+
     if (! symlink($credentialsPath, $symlinkPath)) {
         throw new RuntimeException('Could not create symlink test fixture.');
     }

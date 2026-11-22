@@ -3,6 +3,7 @@
 use ResellerBytesAiOps\CredentialsFile;
 use ResellerBytesAiOps\DiagnosticCollector;
 use ResellerBytesAiOps\RemediationRunner;
+use ResellerBytesAiOps\RuntimeRoots;
 use ResellerBytesAiOps\SignedApiClient;
 
 if (! defined('WHMCS')) {
@@ -10,6 +11,7 @@ if (! defined('WHMCS')) {
 }
 
 require_once __DIR__.'/lib/CredentialsFile.php';
+require_once __DIR__.'/lib/RuntimeRoots.php';
 require_once __DIR__.'/lib/WhmcsDataSource.php';
 require_once __DIR__.'/lib/CapsuleWhmcsDataSource.php';
 require_once __DIR__.'/lib/SnapshotRedactor.php';
@@ -75,10 +77,11 @@ function resellerbytes_ai_ops_output(array $vars): void
 
     if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['run_diagnostics'])) {
         try {
+            $whmcsRoot = defined('ROOTDIR') ? (string) ROOTDIR : '';
             $credentials = CredentialsFile::load(
                 (string) ($vars['credentials_file'] ?? ''),
-                defined('ROOTDIR') ? (string) ROOTDIR : '',
-                (string) ($_SERVER['DOCUMENT_ROOT'] ?? ''),
+                $whmcsRoot,
+                RuntimeRoots::documentRootFor(PHP_SAPI, $_SERVER, $whmcsRoot),
             );
 
             $diagnostics = (new DiagnosticCollector)->collect();
@@ -96,10 +99,11 @@ function resellerbytes_ai_ops_output(array $vars): void
 
     if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['apply_safe_actions'])) {
         try {
+            $whmcsRoot = defined('ROOTDIR') ? (string) ROOTDIR : '';
             $credentials = CredentialsFile::load(
                 (string) ($vars['credentials_file'] ?? ''),
-                defined('ROOTDIR') ? (string) ROOTDIR : '',
-                (string) ($_SERVER['DOCUMENT_ROOT'] ?? ''),
+                $whmcsRoot,
+                RuntimeRoots::documentRootFor(PHP_SAPI, $_SERVER, $whmcsRoot),
             );
 
             $client = new SignedApiClient;
