@@ -101,7 +101,7 @@ it('creates a webhook channel with a one-time signing secret and encrypts secret
         ->and($channel->toArray())->not->toHaveKey('signing_secret');
 });
 
-it('rejects private webhook targets on create', function () {
+it('rejects private webhook targets on create', function (string $target) {
     $workspace = createAlertHttpWorkspace();
 
     $this->actingAs($workspace['user'])
@@ -109,7 +109,7 @@ it('rejects private webhook targets on create', function () {
         ->post(route('tenants.alerts.channels.store', $workspace['tenant']), [
             'type' => 'webhook',
             'name' => 'Bad webhook',
-            'target' => 'https://127.0.0.1/hook',
+            'target' => $target,
             'events' => ['all_critical'],
             'enabled' => true,
         ])
@@ -117,7 +117,11 @@ it('rejects private webhook targets on create', function () {
         ->assertSessionHasErrors('target');
 
     expect(TenantAlertChannel::query()->where('tenant_id', $workspace['tenant']->id)->count())->toBe(0);
-});
+})->with([
+    'ipv4 loopback' => ['https://127.0.0.1/hook'],
+    'bracketed ipv6 loopback' => ['https://[::1]/x'],
+    'decimal loopback' => ['https://2130706433/hook'],
+]);
 
 it('gates channel management on entitlement and owner/admin role', function () {
     $starter = createAlertHttpWorkspace(['alerts.channels' => false]);

@@ -16,7 +16,8 @@ final class WebhookAlertDriver implements AlertChannelDriver
     public function send(TenantAlertChannel $channel, string $alertKey, AlertMessage $message): void
     {
         $url = trim((string) $channel->target);
-        if (! $this->urls->isValid($url, allowPrivate: false)) {
+        $prepared = $this->urls->prepareOutbound($url, allowPrivate: false);
+        if (! $prepared['valid']) {
             throw new RuntimeException('alert_webhook_url_invalid');
         }
 
@@ -46,11 +47,16 @@ final class WebhookAlertDriver implements AlertChannelDriver
                     $header => 'sha256='.$signature,
                 ])
                 ->withoutRedirecting()
+                ->withOptions($prepared['request_options'])
                 ->connectTimeout(3)
                 ->timeout(5)
                 ->post($url);
         } catch (Throwable $exception) {
             throw new RuntimeException('alert_webhook_request_failed', 0, $exception);
+        }
+
+        if ($response->redirect()) {
+            throw new RuntimeException('alert_webhook_redirect_refused');
         }
 
         if (! $response->successful()) {

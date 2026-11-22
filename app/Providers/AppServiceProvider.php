@@ -16,6 +16,8 @@ use App\Services\Mail\CentralOutboundMailer;
 use App\Services\Mail\PlatformMailTransport;
 use App\Services\Operations\QueueJobMetricsTracker;
 use App\Services\PlatformSettings;
+use App\Support\Http\HostDnsResolver;
+use App\Support\Http\PhpHostDnsResolver;
 use App\Support\PlatformSettings\PlatformSettingsRegistry;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
@@ -41,6 +43,7 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->bind(AuditCheckpointObjectStore::class, S3AuditCheckpointObjectStore::class);
+        $this->app->bind(HostDnsResolver::class, PhpHostDnsResolver::class);
         $this->app->singleton(PlatformSettingsRegistry::class);
         $this->app->singleton(PlatformSettings::class);
         $this->app->singleton(IssueRuleRegistry::class, function ($app): IssueRuleRegistry {
