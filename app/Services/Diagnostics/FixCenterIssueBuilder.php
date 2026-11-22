@@ -54,28 +54,19 @@ class FixCenterIssueBuilder
         bool $canManage,
         bool $platformFixesEnabled = true,
     ): array {
+        $capabilities = $this->capabilities(
+            $finding,
+            $oneClickEnabled,
+            $guidedEnabled,
+            $canManage,
+            $platformFixesEnabled,
+        );
+        $fixMode = $capabilities['fix_mode'];
+        $canOneClick = $capabilities['can_one_click'];
+        $canGuide = $capabilities['can_guide'];
+        $upgradeToOneClick = $capabilities['upgrade_to_one_click'];
+        $primary = $capabilities['primary_action'];
         $meta = $this->guided->catalogMeta($finding);
-        $hasAllowlistedOneClick = $this->hasAllowlistedOneClickActions($finding);
-        $fixMode = $this->resolveFixMode($finding, $meta, $hasAllowlistedOneClick);
-        $neverOneClick = $meta['never_one_click'] || $fixMode === 'guided' || $fixMode === 'info';
-        $canOneClick = $canManage
-            && $oneClickEnabled
-            && $platformFixesEnabled
-            && ! $neverOneClick
-            && $fixMode === 'one_click'
-            && $hasAllowlistedOneClick;
-        $upgradeToOneClick = $canManage
-            && $platformFixesEnabled
-            && ! $oneClickEnabled
-            && $fixMode === 'one_click'
-            && $hasAllowlistedOneClick
-            && ! $meta['never_one_click'];
-        $canGuide = $canManage
-            && $guidedEnabled
-            && is_string($finding->issue_key)
-            && $finding->issue_key !== ''
-            && $fixMode !== 'info';
-        $primary = $this->primaryAction($fixMode, $canOneClick, $canGuide, $upgradeToOneClick);
 
         $blocked = $canManage ? $this->continuity->blockedSafeActionKeys($finding) : [];
         $pendingExecution = $canManage ? $this->continuity->pendingSafeActionExecution($finding) : null;
@@ -139,6 +130,74 @@ class FixCenterIssueBuilder
     }
 
     /**
+     * Resolve the same primary CTA used by Fix Center (QA-RB-28).
+     *
+     * @return 'fix_now'|'start_guide'|'learn_more'
+     */
+    public function resolvePrimaryAction(
+        DiagnosticFinding $finding,
+        bool $oneClickEnabled,
+        bool $guidedEnabled,
+        bool $platformFixesEnabled = true,
+        bool $canManage = true,
+    ): string {
+        return $this->capabilities(
+            $finding,
+            $oneClickEnabled,
+            $guidedEnabled,
+            $canManage,
+            $platformFixesEnabled,
+        )['primary_action'];
+    }
+
+    /**
+     * @return array{
+     *     fix_mode: string,
+     *     can_one_click: bool,
+     *     can_guide: bool,
+     *     upgrade_to_one_click: bool,
+     *     primary_action: 'fix_now'|'start_guide'|'learn_more'
+     * }
+     */
+    private function capabilities(
+        DiagnosticFinding $finding,
+        bool $oneClickEnabled,
+        bool $guidedEnabled,
+        bool $canManage,
+        bool $platformFixesEnabled,
+    ): array {
+        $meta = $this->guided->catalogMeta($finding);
+        $hasAllowlistedOneClick = $this->hasAllowlistedOneClickActions($finding);
+        $fixMode = $this->resolveFixMode($finding, $meta, $hasAllowlistedOneClick);
+        $neverOneClick = $meta['never_one_click'] || $fixMode === 'guided' || $fixMode === 'info';
+        $canOneClick = $canManage
+            && $oneClickEnabled
+            && $platformFixesEnabled
+            && ! $neverOneClick
+            && $fixMode === 'one_click'
+            && $hasAllowlistedOneClick;
+        $upgradeToOneClick = $canManage
+            && $platformFixesEnabled
+            && ! $oneClickEnabled
+            && $fixMode === 'one_click'
+            && $hasAllowlistedOneClick
+            && ! $meta['never_one_click'];
+        $canGuide = $canManage
+            && $guidedEnabled
+            && is_string($finding->issue_key)
+            && $finding->issue_key !== ''
+            && $fixMode !== 'info';
+
+        return [
+            'fix_mode' => $fixMode,
+            'can_one_click' => $canOneClick,
+            'can_guide' => $canGuide,
+            'upgrade_to_one_click' => $upgradeToOneClick,
+            'primary_action' => $this->primaryAction($fixMode, $canOneClick, $canGuide, $upgradeToOneClick),
+        ];
+    }
+
+    /**
      * @param  array{never_one_click: bool, fix_mode: string|null}  $meta
      */
     private function resolveFixMode(DiagnosticFinding $finding, array $meta, bool $hasAllowlistedOneClick): string
@@ -196,6 +255,9 @@ class FixCenterIssueBuilder
         ];
     }
 
+    /**
+     * @return 'fix_now'|'start_guide'|'learn_more'
+     */
     private function primaryAction(string $fixMode, bool $canOneClick, bool $canGuide, bool $upgradeToOneClick): string
     {
         if ($fixMode === 'info') {

@@ -16,6 +16,7 @@ class ReportMetricsService
 {
     public function __construct(
         private readonly TimeSavedCalculator $timeSaved,
+        private readonly FindingReportCtaResolver $ctaResolver,
     ) {}
 
     /**
@@ -42,7 +43,7 @@ class ReportMetricsService
      *     recovered_usd: float|null,
      *     recovered_display: string|null,
      *     outside_heartbeat_incidents: int,
-     *     top_open_issues: list<array{id: string, title: string, severity: string, status: string, integration_name: string, fix_url: string}>,
+     *     top_open_issues: list<array{id: string, title: string, severity: string, status: string, integration_name: string, fix_url: string, cta: string, cta_label: string}>,
      *     installations: list<array{id: string, name: string, heartbeat_state: string, last_heartbeat_at: string|null}>,
      *     findings_url: string,
      *     safe_actions_url: string,
@@ -67,14 +68,20 @@ class ReportMetricsService
             ->limit(3)
             ->get();
 
-        $topOpenIssues = array_values($topOpen->map(fn (DiagnosticFinding $finding): array => [
-            'id' => $finding->id,
-            'title' => $finding->title,
-            'severity' => $finding->severity,
-            'status' => $finding->status,
-            'integration_name' => $finding->diagnosticRun->integration->name ?? 'Unknown',
-            'fix_url' => URL::route('findings.show', $finding),
-        ])->all());
+        $topOpenIssues = array_values($topOpen->map(function (DiagnosticFinding $finding) use ($tenant): array {
+            $cta = $this->ctaResolver->forFinding($finding, $tenant);
+
+            return [
+                'id' => $finding->id,
+                'title' => $finding->title,
+                'severity' => $finding->severity,
+                'status' => $finding->status,
+                'integration_name' => $finding->diagnosticRun->integration->name ?? 'Unknown',
+                'fix_url' => URL::route('findings.show', $finding),
+                'cta' => $cta['cta'],
+                'cta_label' => $cta['cta_label'],
+            ];
+        })->all());
 
         // Legacy digest shape (top 8 without deep links) kept for mail BC.
         $topFindings = array_values((clone $current)

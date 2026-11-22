@@ -23,6 +23,23 @@ function asString(value: unknown): string | null {
     return typeof value === 'string' ? value : null;
 }
 
+function issueCtaLabel(issue: Record<string, unknown>): string {
+    const label = asString(issue.cta_label);
+    if (label) {
+        return label;
+    }
+
+    const cta = asString(issue.cta);
+    if (cta === 'fix_now') {
+        return 'Fix now';
+    }
+    if (cta === 'start_guided_fix' || cta === 'view_guide') {
+        return 'Start guided fix';
+    }
+
+    return 'View in Fix Center';
+}
+
 export default function ReportShow({ tenant, report }: Props) {
     const timezone = tenant.timezone;
     const summary = report.summary;
@@ -124,7 +141,7 @@ export default function ReportShow({ tenant, report }: Props) {
                                                 className="underline"
                                                 href={asString(issue.fix_url)!}
                                             >
-                                                Fix now
+                                                {issueCtaLabel(issue)}
                                             </a>
                                         </>
                                     ) : null}

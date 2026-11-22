@@ -2,6 +2,7 @@
 
 namespace App\Mail;
 
+use App\Services\Reports\FindingReportCtaResolver;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
@@ -88,12 +89,14 @@ class FindingsWeeklyDigestMail extends Mailable
         } else {
             if ($topOpen !== []) {
                 $lines[] = '<p>Top open issues:</p><ol>';
+                $ctaResolver = app(FindingReportCtaResolver::class);
                 foreach (array_slice($topOpen, 0, 3) as $finding) {
                     $title = e((string) ($finding['title'] ?? 'Issue'));
                     $meta = e((string) ($finding['severity'] ?? '')).' · '.e((string) ($finding['status'] ?? '')).' · '.e((string) ($finding['integration_name'] ?? ''));
                     $fixUrl = (string) ($finding['fix_url'] ?? '');
+                    $ctaLabel = e($ctaResolver->labelFromIssue(is_array($finding) ? $finding : []));
                     if ($fixUrl !== '') {
-                        $lines[] = '<li>'.$title.' ('.$meta.') — <a href="'.e($fixUrl).'">Fix now</a></li>';
+                        $lines[] = '<li>'.$title.' ('.$meta.') — <a href="'.e($fixUrl).'">'.$ctaLabel.'</a></li>';
                     } else {
                         $lines[] = '<li>'.$title.' ('.$meta.')</li>';
                     }
