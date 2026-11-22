@@ -67,6 +67,47 @@ namespace {
     assertLocalApi(($terminate['evidence']['item_results'][0]['error_code'] ?? null) === 'terminate_refused', 'Terminate refused.');
     assertLocalApi($fake->calls === [], 'Terminate must not call LocalAPI.');
 
+    // Auto mode refuses ModuleCreate / ModuleSuspend / ModuleUnsuspend / ModuleTerminate
+    foreach (['ModuleCreate', 'ModuleSuspend', 'ModuleUnsuspend', 'ModuleTerminate'] as $autoForbiddenCommand) {
+        $fake = new FakeLocalApiClient;
+        $runner = new RemediationRunner($fake, $logger);
+        $autoRefusal = $runner->apply($credentials, [
+            'action_key' => 'module_queue_retry',
+            'mode' => 'auto',
+            'preview' => [
+                'items' => [[
+                    'id' => 40,
+                    'command' => $autoForbiddenCommand,
+                    'params' => ['serviceid' => 400],
+                ]],
+            ],
+        ], $client);
+        $expectedError = $autoForbiddenCommand === 'ModuleTerminate' ? 'terminate_refused' : 'auto_action_refused';
+        assertLocalApi($autoRefusal['status'] === 'failed', 'Auto mode must refuse '.$autoForbiddenCommand.'.');
+        assertLocalApi(
+            ($autoRefusal['evidence']['item_results'][0]['error_code'] ?? null) === $expectedError,
+            'Auto mode '.$autoForbiddenCommand.' error code.',
+        );
+        assertLocalApi($fake->calls === [], 'Auto mode must not call LocalAPI for '.$autoForbiddenCommand.'.');
+    }
+
+    // Manual (non-auto) ModuleUnsuspend via module_queue_retry still works
+    $fake = new FakeLocalApiClient;
+    $runner = new RemediationRunner($fake, $logger);
+    $manualQueue = $runner->apply($credentials, [
+        'action_key' => 'module_queue_retry',
+        'mode' => 'one_click',
+        'preview' => [
+            'items' => [[
+                'id' => 11,
+                'command' => 'ModuleUnsuspend',
+                'params' => ['serviceid' => 101],
+            ]],
+        ],
+    ], $client);
+    assertLocalApi($manualQueue['status'] === 'success', 'Manual module_queue_retry unsuspend should succeed.');
+    assertLocalApi(($fake->calls[0]['command'] ?? null) === 'ModuleUnsuspend', 'Manual ModuleUnsuspend expected.');
+
     // Duplicate GenInvoices guard
     $_ENV['RB_AI_OPS_FORCE_DUPLICATE_INVOICE'] = '1';
     $fake = new FakeLocalApiClient;

@@ -70,9 +70,17 @@ class SafeActionExecutor
             );
 
             if ($preview['items_total'] < 1 && $actionKey !== 'whmcs_clear_template_cache') {
-                $refused = $preview['refused'][0]['reason'] ?? null;
-                if ($refused === 'terminate_refused') {
+                $refusedReasons = array_values(array_unique(array_map(
+                    static fn (array $row): string => (string) ($row['reason'] ?? ''),
+                    $preview['refused'],
+                )));
+
+                if (in_array('terminate_refused', $refusedReasons, true) && count($refusedReasons) === 1) {
                     throw new InvalidArgumentException('Module terminate queue items are refused. Use guided remediation only.');
+                }
+
+                if ($mode === SafeActionExecution::MODE_AUTO && in_array('auto_action_refused', $refusedReasons, true)) {
+                    throw new InvalidArgumentException('No auto-safe targets remain after preview validation.');
                 }
 
                 throw new InvalidArgumentException('No executable targets remain after preview validation.');

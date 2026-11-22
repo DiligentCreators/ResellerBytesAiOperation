@@ -77,8 +77,8 @@ class SafeActionPreviewBuilder
                     continue;
                 }
 
-                if ($mode === 'auto' && $command === 'ModuleCreate') {
-                    $refused[] = ['id' => $id, 'reason' => 'auto_create_refused'];
+                if ($mode === 'auto' && ! in_array($command, $definition['auto_local_api_commands'], true)) {
+                    $refused[] = ['id' => $id, 'reason' => 'auto_action_refused'];
 
                     continue;
                 }

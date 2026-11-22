@@ -88,7 +88,7 @@ return [
          */
         'module_queue_retry' => [
             'label' => 'Retry module queue item',
-            'description' => 'Re-run allowlisted ModuleCreate / ModuleSuspend / ModuleUnsuspend queue items via LocalAPI. TerminateAccount items are refused (guided only).',
+            'description' => 'Re-run allowlisted ModuleCreate / ModuleSuspend / ModuleUnsuspend queue items via LocalAPI. TerminateAccount items are refused (guided only). Auto mode never runs create, suspend, unsuspend, or terminate.',
             'risk_level' => 'medium',
             'requires_password_confirm' => true,
             'requires_finding' => true,
@@ -98,6 +98,8 @@ return [
             'bulk_allowed' => true,
             'max_items' => null,
             'auto_allowed' => true,
+            // Empty on purpose: create / suspend / unsuspend / terminate must never auto-run.
+            'auto_local_api_commands' => [],
             'local_api_commands' => ['ModuleCreate', 'ModuleSuspend', 'ModuleUnsuspend'],
         ],
         'service_unsuspend_paid' => [

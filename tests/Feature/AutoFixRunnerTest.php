@@ -339,3 +339,42 @@ it('does not run without the fixes.auto entitlement', function () {
 
     expect($queued)->toBe([]);
 });
+
+it('never auto-queues module_queue_retry create suspend unsuspend or terminate items', function () {
+    $workspace = createAutoFixRunnerWorkspace([], [
+        'whmcs' => [
+            'module_queue' => [
+                'source' => 'api',
+                'pending_count' => 4,
+                'oldest_age_minutes' => 90,
+                'by_action' => ['create' => 1, 'suspend' => 1, 'unsuspend' => 1, 'terminate' => 1, 'other' => 0],
+                'items' => [
+                    ['id' => 31, 'service_type' => 'service', 'service_id' => 301, 'action' => 'unsuspend', 'age_minutes' => 90, 'retries' => 1, 'error' => 'timeout'],
+                    ['id' => 32, 'service_type' => 'service', 'service_id' => 302, 'action' => 'suspend', 'age_minutes' => 80, 'retries' => 1, 'error' => 'timeout'],
+                    ['id' => 33, 'service_type' => 'service', 'service_id' => 303, 'action' => 'terminate', 'age_minutes' => 70, 'retries' => 1, 'error' => 'timeout'],
+                    ['id' => 34, 'service_type' => 'service', 'service_id' => 304, 'action' => 'create', 'age_minutes' => 60, 'retries' => 1, 'error' => 'timeout'],
+                ],
+            ],
+        ],
+    ]);
+
+    AutoFixPolicy::query()->create([
+        'tenant_id' => $workspace['tenant']->id,
+        'integration_id' => null,
+        'action_key' => 'module_queue_retry',
+        'enabled' => true,
+        'daily_cap' => null,
+        'created_by_user_id' => $workspace['owner']->id,
+    ]);
+
+    $finding = createOpenFinding($workspace, 'module.queue_failed', [
+        'whmcs.module_queue.failed_item_ids' => [31, 32, 33, 34],
+        'whmcs.module_queue.pending_count' => 4,
+    ], 4);
+
+    $queued = app(AutoFixRunner::class)->processFindings($workspace['run'], [$finding]);
+
+    expect($queued)->toBe([])
+        ->and(SafeActionExecution::query()->where('mode', SafeActionExecution::MODE_AUTO)->count())->toBe(0)
+        ->and(SafeActionExecution::query()->where('action_key', 'module_queue_retry')->count())->toBe(0);
+});

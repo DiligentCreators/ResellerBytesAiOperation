@@ -112,8 +112,9 @@ export default function TenantAutoFixSettings({
                                     allowlisted fixes after rule detection.
                                     Refunds, terminations, invoice edits,
                                     payments, gateway changes, GenInvoices,
-                                    order acceptance, unsuspend, and upgrades
-                                    can never run automatically.
+                                    order acceptance, module
+                                    create/suspend/unsuspend, and upgrades can
+                                    never run automatically.
                                 </p>
                                 <Button asChild size="sm">
                                     <Link href={billingPlansUrl}>

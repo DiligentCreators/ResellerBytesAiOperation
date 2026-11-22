@@ -94,7 +94,13 @@ class SafeActionController extends Controller
         }
 
         $input = is_array($request->input('input')) ? $request->input('input') : [];
-        $mode = is_string($input['mode'] ?? null) ? $input['mode'] : 'one_click';
+        // Server alone decides auto mode — never accept it from HTTP clients.
+        if (($input['mode'] ?? null) === SafeActionExecution::MODE_AUTO) {
+            throw ValidationException::withMessages([
+                'input.mode' => 'Auto mode can only be created by the platform auto-fix runner.',
+            ]);
+        }
+        $mode = is_string($input['mode'] ?? null) ? $input['mode'] : SafeActionExecution::MODE_ONE_CLICK;
         $targetCount = is_array($input['target_ids'] ?? null) ? count($input['target_ids']) : 0;
         if ($mode === 'bulk' || $targetCount > 1) {
             try {

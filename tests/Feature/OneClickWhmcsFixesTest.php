@@ -11,6 +11,7 @@ use App\Models\WhmcsIntegration;
 use App\Services\SafeActions\SafeActionExecutor;
 use App\Services\SafeActions\SafeActionRegistry;
 use Illuminate\Support\Str;
+use InvalidArgumentException;
 
 function createOneClickWorkspace(array $entitlements = [], array $payloadExtra = []): array
 {
@@ -306,6 +307,69 @@ it('refuses terminate module queue items on the server preview', function () {
             'input' => ['target_ids' => [12]],
         ])
         ->assertSessionHasErrors('action_key');
+});
+
+it('allows manual one-click module_queue_retry for unsuspend with password confirm', function () {
+    $workspace = createOneClickWorkspace();
+    $finding = createFindingForIssue($workspace, 'module.queue_failed', [
+        'whmcs.module_queue.failed_item_ids' => [11],
+    ]);
+
+    $definition = app(SafeActionRegistry::class)->get('module_queue_retry');
+    expect($definition['requires_password_confirm'])->toBeTrue();
+
+    $this->actingAs($workspace['owner'])
+        ->post('/safe-actions', [
+            'integration_id' => $workspace['integration']->id,
+            'action_key' => 'module_queue_retry',
+            'finding_id' => $finding->id,
+            'input' => [
+                'mode' => 'one_click',
+                'target_ids' => [11],
+            ],
+        ])
+        ->assertRedirect();
+
+    $execution = SafeActionExecution::query()->where('action_key', 'module_queue_retry')->firstOrFail();
+    expect($execution->mode)->toBe(SafeActionExecution::MODE_ONE_CLICK)
+        ->and($execution->requires_password_confirm)->toBeTrue()
+        ->and($execution->preview['items'][0]['command'])->toBe('ModuleUnsuspend')
+        ->and($execution->preview['items'][0]['params']['serviceid'])->toBe(101);
+
+    $this->actingAs($workspace['owner'])
+        ->post('/safe-actions/'.$execution->id.'/approve', [
+            'approval_reason' => 'Retry unsuspend queue item after review',
+        ])
+        ->assertRedirect(route('password.confirm'));
+});
+
+it('refuses create suspend and unsuspend module queue items when building an auto preview', function () {
+    $workspace = createOneClickWorkspace([], [
+        'whmcs' => [
+            'module_queue' => [
+                'source' => 'api',
+                'pending_count' => 3,
+                'oldest_age_minutes' => 90,
+                'by_action' => ['create' => 1, 'suspend' => 1, 'unsuspend' => 1, 'terminate' => 0, 'other' => 0],
+                'items' => [
+                    ['id' => 31, 'service_type' => 'service', 'service_id' => 301, 'action' => 'unsuspend', 'age_minutes' => 90, 'retries' => 1, 'error' => 'timeout'],
+                    ['id' => 32, 'service_type' => 'service', 'service_id' => 302, 'action' => 'suspend', 'age_minutes' => 80, 'retries' => 1, 'error' => 'timeout'],
+                    ['id' => 34, 'service_type' => 'service', 'service_id' => 304, 'action' => 'create', 'age_minutes' => 60, 'retries' => 1, 'error' => 'timeout'],
+                ],
+            ],
+        ],
+    ]);
+    $finding = createFindingForIssue($workspace, 'module.queue_failed', [
+        'whmcs.module_queue.failed_item_ids' => [31, 32, 34],
+    ], 3);
+
+    expect(fn () => app(SafeActionExecutor::class)->request(
+        $workspace['integration'],
+        $workspace['owner'],
+        'module_queue_retry',
+        ['mode' => SafeActionExecution::MODE_AUTO, 'target_ids' => [31, 32, 34]],
+        $finding,
+    ))->toThrow(InvalidArgumentException::class, 'No auto-safe targets remain after preview validation.');
 });
 
 it('skips fraud orders in preview for order_accept_paid executable set from snapshot ids only', function () {

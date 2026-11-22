@@ -223,6 +223,21 @@ it('rejects non-allowlisted action keys', function () {
         ->assertSessionHasErrors('action_key');
 });
 
+it('rejects HTTP requests that try to set input.mode to auto', function () {
+    ['owner' => $owner, 'integration' => $integration] = createSafeActionWorkspace();
+
+    $this->actingAs($owner)
+        ->post('/safe-actions', [
+            'integration_id' => $integration->id,
+            'action_key' => 'health_version_ping',
+            'input' => ['mode' => 'auto'],
+        ])
+        ->assertSessionHasErrors('input.mode');
+
+    expect(SafeActionExecution::query()->count())->toBe(0)
+        ->and(SafeActionExecution::query()->where('mode', SafeActionExecution::MODE_AUTO)->count())->toBe(0);
+});
+
 it('blocks safe actions without plan entitlement', function () {
     ['owner' => $owner, 'integration' => $integration] = createSafeActionWorkspace([
         'safe_actions.enabled' => false,

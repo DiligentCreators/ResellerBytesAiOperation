@@ -17,6 +17,7 @@ use App\Services\Tenancy\TenantNotificationService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
+use InvalidArgumentException;
 use Throwable;
 
 class AutoFixRunner
@@ -137,16 +138,21 @@ class AutoFixRunner
                 continue;
             }
 
-            $execution = $this->executor->request(
-                $integration,
-                $creator,
-                $actionKey,
-                [
-                    'mode' => SafeActionExecution::MODE_AUTO,
-                    'auto_fix_policy_id' => $policy->id,
-                ],
-                $finding,
-            );
+            try {
+                $execution = $this->executor->request(
+                    $integration,
+                    $creator,
+                    $actionKey,
+                    [
+                        'mode' => SafeActionExecution::MODE_AUTO,
+                        'auto_fix_policy_id' => $policy->id,
+                    ],
+                    $finding,
+                );
+            } catch (InvalidArgumentException) {
+                // No auto-safe targets remain (e.g. module_queue create/suspend/unsuspend/terminate).
+                continue;
+            }
 
             $execution = $this->executor->approve(
                 $execution,

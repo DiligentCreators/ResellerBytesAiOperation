@@ -231,6 +231,8 @@ final class RemediationRunner
         $previewItems = $this->previewItems($action);
         $results = [];
         $succeeded = 0;
+        $mode = isset($action['mode']) && is_string($action['mode']) ? $action['mode'] : '';
+        $autoForbiddenCommands = ['ModuleCreate', 'ModuleSuspend', 'ModuleUnsuspend', 'ModuleTerminate'];
 
         foreach ($previewItems as $item) {
             $id = $this->positiveInt($item['id'] ?? null);
@@ -246,6 +248,14 @@ final class RemediationRunner
             if (in_array($command, self::FORBIDDEN_COMMANDS, true) || $command === 'ModuleTerminate') {
                 $results[] = ['id' => $id, 'status' => 'failed', 'error_code' => 'terminate_refused'];
                 $this->logItem('module_queue_retry', $id, 'terminate_refused');
+
+                continue;
+            }
+
+            // Defence in depth: never run create/suspend/unsuspend/terminate under auto mode.
+            if ($mode === 'auto' && in_array($command, $autoForbiddenCommands, true)) {
+                $results[] = ['id' => $id, 'status' => 'failed', 'error_code' => 'auto_action_refused'];
+                $this->logItem('module_queue_retry', $id, 'auto_action_refused');
 
                 continue;
             }

@@ -23,6 +23,7 @@ class SafeActionRegistry
      *     bulk_allowed: bool,
      *     max_items: int,
      *     auto_allowed: bool,
+     *     auto_local_api_commands: list<string>,
      *     local_api_commands: list<string>
      * }>
      */
@@ -53,6 +54,7 @@ class SafeActionRegistry
      *     bulk_allowed: bool,
      *     max_items: int,
      *     auto_allowed: bool,
+     *     auto_local_api_commands: list<string>,
      *     local_api_commands: list<string>
      * }
      */
@@ -112,6 +114,7 @@ class SafeActionRegistry
      *     bulk_allowed: bool,
      *     max_items: int,
      *     auto_allowed: bool,
+     *     auto_local_api_commands: list<string>,
      *     local_api_commands: list<string>
      * }
      */
@@ -136,6 +139,13 @@ class SafeActionRegistry
             }
         }
 
+        $autoCommands = [];
+        foreach ((array) ($definition['auto_local_api_commands'] ?? []) as $command) {
+            if (is_string($command) && $command !== '') {
+                $autoCommands[] = $command;
+            }
+        }
+
         return [
             'key' => $key,
             'label' => (string) ($definition['label'] ?? $key),
@@ -149,6 +159,7 @@ class SafeActionRegistry
             'bulk_allowed' => (bool) ($definition['bulk_allowed'] ?? false),
             'max_items' => $maxItems,
             'auto_allowed' => (bool) ($definition['auto_allowed'] ?? false),
+            'auto_local_api_commands' => array_values(array_unique($autoCommands)),
             'local_api_commands' => array_values(array_unique($commands)),
         ];
     }
