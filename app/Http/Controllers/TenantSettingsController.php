@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Tenants\UpdateTenantHourlyRateRequest;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Health\TimeSavedCalculator;
@@ -90,23 +91,10 @@ class TenantSettingsController extends Controller
     }
 
     public function updateHourlyRate(
-        Request $request,
+        UpdateTenantHourlyRateRequest $request,
         Tenant $tenant,
-        TenantRoleAuthorization $authorization,
     ): RedirectResponse|JsonResponse {
-        /** @var User $user */
-        $user = $request->user();
-        $authorization->require($user, $tenant->id, 'tenant.settings.manage');
-
-        if ($request->input('hourly_rate_usd') === '' || $request->input('hourly_rate_usd') === null) {
-            $request->merge(['hourly_rate_usd' => null]);
-        }
-
-        $data = $request->validate([
-            'hourly_rate_usd' => ['nullable', 'integer', 'min:1', 'max:10000'],
-        ]);
-
-        $rate = $data['hourly_rate_usd'] ?? null;
+        $rate = $request->validated('hourly_rate_usd');
 
         DB::transaction(function () use ($tenant, $rate): void {
             $locked = Tenant::query()->whereKey($tenant->id)->lockForUpdate()->firstOrFail();

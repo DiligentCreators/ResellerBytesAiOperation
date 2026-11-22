@@ -180,10 +180,46 @@ class FindingContinuityService
             return [];
         }
 
-        $findingIds = DiagnosticFinding::query()
-            ->where('fingerprint', $finding->fingerprint)
-            ->whereHas('diagnosticRun', fn (Builder $query) => $query->where('integration_id', $integrationId))
-            ->pluck('id');
+        $findingIds = $this->relatedFindingIds($finding, $integrationId);
+
+        $keys = [];
+        foreach (
+            SafeActionExecution::query()
+                ->where('integration_id', $integrationId)
+                ->whereIn('finding_id', $findingIds)
+                ->whereIn('status', [
+                    SafeActionExecution::STATUS_PENDING_APPROVAL,
+                    SafeActionExecution::STATUS_APPROVED,
+                    SafeActionExecution::STATUS_AWAITING_AGENT,
+                    SafeActionExecution::STATUS_COMPLETED,
+                ])
+                ->pluck('action_key')
+                ->unique()
+                ->values() as $key
+        ) {
+            if (is_string($key) && $key !== '') {
+                $keys[] = $key;
+            }
+        }
+
+        return $keys;
+    }
+
+    /**
+     * Latest in-flight safe action for this finding fingerprint (approval or addon wait).
+     */
+    public function pendingSafeActionExecution(DiagnosticFinding $finding): ?SafeActionExecution
+    {
+        $finding->loadMissing('diagnosticRun');
+        $integrationId = $finding->diagnosticRun?->integration_id;
+        if ($integrationId === null) {
+            return null;
+        }
+
+        $findingIds = $this->relatedFindingIds($finding, $integrationId);
+        if ($findingIds === []) {
+            return null;
+        }
 
         return SafeActionExecution::query()
             ->where('integration_id', $integrationId)
@@ -192,12 +228,30 @@ class FindingContinuityService
                 SafeActionExecution::STATUS_PENDING_APPROVAL,
                 SafeActionExecution::STATUS_APPROVED,
                 SafeActionExecution::STATUS_AWAITING_AGENT,
-                SafeActionExecution::STATUS_COMPLETED,
             ])
-            ->pluck('action_key')
-            ->unique()
-            ->values()
-            ->all();
+            ->orderByDesc('requested_at')
+            ->orderByDesc('id')
+            ->first();
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function relatedFindingIds(DiagnosticFinding $finding, string $integrationId): array
+    {
+        $ids = [];
+        foreach (
+            DiagnosticFinding::query()
+                ->where('fingerprint', $finding->fingerprint)
+                ->whereHas('diagnosticRun', fn (Builder $query) => $query->where('integration_id', $integrationId))
+                ->pluck('id') as $id
+        ) {
+            if (is_string($id) && $id !== '') {
+                $ids[] = $id;
+            }
+        }
+
+        return $ids;
     }
 
     /**
@@ -226,8 +280,13 @@ class FindingContinuityService
         });
     }
 
+    /**
+     * @param  Builder<DiagnosticFinding>  $findingsQuery
+     */
     public function countCurrentActiveIssues(Builder $findingsQuery): int
     {
-        return $this->scopeCurrentIssues((clone $findingsQuery)->active())->count();
+        $active = (clone $findingsQuery)->whereIn('status', DiagnosticFinding::ACTIVE_STATUSES);
+
+        return $this->scopeCurrentIssues($active)->count();
     }
 }

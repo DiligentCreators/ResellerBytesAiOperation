@@ -2,6 +2,7 @@
 
 use App\Models\DiagnosticFinding;
 use App\Models\DiagnosticRun;
+use App\Models\SafeActionExecution;
 use App\Models\Tenant;
 use App\Models\TenantMembership;
 use App\Models\TenantSubscription;
@@ -146,6 +147,80 @@ it('shows starter one-click issues as guided with upgrade link', function () {
             ->where('issues.data.0.primary_action', 'start_guide')
             ->where('issues.data.0.upgrade_to_one_click', true)
             ->where('issues.data.0.can_one_click', false));
+});
+
+it('treats catalog one-click issues without action keys as guided without upsell', function () {
+    $workspace = createFixCenterWorkspace();
+    createFixCenterFinding($workspace, 'service.active_but_overdue', [
+        'fix_mode' => 'one_click',
+        'category' => 'other',
+        'evidence' => [
+            'whmcs.services.active_past_suspend_grace.service_ids' => [301, 302],
+        ],
+    ]);
+
+    $this->actingAs($workspace['owner'])
+        ->get('/fix-center?tab=open')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('fix-center/index')
+            ->where('issues.data.0.issue_key', 'service.active_but_overdue')
+            ->where('issues.data.0.fix_mode', 'guided')
+            ->where('issues.data.0.can_one_click', false)
+            ->where('issues.data.0.upgrade_to_one_click', false)
+            ->where('issues.data.0.primary_action', 'start_guide')
+            ->where('issues.data.0.pending_safe_action', null));
+});
+
+it('does not upsell one-click for empty action key issues on starter', function () {
+    $workspace = createFixCenterWorkspace([
+        'fixes.one_click' => false,
+        'fixes.bulk' => false,
+        'safe_actions.enabled' => false,
+    ]);
+    createFixCenterFinding($workspace, 'service.active_but_overdue', [
+        'fix_mode' => 'one_click',
+        'category' => 'other',
+    ]);
+
+    $this->actingAs($workspace['owner'])
+        ->get('/fix-center?tab=open')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('issues.data.0.fix_mode', 'guided')
+            ->where('issues.data.0.can_one_click', false)
+            ->where('issues.data.0.upgrade_to_one_click', false)
+            ->where('issues.data.0.primary_action', 'start_guide'));
+});
+
+it('exposes a pending safe action when a fix is waiting for approval or the addon', function () {
+    $workspace = createFixCenterWorkspace();
+    $finding = createFixCenterFinding($workspace, 'service.suspended_but_paid');
+
+    $execution = SafeActionExecution::create([
+        'tenant_id' => $workspace['tenant']->id,
+        'integration_id' => $workspace['integration']->id,
+        'finding_id' => $finding->id,
+        'issue_key' => $finding->issue_key,
+        'action_key' => 'service_unsuspend_paid',
+        'mode' => SafeActionExecution::MODE_ONE_CLICK,
+        'status' => SafeActionExecution::STATUS_PENDING_APPROVAL,
+        'risk_level' => 'low',
+        'requested_by_user_id' => $workspace['owner']->id,
+        'requires_password_confirm' => false,
+        'requested_at' => now(),
+    ]);
+
+    $this->actingAs($workspace['owner'])
+        ->get('/fix-center?tab=open')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('fix-center/index')
+            ->where('issues.data.0.can_one_click', true)
+            ->where('issues.data.0.pending_safe_action.id', $execution->id)
+            ->where('issues.data.0.pending_safe_action.status', SafeActionExecution::STATUS_PENDING_APPROVAL)
+            ->where('issues.data.0.pending_safe_action.url', route('safe-actions.show', $execution))
+            ->where('issues.data.0.suggested_actions', []));
 });
 
 it('hides ignored findings from open until snooze expires and supports unignore', function () {

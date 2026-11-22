@@ -132,3 +132,17 @@ it('lets owners update the workspace hourly rate from settings', function () {
 
     expect($workspace['tenant']->fresh()->hourly_rate_usd)->toBeNull();
 });
+
+it('labels hourly rate validation errors without the usd field suffix', function () {
+    $workspace = createTimeSavedWorkspace(null);
+
+    $this->actingAs($workspace['owner'])
+        ->from(route('tenants.settings.show', $workspace['tenant']))
+        ->put(route('tenants.settings.hourly-rate.update', $workspace['tenant']), [
+            'hourly_rate_usd' => 0,
+        ])
+        ->assertRedirect(route('tenants.settings.show', $workspace['tenant']))
+        ->assertSessionHasErrors([
+            'hourly_rate_usd' => 'The hourly rate field must be at least 1.',
+        ]);
+});

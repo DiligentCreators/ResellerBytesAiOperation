@@ -81,11 +81,17 @@ it('ensures every catalog entry has required fields and guided-only safety flags
         expect($entry['never_auto'])->toBeBool();
         expect($entry['never_one_click'])->toBeBool();
         expect($entry['action_keys'])->toBeArray();
+        if ($entry['fix_mode'] === 'one_click') {
+            expect($entry['action_keys'])->not->toBeEmpty();
+        }
         expect($entry['guided_steps'])->toBeArray()->not->toBeEmpty();
         expect($entry['minutes_saved'])->toBeInt()->toBeGreaterThan(0);
         expect($entry['priority'])->toBeInt()->toBeGreaterThan(0);
         expect($entry['tier_entitlement'])->toBeString()->not->toBeEmpty();
     }
+
+    expect($catalog['service.active_but_overdue']['fix_mode'])->toBe('guided')
+        ->and($catalog['service.active_but_overdue']['action_keys'])->toBe([]);
 
     foreach ($guidedOnlyKeys as $key) {
         expect($catalog)->toHaveKey($key);

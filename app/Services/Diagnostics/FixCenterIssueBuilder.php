@@ -3,8 +3,10 @@
 namespace App\Services\Diagnostics;
 
 use App\Models\DiagnosticFinding;
+use App\Models\SafeActionExecution;
 use App\Services\SafeActions\FindingSafeActionMapper;
 use App\Services\SafeActions\SafeActionRegistry;
+use Illuminate\Support\Facades\URL;
 
 class FixCenterIssueBuilder
 {
@@ -39,6 +41,7 @@ class FixCenterIssueBuilder
      *     guided_steps: list<array{step_index: int, action: string, completed: bool, completed_at: string|null, completed_by_user_id: int|null}>,
      *     suggested_actions: list<array<string, mixed>>,
      *     blocked_action_keys: list<string>,
+     *     pending_safe_action: array{id: string, status: string, url: string}|null,
      *     affected_ids: list<int>,
      *     fixes_unavailable: bool
      * }
@@ -52,17 +55,20 @@ class FixCenterIssueBuilder
         bool $platformFixesEnabled = true,
     ): array {
         $meta = $this->guided->catalogMeta($finding);
-        $fixMode = $this->resolveFixMode($finding, $meta);
+        $hasAllowlistedOneClick = $this->hasAllowlistedOneClickActions($finding);
+        $fixMode = $this->resolveFixMode($finding, $meta, $hasAllowlistedOneClick);
         $neverOneClick = $meta['never_one_click'] || $fixMode === 'guided' || $fixMode === 'info';
         $canOneClick = $canManage
             && $oneClickEnabled
             && $platformFixesEnabled
             && ! $neverOneClick
-            && $fixMode === 'one_click';
+            && $fixMode === 'one_click'
+            && $hasAllowlistedOneClick;
         $upgradeToOneClick = $canManage
             && $platformFixesEnabled
             && ! $oneClickEnabled
             && $fixMode === 'one_click'
+            && $hasAllowlistedOneClick
             && ! $meta['never_one_click'];
         $canGuide = $canManage
             && $guidedEnabled
@@ -72,6 +78,7 @@ class FixCenterIssueBuilder
         $primary = $this->primaryAction($fixMode, $canOneClick, $canGuide, $upgradeToOneClick);
 
         $blocked = $canManage ? $this->continuity->blockedSafeActionKeys($finding) : [];
+        $pendingExecution = $canManage ? $this->continuity->pendingSafeActionExecution($finding) : null;
         $suggested = [];
         if ($canManage && ($canOneClick || $upgradeToOneClick)) {
             foreach ($this->safeActionMapper->suggestedActions($finding) as $action) {
@@ -125,6 +132,7 @@ class FixCenterIssueBuilder
                 : [],
             'suggested_actions' => $suggested,
             'blocked_action_keys' => $blocked,
+            'pending_safe_action' => $this->serializePendingSafeAction($pendingExecution),
             'affected_ids' => $this->affectedIds(is_array($finding->evidence) ? $finding->evidence : []),
             'fixes_unavailable' => ! $platformFixesEnabled,
         ];
@@ -133,18 +141,59 @@ class FixCenterIssueBuilder
     /**
      * @param  array{never_one_click: bool, fix_mode: string|null}  $meta
      */
-    private function resolveFixMode(DiagnosticFinding $finding, array $meta): string
+    private function resolveFixMode(DiagnosticFinding $finding, array $meta, bool $hasAllowlistedOneClick): string
     {
         if (($meta['never_one_click'] ?? false) === true) {
             return 'guided';
         }
 
         $mode = $meta['fix_mode'] ?? $finding->fix_mode;
+        if ($mode === 'one_click' && ! $hasAllowlistedOneClick) {
+            return 'guided';
+        }
+
         if (in_array($mode, ['one_click', 'guided', 'info'], true)) {
             return $mode;
         }
 
         return 'guided';
+    }
+
+    private function hasAllowlistedOneClickActions(DiagnosticFinding $finding): bool
+    {
+        $issueKey = $finding->issue_key;
+        if (! is_string($issueKey) || $issueKey === '') {
+            return false;
+        }
+
+        foreach (WhmcsIssueCatalog::actionKeys($issueKey) as $key) {
+            if (! $this->registry->isAllowlisted($key)) {
+                continue;
+            }
+
+            $definition = $this->registry->get($key);
+            if (($definition['entitlement'] ?? '') === 'fixes.one_click') {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @return array{id: string, status: string, url: string}|null
+     */
+    private function serializePendingSafeAction(?SafeActionExecution $execution): ?array
+    {
+        if ($execution === null) {
+            return null;
+        }
+
+        return [
+            'id' => $execution->id,
+            'status' => $execution->status,
+            'url' => URL::route('safe-actions.show', $execution),
+        ];
     }
 
     private function primaryAction(string $fixMode, bool $canOneClick, bool $canGuide, bool $upgradeToOneClick): string

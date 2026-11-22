@@ -40,6 +40,12 @@ type SuggestedAction = {
     can_bulk: boolean;
 };
 
+type PendingSafeAction = {
+    id: string;
+    status: string;
+    url: string;
+};
+
 type Issue = {
     id: string;
     title: string;
@@ -63,6 +69,7 @@ type Issue = {
     guided_steps: GuidedStep[];
     suggested_actions: SuggestedAction[];
     blocked_action_keys: string[];
+    pending_safe_action: PendingSafeAction | null;
     affected_ids: number[];
 };
 
@@ -636,6 +643,20 @@ export default function FixCenterIndex({
                                             </p>
                                         ) : null}
                                     </div>
+                                ) : activeIssue.pending_safe_action ? (
+                                    <p className="text-sm text-muted-foreground">
+                                        A fix for this issue is already waiting
+                                        for approval or for the WHMCS addon.{' '}
+                                        <Link
+                                            href={
+                                                activeIssue.pending_safe_action
+                                                    .url
+                                            }
+                                            className="font-medium text-primary hover:underline"
+                                        >
+                                            View pending fix
+                                        </Link>
+                                    </p>
                                 ) : (
                                     <p className="text-sm text-muted-foreground">
                                         No one-click fix is available for this

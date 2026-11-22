@@ -156,7 +156,7 @@ export default function ReportsIndex({
                         <p className="text-sm text-muted-foreground">
                             No reports have been sent yet. Weekly health reports
                             go out on the platform schedule; monthly value
-                            reports require Growth+ and arrive before renewal.
+                            reports require Pro and arrive before renewal.
                         </p>
                     ) : (
                         <div className="overflow-x-auto">
