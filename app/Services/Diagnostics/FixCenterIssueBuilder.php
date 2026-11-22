@@ -41,7 +41,7 @@ class FixCenterIssueBuilder
      *     guided_steps: list<array{step_index: int, action: string, completed: bool, completed_at: string|null, completed_by_user_id: int|null}>,
      *     suggested_actions: list<array<string, mixed>>,
      *     blocked_action_keys: list<string>,
-     *     pending_safe_action: array{id: string, status: string, url: string}|null,
+     *     pending_safe_action: array{id: string, status: string, url: string, can_reject: bool, reject_blocked_reason: string|null}|null,
      *     affected_ids: list<int>,
      *     fixes_unavailable: bool
      * }
@@ -240,7 +240,7 @@ class FixCenterIssueBuilder
     }
 
     /**
-     * @return array{id: string, status: string, url: string}|null
+     * @return array{id: string, status: string, url: string, can_reject: bool, reject_blocked_reason: string|null}|null
      */
     private function serializePendingSafeAction(?SafeActionExecution $execution): ?array
     {
@@ -248,10 +248,18 @@ class FixCenterIssueBuilder
             return null;
         }
 
+        $canReject = $execution->isRejectable();
+
         return [
             'id' => $execution->id,
             'status' => $execution->status,
             'url' => URL::route('safe-actions.show', $execution),
+            'can_reject' => $canReject,
+            'reject_blocked_reason' => ! $canReject
+                && $execution->status === SafeActionExecution::STATUS_AWAITING_AGENT
+                && $execution->wasPickedUpByAgent()
+                ? SafeActionExecution::REJECT_AFTER_PICKUP_MESSAGE
+                : null,
         ];
     }
 

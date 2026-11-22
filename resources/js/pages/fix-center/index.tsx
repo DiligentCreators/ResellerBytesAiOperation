@@ -45,6 +45,8 @@ type PendingSafeAction = {
     id: string;
     status: string;
     url: string;
+    can_reject: boolean;
+    reject_blocked_reason: string | null;
 };
 
 type Issue = {
@@ -219,12 +221,13 @@ export default function FixCenterIndex({
         );
     };
 
-    const rejectFix = () => {
-        if (!pendingFixId) {
+    const rejectFix = (executionId?: string) => {
+        const id = executionId ?? pendingFixId;
+        if (!id) {
             return;
         }
         router.post(
-            reject.url(pendingFixId),
+            reject.url(id),
             {
                 rejection_reason:
                     rejectReason.trim() !== '' ? rejectReason.trim() : null,
@@ -672,19 +675,98 @@ export default function FixCenterIndex({
                                         ) : null}
                                     </div>
                                 ) : activeIssue.pending_safe_action ? (
-                                    <p className="text-sm text-muted-foreground">
-                                        A fix for this issue is already waiting
-                                        for approval or for the WHMCS addon.{' '}
-                                        <Link
-                                            href={
-                                                activeIssue.pending_safe_action
-                                                    .url
-                                            }
-                                            className="font-medium text-primary hover:underline"
-                                        >
-                                            View pending fix
-                                        </Link>
-                                    </p>
+                                    <div className="space-y-3">
+                                        <p className="text-sm text-muted-foreground">
+                                            A fix for this issue is already
+                                            waiting for approval or for the
+                                            WHMCS addon.{' '}
+                                            <Link
+                                                href={
+                                                    activeIssue
+                                                        .pending_safe_action.url
+                                                }
+                                                className="font-medium text-primary hover:underline"
+                                            >
+                                                View pending fix
+                                            </Link>
+                                        </p>
+                                        {activeIssue.pending_safe_action
+                                            .can_reject ? (
+                                            !confirmReject ? (
+                                                <Button
+                                                    type="button"
+                                                    size="sm"
+                                                    variant="outline"
+                                                    onClick={() => {
+                                                        setPendingFixId(
+                                                            activeIssue
+                                                                .pending_safe_action!
+                                                                .id,
+                                                        );
+                                                        setConfirmReject(true);
+                                                    }}
+                                                >
+                                                    Reject
+                                                </Button>
+                                            ) : (
+                                                <div className="flex flex-col gap-2">
+                                                    <textarea
+                                                        value={rejectReason}
+                                                        onChange={(event) =>
+                                                            setRejectReason(
+                                                                event.target
+                                                                    .value,
+                                                            )
+                                                        }
+                                                        maxLength={1000}
+                                                        rows={2}
+                                                        className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs"
+                                                        placeholder="Optional rejection reason"
+                                                    />
+                                                    <div className="flex flex-wrap gap-2">
+                                                        <Button
+                                                            type="button"
+                                                            size="sm"
+                                                            variant="destructive"
+                                                            onClick={() =>
+                                                                rejectFix(
+                                                                    activeIssue
+                                                                        .pending_safe_action!
+                                                                        .id,
+                                                                )
+                                                            }
+                                                        >
+                                                            Confirm reject
+                                                        </Button>
+                                                        <Button
+                                                            type="button"
+                                                            size="sm"
+                                                            variant="outline"
+                                                            onClick={() => {
+                                                                setConfirmReject(
+                                                                    false,
+                                                                );
+                                                                setRejectReason(
+                                                                    '',
+                                                                );
+                                                            }}
+                                                        >
+                                                            Back
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            )
+                                        ) : activeIssue.pending_safe_action
+                                              .reject_blocked_reason ? (
+                                            <p className="rounded-md border border-warning/30 bg-warning-soft px-3 py-2 text-sm text-warning-fg">
+                                                {
+                                                    activeIssue
+                                                        .pending_safe_action
+                                                        .reject_blocked_reason
+                                                }
+                                            </p>
+                                        ) : null}
+                                    </div>
                                 ) : (
                                     <p className="text-sm text-muted-foreground">
                                         No one-click fix is available for this
@@ -753,7 +835,9 @@ export default function FixCenterIndex({
                                                     <Button
                                                         type="button"
                                                         variant="destructive"
-                                                        onClick={rejectFix}
+                                                        onClick={() =>
+                                                            rejectFix()
+                                                        }
                                                     >
                                                         Confirm reject
                                                     </Button>

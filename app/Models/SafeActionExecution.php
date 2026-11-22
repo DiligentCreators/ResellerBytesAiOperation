@@ -36,9 +36,12 @@ use Illuminate\Support\Carbon;
  * @property array<string, mixed>|null $after_evidence
  * @property Carbon $requested_at
  * @property Carbon|null $approved_at
+ * @property Carbon|null $agent_picked_up_at
  * @property Carbon|null $rejected_at
  * @property Carbon|null $executed_at
  * @property Carbon|null $verified_at
+ * @property string|null $late_result_status
+ * @property Carbon|null $late_result_at
  */
 class SafeActionExecution extends Model
 {
@@ -59,6 +62,8 @@ class SafeActionExecution extends Model
     public const STATUS_CANCELLED = 'cancelled';
 
     public const STATUS_REJECTED = 'rejected';
+
+    public const REJECT_AFTER_PICKUP_MESSAGE = 'This fix was already sent to your WHMCS addon and can no longer be cancelled. Its result will appear here.';
 
     public const MODE_ONE_CLICK = 'one_click';
 
@@ -107,9 +112,12 @@ class SafeActionExecution extends Model
         'after_evidence',
         'requested_at',
         'approved_at',
+        'agent_picked_up_at',
         'rejected_at',
         'executed_at',
         'verified_at',
+        'late_result_status',
+        'late_result_at',
     ];
 
     protected $attributes = [
@@ -132,10 +140,27 @@ class SafeActionExecution extends Model
             'after_evidence' => 'array',
             'requested_at' => 'datetime',
             'approved_at' => 'datetime',
+            'agent_picked_up_at' => 'datetime',
             'rejected_at' => 'datetime',
             'executed_at' => 'datetime',
             'verified_at' => 'datetime',
+            'late_result_at' => 'datetime',
         ];
+    }
+
+    public function wasPickedUpByAgent(): bool
+    {
+        return $this->agent_picked_up_at !== null;
+    }
+
+    public function isRejectable(): bool
+    {
+        if ($this->status === self::STATUS_PENDING_APPROVAL) {
+            return true;
+        }
+
+        return $this->status === self::STATUS_AWAITING_AGENT
+            && ! $this->wasPickedUpByAgent();
     }
 
     /** @return BelongsTo<Tenant, $this> */

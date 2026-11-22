@@ -220,6 +220,8 @@ it('exposes a pending safe action when a fix is waiting for approval or the addo
             ->where('issues.data.0.pending_safe_action.id', $execution->id)
             ->where('issues.data.0.pending_safe_action.status', SafeActionExecution::STATUS_PENDING_APPROVAL)
             ->where('issues.data.0.pending_safe_action.url', route('safe-actions.show', $execution))
+            ->where('issues.data.0.pending_safe_action.can_reject', true)
+            ->where('issues.data.0.pending_safe_action.reject_blocked_reason', null)
             ->where('issues.data.0.suggested_actions', []));
 });
 

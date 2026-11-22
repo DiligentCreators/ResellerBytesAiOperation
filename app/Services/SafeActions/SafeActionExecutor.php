@@ -13,7 +13,9 @@ use App\Services\Diagnostics\FindingContinuityService;
 use App\Services\Diagnostics\FindingPlaybookBuilder;
 use App\Services\Diagnostics\WhmcsIssueCatalog;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 use RuntimeException;
 
@@ -209,6 +211,13 @@ class SafeActionExecutor
                 throw new RuntimeException('Only pending or awaiting-agent safe actions can be rejected or cancelled.');
             }
 
+            if ($previousStatus === SafeActionExecution::STATUS_AWAITING_AGENT
+                && $locked->wasPickedUpByAgent()) {
+                throw ValidationException::withMessages([
+                    'rejection_reason' => SafeActionExecution::REJECT_AFTER_PICKUP_MESSAGE,
+                ]);
+            }
+
             $terminalStatus = $previousStatus === SafeActionExecution::STATUS_AWAITING_AGENT
                 ? SafeActionExecution::STATUS_CANCELLED
                 : SafeActionExecution::STATUS_REJECTED;
@@ -332,6 +341,20 @@ class SafeActionExecutor
                 throw new RuntimeException('Safe action does not belong to this integration.');
             }
 
+            if (in_array($locked->status, [
+                SafeActionExecution::STATUS_CANCELLED,
+                SafeActionExecution::STATUS_REJECTED,
+            ], true)) {
+                return $this->recordLateAddonResult(
+                    $locked,
+                    $integration,
+                    $status,
+                    $summary,
+                    $evidence,
+                    $errorCode,
+                );
+            }
+
             if ($locked->status !== SafeActionExecution::STATUS_AWAITING_AGENT) {
                 throw new RuntimeException('Only awaiting-agent safe actions can receive addon results.');
             }
@@ -446,6 +469,66 @@ class SafeActionExecutor
 
             return $locked->fresh() ?? $locked;
         });
+    }
+
+    /**
+     * @param  array<string, mixed>  $evidence
+     */
+    private function recordLateAddonResult(
+        SafeActionExecution $execution,
+        WhmcsIntegration $integration,
+        string $status,
+        string $summary,
+        array $evidence,
+        ?string $errorCode,
+    ): SafeActionExecution {
+        $receivedAt = now();
+        $preservedStatus = $execution->status;
+
+        $execution->forceFill([
+            'late_result_status' => $status,
+            'late_result_at' => $receivedAt,
+            'result' => [
+                'summary' => $summary,
+                'evidence' => $evidence,
+                'error_code' => $errorCode,
+                'applied_by' => 'whmcs_addon',
+                'addon_status' => $status,
+                'late' => true,
+                'received_at' => $receivedAt->toIso8601String(),
+                'preserved_status' => $preservedStatus,
+            ],
+        ])->save();
+
+        $this->audit->append([
+            'actor_type' => 'integration',
+            'actor_id' => $integration->id,
+            'tenant_id' => $execution->tenant_id,
+            'event_type' => 'safe_action.late_result',
+            'subject_type' => 'safe_action_execution',
+            'subject_id' => $execution->id,
+            'metadata' => [
+                'action_key' => $execution->action_key,
+                'addon_status' => $status,
+                'summary' => $summary,
+                'error_code' => $errorCode,
+                'preserved_status' => $preservedStatus,
+                'late' => true,
+                'late_result_at' => $receivedAt->toIso8601String(),
+            ],
+            'occurred_at' => $receivedAt,
+        ]);
+
+        Log::warning('Late WHMCS addon result received for a cancelled or rejected safe action.', [
+            'safe_action_execution_id' => $execution->id,
+            'integration_id' => $integration->id,
+            'tenant_id' => $execution->tenant_id,
+            'preserved_status' => $preservedStatus,
+            'addon_status' => $status,
+            'late_result_at' => $receivedAt->toIso8601String(),
+        ]);
+
+        return $execution->fresh() ?? $execution;
     }
 
     /**

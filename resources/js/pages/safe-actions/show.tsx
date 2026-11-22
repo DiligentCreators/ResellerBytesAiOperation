@@ -40,15 +40,19 @@ type Execution = {
     requires_password_confirm: boolean;
     requested_at: string | null;
     approved_at: string | null;
+    agent_picked_up_at: string | null;
     rejected_at: string | null;
     executed_at: string | null;
     verified_at: string | null;
+    late_result_status: string | null;
+    late_result_at: string | null;
     integration_name: string | null;
     requester_name: string | null;
     approver_name: string | null;
     rejector_name: string | null;
     approval_reason: string | null;
     rejection_reason: string | null;
+    reject_blocked_reason: string | null;
     preview?: {
         items?: PreviewItem[];
         refused?: { id?: number | null; reason?: string }[];
@@ -230,6 +234,12 @@ export default function SafeActionShow({
                     </section>
                 ) : null}
 
+                {execution.reject_blocked_reason ? (
+                    <p className="rounded-md border border-warning/30 bg-warning-soft px-3 py-2 text-sm text-warning-fg">
+                        {execution.reject_blocked_reason}
+                    </p>
+                ) : null}
+
                 {can_approve || can_reject ? (
                     <section className="rounded-lg border border-border bg-card p-5 shadow-xs">
                         <h2 className="text-sm font-semibold">Decision</h2>
@@ -392,7 +402,22 @@ export default function SafeActionShow({
 
                 {execution.result ? (
                     <section className="rounded-lg border border-border bg-card p-5 shadow-xs">
-                        <h2 className="text-sm font-semibold">Result</h2>
+                        <h2 className="text-sm font-semibold">
+                            {execution.result.late === true
+                                ? 'Late addon result'
+                                : 'Result'}
+                        </h2>
+                        {execution.result.late === true ? (
+                            <p className="mt-2 text-xs text-muted-foreground">
+                                Recorded after cancel/reject
+                                {execution.late_result_at
+                                    ? ` · ${formatDateTime(execution.late_result_at, timezone)}`
+                                    : ''}
+                                {execution.late_result_status
+                                    ? ` · ${execution.late_result_status}`
+                                    : ''}
+                            </p>
+                        ) : null}
                         <p className="mt-2 text-sm">
                             {asDisplayString(execution.result.summary)}
                         </p>

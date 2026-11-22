@@ -23,6 +23,25 @@ class ListPendingSafeActionsController extends Controller
             ->limit(20)
             ->get();
 
+        $unpickedIds = $executions
+            ->filter(fn (SafeActionExecution $execution): bool => $execution->agent_picked_up_at === null)
+            ->pluck('id')
+            ->all();
+
+        if ($unpickedIds !== []) {
+            $pickedUpAt = now();
+            SafeActionExecution::query()
+                ->whereIn('id', $unpickedIds)
+                ->whereNull('agent_picked_up_at')
+                ->update(['agent_picked_up_at' => $pickedUpAt]);
+
+            foreach ($executions as $execution) {
+                if (in_array($execution->id, $unpickedIds, true)) {
+                    $execution->forceFill(['agent_picked_up_at' => $pickedUpAt]);
+                }
+            }
+        }
+
         $host = $this->hostPayload($integration);
 
         $actions = $executions->map(function (SafeActionExecution $execution) use ($registry, $host): array {

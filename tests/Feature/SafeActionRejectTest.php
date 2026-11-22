@@ -196,7 +196,7 @@ it('forbids viewers from rejecting safe actions', function () {
     expect($execution->fresh()->status)->toBe(SafeActionExecution::STATUS_PENDING_APPROVAL);
 });
 
-it('cancels awaiting-agent executions and removes them from the WHMCS pending feed', function () {
+it('cancels awaiting-agent executions before addon pickup and removes them from the WHMCS pending feed', function () {
     ['owner' => $owner, 'integration' => $integration] = createSafeActionRejectWorkspace();
 
     $this->actingAs($owner)
@@ -218,12 +218,8 @@ it('cancels awaiting-agent executions and removes them from the WHMCS pending fe
     $execution->refresh();
     $integration->refresh();
     expect($execution->status)->toBe(SafeActionExecution::STATUS_AWAITING_AGENT)
+        ->and($execution->agent_picked_up_at)->toBeNull()
         ->and($integration->pending_diagnostic_collect_execution_id)->toBe($execution->id);
-
-    $pendingBefore = makeRejectSignedWhmcsRequest($integration, 'GET', '/api/v1/whmcs/safe-actions/pending');
-    $this->call('GET', '/api/v1/whmcs/safe-actions/pending', [], [], [], $pendingBefore['headers'], $pendingBefore['body'])
-        ->assertOk()
-        ->assertJsonPath('data.actions.0.id', $execution->id);
 
     $this->actingAs($owner)
         ->post('/safe-actions/'.$execution->id.'/reject', [
@@ -236,6 +232,7 @@ it('cancels awaiting-agent executions and removes them from the WHMCS pending fe
     $integration->refresh();
     expect($execution->status)->toBe(SafeActionExecution::STATUS_CANCELLED)
         ->and($execution->rejected_by_user_id)->toBe($owner->id)
+        ->and($execution->agent_picked_up_at)->toBeNull()
         ->and($integration->pending_diagnostic_collect_execution_id)->toBeNull();
 
     expect(AuditEvent::query()->where('event_type', 'safe_action.cancelled')->exists())->toBeTrue();
@@ -244,18 +241,179 @@ it('cancels awaiting-agent executions and removes them from the WHMCS pending fe
     $this->call('GET', '/api/v1/whmcs/safe-actions/pending', [], [], [], $pendingAfter['headers'], $pendingAfter['body'])
         ->assertOk()
         ->assertJsonPath('data.actions', []);
+});
+
+it('records pickup time when the WHMCS pending feed delivers an awaiting-agent execution', function () {
+    ['owner' => $owner, 'integration' => $integration] = createSafeActionRejectWorkspace();
+
+    $this->actingAs($owner)
+        ->withSession(['auth.password_confirmed_at' => time()])
+        ->post('/safe-actions', [
+            'integration_id' => $integration->id,
+            'action_key' => 'pull_and_run_diagnostic_collect',
+        ]);
+
+    $execution = SafeActionExecution::query()->firstOrFail();
+
+    $this->actingAs($owner)
+        ->withSession(['auth.password_confirmed_at' => time()])
+        ->post('/safe-actions/'.$execution->id.'/approve', [
+            'approval_reason' => 'Queue a fresh diagnostic collect',
+        ])
+        ->assertRedirect();
+
+    expect($execution->fresh()->agent_picked_up_at)->toBeNull();
+
+    $pending = makeRejectSignedWhmcsRequest($integration, 'GET', '/api/v1/whmcs/safe-actions/pending');
+    $this->call('GET', '/api/v1/whmcs/safe-actions/pending', [], [], [], $pending['headers'], $pending['body'])
+        ->assertOk()
+        ->assertJsonPath('data.actions.0.id', $execution->id);
+
+    $execution->refresh();
+    expect($execution->agent_picked_up_at)->not->toBeNull()
+        ->and($execution->status)->toBe(SafeActionExecution::STATUS_AWAITING_AGENT);
+
+    $this->actingAs($owner)
+        ->get('/safe-actions/'.$execution->id)
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('safe-actions/show')
+            ->where('can_reject', false)
+            ->where('execution.reject_blocked_reason', SafeActionExecution::REJECT_AFTER_PICKUP_MESSAGE));
+});
+
+it('refuses cancel after the WHMCS addon has picked up the execution', function () {
+    ['owner' => $owner, 'integration' => $integration] = createSafeActionRejectWorkspace();
+
+    $this->actingAs($owner)
+        ->withSession(['auth.password_confirmed_at' => time()])
+        ->post('/safe-actions', [
+            'integration_id' => $integration->id,
+            'action_key' => 'pull_and_run_diagnostic_collect',
+        ]);
+
+    $execution = SafeActionExecution::query()->firstOrFail();
+
+    $this->actingAs($owner)
+        ->withSession(['auth.password_confirmed_at' => time()])
+        ->post('/safe-actions/'.$execution->id.'/approve', [
+            'approval_reason' => 'Queue a fresh diagnostic collect',
+        ])
+        ->assertRedirect();
+
+    $pending = makeRejectSignedWhmcsRequest($integration, 'GET', '/api/v1/whmcs/safe-actions/pending');
+    $this->call('GET', '/api/v1/whmcs/safe-actions/pending', [], [], [], $pending['headers'], $pending['body'])
+        ->assertOk();
+
+    $execution->refresh();
+    expect($execution->agent_picked_up_at)->not->toBeNull();
+
+    $this->actingAs($owner)
+        ->postJson('/safe-actions/'.$execution->id.'/reject', [
+            'rejection_reason' => 'Too late after pickup',
+        ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['rejection_reason'])
+        ->assertJsonPath(
+            'errors.rejection_reason.0',
+            SafeActionExecution::REJECT_AFTER_PICKUP_MESSAGE,
+        );
+
+    expect($execution->fresh()->status)->toBe(SafeActionExecution::STATUS_AWAITING_AGENT)
+        ->and(AuditEvent::query()->where('event_type', 'safe_action.cancelled')->count())->toBe(0);
+});
+
+it('records a late addon result for a cancelled execution without changing status', function () {
+    ['owner' => $owner, 'integration' => $integration] = createSafeActionRejectWorkspace();
+
+    $this->actingAs($owner)
+        ->withSession(['auth.password_confirmed_at' => time()])
+        ->post('/safe-actions', [
+            'integration_id' => $integration->id,
+            'action_key' => 'pull_and_run_diagnostic_collect',
+        ]);
+
+    $execution = SafeActionExecution::query()->firstOrFail();
+
+    $this->actingAs($owner)
+        ->withSession(['auth.password_confirmed_at' => time()])
+        ->post('/safe-actions/'.$execution->id.'/approve', [
+            'approval_reason' => 'Queue a fresh diagnostic collect',
+        ])
+        ->assertRedirect();
+
+    $this->actingAs($owner)
+        ->post('/safe-actions/'.$execution->id.'/reject', [
+            'rejection_reason' => 'Cancel before addon pickup',
+        ])
+        ->assertRedirect();
+
+    expect($execution->fresh()->status)->toBe(SafeActionExecution::STATUS_CANCELLED);
+
+    $executionCountBefore = SafeActionExecution::query()->count();
 
     $path = '/api/v1/whmcs/safe-actions/'.$execution->id.'/result';
     $result = makeRejectSignedWhmcsRequest($integration, 'POST', $path, [
         'status' => 'success',
-        'summary' => 'Should be refused',
+        'summary' => 'Addon already applied this before cancel reached it',
         'evidence' => ['remediation_applied' => true],
     ]);
 
     $this->call('POST', $path, [], [], [], $result['headers'], $result['body'])
-        ->assertServerError();
+        ->assertOk()
+        ->assertJsonPath('data.status', SafeActionExecution::STATUS_CANCELLED);
 
-    expect($execution->fresh()->status)->toBe(SafeActionExecution::STATUS_CANCELLED);
+    $execution->refresh();
+    expect($execution->status)->toBe(SafeActionExecution::STATUS_CANCELLED)
+        ->and($execution->late_result_status)->toBe('success')
+        ->and($execution->late_result_at)->not->toBeNull()
+        ->and($execution->result['late'] ?? null)->toBeTrue()
+        ->and($execution->result['summary'] ?? null)->toBe('Addon already applied this before cancel reached it')
+        ->and(SafeActionExecution::query()->count())->toBe($executionCountBefore);
+
+    expect(AuditEvent::query()->where('event_type', 'safe_action.late_result')->exists())->toBeTrue()
+        ->and(AuditEvent::query()->where('event_type', 'safe_action.completed')->count())->toBe(0)
+        ->and(AuditEvent::query()->where('event_type', 'safe_action.verified')->count())->toBe(0);
+});
+
+it('rejects addon results for another tenant integration as before', function () {
+    ['owner' => $owner, 'integration' => $integration] = createSafeActionRejectWorkspace();
+    ['integration' => $otherIntegration] = createSafeActionRejectWorkspace();
+
+    $this->actingAs($owner)
+        ->withSession(['auth.password_confirmed_at' => time()])
+        ->post('/safe-actions', [
+            'integration_id' => $integration->id,
+            'action_key' => 'pull_and_run_diagnostic_collect',
+        ]);
+
+    $execution = SafeActionExecution::query()->where('integration_id', $integration->id)->firstOrFail();
+
+    $this->actingAs($owner)
+        ->withSession(['auth.password_confirmed_at' => time()])
+        ->post('/safe-actions/'.$execution->id.'/approve', [
+            'approval_reason' => 'Queue a fresh diagnostic collect',
+        ])
+        ->assertRedirect();
+
+    $this->actingAs($owner)
+        ->post('/safe-actions/'.$execution->id.'/reject', [
+            'rejection_reason' => 'Cancel before cross-tenant probe',
+        ])
+        ->assertRedirect();
+
+    $path = '/api/v1/whmcs/safe-actions/'.$execution->id.'/result';
+    $result = makeRejectSignedWhmcsRequest($otherIntegration, 'POST', $path, [
+        'status' => 'success',
+        'summary' => 'Should not apply',
+        'evidence' => ['remediation_applied' => true],
+    ]);
+
+    $this->call('POST', $path, [], [], [], $result['headers'], $result['body'])
+        ->assertNotFound();
+
+    expect($execution->fresh()->status)->toBe(SafeActionExecution::STATUS_CANCELLED)
+        ->and($execution->fresh()->late_result_at)->toBeNull();
 });
 
 it('refuses rejection of a completed execution', function () {

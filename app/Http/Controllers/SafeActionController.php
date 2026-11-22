@@ -74,10 +74,7 @@ class SafeActionController extends Controller
             'definition' => $definition,
             'can_approve' => $safeAction->status === SafeActionExecution::STATUS_PENDING_APPROVAL
                 && $canExecute,
-            'can_reject' => in_array($safeAction->status, [
-                SafeActionExecution::STATUS_PENDING_APPROVAL,
-                SafeActionExecution::STATUS_AWAITING_AGENT,
-            ], true) && $canExecute,
+            'can_reject' => $canExecute && $safeAction->isRejectable(),
         ]);
     }
 
@@ -230,6 +227,8 @@ class SafeActionController extends Controller
 
         try {
             $execution = $executor->reject($safeAction, $request->user(), $reason);
+        } catch (ValidationException $exception) {
+            throw $exception;
         } catch (\Throwable $exception) {
             throw ValidationException::withMessages([
                 'rejection_reason' => $exception->getMessage(),
@@ -343,9 +342,12 @@ class SafeActionController extends Controller
             'requires_password_confirm' => $execution->requires_password_confirm,
             'requested_at' => $execution->requested_at?->toIso8601String(),
             'approved_at' => $execution->approved_at?->toIso8601String(),
+            'agent_picked_up_at' => $execution->agent_picked_up_at?->toIso8601String(),
             'rejected_at' => $execution->rejected_at?->toIso8601String(),
             'executed_at' => $execution->executed_at?->toIso8601String(),
             'verified_at' => $execution->verified_at?->toIso8601String(),
+            'late_result_status' => $execution->late_result_status,
+            'late_result_at' => $execution->late_result_at?->toIso8601String(),
             'integration_name' => $execution->integration?->name,
             'integration_id' => $execution->integration_id,
             'requester_name' => $execution->requester?->name,
@@ -365,6 +367,10 @@ class SafeActionController extends Controller
             $payload['before_evidence'] = $execution->before_evidence;
             $payload['after_evidence'] = $execution->after_evidence;
             $payload['finding_title'] = $execution->finding?->title;
+            $payload['reject_blocked_reason'] = $execution->status === SafeActionExecution::STATUS_AWAITING_AGENT
+                && $execution->wasPickedUpByAgent()
+                ? SafeActionExecution::REJECT_AFTER_PICKUP_MESSAGE
+                : null;
         }
 
         return $payload;
