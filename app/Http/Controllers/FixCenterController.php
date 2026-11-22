@@ -58,17 +58,20 @@ class FixCenterController extends Controller
         }
 
         $entitlements = $this->workspaceEntitlements($user);
+        $registry = app(SafeActionRegistry::class);
+        $fixesEnabled = $registry->fixesEnabled();
 
         $issues = $query
             ->paginate(20)
             ->withQueryString()
-            ->through(function (DiagnosticFinding $finding) use ($builder, $user, $entitlements): array {
+            ->through(function (DiagnosticFinding $finding) use ($builder, $user, $entitlements, $fixesEnabled): array {
                 return $builder->serialize(
                     $finding,
                     $entitlements['one_click'],
                     $entitlements['bulk'],
                     $entitlements['guided'],
                     $this->canManageFindings($user, $finding),
+                    $fixesEnabled,
                 );
             });
 
@@ -82,10 +85,14 @@ class FixCenterController extends Controller
             'counts' => $counts,
             'entitlements' => [
                 'fixes_guided' => $entitlements['guided'],
-                'fixes_one_click' => $entitlements['one_click'],
-                'fixes_bulk' => $entitlements['bulk'],
+                'fixes_one_click' => $entitlements['one_click'] && $fixesEnabled,
+                'fixes_bulk' => $entitlements['bulk'] && $fixesEnabled,
                 'bulk_max_items' => $entitlements['bulk_max_items'],
             ],
+            'fixes_enabled' => $fixesEnabled,
+            'fixes_unavailable_message' => $fixesEnabled
+                ? null
+                : SafeActionRegistry::FIXES_DISABLED_MESSAGE,
             'billing_plans_url' => route('billing.plans'),
         ]);
     }

@@ -39,7 +39,8 @@ class FixCenterIssueBuilder
      *     guided_steps: list<array{step_index: int, action: string, completed: bool, completed_at: string|null, completed_by_user_id: int|null}>,
      *     suggested_actions: list<array<string, mixed>>,
      *     blocked_action_keys: list<string>,
-     *     affected_ids: list<int>
+     *     affected_ids: list<int>,
+     *     fixes_unavailable: bool
      * }
      */
     public function serialize(
@@ -48,12 +49,18 @@ class FixCenterIssueBuilder
         bool $bulkEnabled,
         bool $guidedEnabled,
         bool $canManage,
+        bool $platformFixesEnabled = true,
     ): array {
         $meta = $this->guided->catalogMeta($finding);
         $fixMode = $this->resolveFixMode($finding, $meta);
         $neverOneClick = $meta['never_one_click'] || $fixMode === 'guided' || $fixMode === 'info';
-        $canOneClick = $canManage && $oneClickEnabled && ! $neverOneClick && $fixMode === 'one_click';
+        $canOneClick = $canManage
+            && $oneClickEnabled
+            && $platformFixesEnabled
+            && ! $neverOneClick
+            && $fixMode === 'one_click';
         $upgradeToOneClick = $canManage
+            && $platformFixesEnabled
             && ! $oneClickEnabled
             && $fixMode === 'one_click'
             && ! $meta['never_one_click'];
@@ -119,6 +126,7 @@ class FixCenterIssueBuilder
             'suggested_actions' => $suggested,
             'blocked_action_keys' => $blocked,
             'affected_ids' => $this->affectedIds(is_array($finding->evidence) ? $finding->evidence : []),
+            'fixes_unavailable' => ! $platformFixesEnabled,
         ];
     }
 

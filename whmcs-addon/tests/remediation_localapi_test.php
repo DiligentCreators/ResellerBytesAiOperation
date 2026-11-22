@@ -148,9 +148,35 @@ namespace {
     $runner->apply($credentials, [
         'action_key' => 'invoice_send_overdue_reminder',
         'target_ids' => [401],
+        'resolved_params' => ['messagename' => 'Server Resolved Overdue Notice'],
+        'input' => ['messagename' => 'Crafted Client Template'],
     ], $client);
     assertLocalApi(($fake->calls[0]['command'] ?? null) === 'SendEmail', 'SendEmail expected.');
     assertLocalApi(($fake->calls[0]['values']['id'] ?? null) === 401, 'Invoice id expected.');
+    assertLocalApi(
+        ($fake->calls[0]['values']['messagename'] ?? null) === 'Server Resolved Overdue Notice',
+        'Addon must use server-resolved messagename only.',
+    );
+
+    // Client-crafted input.messagename must never win over resolved_params / preview.
+    $fake = new FakeLocalApiClient;
+    $runner = new RemediationRunner($fake, $logger);
+    $runner->apply($credentials, [
+        'action_key' => 'invoice_send_overdue_reminder',
+        'target_ids' => [402],
+        'input' => ['messagename' => 'Crafted Client Template'],
+        'preview' => [
+            'items' => [[
+                'id' => 402,
+                'command' => 'SendEmail',
+                'params' => ['messagename' => 'Preview Authored Template', 'id' => 402],
+            ]],
+        ],
+    ], $client);
+    assertLocalApi(
+        ($fake->calls[0]['values']['messagename'] ?? null) === 'Preview Authored Template',
+        'Without resolved_params, preview messagename is the server-authored source.',
+    );
 
     $fake = new FakeLocalApiClient;
     $runner = new RemediationRunner($fake, $logger);

@@ -28,6 +28,7 @@ use Illuminate\Support\Carbon;
  * @property array<string, mixed>|null $input
  * @property array<string, mixed>|null $preview
  * @property array<int, int>|null $target_ids
+ * @property array<string, mixed>|null $resolved_params
  * @property array<string, mixed>|null $result
  * @property array<string, mixed>|null $before_evidence
  * @property array<string, mixed>|null $after_evidence
@@ -92,6 +93,7 @@ class SafeActionExecution extends Model
         'input',
         'preview',
         'target_ids',
+        'resolved_params',
         'result',
         'before_evidence',
         'after_evidence',
@@ -115,6 +117,7 @@ class SafeActionExecution extends Model
             'input' => 'array',
             'preview' => 'array',
             'target_ids' => 'array',
+            'resolved_params' => 'array',
             'result' => 'array',
             'before_evidence' => 'array',
             'after_evidence' => 'array',

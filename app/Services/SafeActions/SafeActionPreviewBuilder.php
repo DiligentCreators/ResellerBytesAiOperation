@@ -5,18 +5,17 @@ namespace App\Services\SafeActions;
 use App\Models\DiagnosticFinding;
 use App\Models\DiagnosticRun;
 use App\Models\WhmcsIntegration;
-use App\Services\PlatformSettings;
 use InvalidArgumentException;
 
 class SafeActionPreviewBuilder
 {
     public function __construct(
         private readonly SafeActionRegistry $registry,
-        private readonly PlatformSettings $settings,
     ) {}
 
     /**
      * @param  list<int>|null  $selectedIds
+     * @param  array<string, mixed>  $resolvedParams
      * @return array{
      *     action_key: string,
      *     label: string,
@@ -34,10 +33,11 @@ class SafeActionPreviewBuilder
         ?DiagnosticFinding $finding = null,
         ?array $selectedIds = null,
         string $mode = 'one_click',
+        array $resolvedParams = [],
     ): array {
         $definition = $this->registry->get($actionKey);
         $allowedIds = $this->affectedIds($finding, $integration, $actionKey);
-        $targetIds = $this->resolveTargetIds($definition, $allowedIds, $selectedIds, $mode);
+        $targetIds = $this->resolveTargetIds($definition, $allowedIds, $selectedIds, $mode, $finding !== null);
 
         $items = [];
         $refused = [];
@@ -92,7 +92,7 @@ class SafeActionPreviewBuilder
             }
         } else {
             foreach ($targetIds as $id) {
-                $mapped = $this->mapItem($actionKey, $id);
+                $mapped = $this->mapItem($actionKey, $id, $resolvedParams);
                 if ($mapped === null) {
                     $refused[] = ['id' => $id, 'reason' => 'unsupported_target'];
 
@@ -130,14 +130,12 @@ class SafeActionPreviewBuilder
             return [];
         }
 
+        // When a finding is bound, only its evidence IDs are authoritative.
         if ($finding !== null) {
-            $fromEvidence = $this->idsFromEvidence(is_array($finding->evidence) ? $finding->evidence : []);
-            if ($fromEvidence !== []) {
-                return $fromEvidence;
-            }
+            return $this->idsFromEvidence(is_array($finding->evidence) ? $finding->evidence : []);
         }
 
-        return $this->idsFromLatestSnapshot($integration, $finding?->issue_key, $actionKey);
+        return $this->idsFromLatestSnapshot($integration, null, $actionKey);
     }
 
     /**
@@ -149,24 +147,35 @@ class SafeActionPreviewBuilder
      * @param  list<int>|null  $selectedIds
      * @return list<int>
      */
-    private function resolveTargetIds(array $definition, array $allowedIds, ?array $selectedIds, string $mode): array
-    {
-        if ($allowedIds === [] && $selectedIds === null) {
-            return [];
-        }
-
-        if ($selectedIds === null || $selectedIds === []) {
-            $targets = $allowedIds;
-        } else {
+    private function resolveTargetIds(
+        array $definition,
+        array $allowedIds,
+        ?array $selectedIds,
+        string $mode,
+        bool $findingBound,
+    ): array {
+        if ($selectedIds !== null && $selectedIds !== []) {
             $selected = $this->normalizeIds($selectedIds);
+            if ($findingBound && $allowedIds === []) {
+                throw new InvalidArgumentException('This finding has no affected targets; explicit target_ids are not allowed.');
+            }
+
             $allowedLookup = array_fill_keys($allowedIds, true);
             $targets = [];
             foreach ($selected as $id) {
                 if ($allowedIds !== [] && ! isset($allowedLookup[$id])) {
                     throw new InvalidArgumentException('Selected target is not in the finding affected set.');
                 }
+                // Without a finding, empty allowed set must not accept arbitrary IDs.
+                if ($allowedIds === [] && ! $findingBound) {
+                    throw new InvalidArgumentException('Selected target is not in the finding affected set.');
+                }
                 $targets[] = $id;
             }
+        } elseif ($allowedIds === [] && $selectedIds === null) {
+            return [];
+        } else {
+            $targets = $allowedIds;
         }
 
         $max = (int) $definition['max_items'];
@@ -189,9 +198,10 @@ class SafeActionPreviewBuilder
     }
 
     /**
+     * @param  array<string, mixed>  $resolvedParams
      * @return array{id: int, command: string, params: array<string, mixed>, note?: string}|null
      */
-    private function mapItem(string $actionKey, int $id): ?array
+    private function mapItem(string $actionKey, int $id, array $resolvedParams = []): ?array
     {
         return match ($actionKey) {
             'service_unsuspend_paid' => [
@@ -203,7 +213,7 @@ class SafeActionPreviewBuilder
                 'id' => $id,
                 'command' => 'SendEmail',
                 'params' => [
-                    'messagename' => $this->overdueMessageName(),
+                    'messagename' => $this->overdueMessageName($resolvedParams),
                     'id' => $id,
                 ],
             ],
@@ -358,16 +368,16 @@ class SafeActionPreviewBuilder
         return array_values(array_slice(array_unique($ids), 0, 50));
     }
 
-    private function overdueMessageName(): string
+    /**
+     * @param  array<string, mixed>  $resolvedParams
+     */
+    private function overdueMessageName(array $resolvedParams = []): string
     {
-        try {
-            $value = $this->settings->get('fixes.overdue_reminder_messagename');
-        } catch (\Throwable) {
-            $value = config('fixes.overdue_reminder_messagename', 'First Invoice Overdue Notice');
+        $fromResolved = $resolvedParams['messagename'] ?? null;
+        if (is_string($fromResolved) && $fromResolved !== '') {
+            return $fromResolved;
         }
 
-        return is_string($value) && $value !== ''
-            ? $value
-            : 'First Invoice Overdue Notice';
+        return $this->registry->overdueReminderMessageName();
     }
 }

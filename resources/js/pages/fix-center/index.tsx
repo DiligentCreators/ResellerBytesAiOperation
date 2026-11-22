@@ -79,6 +79,8 @@ type Props = {
         fixes_bulk: boolean;
         bulk_max_items: number;
     };
+    fixes_enabled: boolean;
+    fixes_unavailable_message: string | null;
     billing_plans_url: string;
 };
 
@@ -94,6 +96,8 @@ export default function FixCenterIndex({
     filters,
     counts,
     entitlements,
+    fixes_enabled,
+    fixes_unavailable_message,
     billing_plans_url,
 }: Props) {
     const { flash } = usePage().props as { flash?: { status?: string | null } };
@@ -213,6 +217,13 @@ export default function FixCenterIndex({
                 {flash?.status ? (
                     <p className="rounded-md border border-success/20 bg-success-soft px-3 py-2 text-sm text-success-fg">
                         {flash.status}
+                    </p>
+                ) : null}
+
+                {!fixes_enabled && fixes_unavailable_message ? (
+                    <p className="rounded-md border border-warning/30 bg-warning-soft px-3 py-2 text-sm text-warning-fg">
+                        {fixes_unavailable_message} Guided steps remain
+                        available.
                     </p>
                 ) : null}
 

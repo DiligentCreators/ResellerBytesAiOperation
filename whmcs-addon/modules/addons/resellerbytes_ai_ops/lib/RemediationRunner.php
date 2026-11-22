@@ -666,14 +666,35 @@ final class RemediationRunner
     }
 
     /**
+     * Use only the server-resolved template. Never trust client-supplied input.messagename.
+     *
      * @param  array<string, mixed>  $action
      */
     private function overdueMessageName(array $action): string
     {
-        $input = isset($action['input']) && is_array($action['input']) ? $action['input'] : [];
-        $name = $input['messagename'] ?? ($action['messagename'] ?? 'First Invoice Overdue Notice');
+        $resolved = isset($action['resolved_params']) && is_array($action['resolved_params'])
+            ? $action['resolved_params']
+            : [];
+        $name = $resolved['messagename'] ?? null;
+        if (is_string($name) && $name !== '') {
+            return $name;
+        }
 
-        return is_string($name) && $name !== '' ? $name : 'First Invoice Overdue Notice';
+        // Preview params are authored by the platform at request time.
+        $preview = isset($action['preview']) && is_array($action['preview']) ? $action['preview'] : [];
+        $items = isset($preview['items']) && is_array($preview['items']) ? $preview['items'] : [];
+        foreach ($items as $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+            $params = isset($item['params']) && is_array($item['params']) ? $item['params'] : [];
+            $fromPreview = $params['messagename'] ?? null;
+            if (is_string($fromPreview) && $fromPreview !== '') {
+                return $fromPreview;
+            }
+        }
+
+        return 'First Invoice Overdue Notice';
     }
 
     private function logItem(string $action, int $id, string $result): void

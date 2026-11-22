@@ -84,6 +84,7 @@ class SafeActionController extends Controller
         $this->authorizeExecute($integration);
 
         $definition = $registry->get($request->string('action_key')->toString());
+        $this->requireFixesEnabled($registry, $definition['key']);
 
         try {
             $this->requireEntitlement($integration, $definition['entitlement']);
@@ -118,6 +119,17 @@ class SafeActionController extends Controller
             if (! app(TenantRecordQuery::class)->findings(Auth::user())->whereKey($finding->id)->exists()) {
                 throw new NotFoundHttpException;
             }
+            $finding->loadMissing('diagnosticRun');
+            if ($finding->diagnosticRun?->integration_id !== $integration->id) {
+                throw ValidationException::withMessages([
+                    'finding_id' => 'Finding does not belong to this integration.',
+                ]);
+            }
+            if ($finding->tenant_id !== null
+                && $integration->tenant_id !== null
+                && $finding->tenant_id !== $integration->tenant_id) {
+                throw new NotFoundHttpException;
+            }
         }
 
         try {
@@ -129,7 +141,20 @@ class SafeActionController extends Controller
                 $finding,
             );
         } catch (InvalidArgumentException $exception) {
-            throw ValidationException::withMessages(['action_key' => $exception->getMessage()]);
+            $message = $exception->getMessage();
+            $lower = strtolower($message);
+            $field = match (true) {
+                str_contains($lower, 'not bound'),
+                str_contains($lower, 'does not belong to this finding'),
+                str_contains($lower, 'does not belong to this integration'),
+                str_contains($lower, 'requires a finding') => 'finding_id',
+                str_contains($lower, 'affected'),
+                str_contains($lower, 'explicit target_ids'),
+                str_contains($lower, 'selected target is not') => 'input.target_ids',
+                default => 'action_key',
+            };
+
+            throw ValidationException::withMessages([$field => $message]);
         }
 
         return redirect()
@@ -148,6 +173,7 @@ class SafeActionController extends Controller
         $this->authorizeExecute($safeAction->integration);
 
         $definition = $registry->get($safeAction->action_key);
+        $this->requireFixesEnabled($registry, $safeAction->action_key);
         $this->requireEntitlement($safeAction->integration, $definition['entitlement']);
 
         if ($definition['requires_password_confirm']) {
@@ -244,6 +270,19 @@ class SafeActionController extends Controller
         app(TenantEntitlementService::class)->requireFeature($integration->tenant_id, $feature);
     }
 
+    private function requireFixesEnabled(SafeActionRegistry $registry, string $actionKey): void
+    {
+        if (! $registry->isOneClickOrBulkAction($actionKey)) {
+            return;
+        }
+
+        if (! $registry->fixesEnabled()) {
+            throw ValidationException::withMessages([
+                'action_key' => SafeActionRegistry::FIXES_DISABLED_MESSAGE,
+            ]);
+        }
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -277,6 +316,7 @@ class SafeActionController extends Controller
             $payload['input'] = $execution->input;
             $payload['preview'] = $execution->preview;
             $payload['target_ids'] = $execution->target_ids;
+            $payload['resolved_params'] = $execution->resolved_params;
             $payload['result'] = $execution->result;
             $payload['before_evidence'] = $execution->before_evidence;
             $payload['after_evidence'] = $execution->after_evidence;

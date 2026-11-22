@@ -119,8 +119,8 @@ return [
         'invoice_send_overdue_reminder' => [
             'label' => 'Send overdue invoice reminder',
             'description' => 'Send the First Invoice Overdue Notice email for selected overdue invoices. Skips invoices reminded in the last 24 hours.',
-            'risk_level' => 'low',
-            'requires_password_confirm' => false,
+            'risk_level' => 'medium',
+            'requires_password_confirm' => true,
             'requires_finding' => true,
             'auto_verify' => false,
             'execution_target' => 'addon',

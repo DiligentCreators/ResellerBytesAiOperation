@@ -42,6 +42,7 @@ class ListPendingSafeActionsController extends Controller
                 'batch_id' => $execution->batch_id,
                 'target_ids' => $execution->target_ids ?? [],
                 'preview' => $execution->preview ?? [],
+                'resolved_params' => $execution->resolved_params ?? [],
                 'input' => $execution->input ?? [],
                 'approved_at' => $execution->approved_at?->toIso8601String(),
                 'host' => $needsHost ? $host : null,

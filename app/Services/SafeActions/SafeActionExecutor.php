@@ -11,6 +11,7 @@ use App\Models\WhmcsIntegration;
 use App\Services\Audit\AuditEventWriter;
 use App\Services\Diagnostics\FindingContinuityService;
 use App\Services\Diagnostics\FindingPlaybookBuilder;
+use App\Services\Diagnostics\WhmcsIssueCatalog;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
@@ -44,13 +45,14 @@ class SafeActionExecutor
         }
 
         if ($finding !== null) {
-            $finding->loadMissing('diagnosticRun');
-            if ($finding->diagnosticRun?->integration_id !== $integration->id) {
-                throw new InvalidArgumentException('Finding does not belong to this integration.');
-            }
+            $this->assertFindingBelongsToIntegration($finding, $integration);
+            $this->assertActionBoundToFinding($actionKey, $definition, $finding);
         }
 
         $mode = $this->resolveMode($definition, $input);
+        // Ignore client-supplied free-form command params (messagename, LocalAPI values, etc.).
+        $input = $this->sanitizeClientInput($input, $mode);
+        $resolvedParams = $this->registry->resolveParams($actionKey);
         $usesLocalApiTargets = ($definition['entitlement'] ?? '') === 'fixes.one_click'
             || $actionKey === 'whmcs_clear_template_cache';
 
@@ -60,6 +62,10 @@ class SafeActionExecutor
         $batchId = null;
 
         if ($usesLocalApiTargets) {
+            if ($actionKey !== 'whmcs_clear_template_cache' && $finding === null) {
+                throw new InvalidArgumentException('This safe action requires a finding context.');
+            }
+
             $selectedIds = $this->selectedIdsFromInput($input);
             $preview = $this->previewBuilder->build(
                 $actionKey,
@@ -67,6 +73,7 @@ class SafeActionExecutor
                 $finding,
                 $selectedIds,
                 $mode,
+                $resolvedParams,
             );
 
             if ($preview['items_total'] < 1 && $actionKey !== 'whmcs_clear_template_cache') {
@@ -100,7 +107,7 @@ class SafeActionExecutor
             ]);
         }
 
-        return DB::transaction(function () use ($integration, $actor, $actionKey, $definition, $input, $finding, $mode, $preview, $batchId, $itemsTotal, $targetIds): SafeActionExecution {
+        return DB::transaction(function () use ($integration, $actor, $actionKey, $definition, $input, $finding, $mode, $preview, $batchId, $itemsTotal, $targetIds, $resolvedParams): SafeActionExecution {
             $execution = SafeActionExecution::query()->create([
                 'tenant_id' => $integration->tenant_id,
                 'integration_id' => $integration->id,
@@ -117,6 +124,7 @@ class SafeActionExecutor
                 'input' => $input,
                 'preview' => $preview,
                 'target_ids' => $targetIds,
+                'resolved_params' => $resolvedParams === [] ? null : $resolvedParams,
                 'before_evidence' => $this->captureBeforeEvidence($integration),
                 'requested_at' => now(),
             ]);
@@ -498,6 +506,80 @@ class SafeActionExecutor
         }
 
         return array_values(array_unique($ids));
+    }
+
+    private function assertFindingBelongsToIntegration(
+        DiagnosticFinding $finding,
+        WhmcsIntegration $integration,
+    ): void {
+        $finding->loadMissing('diagnosticRun');
+
+        if ($finding->diagnosticRun?->integration_id !== $integration->id) {
+            throw new InvalidArgumentException('Finding does not belong to this integration.');
+        }
+
+        if ($finding->tenant_id !== null
+            && $integration->tenant_id !== null
+            && $finding->tenant_id !== $integration->tenant_id) {
+            throw new InvalidArgumentException('Finding does not belong to this tenant.');
+        }
+    }
+
+    /**
+     * @param  array{
+     *     entitlement: string,
+     *     requires_finding: bool
+     * }  $definition
+     */
+    private function assertActionBoundToFinding(
+        string $actionKey,
+        array $definition,
+        DiagnosticFinding $finding,
+    ): void {
+        if (($definition['entitlement'] ?? '') !== 'fixes.one_click') {
+            return;
+        }
+
+        if ($actionKey === 'whmcs_clear_template_cache') {
+            return;
+        }
+
+        $issueKey = $finding->issue_key;
+        if (! is_string($issueKey) || $issueKey === '') {
+            throw new InvalidArgumentException('This safe action is not bound to the selected finding.');
+        }
+
+        $catalogKeys = WhmcsIssueCatalog::actionKeys($issueKey);
+        if (! in_array($actionKey, $catalogKeys, true)) {
+            throw new InvalidArgumentException('This safe action is not bound to the selected finding.');
+        }
+    }
+
+    /**
+     * Drop free-form command params from client input. Only mode, target_ids,
+     * and (auto mode only) auto_fix_policy_id are retained.
+     *
+     * @param  array<string, mixed>  $input
+     * @return array<string, mixed>
+     */
+    private function sanitizeClientInput(array $input, string $mode): array
+    {
+        $clean = [];
+
+        if (isset($input['mode']) && is_string($input['mode'])) {
+            $clean['mode'] = $input['mode'];
+        }
+
+        if (array_key_exists('target_ids', $input)) {
+            $clean['target_ids'] = $input['target_ids'];
+        }
+
+        if ($mode === SafeActionExecution::MODE_AUTO
+            && array_key_exists('auto_fix_policy_id', $input)) {
+            $clean['auto_fix_policy_id'] = $input['auto_fix_policy_id'];
+        }
+
+        return $clean;
     }
 
     /**

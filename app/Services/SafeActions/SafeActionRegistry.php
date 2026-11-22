@@ -7,6 +7,8 @@ use InvalidArgumentException;
 
 class SafeActionRegistry
 {
+    public const FIXES_DISABLED_MESSAGE = 'One-click and bulk fixes are currently disabled by the platform.';
+
     public function __construct(private readonly PlatformSettings $settings) {}
 
     /**
@@ -138,6 +140,7 @@ class SafeActionRegistry
                 $commands[] = $command;
             }
         }
+        $commands = array_values(array_unique($commands));
 
         $autoCommands = [];
         foreach ((array) ($definition['auto_local_api_commands'] ?? []) as $command) {
@@ -146,12 +149,18 @@ class SafeActionRegistry
             }
         }
 
+        $requiresPasswordConfirm = (bool) ($definition['requires_password_confirm'] ?? false);
+        // Email-sending LocalAPI actions always require password confirmation.
+        if (in_array('SendEmail', $commands, true)) {
+            $requiresPasswordConfirm = true;
+        }
+
         return [
             'key' => $key,
             'label' => (string) ($definition['label'] ?? $key),
             'description' => (string) ($definition['description'] ?? ''),
             'risk_level' => (string) ($definition['risk_level'] ?? 'low'),
-            'requires_password_confirm' => (bool) ($definition['requires_password_confirm'] ?? false),
+            'requires_password_confirm' => $requiresPasswordConfirm,
             'requires_finding' => (bool) ($definition['requires_finding'] ?? false),
             'auto_verify' => (bool) ($definition['auto_verify'] ?? true),
             'execution_target' => $target,
@@ -160,7 +169,7 @@ class SafeActionRegistry
             'max_items' => $maxItems,
             'auto_allowed' => (bool) ($definition['auto_allowed'] ?? false),
             'auto_local_api_commands' => array_values(array_unique($autoCommands)),
-            'local_api_commands' => array_values(array_unique($commands)),
+            'local_api_commands' => $commands,
         ];
     }
 
@@ -175,5 +184,52 @@ class SafeActionRegistry
         $max = is_numeric($value) ? (int) $value : 50;
 
         return max(1, min(500, $max));
+    }
+
+    public function fixesEnabled(): bool
+    {
+        try {
+            return (bool) $this->settings->get('fixes.enabled');
+        } catch (\Throwable) {
+            return (bool) config('fixes.enabled', true);
+        }
+    }
+
+    public function isOneClickOrBulkAction(string $actionKey): bool
+    {
+        if (! $this->isAllowlisted($actionKey)) {
+            return false;
+        }
+
+        return $this->get($actionKey)['entitlement'] === 'fixes.one_click';
+    }
+
+    /**
+     * Server-resolved free-form command params (never taken from the client).
+     *
+     * @return array<string, mixed>
+     */
+    public function resolveParams(string $actionKey): array
+    {
+        if ($actionKey !== 'invoice_send_overdue_reminder') {
+            return [];
+        }
+
+        return [
+            'messagename' => $this->overdueReminderMessageName(),
+        ];
+    }
+
+    public function overdueReminderMessageName(): string
+    {
+        try {
+            $value = $this->settings->get('fixes.overdue_reminder_messagename');
+        } catch (\Throwable) {
+            $value = config('fixes.overdue_reminder_messagename', 'First Invoice Overdue Notice');
+        }
+
+        return is_string($value) && $value !== ''
+            ? $value
+            : 'First Invoice Overdue Notice';
     }
 }
