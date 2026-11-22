@@ -9,6 +9,7 @@ use App\Models\DiagnosticFinding;
 use App\Models\User;
 use App\Services\Diagnostics\FindingIgnoreService;
 use App\Services\Diagnostics\FixCenterIssueBuilder;
+use App\Services\Diagnostics\FixedIssueCounter;
 use App\Services\Diagnostics\GuidedFixService;
 use App\Services\SafeActions\SafeActionRegistry;
 use App\Services\Tenancy\TenantEntitlementService;
@@ -39,22 +40,36 @@ class FixCenterController extends Controller
         }
 
         $user = Auth::user();
-        $query = app(TenantRecordQuery::class)->findings($user)
-            ->with([
-                'diagnosticRun.integration:id,name,tenant_id,owner_user_id',
-                'guidedFixSteps',
-            ])
-            ->currentIssues()
-            ->latest();
+        $fixedIssues = app(FixedIssueCounter::class);
 
-        if ($tab === 'open') {
-            $query->notIgnored()->where('status', DiagnosticFinding::STATUS_OPEN);
-        } elseif ($tab === 'fixing') {
-            $query->notIgnored()->where('status', DiagnosticFinding::STATUS_IN_PROGRESS);
-        } elseif ($tab === 'fixed') {
-            $query->notMerged()->whereIn('status', DiagnosticFinding::CLOSED_STATUSES);
+        if ($tab === 'fixed') {
+            $query = $fixedIssues->queryForUser($user)
+                ->with([
+                    'diagnosticRun.integration:id,name,tenant_id,owner_user_id',
+                    'guidedFixSteps',
+                ])
+                ->latest();
         } else {
-            $query->ignored();
+            $query = app(TenantRecordQuery::class)->findings($user)
+                ->with([
+                    'diagnosticRun.integration:id,name,tenant_id,owner_user_id',
+                    'guidedFixSteps',
+                ])
+                ->currentIssues()
+                ->latest();
+
+            if ($tab === 'open') {
+                $query->notIgnored()->where('status', DiagnosticFinding::STATUS_OPEN);
+            } elseif ($tab === 'fixing') {
+                $query->notIgnored()->where('status', DiagnosticFinding::STATUS_IN_PROGRESS);
+            } else {
+                // Ignored tab: snoozed issues and accepted risk (never counted as fixed).
+                $query->where(function ($ignored): void {
+                    $ignored->where(function ($snoozed): void {
+                        $snoozed->ignored();
+                    })->orWhere('status', DiagnosticFinding::STATUS_ACCEPTED_RISK);
+                });
+            }
         }
 
         $entitlements = $this->workspaceEntitlements($user);
@@ -184,8 +199,12 @@ class FixCenterController extends Controller
         return [
             'open' => (clone $base)->notIgnored()->where('status', DiagnosticFinding::STATUS_OPEN)->count(),
             'fixing' => (clone $base)->notIgnored()->where('status', DiagnosticFinding::STATUS_IN_PROGRESS)->count(),
-            'fixed' => (clone $base)->notMerged()->whereIn('status', DiagnosticFinding::CLOSED_STATUSES)->count(),
-            'ignored' => (clone $base)->ignored()->count(),
+            'fixed' => app(FixedIssueCounter::class)->countForUser($user),
+            'ignored' => (clone $base)->where(function ($ignored): void {
+                $ignored->where(function ($snoozed): void {
+                    $snoozed->ignored();
+                })->orWhere('status', DiagnosticFinding::STATUS_ACCEPTED_RISK);
+            })->count(),
         ];
     }
 

@@ -8,6 +8,7 @@ use App\Models\SafeActionExecution;
 use App\Models\Tenant;
 use App\Models\WhmcsHealthSnapshot;
 use App\Models\WhmcsIntegration;
+use App\Services\Diagnostics\FixedIssueCounter;
 use App\Services\Health\TimeSavedCalculator;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\URL;
@@ -17,6 +18,7 @@ class ReportMetricsService
     public function __construct(
         private readonly TimeSavedCalculator $timeSaved,
         private readonly FindingReportCtaResolver $ctaResolver,
+        private readonly FixedIssueCounter $fixedIssues,
     ) {}
 
     /**
@@ -99,12 +101,7 @@ class ReportMetricsService
             ])
             ->all());
 
-        $issuesFixed = (clone $base)
-            ->notMerged()
-            ->where('status', DiagnosticFinding::STATUS_RESOLVED)
-            ->where('resolved_at', '>=', $start)
-            ->where('resolved_at', '<=', $end)
-            ->count();
+        $issuesFixed = $this->fixedIssues->countForTenant($tenant, $start, $end);
 
         $awaitingSafeActions = SafeActionExecution::query()
             ->where('tenant_id', $tenant->id)

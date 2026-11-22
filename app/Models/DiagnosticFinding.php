@@ -207,6 +207,19 @@ class DiagnosticFinding extends Model
             ->scopeCurrentIssues($query);
     }
 
+    /**
+     * Current, non-merged issues with status resolved (accepted risk is not fixed).
+     *
+     * @param  Builder<DiagnosticFinding>  $query
+     * @return Builder<DiagnosticFinding>
+     */
+    public function scopeFixedIssues(Builder $query): Builder
+    {
+        return $query->currentIssues()
+            ->notMerged()
+            ->where('status', self::STATUS_RESOLVED);
+    }
+
     public function isActive(): bool
     {
         return in_array($this->status, self::ACTIVE_STATUSES, true);

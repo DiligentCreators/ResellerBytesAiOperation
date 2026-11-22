@@ -19,6 +19,7 @@ type CancelValueReminder = {
     time_saved_hours_display: string;
     time_saved_value_display: string;
     hourly_rate_usd: number;
+    time_saved_period_label: string;
     issues_fixed: number;
     open_critical: number;
 };
@@ -279,8 +280,23 @@ export default function BillingSettingsPage(props: Props) {
                                                             className="rounded-md border border-border bg-surface px-4 py-3 text-sm text-muted-foreground"
                                                         >
                                                             <p>
-                                                                This period you
-                                                                saved{' '}
+                                                                This workspace
+                                                                has fixed{' '}
+                                                                <span className="font-medium text-foreground">
+                                                                    {
+                                                                        cancelValueReminder.issues_fixed
+                                                                    }
+                                                                </span>{' '}
+                                                                issues so far
+                                                                {cancelValueReminder.open_critical >
+                                                                0
+                                                                    ? `, and still has ${cancelValueReminder.open_critical} open critical issue${cancelValueReminder.open_critical === 1 ? '' : 's'}`
+                                                                    : ''}
+                                                                . During{' '}
+                                                                {
+                                                                    cancelValueReminder.time_saved_period_label
+                                                                }{' '}
+                                                                you saved{' '}
                                                                 <span className="font-medium text-foreground">
                                                                     {
                                                                         cancelValueReminder.time_saved_hours_display
@@ -291,18 +307,7 @@ export default function BillingSettingsPage(props: Props) {
                                                                 {
                                                                     cancelValueReminder.time_saved_value_display
                                                                 }
-                                                                ), fixed{' '}
-                                                                <span className="font-medium text-foreground">
-                                                                    {
-                                                                        cancelValueReminder.issues_fixed
-                                                                    }
-                                                                </span>{' '}
-                                                                issues
-                                                                {cancelValueReminder.open_critical >
-                                                                0
-                                                                    ? `, and still have ${cancelValueReminder.open_critical} open critical issue${cancelValueReminder.open_critical === 1 ? '' : 's'}`
-                                                                    : ''}
-                                                                .
+                                                                ).
                                                             </p>
                                                         </div>
                                                     )}
