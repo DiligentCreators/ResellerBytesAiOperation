@@ -120,6 +120,15 @@ final class PlatformSettingsRegistry
                 default: static fn (): bool => (bool) config('security.registration_open', true),
                 rules: ['boolean'],
             ),
+            new PlatformSettingDefinition(
+                key: 'operations.demo_accounts.password',
+                group: 'security',
+                label: 'Demo accounts password',
+                help: 'Local DemoAccountsSeeder password only. Stored encrypted; never shown again. Outside production a random value is generated automatically when missing. Production fails closed when unset.',
+                type: PlatformSettingDefinition::TYPE_SECRET,
+                default: static fn (): ?string => config('operations.demo_accounts.password'),
+                rules: ['nullable', 'string', 'min:32', 'max:255'],
+            ),
 
             // Monitoring
             new PlatformSettingDefinition(

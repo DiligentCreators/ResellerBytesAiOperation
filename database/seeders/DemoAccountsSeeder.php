@@ -11,10 +11,10 @@ use App\Models\TenantSubscription;
 use App\Models\User;
 use App\Services\Audit\AuditEventWriter;
 use App\Services\Billing\InvoiceNumberGenerator;
+use App\Support\Operations\DemoAccountsPassword;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Laravel\Fortify\Contracts\TwoFactorAuthenticationProvider;
-use RuntimeException;
 
 class DemoAccountsSeeder extends Seeder
 {
@@ -24,12 +24,8 @@ class DemoAccountsSeeder extends Seeder
             return;
         }
 
-        // Local demo password: config/operations.php → demo_accounts.password (DEMO_ACCOUNTS_PASSWORD).
-        // No hard-coded fallback here — production already returns early; non-production uses config default.
-        $password = (string) config('operations.demo_accounts.password');
-        if ($password === '') {
-            throw new RuntimeException('DEMO_ACCOUNTS_PASSWORD / operations.demo_accounts.password is required outside production.');
-        }
+        // Local demo password: env/config, or a stable encrypted per-install value (DemoAccountsPassword).
+        $password = app(DemoAccountsPassword::class)->resolve();
 
         $recoveryCodes = [
             'LOCAL-TEST-RECOVERY-01',

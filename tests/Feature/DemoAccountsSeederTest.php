@@ -1,15 +1,17 @@
 <?php
 
 use App\Models\AuditEvent;
+use App\Models\PlatformSetting;
 use App\Models\Tenant;
 use App\Models\TenantMembership;
 use App\Models\TenantSubscription;
 use App\Models\User;
+use App\Services\PlatformSettings;
+use App\Support\Operations\DemoAccountsPassword;
 use Database\Seeders\DemoAccountsSeeder;
 use Database\Seeders\PlanSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
-use RuntimeException;
 
 uses(RefreshDatabase::class);
 
@@ -20,7 +22,7 @@ it('seeds the platform super admin, demo tenant owner, workspace, and subscripti
     $platform = User::query()->where('email', 'admin@resellerbytes.test')->sole();
     $customer = User::query()->where('email', 'customer@demo-tenant.test')->sole();
     $tenant = Tenant::query()->where('slug', 'demo-customer')->sole();
-    $password = (string) config('operations.demo_accounts.password');
+    $password = app(DemoAccountsPassword::class)->resolve();
 
     expect($platform->name)->toBe('Platform Super Admin')
         ->and($platform->email_verified_at)->not->toBeNull()
@@ -56,9 +58,18 @@ it('is idempotent when demo accounts already exist', function () {
         ->and(AuditEvent::query()->where('event_type', 'operations_user.created')->count())->toBe(1);
 });
 
-it('fails closed when the demo accounts password is missing outside production', function () {
-    config(['operations.demo_accounts.password' => '']);
+it('auto-generates a stable demo password when missing outside production', function () {
+    config(['operations.demo_accounts.password' => null]);
+    PlatformSetting::query()->where('key', DemoAccountsPassword::SETTING_KEY)->delete();
+    app(PlatformSettings::class)->invalidateCache();
+    app()->forgetInstance(DemoAccountsPassword::class);
 
-    expect(fn () => (new DemoAccountsSeeder)->run())
-        ->toThrow(RuntimeException::class, 'DEMO_ACCOUNTS_PASSWORD / operations.demo_accounts.password is required outside production.');
+    $this->seed(PlanSeeder::class);
+    $this->seed(DemoAccountsSeeder::class);
+
+    $password = app(DemoAccountsPassword::class)->resolve();
+    $platform = User::query()->where('email', 'admin@resellerbytes.test')->sole();
+
+    expect(strlen($password))->toBeGreaterThanOrEqual(32)
+        ->and(Hash::check($password, $platform->password))->toBeTrue();
 });

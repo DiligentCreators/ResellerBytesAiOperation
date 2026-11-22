@@ -4,11 +4,9 @@ return [
     // The sole legal-hold authority. Configure this to the verified operations account email.
     'owner_email' => env('OPERATIONS_OWNER_EMAIL'),
 
-    // Local demo accounts only (DemoAccountsSeeder). Never seed or default a password in production.
+    // Local demo accounts only (DemoAccountsSeeder). No config default — non-prod generates via DemoAccountsPassword.
     'demo_accounts' => [
-        'password' => env('APP_ENV') === 'production'
-            ? env('DEMO_ACCOUNTS_PASSWORD')
-            : env('DEMO_ACCOUNTS_PASSWORD', 'Local-Test-Passw0rd!'),
+        'password' => env('DEMO_ACCOUNTS_PASSWORD'),
     ],
 
     'monitoring' => [

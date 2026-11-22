@@ -17,6 +17,12 @@ php artisan whmcs:sample-snapshot --heartbeat
 php artisan whmcs:heartbeats:check
 ```
 
+Write the current local demo password to a file (never printed; refuses in production):
+
+```bash
+php artisan demo:accounts-password --output=/absolute/path/demo-accounts-password.txt
+```
+
 Optional:
 
 ```bash
@@ -47,7 +53,7 @@ php artisan reports:send-value-report --tenant={tenant-uuid} --force
 
 ## Where to click in the UI
 
-Sign in with a local demo account (password from `DEMO_ACCOUNTS_PASSWORD` / `operations.demo_accounts.password` — not stored in this doc).
+Sign in with a local demo account. Prefer `DEMO_ACCOUNTS_PASSWORD` when set; otherwise a stable encrypted local value is generated. Retrieve it with `demo:accounts-password --output=...` (password never stored in this doc).
 
 - **Home** — installation health overview after ingest
 - **Fix Center** — open rule findings and guided/one-click fix flows
