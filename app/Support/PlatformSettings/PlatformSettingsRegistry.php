@@ -2,6 +2,7 @@
 
 namespace App\Support\PlatformSettings;
 
+use App\Support\WhmcsAddonVersion;
 use InvalidArgumentException;
 
 final class PlatformSettingsRegistry
@@ -170,7 +171,7 @@ final class PlatformSettingsRegistry
                 label: 'WHMCS addon latest version',
                 help: 'Published addon version string used for update checks. Defaults to the packaged addon version.',
                 type: PlatformSettingDefinition::TYPE_STRING,
-                default: static fn (): string => (string) (config('monitoring.addon_latest_version') ?: config('services.whmcs_addon.version', '1.1.0')),
+                default: static fn (): string => (string) (config('monitoring.addon_latest_version') ?: WhmcsAddonVersion::packaged()),
                 rules: ['string', 'max:40'],
             ),
             new PlatformSettingDefinition(

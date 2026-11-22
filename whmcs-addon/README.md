@@ -1,6 +1,6 @@
 # ResellerBytes AI Operations — WHMCS Addon
 
-This addon is the WHMCS-side, read-only diagnostic collector for WHMCS 8.13.7 and PHP 8.1+. It is intentionally manual-only in the first pilot.
+This addon is the WHMCS-side diagnostic collector and signed agent for WHMCS 8.13.7 and PHP 8.1+. Heartbeats, auto-collect, and approved Safe Actions require the WHMCS system cron.
 
 ## Safety boundary
 
@@ -9,14 +9,14 @@ The addon:
 - Collects a small allowlist of technical runtime signals.
 - Reads the WHMCS Version and SystemURL settings through the WHMCS settings model, and executes one read-only SELECT VERSION() query to identify the database server version.
 - Checks whether configuration.php is writable; it never reads the file contents.
-- Sends one signed HTTPS POST to https://ops.resellerbytes.com/api/v1/whmcs/diagnostic-snapshots.
-- Does not query customer, invoice, transaction, payment, hosting, domain, or registrar records.
+- Sends signed HTTPS POSTs to https://ops.resellerbytes.com for diagnostic snapshots, heartbeats, and approved Safe Action polling.
+- Does not query customer, invoice, transaction, payment, hosting, domain, or registrar records for diagnostics.
 - Issues no SQL writes, creates no custom WHMCS tables, and does not modify business records. WHMCS stores the non-secret credentials-file path in its standard addon settings when an administrator configures the module.
-- Does not execute shell commands or call WHMCS business APIs.
-- Does not install a hook or register a cron task.
+- Does not execute shell commands or call WHMCS business APIs outside the allowlisted Safe Action set.
+- Registers WHMCS cron hooks so heartbeats, auto-collect, and approved Safe Actions run when the system cron executes crons/cron.php. Heartbeats never change WHMCS business data.
 - Does not change the existing 20i provisioning or ResellerClub registrar modules.
 
-The collector explicitly reports what it cannot observe, including the system-cron PHP runtime, module status, hosting-panel configuration, and certificate verification. Missing visibility is not reported as healthy.
+The collector explicitly reports what it cannot observe, including the system-cron PHP runtime when not running under CLI, module status, hosting-panel configuration, and certificate verification. Missing visibility is not reported as healthy.
 
 ## Package authenticity
 
@@ -63,16 +63,15 @@ Never commit the credentials file or paste its contents into tickets, chat, or l
 Do not install this addon on production until the Laravel API is deployed, the integration secret has been created, and the production-pilot checklist has been approved.
 
 1. Take and verify a restorable WHMCS files/database backup.
-2. WHMCS does not provide a built-in ZIP addon-module uploader. Use 20i File Manager to upload without FTP. If the panel offers Extract, extract the ZIP into /modules/addons. Otherwise extract it locally, create /modules/addons/resellerbytes_ai_ops and its lib subfolder, then upload the four PHP files through File Manager while preserving paths. The resulting path must be /modules/addons/resellerbytes_ai_ops/resellerbytes_ai_ops.php.
+2. WHMCS does not provide a built-in ZIP addon-module uploader. Use 20i File Manager to upload without FTP. If the panel offers Extract, extract the ZIP into /modules/addons. Otherwise extract it locally and upload the whole resellerbytes_ai_ops folder including hooks.php and lib/ through File Manager while preserving paths. The resulting path must be /modules/addons/resellerbytes_ai_ops/resellerbytes_ai_ops.php.
 3. Verify the ZIP signature and compare its signing-key fingerprint with the authenticated operations dashboard before extracting or installing.
 4. Create the credentials JSON file outside the web root and set its permissions to 0600.
 5. In WHMCS, activate ResellerBytes AI Operations under Addon Modules.
 6. Configure the absolute credentials-file path.
 7. Grant addon access only to trusted administrator roles.
-8. Open the addon page and run Run diagnostics once manually.
-9. Confirm the accepted snapshot and inspect its exact payload in the operations application.
-
-Do not configure a cron or recurring run during the first pilot. A successful manual run is required before any separate scheduling decision.
+8. Ensure a WHMCS system cron runs crons/cron.php via PHP CLI (for example every 5 minutes). The cron user must be able to read the 0600 credentials file. This cron is REQUIRED for heartbeats, auto-collect, and approved Safe Actions.
+9. Open the addon page and run Run diagnostics once manually.
+10. Confirm the accepted snapshot and inspect its exact payload in the operations application.
 
 ## Rollback
 

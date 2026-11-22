@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Services\Ai\OpenAiConfiguration;
 use App\Support\WhmcsAddonPackageSigner;
+use App\Support\WhmcsAddonVersion;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -15,7 +16,7 @@ class WhmcsAddonSetupController extends Controller
         $signingConfigured = $signer->isConfigured();
 
         return Inertia::render('whmcs-addon/setup', [
-            'addonVersion' => config('services.whmcs_addon.version', '1.2.0'),
+            'addonVersion' => WhmcsAddonVersion::packaged(),
             'downloadAvailable' => $zipAvailable && $signingConfigured,
             'downloadUnavailableReason' => ! $zipAvailable
                 ? 'PHP ZIP extension must be enabled by the platform before the addon can be downloaded.'

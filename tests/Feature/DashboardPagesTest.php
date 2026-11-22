@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\User;
+use App\Support\WhmcsAddonVersion;
 use Inertia\Testing\AssertableInertia as Assert;
 
 beforeEach(function () {
@@ -18,7 +19,7 @@ it('renders the operations dashboard with its initial metrics', function () {
             ->has('stats.total_runs')
             ->has('stats.open_findings')
             ->has('latestRuns')
-            ->where('addon.version', config('services.whmcs_addon.version')));
+            ->where('addon.version', WhmcsAddonVersion::packaged()));
 });
 
 it('renders the WHMCS addon setup page with download capability props', function () {
@@ -26,9 +27,19 @@ it('renders the WHMCS addon setup page with download capability props', function
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('whmcs-addon/setup')
-            ->where('addonVersion', config('services.whmcs_addon.version'))
+            ->where('addonVersion', WhmcsAddonVersion::packaged())
             ->has('downloadAvailable')
             ->has('aiConfigured'));
+});
+
+it('renders the setup page addonVersion from the packaged source when config is drifted', function () {
+    config(['services.whmcs_addon.version' => '1.1.0']);
+
+    $this->get('/whmcs-addon/setup')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('whmcs-addon/setup')
+            ->where('addonVersion', '1.2.1'));
 });
 
 it('renders the authenticated integrations, diagnostic runs, and findings pages', function () {

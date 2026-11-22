@@ -13,6 +13,7 @@ use App\Services\Tenancy\GettingStartedChecklist;
 use App\Services\Tenancy\OnboardingProgress;
 use App\Services\Tenancy\TenantRecordQuery;
 use App\Support\WhmcsAddonPackageSigner;
+use App\Support\WhmcsAddonVersion;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -82,7 +83,7 @@ class DashboardController extends Controller
             'installations' => $installations,
             'latestRuns' => $latestRuns,
             'addon' => [
-                'version' => config('services.whmcs_addon.version', '1.0.0'),
+                'version' => WhmcsAddonVersion::packaged(),
                 'download_available' => class_exists(\ZipArchive::class) && $signingConfigured,
                 'ai_configured' => $openAi->isConfigured(),
             ],

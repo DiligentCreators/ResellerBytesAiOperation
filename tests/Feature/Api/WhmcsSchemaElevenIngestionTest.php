@@ -20,7 +20,7 @@ function makeSignedSchemaSnapshot(WhmcsIntegration $integration, array $override
     $payload = [
         'snapshot_uuid' => (string) Str::uuid(),
         'schema_version' => '1.1',
-        'addon_version' => '1.2.0',
+        'addon_version' => '1.2.1',
         'collected_at' => now()->utc()->format('Y-m-d\TH:i:s\Z'),
         'payload' => schemaElevenBasePayload(),
     ];
@@ -160,7 +160,7 @@ test('rejects pii-like keys nested in the payload', function () {
 
 test('stores a schema 1.1 fixture end to end and fires b4 deterministic rules', function () {
     $integration = createSchemaElevenIntegration(['addon_version' => '1.0.0']);
-    config(['monitoring.addon_latest_version' => '1.2.0']);
+    config(['monitoring.addon_latest_version' => '1.2.1']);
     $signed = makeSignedSchemaSnapshot($integration);
 
     $this->call('POST', '/api/v1/whmcs/diagnostic-snapshots', [], [], [], $signed['headers'], $signed['body'])

@@ -2,6 +2,7 @@
 
 use App\Models\User;
 use App\Support\WhmcsAddonPackageSigner;
+use App\Support\WhmcsAddonVersion;
 
 function configureAddonSigningKeys(): array
 {
@@ -35,7 +36,7 @@ it('downloads an addon archive with a verifiable Ed25519 signature and expected 
 
     $response = $this->actingAs($user)->get('/whmcs-addon/download');
 
-    $version = preg_replace('/[^0-9A-Za-z._-]/', '-', (string) config('services.whmcs_addon.version'));
+    $version = preg_replace('/[^0-9A-Za-z._-]/', '-', WhmcsAddonVersion::packaged());
     $response->assertDownload('resellerbytes-ai-ops-whmcs-v'.$version.'.zip');
     expect($response->headers->get('Cache-Control'))
         ->toContain('private')
@@ -72,6 +73,7 @@ it('downloads an addon archive with a verifiable Ed25519 signature and expected 
     $signature = base64_decode(trim($archive->getFromName('SIGNATURE.ed25519')), true);
     $packagedPublicKey = base64_decode(trim($archive->getFromName('SIGNING-PUBLIC-KEY.txt')), true);
     $packagedFingerprint = trim($archive->getFromName('SIGNING-KEY-FINGERPRINT.txt'));
+    $installation = $archive->getFromName('INSTALLATION.txt');
 
     foreach (explode("\n", $manifest) as $line) {
         [$checksum, $relativePath] = explode('  ', $line, 2);
@@ -89,11 +91,39 @@ it('downloads an addon archive with a verifiable Ed25519 signature and expected 
     expect($packagedPublicKey)->toBe($publicKey);
     expect($packagedFingerprint)->toBe($fingerprint);
     expect($signature)->not->toBeFalse();
+    expect($installation)->toContain('crons/cron.php via PHP CLI');
+    expect($installation)->toContain('is REQUIRED for heartbeats, auto-collect and approved Safe Actions');
+    expect($installation)->not->toContain('Do not configure cron');
 
     $signedPayload = "resellerbytes-ai-ops-package-v1\nversion={$version}\n{$manifest}\n";
 
     expect(sodium_crypto_sign_verify_detached($signature, $signedPayload, $packagedPublicKey))->toBeTrue();
     expect(sodium_crypto_sign_verify_detached($signature, $signedPayload.'tampered', $packagedPublicKey))->toBeFalse();
+});
+
+it('labels the download zip with the packaged addon version even when config is drifted', function () {
+    if (! class_exists(ZipArchive::class) || ! function_exists('sodium_crypto_sign_verify_detached')) {
+        $this->markTestSkipped('The PHP ZIP and Sodium extensions are required.');
+    }
+
+    configureAddonSigningKeys();
+    config(['services.whmcs_addon.version' => '1.1.0']);
+
+    $user = User::factory()->withTwoFactor()->create([
+        'email_verified_at' => now(),
+    ]);
+
+    $response = $this->actingAs($user)->get('/whmcs-addon/download');
+
+    $response->assertDownload('resellerbytes-ai-ops-whmcs-v1.2.1.zip');
+
+    $file = $response->baseResponse->getFile();
+    expect($file)->not->toBeNull();
+
+    $archive = new ZipArchive;
+    expect($archive->open($file->getPathname()))->toBeTrue();
+    expect(trim($archive->getFromName('VERSION.txt')))->toBe('1.2.1');
+    $archive->close();
 });
 
 it('does not make the addon download available without a valid signing key pair', function () {
