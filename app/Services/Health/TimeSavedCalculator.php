@@ -34,19 +34,39 @@ class TimeSavedCalculator
     public function forTenantMonth(Tenant $tenant, ?CarbonInterface $month = null): array
     {
         $month = ($month ?? now('UTC'))->copy()->utc();
-        $start = $month->copy()->startOfMonth();
-        $end = $month->copy()->endOfMonth();
+
+        return $this->forTenantPeriod(
+            $tenant,
+            $month->copy()->startOfMonth(),
+            $month->copy()->endOfMonth(),
+        );
+    }
+
+    /**
+     * @return array{
+     *     minutes: int,
+     *     hours: float,
+     *     hours_display: string,
+     *     hourly_rate_usd: int,
+     *     value_usd: float,
+     *     value_display: string
+     * }
+     */
+    public function forTenantPeriod(Tenant $tenant, CarbonInterface $start, CarbonInterface $end): array
+    {
+        $startUtc = $start->copy()->utc();
+        $endUtc = $end->copy()->utc();
 
         $minutes = (int) SafeActionExecution::query()
             ->where('tenant_id', $tenant->id)
             ->where('status', SafeActionExecution::STATUS_VERIFIED)
             ->whereIn('mode', self::COUNTED_MODES)
             ->whereNotNull('minutes_saved')
-            ->where(function ($query) use ($start, $end): void {
-                $query->whereBetween('verified_at', [$start, $end])
-                    ->orWhere(function ($fallback) use ($start, $end): void {
+            ->where(function ($query) use ($startUtc, $endUtc): void {
+                $query->whereBetween('verified_at', [$startUtc, $endUtc])
+                    ->orWhere(function ($fallback) use ($startUtc, $endUtc): void {
                         $fallback->whereNull('verified_at')
-                            ->whereBetween('executed_at', [$start, $end]);
+                            ->whereBetween('executed_at', [$startUtc, $endUtc]);
                     });
             })
             ->sum('minutes_saved');

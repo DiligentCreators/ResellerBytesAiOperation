@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Billing;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Billing\UpdateBillingDetailsRequest;
+use App\Models\DiagnosticFinding;
 use App\Models\Plan;
 use App\Models\Tenant;
 use App\Models\TenantBillingInvoice;
@@ -12,9 +13,11 @@ use App\Models\TenantSubscription;
 use App\Models\User;
 use App\Services\Billing\PlanChangeClassifier;
 use App\Services\Billing\SubscriptionManagementService;
+use App\Services\Health\TimeSavedCalculator;
 use App\Services\Tenancy\TenantAccess;
 use App\Services\Tenancy\TenantRoleAuthorization;
 use App\Support\CountryCodes;
+use Carbon\CarbonImmutable;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\RedirectResponse;
@@ -83,8 +86,33 @@ class BillingSettingsController extends Controller
         $canManage = app(TenantRoleAuthorization::class)->allows($membership, 'billing.manage');
         $timezone = $tenant->timezone ?: 'UTC';
 
+        $periodStart = $subscription?->current_period_starts_at
+            ? CarbonImmutable::instance($subscription->current_period_starts_at)->utc()
+            : now('UTC')->subDays(30);
+        $periodEnd = now('UTC');
+        $timeSaved = app(TimeSavedCalculator::class)->forTenantPeriod($tenant, $periodStart, $periodEnd);
+        $issuesFixed = DiagnosticFinding::query()
+            ->where('tenant_id', $tenant->id)
+            ->where('status', DiagnosticFinding::STATUS_RESOLVED)
+            ->where('resolved_at', '>=', $periodStart)
+            ->where('resolved_at', '<=', $periodEnd)
+            ->count();
+        $openCritical = DiagnosticFinding::query()
+            ->where('tenant_id', $tenant->id)
+            ->currentIssues()
+            ->active()
+            ->where('severity', 'critical')
+            ->count();
+
         return Inertia::render('billing/settings', [
             'tenant' => ['id' => $tenant->id, 'name' => $tenant->name],
+            'cancelValueReminder' => [
+                'time_saved_hours_display' => $timeSaved['hours_display'],
+                'time_saved_value_display' => $timeSaved['value_display'],
+                'hourly_rate_usd' => $timeSaved['hourly_rate_usd'],
+                'issues_fixed' => $issuesFixed,
+                'open_critical' => $openCritical,
+            ],
             'subscription' => $subscription ? [
                 'id' => $subscription->id,
                 'plan_code' => $subscription->plan_code,

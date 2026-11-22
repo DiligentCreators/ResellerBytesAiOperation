@@ -69,9 +69,14 @@ export default function HealthTrends({
                     title="Health trends"
                     description={`Score and key metrics for ${tenant.name}. Retention up to ${max_history_days} days on your plan.`}
                     actions={
-                        <Button variant="outline" size="sm" asChild>
-                            <Link href="/dashboard">Back to overview</Link>
-                        </Button>
+                        <div className="flex flex-wrap gap-2">
+                            <Button variant="outline" size="sm" asChild>
+                                <Link href="/reports">Reports</Link>
+                            </Button>
+                            <Button variant="outline" size="sm" asChild>
+                                <Link href="/dashboard">Back to overview</Link>
+                            </Button>
+                        </div>
                     }
                 />
 

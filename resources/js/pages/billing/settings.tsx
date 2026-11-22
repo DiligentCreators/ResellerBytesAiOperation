@@ -15,9 +15,18 @@ type ScheduledChange = {
     change_at: string;
 };
 
+type CancelValueReminder = {
+    time_saved_hours_display: string;
+    time_saved_value_display: string;
+    hourly_rate_usd: number;
+    issues_fixed: number;
+    open_critical: number;
+};
+
 type Props = {
     tenant: { id: string; name: string };
     timezone?: string;
+    cancelValueReminder?: CancelValueReminder | null;
     subscription: {
         id: number;
         plan_code: string;
@@ -107,6 +116,7 @@ export default function BillingSettingsPage(props: Props) {
     const {
         tenant,
         timezone,
+        cancelValueReminder,
         subscription,
         scheduledChange,
         usage,
@@ -262,22 +272,58 @@ export default function BillingSettingsPage(props: Props) {
                                     ) : (
                                         <>
                                             {!subscription.cancel_at_period_end ? (
-                                                <Form
-                                                    action={`/tenants/${tenant.id}/billing/subscriptions/${subscription.id}/cancel`}
-                                                    method="post"
-                                                >
-                                                    {({ processing }) => (
-                                                        <Button
-                                                            type="submit"
-                                                            variant="outline"
-                                                            disabled={
-                                                                processing
-                                                            }
+                                                <div className="space-y-3">
+                                                    {cancelValueReminder && (
+                                                        <div
+                                                            role="status"
+                                                            className="rounded-md border border-border bg-surface px-4 py-3 text-sm text-muted-foreground"
                                                         >
-                                                            Cancel at period end
-                                                        </Button>
+                                                            <p>
+                                                                This period you
+                                                                saved{' '}
+                                                                <span className="font-medium text-foreground">
+                                                                    {
+                                                                        cancelValueReminder.time_saved_hours_display
+                                                                    }{' '}
+                                                                    hours
+                                                                </span>{' '}
+                                                                (about $
+                                                                {
+                                                                    cancelValueReminder.time_saved_value_display
+                                                                }
+                                                                ), fixed{' '}
+                                                                <span className="font-medium text-foreground">
+                                                                    {
+                                                                        cancelValueReminder.issues_fixed
+                                                                    }
+                                                                </span>{' '}
+                                                                issues
+                                                                {cancelValueReminder.open_critical >
+                                                                0
+                                                                    ? `, and still have ${cancelValueReminder.open_critical} open critical issue${cancelValueReminder.open_critical === 1 ? '' : 's'}`
+                                                                    : ''}
+                                                                .
+                                                            </p>
+                                                        </div>
                                                     )}
-                                                </Form>
+                                                    <Form
+                                                        action={`/tenants/${tenant.id}/billing/subscriptions/${subscription.id}/cancel`}
+                                                        method="post"
+                                                    >
+                                                        {({ processing }) => (
+                                                            <Button
+                                                                type="submit"
+                                                                variant="outline"
+                                                                disabled={
+                                                                    processing
+                                                                }
+                                                            >
+                                                                Cancel at period
+                                                                end
+                                                            </Button>
+                                                        )}
+                                                    </Form>
+                                                </div>
                                             ) : (
                                                 <Form
                                                     action={`/tenants/${tenant.id}/billing/subscriptions/${subscription.id}/resume`}

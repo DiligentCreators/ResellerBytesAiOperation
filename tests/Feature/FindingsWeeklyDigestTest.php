@@ -9,6 +9,8 @@ use App\Models\User;
 use App\Models\WhmcsIntegration;
 use App\Services\Diagnostics\FindingsWeeklyDigestService;
 use App\Services\Mail\CentralOutboundMailer;
+use App\Services\PlatformSettings;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
@@ -77,6 +79,10 @@ it('builds a weekly digest payload for a tenant', function () {
 });
 
 it('sends weekly digests through platform mail for owner admin and operator roles only', function () {
+    Carbon::setTestNow('2026-11-16 09:30:00');
+    app(PlatformSettings::class)->set('reports.weekly_day', 1);
+    app(PlatformSettings::class)->set('reports.weekly_time', '09:00');
+
     $owner = User::factory()->withTwoFactor()->create([
         'email' => 'digest-owner@example.com',
         'email_verified_at' => now(),
@@ -89,6 +95,7 @@ it('sends weekly digests through platform mail for owner admin and operator role
         'name' => 'Mail Digest Workspace',
         'slug' => 'mail-digest-'.uniqid(),
         'status' => Tenant::STATUS_ACTIVE,
+        'timezone' => 'UTC',
         'created_by_user_id' => $owner->id,
     ]);
     $tenant->memberships()->create([
@@ -116,6 +123,8 @@ it('sends weekly digests through platform mail for owner admin and operator role
 
     expect($result['recipients'])->toBe(1)
         ->and($recipients)->toBe(['digest-owner@example.com']);
+
+    Carbon::setTestNow();
 });
 
 it('exposes the weekly digest artisan command', function () {
@@ -123,6 +132,10 @@ it('exposes the weekly digest artisan command', function () {
 });
 
 it('logs digests when platform mail driver is log', function () {
+    Carbon::setTestNow('2026-11-16 09:30:00');
+    app(PlatformSettings::class)->set('reports.weekly_day', 1);
+    app(PlatformSettings::class)->set('reports.weekly_time', '09:00');
+
     $owner = User::factory()->withTwoFactor()->create([
         'email' => 'log-digest@example.com',
         'email_verified_at' => now(),
@@ -131,6 +144,7 @@ it('logs digests when platform mail driver is log', function () {
         'name' => 'Log Digest Workspace',
         'slug' => 'log-digest-'.uniqid(),
         'status' => Tenant::STATUS_ACTIVE,
+        'timezone' => 'UTC',
         'created_by_user_id' => $owner->id,
     ]);
     $tenant->memberships()->create([
@@ -148,4 +162,6 @@ it('logs digests when platform mail driver is log', function () {
         ->withArgs(fn (string $message): bool => $message === 'outbound_mail.preview')
         ->atLeast()
         ->once();
+
+    Carbon::setTestNow();
 });

@@ -335,7 +335,11 @@ Schedule::command('billing:expire-trials')
     ->everyFiveMinutes()
     ->withoutOverlapping();
 
+// Hourly so each workspace can honor reports.weekly_day/time in its own timezone.
 Schedule::command('findings:send-weekly-digest')
-    ->weeklyOn(1, '09:00')
-    ->timezone('UTC')
+    ->hourly()
+    ->withoutOverlapping();
+
+Schedule::command('reports:send-value-report')
+    ->daily()
     ->withoutOverlapping();

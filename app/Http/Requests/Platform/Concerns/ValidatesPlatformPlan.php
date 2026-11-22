@@ -75,6 +75,7 @@ trait ValidatesPlatformPlan
             'fixes_one_click_enabled' => ['sometimes', 'boolean'],
             'fixes_bulk_enabled' => ['sometimes', 'boolean'],
             'alerts_channels_enabled' => ['sometimes', 'boolean'],
+            'reports_value_enabled' => ['sometimes', 'boolean'],
         ];
 
         // Code is immutable once any subscription references the plan — never required or accepted.
@@ -153,6 +154,7 @@ trait ValidatesPlatformPlan
             'fixes.one_click' => $this->boolean('fixes_one_click_enabled'),
             'fixes.bulk' => $this->boolean('fixes_bulk_enabled'),
             'alerts.channels' => $this->boolean('alerts_channels_enabled'),
+            'reports.value' => $this->boolean('reports_value_enabled'),
         ];
         unset(
             $data['safe_actions_enabled'],
@@ -160,6 +162,7 @@ trait ValidatesPlatformPlan
             $data['fixes_one_click_enabled'],
             $data['fixes_bulk_enabled'],
             $data['alerts_channels_enabled'],
+            $data['reports_value_enabled'],
         );
 
         $data['prices_confirmed_at'] = now();

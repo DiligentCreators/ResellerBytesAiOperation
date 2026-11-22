@@ -40,6 +40,7 @@ type Plan = {
         'fixes.one_click'?: boolean;
         'fixes.bulk'?: boolean;
         'alerts.channels'?: boolean;
+        'reports.value'?: boolean;
     };
 };
 
@@ -471,6 +472,18 @@ function PlanFields({
                     disabled={disabled}
                 />
                 Alert channels (Growth+)
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+                <input
+                    type="checkbox"
+                    name="reports_value_enabled"
+                    value="1"
+                    defaultChecked={
+                        plan?.entitlements['reports.value'] ?? false
+                    }
+                    disabled={disabled}
+                />
+                Monthly value report (Growth+)
             </label>
             <label className="flex items-center gap-2 text-sm">
                 <input

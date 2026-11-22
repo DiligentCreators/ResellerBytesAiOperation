@@ -56,6 +56,8 @@ class RouteRateLimiterServiceProvider extends ServiceProvider
         'tenants-alerts-destroy' => 20,
         'tenants-alerts-test' => 5,
         'tenants-audit-events-export' => 3,
+        'reports-fix-log-export' => 5,
+        'reports-resend' => 5,
         'billing-settings-details' => 20,
         'billing-subscriptions-cancel' => 10,
         'billing-subscriptions-resume' => 10,

@@ -58,6 +58,7 @@ export function AppSidebar() {
     ];
 
     const reportsItems: NavItem[] = [
+        { title: 'Reports', href: '/reports', icon: FileText },
         { title: 'Health trends', href: '/reports/trends', icon: LineChart },
     ];
 

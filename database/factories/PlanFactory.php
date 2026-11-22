@@ -40,6 +40,7 @@ class PlanFactory extends Factory
                 'fixes.one_click' => true,
                 'fixes.bulk' => true,
                 'alerts.channels' => true,
+                'reports.value' => true,
                 'limits' => [
                     'members' => 5,
                     'integrations' => 1,

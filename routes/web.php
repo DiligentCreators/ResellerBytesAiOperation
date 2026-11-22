@@ -23,7 +23,12 @@ use App\Http\Controllers\PlatformAiSettingsController;
 use App\Http\Controllers\PlatformMailSettingsController;
 use App\Http\Controllers\PricingController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\Reports\FixLogExportController;
+use App\Http\Controllers\Reports\FixLogPrintController;
 use App\Http\Controllers\Reports\HealthTrendsController;
+use App\Http\Controllers\Reports\ReportResendController;
+use App\Http\Controllers\Reports\ReportsController;
+use App\Http\Controllers\Reports\ReportShowController;
 use App\Http\Controllers\SafeActionController;
 use App\Http\Controllers\TenantAlertChannelController;
 use App\Http\Controllers\TenantAuditExportController;
@@ -104,7 +109,17 @@ Route::middleware(['auth', 'verified', EnsureTwoFactorEnabled::class])->group(fu
     });
 
     Route::get('dashboard', DashboardController::class)->name('dashboard');
+    Route::get('reports', ReportsController::class)->name('reports.index');
     Route::get('reports/trends', HealthTrendsController::class)->name('reports.trends');
+    Route::get('tenants/{tenant}/reports/fix-log/export', FixLogExportController::class)
+        ->middleware('throttle:reports-fix-log-export')
+        ->name('reports.fix-log.export');
+    Route::get('tenants/{tenant}/reports/fix-log/print', FixLogPrintController::class)
+        ->name('reports.fix-log.print');
+    Route::get('tenants/{tenant}/reports/{report}', ReportShowController::class)->name('reports.show');
+    Route::post('tenants/{tenant}/reports/{report}/resend', ReportResendController::class)
+        ->middleware('throttle:reports-resend')
+        ->name('reports.resend');
     Route::get('tenants/{tenant}/settings', [TenantSettingsController::class, 'show'])->name('tenants.settings.show');
     Route::put('tenants/{tenant}/settings/branding', [TenantSettingsController::class, 'update'])->middleware('throttle:tenants-settings-branding-update')->name('tenants.settings.branding.update');
     Route::put('tenants/{tenant}/settings/hourly-rate', [TenantSettingsController::class, 'updateHourlyRate'])->middleware('throttle:tenants-settings-branding-update')->name('tenants.settings.hourly-rate.update');
