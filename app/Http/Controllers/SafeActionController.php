@@ -239,6 +239,12 @@ class SafeActionController extends Controller
             ? 'Safe action cancelled before the WHMCS addon could apply it.'
             : 'Safe action rejected. The related finding stays open.';
 
+        if ($request->shouldReturnToFixCenter()) {
+            return redirect()
+                ->route('fix-center.index', $request->fixCenterQuery())
+                ->with('status', $statusMessage);
+        }
+
         return redirect()
             ->route('safe-actions.show', $execution)
             ->with('status', $statusMessage);

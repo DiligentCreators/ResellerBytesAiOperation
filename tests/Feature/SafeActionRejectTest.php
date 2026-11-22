@@ -464,3 +464,103 @@ it('returns 404 when another tenant tries to reject a safe action', function () 
 
     expect($execution->fresh()->status)->toBe(SafeActionExecution::STATUS_PENDING_APPROVAL);
 });
+
+it('redirects reject from the Fix Center drawer back to Fix Center with the tab filter', function () {
+    ['owner' => $owner, 'tenant' => $tenant, 'integration' => $integration, 'run' => $run] = createSafeActionRejectWorkspace();
+
+    $finding = DiagnosticFinding::create([
+        'diagnostic_run_id' => $run->id,
+        'tenant_id' => $tenant->id,
+        'fingerprint' => hash('sha256', 'reject-from-fix-center'),
+        'category' => 'security',
+        'severity' => 'warning',
+        'title' => 'PHP error display is not disabled',
+        'summary' => 'display_errors is on',
+        'evidence' => ['system.error_display_disabled' => false],
+        'status' => 'open',
+    ]);
+
+    $this->actingAs($owner)->post('/safe-actions', [
+        'integration_id' => $integration->id,
+        'action_key' => 'health_version_ping',
+        'finding_id' => $finding->id,
+    ])->assertRedirect();
+
+    $execution = SafeActionExecution::query()->firstOrFail();
+
+    $this->actingAs($owner)
+        ->from(route('fix-center.index', ['tab' => 'fixing']))
+        ->post('/safe-actions/'.$execution->id.'/reject', [
+            'rejection_reason' => 'Cancelled from Fix Center drawer',
+            'from' => 'fix-center',
+            'tab' => 'fixing',
+        ])
+        ->assertRedirect(route('fix-center.index', ['tab' => 'fixing']))
+        ->assertSessionHas('status', 'Safe action rejected. The related finding stays open.');
+
+    expect($execution->fresh()->status)->toBe(SafeActionExecution::STATUS_REJECTED);
+});
+
+it('still redirects reject from the detail page to the safe action detail page', function () {
+    ['owner' => $owner, 'integration' => $integration] = createSafeActionRejectWorkspace();
+
+    $this->actingAs($owner)->post('/safe-actions', [
+        'integration_id' => $integration->id,
+        'action_key' => 'health_version_ping',
+    ])->assertRedirect();
+
+    $execution = SafeActionExecution::query()->firstOrFail();
+
+    $this->actingAs($owner)
+        ->from(route('safe-actions.show', $execution))
+        ->post('/safe-actions/'.$execution->id.'/reject', [
+            'rejection_reason' => 'Rejected from detail page',
+        ])
+        ->assertRedirect(route('safe-actions.show', $execution))
+        ->assertSessionHas('status', 'Safe action rejected. The related finding stays open.');
+
+    expect($execution->fresh()->status)->toBe(SafeActionExecution::STATUS_REJECTED);
+});
+
+it('refuses arbitrary from values and never redirects to a user-supplied url', function () {
+    ['owner' => $owner, 'integration' => $integration] = createSafeActionRejectWorkspace();
+
+    $this->actingAs($owner)->post('/safe-actions', [
+        'integration_id' => $integration->id,
+        'action_key' => 'health_version_ping',
+    ])->assertRedirect();
+
+    $execution = SafeActionExecution::query()->firstOrFail();
+    $evil = 'https://evil.example/phish';
+
+    $this->actingAs($owner)
+        ->from(route('fix-center.index'))
+        ->post('/safe-actions/'.$execution->id.'/reject', [
+            'rejection_reason' => 'Open redirect probe',
+            'from' => $evil,
+            'redirect' => $evil,
+            'url' => $evil,
+            'return_url' => $evil,
+        ])
+        ->assertRedirect(route('fix-center.index'))
+        ->assertSessionHasErrors('from')
+        ->assertSessionMissing('status');
+
+    expect($execution->fresh()->status)->toBe(SafeActionExecution::STATUS_PENDING_APPROVAL);
+
+    $response = $this->actingAs($owner)
+        ->from(route('fix-center.index'))
+        ->post('/safe-actions/'.$execution->id.'/reject', [
+            'rejection_reason' => 'Allowlisted from with hostile redirect fields',
+            'from' => 'fix-center',
+            'tab' => 'open',
+            'redirect' => $evil,
+            'url' => $evil,
+            'return_url' => $evil,
+        ]);
+
+    $response->assertRedirect(route('fix-center.index', ['tab' => 'open']));
+
+    expect($response->headers->get('Location'))->not->toContain('evil.example')
+        ->and($execution->fresh()->status)->toBe(SafeActionExecution::STATUS_REJECTED);
+});

@@ -242,19 +242,13 @@ export default function FixCenterIndex({
             {
                 rejection_reason:
                     rejectReason.trim() !== '' ? rejectReason.trim() : null,
+                from: 'fix-center',
+                tab: filters.tab,
             },
             {
                 preserveScroll: true,
                 onSuccess: () => {
-                    setConfirmReject(false);
-                    setRejectReason('');
-                    setPendingFixId(null);
-                    router.reload({
-                        only: ['issues', 'counts', 'flash'],
-                        onSuccess: () => {
-                            closeDrawer();
-                        },
-                    });
+                    closeDrawer();
                 },
             },
         );
@@ -682,10 +676,17 @@ export default function FixCenterIndex({
                     {activeIssue && drawerMode === 'fix' ? (
                         <>
                             <SheetHeader>
-                                <SheetTitle>Fix now</SheetTitle>
+                                <SheetTitle>
+                                    {activeIssue.fix_state ===
+                                    'awaiting_verification'
+                                        ? 'Fix applied - awaiting verification'
+                                        : 'Fix now'}
+                                </SheetTitle>
                                 <SheetDescription>
-                                    Preview what will change, approve, then
-                                    watch status until verified.
+                                    {activeIssue.fix_state ===
+                                    'awaiting_verification'
+                                        ? 'The fix was applied. Waiting for the next scan to verify.'
+                                        : 'Preview what will change, approve, then watch status until verified.'}
                                 </SheetDescription>
                             </SheetHeader>
                             <div className="space-y-4 px-4">
