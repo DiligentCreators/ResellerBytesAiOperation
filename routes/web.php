@@ -175,6 +175,7 @@ Route::middleware(['auth', 'verified', EnsureTwoFactorEnabled::class])->group(fu
     Route::post('safe-actions', [SafeActionController::class, 'store'])->middleware('throttle:30,1')->name('safe-actions.store');
     Route::get('safe-actions/{safeAction}', [SafeActionController::class, 'show'])->name('safe-actions.show');
     Route::post('safe-actions/{safeAction}/approve', [SafeActionController::class, 'approve'])->middleware('throttle:20,1')->name('safe-actions.approve');
+    Route::post('safe-actions/{safeAction}/reject', [SafeActionController::class, 'reject'])->middleware('throttle:20,1')->name('safe-actions.reject');
     Route::get('whmcs-addon/download', WhmcsAddonDownloadController::class)->middleware('throttle:whmcs-addon-download')->name('whmcs-addon.download');
     Route::get('whmcs-addon/signing-key-fingerprint', WhmcsAddonSigningFingerprintController::class)->name('whmcs-addon.signing-key-fingerprint');
     Route::get('whmcs-addon/setup', WhmcsAddonSetupController::class)->name('whmcs-addon.setup');

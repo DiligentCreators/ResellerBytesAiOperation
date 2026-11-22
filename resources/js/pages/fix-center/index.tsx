@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/sheet';
 import {
     approve,
+    reject,
     store as storeSafeAction,
 } from '@/actions/App/Http/Controllers/SafeActionController';
 
@@ -120,6 +121,8 @@ export default function FixCenterIndex({
         useState<SuggestedAction | null>(null);
     const [targetIds, setTargetIds] = useState<number[]>([]);
     const [pendingFixId, setPendingFixId] = useState<string | null>(null);
+    const [rejectReason, setRejectReason] = useState('');
+    const [confirmReject, setConfirmReject] = useState(false);
 
     const bulkCapable = useMemo(
         () =>
@@ -148,12 +151,16 @@ export default function FixCenterIndex({
         setSelectedAction(action);
         setTargetIds(issue.affected_ids.slice(0, issue.bulk_max_items));
         setPendingFixId(null);
+        setConfirmReject(false);
+        setRejectReason('');
     };
 
     const closeDrawer = () => {
         setActiveIssue(null);
         setDrawerMode(null);
         setPendingFixId(null);
+        setConfirmReject(false);
+        setRejectReason('');
     };
 
     const toggleSelected = (id: string, enabled: boolean) => {
@@ -208,6 +215,27 @@ export default function FixCenterIndex({
             {
                 preserveScroll: true,
                 onSuccess: () => setFixPhase('status'),
+            },
+        );
+    };
+
+    const rejectFix = () => {
+        if (!pendingFixId) {
+            return;
+        }
+        router.post(
+            reject.url(pendingFixId),
+            {
+                rejection_reason:
+                    rejectReason.trim() !== '' ? rejectReason.trim() : null,
+            },
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    setConfirmReject(false);
+                    setRejectReason('');
+                    setFixPhase('status');
+                },
             },
         );
     };
@@ -684,16 +712,67 @@ export default function FixCenterIndex({
                                     </Button>
                                 ) : null}
                                 {fixPhase === 'approve' && pendingFixId ? (
-                                    <Button
-                                        type="button"
-                                        onClick={() =>
-                                            approveFix(
-                                                'Approved from Fix Center',
-                                            )
-                                        }
-                                    >
-                                        Approve fix
-                                    </Button>
+                                    <>
+                                        {!confirmReject ? (
+                                            <>
+                                                <Button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        approveFix(
+                                                            'Approved from Fix Center',
+                                                        )
+                                                    }
+                                                >
+                                                    Approve fix
+                                                </Button>
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    onClick={() =>
+                                                        setConfirmReject(true)
+                                                    }
+                                                >
+                                                    Reject
+                                                </Button>
+                                            </>
+                                        ) : (
+                                            <div className="flex w-full flex-col gap-2">
+                                                <textarea
+                                                    value={rejectReason}
+                                                    onChange={(event) =>
+                                                        setRejectReason(
+                                                            event.target.value,
+                                                        )
+                                                    }
+                                                    maxLength={1000}
+                                                    rows={2}
+                                                    className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs"
+                                                    placeholder="Optional rejection reason"
+                                                />
+                                                <div className="flex flex-wrap gap-2">
+                                                    <Button
+                                                        type="button"
+                                                        variant="destructive"
+                                                        onClick={rejectFix}
+                                                    >
+                                                        Confirm reject
+                                                    </Button>
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        onClick={() => {
+                                                            setConfirmReject(
+                                                                false,
+                                                            );
+                                                            setRejectReason('');
+                                                        }}
+                                                    >
+                                                        Back
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </>
                                 ) : null}
                                 {fixPhase === 'status' ||
                                 fixPhase === 'verified' ? (

@@ -23,7 +23,9 @@ use Illuminate\Support\Carbon;
  * @property string $risk_level
  * @property int $requested_by_user_id
  * @property int|null $approved_by_user_id
+ * @property int|null $rejected_by_user_id
  * @property string|null $approval_reason
+ * @property string|null $rejection_reason
  * @property bool $requires_password_confirm
  * @property array<string, mixed>|null $input
  * @property array<string, mixed>|null $preview
@@ -34,6 +36,7 @@ use Illuminate\Support\Carbon;
  * @property array<string, mixed>|null $after_evidence
  * @property Carbon $requested_at
  * @property Carbon|null $approved_at
+ * @property Carbon|null $rejected_at
  * @property Carbon|null $executed_at
  * @property Carbon|null $verified_at
  */
@@ -55,6 +58,8 @@ class SafeActionExecution extends Model
 
     public const STATUS_CANCELLED = 'cancelled';
 
+    public const STATUS_REJECTED = 'rejected';
+
     public const MODE_ONE_CLICK = 'one_click';
 
     public const MODE_GUIDED = 'guided';
@@ -71,6 +76,7 @@ class SafeActionExecution extends Model
         self::STATUS_VERIFIED,
         self::STATUS_FAILED,
         self::STATUS_CANCELLED,
+        self::STATUS_REJECTED,
     ];
 
     protected $fillable = [
@@ -88,7 +94,9 @@ class SafeActionExecution extends Model
         'risk_level',
         'requested_by_user_id',
         'approved_by_user_id',
+        'rejected_by_user_id',
         'approval_reason',
+        'rejection_reason',
         'requires_password_confirm',
         'input',
         'preview',
@@ -99,6 +107,7 @@ class SafeActionExecution extends Model
         'after_evidence',
         'requested_at',
         'approved_at',
+        'rejected_at',
         'executed_at',
         'verified_at',
     ];
@@ -123,6 +132,7 @@ class SafeActionExecution extends Model
             'after_evidence' => 'array',
             'requested_at' => 'datetime',
             'approved_at' => 'datetime',
+            'rejected_at' => 'datetime',
             'executed_at' => 'datetime',
             'verified_at' => 'datetime',
         ];
@@ -156,5 +166,11 @@ class SafeActionExecution extends Model
     public function approver(): BelongsTo
     {
         return $this->belongsTo(User::class, 'approved_by_user_id');
+    }
+
+    /** @return BelongsTo<User, $this> */
+    public function rejector(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'rejected_by_user_id');
     }
 }

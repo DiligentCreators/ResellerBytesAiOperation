@@ -48,6 +48,7 @@ const statusToneMap: Record<string, StatusTone> = {
     accepted_risk: 'neutral',
     cancelled: 'neutral',
     canceled: 'neutral',
+    rejected: 'neutral',
     void: 'neutral',
     archived: 'neutral',
 };

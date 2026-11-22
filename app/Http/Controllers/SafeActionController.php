@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ApproveSafeActionRequest;
+use App\Http\Requests\RejectSafeActionRequest;
 use App\Http\Requests\StoreSafeActionRequest;
 use App\Models\DiagnosticFinding;
 use App\Models\SafeActionExecution;
@@ -32,7 +33,7 @@ class SafeActionController extends Controller
 
         $executions = SafeActionExecution::query()
             ->whereIn('integration_id', app(TenantRecordQuery::class)->integrations($user)->pluck('id'))
-            ->with(['integration:id,name', 'requester:id,name', 'approver:id,name'])
+            ->with(['integration:id,name', 'requester:id,name', 'approver:id,name', 'rejector:id,name'])
             ->latest('requested_at')
             ->paginate(20)
             ->through(fn (SafeActionExecution $execution): array => $this->serializeExecution($execution));
@@ -62,15 +63,21 @@ class SafeActionController extends Controller
             'finding:id,title,severity,status',
             'requester:id,name',
             'approver:id,name',
+            'rejector:id,name',
         ]);
 
         $definition = app(SafeActionRegistry::class)->get($safeAction->action_key);
+        $canExecute = $this->canExecute(Auth::user(), $safeAction->integration);
 
         return Inertia::render('safe-actions/show', [
             'execution' => $this->serializeExecution($safeAction, detailed: true),
             'definition' => $definition,
             'can_approve' => $safeAction->status === SafeActionExecution::STATUS_PENDING_APPROVAL
-                && $this->canExecute(Auth::user(), $safeAction->integration),
+                && $canExecute,
+            'can_reject' => in_array($safeAction->status, [
+                SafeActionExecution::STATUS_PENDING_APPROVAL,
+                SafeActionExecution::STATUS_AWAITING_AGENT,
+            ], true) && $canExecute,
         ]);
     }
 
@@ -204,6 +211,40 @@ class SafeActionController extends Controller
             ->with('status', $this->approvalStatusMessage($execution));
     }
 
+    public function reject(
+        RejectSafeActionRequest $request,
+        SafeActionExecution $safeAction,
+        SafeActionExecutor $executor,
+        SafeActionRegistry $registry,
+    ): RedirectResponse {
+        $this->authorizeExecution($safeAction);
+        $safeAction->loadMissing('integration');
+        $this->authorizeExecute($safeAction->integration);
+
+        $definition = $registry->get($safeAction->action_key);
+        $this->requireEntitlement($safeAction->integration, $definition['entitlement']);
+
+        $reason = $request->filled('rejection_reason')
+            ? $request->string('rejection_reason')->toString()
+            : null;
+
+        try {
+            $execution = $executor->reject($safeAction, $request->user(), $reason);
+        } catch (\Throwable $exception) {
+            throw ValidationException::withMessages([
+                'rejection_reason' => $exception->getMessage(),
+            ]);
+        }
+
+        $statusMessage = $execution->status === SafeActionExecution::STATUS_CANCELLED
+            ? 'Safe action cancelled before the WHMCS addon could apply it.'
+            : 'Safe action rejected. The related finding stays open.';
+
+        return redirect()
+            ->route('safe-actions.show', $execution)
+            ->with('status', $statusMessage);
+    }
+
     private function approvalStatusMessage(SafeActionExecution $execution): string
     {
         if (in_array($execution->status, [
@@ -302,17 +343,20 @@ class SafeActionController extends Controller
             'requires_password_confirm' => $execution->requires_password_confirm,
             'requested_at' => $execution->requested_at?->toIso8601String(),
             'approved_at' => $execution->approved_at?->toIso8601String(),
+            'rejected_at' => $execution->rejected_at?->toIso8601String(),
             'executed_at' => $execution->executed_at?->toIso8601String(),
             'verified_at' => $execution->verified_at?->toIso8601String(),
             'integration_name' => $execution->integration?->name,
             'integration_id' => $execution->integration_id,
             'requester_name' => $execution->requester?->name,
             'approver_name' => $execution->approver?->name,
+            'rejector_name' => $execution->rejector?->name,
             'finding_id' => $execution->finding_id,
         ];
 
         if ($detailed) {
             $payload['approval_reason'] = $execution->approval_reason;
+            $payload['rejection_reason'] = $execution->rejection_reason;
             $payload['input'] = $execution->input;
             $payload['preview'] = $execution->preview;
             $payload['target_ids'] = $execution->target_ids;

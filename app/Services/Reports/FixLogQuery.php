@@ -29,6 +29,7 @@ class FixLogQuery
                 'integration:id,name',
                 'finding:id,title,issue_key',
                 'approver:id,name',
+                'rejector:id,name',
                 'requester:id,name',
             ])
             ->orderByDesc('requested_at')
@@ -104,11 +105,6 @@ class FixLogQuery
             ?? $execution->issue_key
             ?? $execution->action_key;
 
-        $approver = $execution->approver;
-        $requester = $execution->requester;
-        $approvedBy = ($approver !== null ? $approver->name : null)
-            ?? ($requester !== null ? $requester->name : null);
-
         $integration = $execution->integration;
 
         return [
@@ -116,7 +112,7 @@ class FixLogQuery
             $integration !== null ? $integration->name : null,
             $this->csvSafe(is_string($issue) ? $issue : null),
             $execution->mode,
-            $this->csvSafe($approvedBy),
+            $this->csvSafe($this->actorName($execution)),
             $execution->status,
             $execution->minutes_saved,
         ];
@@ -144,8 +140,6 @@ class FixLogQuery
                 ?? $execution->issue_key
                 ?? $execution->action_key;
 
-            $approver = $execution->approver;
-            $requester = $execution->requester;
             $integration = $execution->integration;
 
             $rows[] = [
@@ -154,14 +148,35 @@ class FixLogQuery
                 'installation' => $integration !== null ? $integration->name : null,
                 'issue' => is_string($issue) ? $issue : null,
                 'mode' => $execution->mode,
-                'approved_by' => ($approver !== null ? $approver->name : null)
-                    ?? ($requester !== null ? $requester->name : null),
+                'approved_by' => $this->actorName($execution),
                 'result' => $execution->status,
                 'minutes_saved' => $execution->minutes_saved,
             ];
         }
 
         return $rows;
+    }
+
+    private function actorName(SafeActionExecution $execution): ?string
+    {
+        if (in_array($execution->status, [
+            SafeActionExecution::STATUS_REJECTED,
+            SafeActionExecution::STATUS_CANCELLED,
+        ], true)) {
+            $rejector = $execution->rejector;
+            if ($rejector !== null) {
+                return $rejector->name;
+            }
+        }
+
+        $approver = $execution->approver;
+        if ($approver !== null) {
+            return $approver->name;
+        }
+
+        $requester = $execution->requester;
+
+        return $requester !== null ? $requester->name : null;
     }
 
     private function csvSafe(?string $value): ?string

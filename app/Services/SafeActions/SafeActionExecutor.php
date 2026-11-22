@@ -194,6 +194,70 @@ class SafeActionExecutor
         });
     }
 
+    public function reject(SafeActionExecution $execution, User $actor, ?string $reason = null): SafeActionExecution
+    {
+        return DB::transaction(function () use ($execution, $actor, $reason): SafeActionExecution {
+            /** @var SafeActionExecution $locked */
+            $locked = SafeActionExecution::query()->whereKey($execution->id)->lockForUpdate()->firstOrFail();
+
+            $previousStatus = $locked->status;
+
+            if (! in_array($previousStatus, [
+                SafeActionExecution::STATUS_PENDING_APPROVAL,
+                SafeActionExecution::STATUS_AWAITING_AGENT,
+            ], true)) {
+                throw new RuntimeException('Only pending or awaiting-agent safe actions can be rejected or cancelled.');
+            }
+
+            $terminalStatus = $previousStatus === SafeActionExecution::STATUS_AWAITING_AGENT
+                ? SafeActionExecution::STATUS_CANCELLED
+                : SafeActionExecution::STATUS_REJECTED;
+
+            $normalizedReason = is_string($reason) && trim($reason) !== '' ? trim($reason) : null;
+
+            $locked->forceFill([
+                'status' => $terminalStatus,
+                'rejected_by_user_id' => $actor->id,
+                'rejection_reason' => $normalizedReason,
+                'rejected_at' => now(),
+            ])->save();
+
+            $locked->loadMissing('integration');
+            $integration = $locked->integration;
+            if ($integration !== null
+                && $integration->pending_diagnostic_collect_execution_id === $locked->id) {
+                $integration->forceFill([
+                    'pending_diagnostic_collect_at' => null,
+                    'pending_diagnostic_collect_execution_id' => null,
+                ])->save();
+            }
+
+            $eventType = $terminalStatus === SafeActionExecution::STATUS_CANCELLED
+                ? 'safe_action.cancelled'
+                : 'safe_action.rejected';
+
+            $this->audit->append([
+                'actor_type' => 'user',
+                'actor_id' => (string) $actor->id,
+                'tenant_id' => $locked->tenant_id,
+                'event_type' => $eventType,
+                'subject_type' => 'safe_action_execution',
+                'subject_id' => $locked->id,
+                'metadata' => [
+                    'action_key' => $locked->action_key,
+                    'previous_status' => $previousStatus,
+                    'status' => $terminalStatus,
+                    'reason' => $normalizedReason,
+                    'rejected_by_user_id' => $actor->id,
+                    'rejected_at' => $locked->rejected_at?->toIso8601String(),
+                ],
+                'occurred_at' => now(),
+            ]);
+
+            return $locked->fresh() ?? $locked;
+        });
+    }
+
     /**
      * @param  array{
      *     key: string,

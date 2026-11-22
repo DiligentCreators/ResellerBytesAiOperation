@@ -1,11 +1,15 @@
 import { Form, Head, Link, usePage } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
+import { useState } from 'react';
 import { PageHeader } from '@/components/page-header';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
 import { useWorkspaceTimezone } from '@/hooks/use-workspace-timezone';
 import { formatDateTime } from '@/lib/dates';
-import { approve } from '@/actions/App/Http/Controllers/SafeActionController';
+import {
+    approve,
+    reject,
+} from '@/actions/App/Http/Controllers/SafeActionController';
 
 type Definition = {
     key: string;
@@ -36,12 +40,15 @@ type Execution = {
     requires_password_confirm: boolean;
     requested_at: string | null;
     approved_at: string | null;
+    rejected_at: string | null;
     executed_at: string | null;
     verified_at: string | null;
     integration_name: string | null;
     requester_name: string | null;
     approver_name: string | null;
+    rejector_name: string | null;
     approval_reason: string | null;
+    rejection_reason: string | null;
     preview?: {
         items?: PreviewItem[];
         refused?: { id?: number | null; reason?: string }[];
@@ -60,6 +67,7 @@ type Props = {
     execution: Execution;
     definition: Definition;
     can_approve: boolean;
+    can_reject: boolean;
 };
 
 function asDisplayString(value: unknown): string {
@@ -70,9 +78,13 @@ export default function SafeActionShow({
     execution,
     definition,
     can_approve,
+    can_reject,
 }: Props) {
     const timezone = useWorkspaceTimezone();
     const { flash } = usePage().props as { flash?: { status?: string | null } };
+    const [confirmReject, setConfirmReject] = useState(false);
+    const isRejected =
+        execution.status === 'rejected' || execution.status === 'cancelled';
 
     return (
         <>
@@ -132,6 +144,23 @@ export default function SafeActionShow({
                                     : 'Pending'}
                             </dd>
                         </div>
+                        {isRejected ? (
+                            <div>
+                                <dt className="text-xs text-muted-foreground">
+                                    {execution.status === 'cancelled'
+                                        ? 'Cancelled'
+                                        : 'Rejected'}
+                                </dt>
+                                <dd>
+                                    {execution.rejector_name
+                                        ? `${execution.rejector_name} · ${formatDateTime(execution.rejected_at, timezone)}`
+                                        : formatDateTime(
+                                              execution.rejected_at,
+                                              timezone,
+                                          )}
+                                </dd>
+                            </div>
+                        ) : null}
                     </dl>
                     {execution.finding_id ? (
                         <p className="mt-3 text-sm">
@@ -201,38 +230,115 @@ export default function SafeActionShow({
                     </section>
                 ) : null}
 
-                {can_approve ? (
+                {can_approve || can_reject ? (
                     <section className="rounded-lg border border-border bg-card p-5 shadow-xs">
-                        <h2 className="text-sm font-semibold">Approve</h2>
-                        <Form
-                            {...approve.form(execution.id)}
-                            className="mt-4 space-y-3"
-                        >
-                            {({ processing }) => (
-                                <>
-                                    <label className="block space-y-1.5 text-sm">
-                                        <span className="font-medium">
-                                            Why are you approving this?
-                                        </span>
-                                        <textarea
-                                            name="approval_reason"
-                                            required
-                                            minLength={8}
-                                            rows={3}
-                                            className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs"
-                                            placeholder="Short operational reason for the audit trail"
-                                        />
-                                    </label>
-                                    <Button
-                                        type="submit"
-                                        size="sm"
-                                        disabled={processing}
-                                    >
-                                        Approve and execute
-                                    </Button>
-                                </>
-                            )}
-                        </Form>
+                        <h2 className="text-sm font-semibold">Decision</h2>
+                        <div className="mt-4 grid gap-6 lg:grid-cols-2">
+                            {can_approve ? (
+                                <Form
+                                    {...approve.form(execution.id)}
+                                    className="space-y-3"
+                                >
+                                    {({ processing }) => (
+                                        <>
+                                            <label className="block space-y-1.5 text-sm">
+                                                <span className="font-medium">
+                                                    Why are you approving this?
+                                                </span>
+                                                <textarea
+                                                    name="approval_reason"
+                                                    required
+                                                    minLength={8}
+                                                    rows={3}
+                                                    className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs"
+                                                    placeholder="Short operational reason for the audit trail"
+                                                />
+                                            </label>
+                                            <Button
+                                                type="submit"
+                                                size="sm"
+                                                disabled={processing}
+                                            >
+                                                Approve and execute
+                                            </Button>
+                                        </>
+                                    )}
+                                </Form>
+                            ) : null}
+
+                            {can_reject ? (
+                                <div className="space-y-3">
+                                    {!confirmReject ? (
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() =>
+                                                setConfirmReject(true)
+                                            }
+                                        >
+                                            Reject
+                                        </Button>
+                                    ) : (
+                                        <Form
+                                            {...reject.form(execution.id)}
+                                            className="space-y-3"
+                                        >
+                                            {({ processing }) => (
+                                                <>
+                                                    <label className="block space-y-1.5 text-sm">
+                                                        <span className="font-medium">
+                                                            Optional rejection
+                                                            reason
+                                                        </span>
+                                                        <textarea
+                                                            name="rejection_reason"
+                                                            maxLength={1000}
+                                                            rows={3}
+                                                            className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs"
+                                                            placeholder="Optional note for the audit trail"
+                                                        />
+                                                    </label>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        This stops the safe
+                                                        action before WHMCS runs
+                                                        it. The finding stays
+                                                        open.
+                                                    </p>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        <Button
+                                                            type="submit"
+                                                            size="sm"
+                                                            variant="destructive"
+                                                            disabled={
+                                                                processing
+                                                            }
+                                                        >
+                                                            Confirm reject
+                                                        </Button>
+                                                        <Button
+                                                            type="button"
+                                                            size="sm"
+                                                            variant="outline"
+                                                            disabled={
+                                                                processing
+                                                            }
+                                                            onClick={() =>
+                                                                setConfirmReject(
+                                                                    false,
+                                                                )
+                                                            }
+                                                        >
+                                                            Cancel
+                                                        </Button>
+                                                    </div>
+                                                </>
+                                            )}
+                                        </Form>
+                                    )}
+                                </div>
+                            ) : null}
+                        </div>
                     </section>
                 ) : null}
 
@@ -244,6 +350,29 @@ export default function SafeActionShow({
                         <p className="mt-2 text-sm whitespace-pre-wrap">
                             {execution.approval_reason}
                         </p>
+                    </section>
+                ) : null}
+
+                {isRejected ? (
+                    <section className="rounded-lg border border-border bg-card p-5 shadow-xs">
+                        <h2 className="text-sm font-semibold">
+                            {execution.status === 'cancelled'
+                                ? 'Cancellation'
+                                : 'Rejection'}
+                        </h2>
+                        <p className="mt-2 text-sm">
+                            {execution.rejector_name ?? 'Operator'} ·{' '}
+                            {formatDateTime(execution.rejected_at, timezone)}
+                        </p>
+                        {execution.rejection_reason ? (
+                            <p className="mt-2 text-sm whitespace-pre-wrap">
+                                {execution.rejection_reason}
+                            </p>
+                        ) : (
+                            <p className="mt-2 text-sm text-muted-foreground">
+                                No reason provided.
+                            </p>
+                        )}
                     </section>
                 ) : null}
 
