@@ -9,11 +9,22 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (Schema::hasTable('whmcs_health_snapshots')) {
+            if (DB::table('whmcs_health_snapshots')->count() > 0) {
+                return;
+            }
+
+            $this->dropOrphanEmptyTable();
+        }
+
         Schema::create('whmcs_health_snapshots', function (Blueprint $table): void {
             $table->uuid('id')->primary();
             $table->foreignUuid('tenant_id')->constrained('tenants')->restrictOnDelete();
             $table->uuid('integration_id');
-            $table->uuid('diagnostic_run_id')->nullable();
+            // Single-column FK: MySQL rejects composite (diagnostic_run_id, tenant_id)
+            // ON DELETE SET NULL because tenant_id is NOT NULL (SQLSTATE 1830).
+            // Tenant consistency stays enforced by the integration composite FK + app/triggers.
+            $table->foreignUuid('diagnostic_run_id')->nullable()->constrained('diagnostic_runs')->nullOnDelete();
             $table->timestamp('captured_at');
             $table->date('captured_on');
             $table->unsignedTinyInteger('score');
@@ -29,10 +40,6 @@ return new class extends Migration
                 ->references(['id', 'tenant_id'])
                 ->on('whmcs_integrations')
                 ->cascadeOnDelete();
-            $table->foreign(['diagnostic_run_id', 'tenant_id'], 'whmcs_health_snapshots_run_tenant_fk')
-                ->references(['id', 'tenant_id'])
-                ->on('diagnostic_runs')
-                ->nullOnDelete();
             $table->index(['tenant_id', 'captured_on'], 'whmcs_health_snapshots_tenant_day_idx');
             $table->index(['tenant_id', 'integration_id', 'captured_on'], 'whmcs_health_snapshots_tenant_integration_day_idx');
         });
@@ -54,6 +61,22 @@ return new class extends Migration
         }
 
         Schema::dropIfExists('whmcs_health_snapshots');
+    }
+
+    /**
+     * Drop a leftover empty table from a failed prior migrate attempt (MySQL DDL
+     * is not rolled back when a later FK in the same Schema::create fails).
+     */
+    private function dropOrphanEmptyTable(): void
+    {
+        $this->dropTenantConsistencyTriggers();
+
+        if (DB::connection()->getDriverName() === 'pgsql') {
+            DB::statement('DROP POLICY IF EXISTS tenant_isolation_policy ON whmcs_health_snapshots');
+            DB::statement('ALTER TABLE whmcs_health_snapshots DISABLE ROW LEVEL SECURITY');
+        }
+
+        Schema::drop('whmcs_health_snapshots');
     }
 
     private function createTenantConsistencyTriggers(): void
