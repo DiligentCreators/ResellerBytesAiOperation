@@ -545,7 +545,10 @@ export default function IntegrationsIndex({ integrations }: Props) {
                 )}
 
                 {canManage && integrations.data.length > 0 ? (
-                    <section id="host-connection" className="space-y-4 scroll-mt-6">
+                    <section
+                        id="host-connection"
+                        className="scroll-mt-6 space-y-4"
+                    >
                         <PageHeader
                             title="Host connection"
                             description="Store encrypted FTP credentials once for allowlisted Safe Action fallbacks when the WHMCS web user cannot chmod or write .user.ini. Passwords are never included in diagnostic snapshots."
@@ -571,9 +574,13 @@ export default function IntegrationsIndex({ integrations }: Props) {
                                     {item.host_connection_summary ? (
                                         <p className="mt-2 text-sm text-muted-foreground">
                                             {item.host_connection_summary.protocol.toUpperCase()}{' '}
-                                            {item.host_connection_summary.username}
-                                            @{item.host_connection_summary.host}:
-                                            {item.host_connection_summary.port} →{' '}
+                                            {
+                                                item.host_connection_summary
+                                                    .username
+                                            }
+                                            @{item.host_connection_summary.host}
+                                            :{item.host_connection_summary.port}{' '}
+                                            →{' '}
                                             {
                                                 item.host_connection_summary
                                                     .remote_whmcs_root
@@ -589,7 +596,9 @@ export default function IntegrationsIndex({ integrations }: Props) {
                                         {({ processing, errors }) => (
                                             <>
                                                 <div className="space-y-1.5">
-                                                    <Label htmlFor={`protocol-${item.id}`}>
+                                                    <Label
+                                                        htmlFor={`protocol-${item.id}`}
+                                                    >
                                                         Protocol
                                                     </Label>
                                                     <select
@@ -612,7 +621,9 @@ export default function IntegrationsIndex({ integrations }: Props) {
                                                     </select>
                                                 </div>
                                                 <div className="space-y-1.5">
-                                                    <Label htmlFor={`host-${item.id}`}>
+                                                    <Label
+                                                        htmlFor={`host-${item.id}`}
+                                                    >
                                                         Host
                                                     </Label>
                                                     <Input
@@ -630,7 +641,9 @@ export default function IntegrationsIndex({ integrations }: Props) {
                                                     />
                                                 </div>
                                                 <div className="space-y-1.5">
-                                                    <Label htmlFor={`port-${item.id}`}>
+                                                    <Label
+                                                        htmlFor={`port-${item.id}`}
+                                                    >
                                                         Port
                                                     </Label>
                                                     <Input

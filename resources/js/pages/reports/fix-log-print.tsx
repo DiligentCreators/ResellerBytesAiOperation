@@ -55,14 +55,19 @@ export default function FixLogPrint({ tenant, generated_at, rows }: Props) {
                     </thead>
                     <tbody>
                         {rows.map((row) => (
-                            <tr key={row.id} className="border-b border-border/60">
+                            <tr
+                                key={row.id}
+                                className="border-b border-border/60"
+                            >
                                 <td className="py-2 pr-3 tabular-nums">
                                     {formatDateTime(row.date, timezone)}
                                 </td>
                                 <td className="py-2 pr-3">
                                     {row.installation ?? '—'}
                                 </td>
-                                <td className="py-2 pr-3">{row.issue ?? '—'}</td>
+                                <td className="py-2 pr-3">
+                                    {row.issue ?? '—'}
+                                </td>
                                 <td className="py-2 pr-3">
                                     {row.mode.replace('_', '-')}
                                 </td>

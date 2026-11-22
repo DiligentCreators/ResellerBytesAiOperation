@@ -167,9 +167,10 @@ function HeartbeatChecker({
                         return;
                     }
 
-                    const payload = (await response.json()) as HeartbeatStatus & {
-                        whmcs_step_complete?: boolean;
-                    };
+                    const payload =
+                        (await response.json()) as HeartbeatStatus & {
+                            whmcs_step_complete?: boolean;
+                        };
 
                     setStatus(payload);
 
@@ -231,7 +232,9 @@ function HeartbeatChecker({
                     role="status"
                     className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100"
                 >
-                    <p className="font-medium">Still waiting after 10 minutes</p>
+                    <p className="font-medium">
+                        Still waiting after 10 minutes
+                    </p>
                     <ul className="mt-2 list-disc space-y-1 pl-5">
                         <li>Confirm the WHMCS system cron is running.</li>
                         <li>
@@ -340,9 +343,7 @@ export default function OnboardingIndex({
                                         name="alert_email"
                                         type="email"
                                         required
-                                        defaultValue={
-                                            tenant.alert_email ?? ''
-                                        }
+                                        defaultValue={tenant.alert_email ?? ''}
                                     />
                                     <p className="text-xs text-muted-foreground">
                                         Used for workspace alerts and digests.

@@ -62,6 +62,10 @@ type Props = {
     can_approve: boolean;
 };
 
+function asDisplayString(value: unknown): string {
+    return typeof value === 'string' ? value : '';
+}
+
 export default function SafeActionShow({
     execution,
     definition,
@@ -102,7 +106,9 @@ export default function SafeActionShow({
                 ) : null}
 
                 <section className="rounded-lg border border-border bg-card p-5 shadow-xs">
-                    <p className="text-sm leading-6">{definition.description}</p>
+                    <p className="text-sm leading-6">
+                        {definition.description}
+                    </p>
                     <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
                         <div>
                             <dt className="text-xs text-muted-foreground">
@@ -134,7 +140,8 @@ export default function SafeActionShow({
                                 href={`/findings/${execution.finding_id}`}
                                 className="font-medium text-primary hover:underline"
                             >
-                                {execution.finding_title ?? execution.finding_id}
+                                {execution.finding_title ??
+                                    execution.finding_id}
                             </Link>
                         </p>
                     ) : null}
@@ -180,11 +187,15 @@ export default function SafeActionShow({
                         {execution.preview.refused &&
                         execution.preview.refused.length > 0 ? (
                             <ul className="mt-3 space-y-1 text-sm text-warning-fg">
-                                {execution.preview.refused.map((item, index) => (
-                                    <li key={`${item.id ?? index}-${item.reason}`}>
-                                        Refused #{item.id}: {item.reason}
-                                    </li>
-                                ))}
+                                {execution.preview.refused.map(
+                                    (item, index) => (
+                                        <li
+                                            key={`${item.id ?? index}-${item.reason}`}
+                                        >
+                                            Refused #{item.id}: {item.reason}
+                                        </li>
+                                    ),
+                                )}
                             </ul>
                         ) : null}
                     </section>
@@ -244,8 +255,8 @@ export default function SafeActionShow({
                         <p className="mt-2 text-sm text-muted-foreground">
                             The allowlisted change was applied, but runtime
                             proof is not confirmed yet. Keep the finding in
-                            progress until a verify scan shows the issue is
-                            gone — do not request the same Safe Action again.
+                            progress until a verify scan shows the issue is gone
+                            — do not request the same Safe Action again.
                         </p>
                     </section>
                 ) : null}
@@ -254,7 +265,7 @@ export default function SafeActionShow({
                     <section className="rounded-lg border border-border bg-card p-5 shadow-xs">
                         <h2 className="text-sm font-semibold">Result</h2>
                         <p className="mt-2 text-sm">
-                            {String(execution.result.summary ?? '')}
+                            {asDisplayString(execution.result.summary)}
                         </p>
                         {'instructions' in execution.result &&
                         Array.isArray(execution.result.instructions) ? (
@@ -307,9 +318,10 @@ export default function SafeActionShow({
                                 ))}
                             </ul>
                         ) : null}
-                        {execution.result.note ? (
+                        {typeof execution.result.note === 'string' &&
+                        execution.result.note !== '' ? (
                             <p className="mt-3 text-xs text-muted-foreground">
-                                {String(execution.result.note)}
+                                {execution.result.note}
                             </p>
                         ) : null}
                     </section>

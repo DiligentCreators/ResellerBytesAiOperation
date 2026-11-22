@@ -161,7 +161,7 @@ export default function TenantAutoFixSettings({
                                                 <h2 className="text-sm font-semibold">
                                                     {action.label}
                                                 </h2>
-                                                <span className="rounded-md bg-muted px-2 py-0.5 text-xs uppercase tracking-wide text-muted-foreground">
+                                                <span className="rounded-md bg-muted px-2 py-0.5 text-xs tracking-wide text-muted-foreground uppercase">
                                                     {action.risk_level} risk
                                                 </span>
                                             </div>
@@ -177,7 +177,8 @@ export default function TenantAutoFixSettings({
                                                     scope.id,
                                                 );
                                                 const rowIndex =
-                                                    actionIndex * scopes.length +
+                                                    actionIndex *
+                                                        scopes.length +
                                                     scopeIndex;
 
                                                 return (

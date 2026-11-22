@@ -1,186 +1,186 @@
 {
-  "system": {
-    "whmcs_version": "8.13.6",
-    "web_php_version": "8.1.34",
-    "database_version": "10.11.19-MariaDB",
-    "web_server": "Apache",
-    "application_url_configured": true,
-    "error_display_disabled": true,
-    "configuration_file_writable": false
-  },
-  "php": {
-    "memory_limit": "512M",
-    "ioncube_version": "13.0.2",
-    "max_execution_time": 300,
-    "extensions": {
-      "curl": true,
-      "json": true,
-      "mbstring": true,
-      "openssl": true,
-      "pdo": true,
-      "pdo_mysql": true,
-      "soap": true,
-      "xml": true,
-      "gd": true,
-      "iconv": true,
-      "intl": true,
-      "zip": true,
-      "zlib": true,
-      "fileinfo": true,
-      "bcmath": true,
-      "ioncube_loader": true,
-      "sodium": true
-    }
-  },
-  "warnings": [],
-  "collector": {
-    "capabilities": [
-      "web_php_version",
-      "whmcs_version",
-      "php_extension_availability",
-      "whmcs_cron",
-      "module_queue",
-      "billing_aggregates",
-      "service_aggregates",
-      "domain_aggregates",
-      "ticket_aggregates",
-      "mail_logs",
-      "gateway_logs",
-      "module_inventory",
-      "host_disk",
-      "db_sizes"
-    ],
-    "limitations": []
-  },
-  "security": {
-    "admin_dir_default": true,
-    "install_dir_present": false
-  },
-  "whmcs": {
-    "cron": {
-      "last_daily_run_at": "2026-11-20T00:00:00Z",
-      "daily_starts_24h": 4,
-      "daily_completions_24h": 1
+    "system": {
+        "whmcs_version": "8.13.6",
+        "web_php_version": "8.1.34",
+        "database_version": "10.11.19-MariaDB",
+        "web_server": "Apache",
+        "application_url_configured": true,
+        "error_display_disabled": true,
+        "configuration_file_writable": false
     },
-    "module_queue": {
-      "source": "api",
-      "pending_count": 3,
-      "oldest_age_minutes": 180,
-      "by_action": {
-        "create": 1,
-        "suspend": 0,
-        "unsuspend": 1,
-        "terminate": 0,
-        "other": 1
-      },
-      "items": [
-        {
-          "id": 11,
-          "service_type": "service",
-          "service_id": 101,
-          "action": "create",
-          "age_minutes": 180,
-          "retries": 2,
-          "error": "Module create failed"
+    "php": {
+        "memory_limit": "512M",
+        "ioncube_version": "13.0.2",
+        "max_execution_time": 300,
+        "extensions": {
+            "curl": true,
+            "json": true,
+            "mbstring": true,
+            "openssl": true,
+            "pdo": true,
+            "pdo_mysql": true,
+            "soap": true,
+            "xml": true,
+            "gd": true,
+            "iconv": true,
+            "intl": true,
+            "zip": true,
+            "zlib": true,
+            "fileinfo": true,
+            "bcmath": true,
+            "ioncube_loader": true,
+            "sodium": true
         }
-      ]
     },
-    "billing": {
-      "overdue_unpaid_count": 5,
-      "overdue_unpaid_total": "420.00",
-      "overdue_without_reminder": {
-        "count": 2,
-        "invoice_ids": [201, 202]
-      },
-      "due_services_without_invoice": {
-        "count": 1,
-        "service_ids": [301]
-      },
-      "duplicate_invoice_groups_30d": 0,
-      "recovered_paid_7d_total": "0.00"
+    "warnings": [],
+    "collector": {
+        "capabilities": [
+            "web_php_version",
+            "whmcs_version",
+            "php_extension_availability",
+            "whmcs_cron",
+            "module_queue",
+            "billing_aggregates",
+            "service_aggregates",
+            "domain_aggregates",
+            "ticket_aggregates",
+            "mail_logs",
+            "gateway_logs",
+            "module_inventory",
+            "host_disk",
+            "db_sizes"
+        ],
+        "limitations": []
     },
-    "services": {
-      "suspended_with_paid_invoices": {
-        "count": 1,
-        "service_ids": [401]
-      },
-      "active_past_suspend_grace": {
-        "count": 2,
-        "service_ids": [402, 403]
-      },
-      "orphan": {
-        "count": 1,
-        "service_ids": [404]
-      },
-      "pending_paid_orders": {
-        "count": 1,
-        "order_ids": [501],
-        "oldest_age_minutes": 90
-      }
+    "security": {
+        "admin_dir_default": true,
+        "install_dir_present": false
     },
-    "domains": {
-      "active_expired": {
-        "count": 1,
-        "domain_ids": [601]
-      },
-      "bad_expiry": {
-        "count": 1,
-        "domain_ids": [602]
-      },
-      "sync_errors_7d": 3,
-      "renewal_failed_7d": {
-        "count": 1,
-        "domain_ids": [603]
-      }
-    },
-    "tickets": {
-      "threshold_hours": 24,
-      "sla_breach": {
-        "count": 2,
-        "ticket_ids": [701, 702],
-        "oldest_hours": 48
-      }
-    },
-    "mail": {
-      "piping_failed_7d": 2,
-      "sending_failed_24h": 1
-    },
-    "gateways": {
-      "active": ["2CheckOut", "paypal"],
-      "failures_7d": {
-        "paypal": 4
-      },
-      "signature_failures_7d": {
-        "paypal": 1
-      },
-      "unmatched_success_7d": {
-        "paypal": 2
-      }
-    },
-    "modules": {
-      "registrars": [
-        {
-          "name": "RegistrarX",
-          "version": "1.2.0"
+    "whmcs": {
+        "cron": {
+            "last_daily_run_at": "2026-11-20T00:00:00Z",
+            "daily_starts_24h": 4,
+            "daily_completions_24h": 1
+        },
+        "module_queue": {
+            "source": "api",
+            "pending_count": 3,
+            "oldest_age_minutes": 180,
+            "by_action": {
+                "create": 1,
+                "suspend": 0,
+                "unsuspend": 1,
+                "terminate": 0,
+                "other": 1
+            },
+            "items": [
+                {
+                    "id": 11,
+                    "service_type": "service",
+                    "service_id": 101,
+                    "action": "create",
+                    "age_minutes": 180,
+                    "retries": 2,
+                    "error": "Module create failed"
+                }
+            ]
+        },
+        "billing": {
+            "overdue_unpaid_count": 5,
+            "overdue_unpaid_total": "420.00",
+            "overdue_without_reminder": {
+                "count": 2,
+                "invoice_ids": [201, 202]
+            },
+            "due_services_without_invoice": {
+                "count": 1,
+                "service_ids": [301]
+            },
+            "duplicate_invoice_groups_30d": 0,
+            "recovered_paid_7d_total": "0.00"
+        },
+        "services": {
+            "suspended_with_paid_invoices": {
+                "count": 1,
+                "service_ids": [401]
+            },
+            "active_past_suspend_grace": {
+                "count": 2,
+                "service_ids": [402, 403]
+            },
+            "orphan": {
+                "count": 1,
+                "service_ids": [404]
+            },
+            "pending_paid_orders": {
+                "count": 1,
+                "order_ids": [501],
+                "oldest_age_minutes": 90
+            }
+        },
+        "domains": {
+            "active_expired": {
+                "count": 1,
+                "domain_ids": [601]
+            },
+            "bad_expiry": {
+                "count": 1,
+                "domain_ids": [602]
+            },
+            "sync_errors_7d": 3,
+            "renewal_failed_7d": {
+                "count": 1,
+                "domain_ids": [603]
+            }
+        },
+        "tickets": {
+            "threshold_hours": 24,
+            "sla_breach": {
+                "count": 2,
+                "ticket_ids": [701, 702],
+                "oldest_hours": 48
+            }
+        },
+        "mail": {
+            "piping_failed_7d": 2,
+            "sending_failed_24h": 1
+        },
+        "gateways": {
+            "active": ["2CheckOut", "paypal"],
+            "failures_7d": {
+                "paypal": 4
+            },
+            "signature_failures_7d": {
+                "paypal": 1
+            },
+            "unmatched_success_7d": {
+                "paypal": 2
+            }
+        },
+        "modules": {
+            "registrars": [
+                {
+                    "name": "RegistrarX",
+                    "version": "1.2.0"
+                }
+            ],
+            "custom_template_overrides": true,
+            "custom_hooks_count": 4
+        },
+        "automation": {
+            "suspend_days": 5,
+            "invoice_generation_days": 14
         }
-      ],
-      "custom_template_overrides": true,
-      "custom_hooks_count": 4
     },
-    "automation": {
-      "suspend_days": 5,
-      "invoice_generation_days": 14
+    "host": {
+        "disk_free_percent": 8.5,
+        "disk_free_bytes": 900000000,
+        "db_size_mb": 6200.5,
+        "db_top_tables": [
+            {
+                "name": "tblactivitylog",
+                "size_mb": 2100.1
+            }
+        ]
     }
-  },
-  "host": {
-    "disk_free_percent": 8.5,
-    "disk_free_bytes": 900000000,
-    "db_size_mb": 6200.5,
-    "db_top_tables": [
-      {
-        "name": "tblactivitylog",
-        "size_mb": 2100.1
-      }
-    ]
-  }
 }

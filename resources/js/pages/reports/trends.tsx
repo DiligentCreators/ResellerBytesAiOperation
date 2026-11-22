@@ -106,21 +106,19 @@ export default function HealthTrends({
                     </div>
                     <Select
                         value={metric}
-                        onValueChange={(value) =>
-                            setMetric(value as MetricKey)
-                        }
+                        onValueChange={(value) => setMetric(value as MetricKey)}
                     >
                         <SelectTrigger className="w-[200px]">
                             <SelectValue placeholder="Metric" />
                         </SelectTrigger>
                         <SelectContent>
-                            {(
-                                Object.keys(metricLabels) as MetricKey[]
-                            ).map((key) => (
-                                <SelectItem key={key} value={key}>
-                                    {metricLabels[key]}
-                                </SelectItem>
-                            ))}
+                            {(Object.keys(metricLabels) as MetricKey[]).map(
+                                (key) => (
+                                    <SelectItem key={key} value={key}>
+                                        {metricLabels[key]}
+                                    </SelectItem>
+                                ),
+                            )}
                         </SelectContent>
                     </Select>
                 </div>

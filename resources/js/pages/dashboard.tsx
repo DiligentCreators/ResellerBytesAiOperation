@@ -73,7 +73,7 @@ type GettingStartedChecklist = {
     };
 };
 
-type HeartbeatState = 'unknown' | 'ok' | 'stale' | 'down' | string;
+type HeartbeatState = 'unknown' | 'ok' | 'stale' | 'down';
 
 type Installation = {
     id: string;
@@ -431,7 +431,7 @@ export default function Dashboard({
                                             key={item.id}
                                             className="rounded-md border border-border/70 px-3 py-2"
                                         >
-                                            <p className="text-sm font-medium leading-snug">
+                                            <p className="text-sm leading-snug font-medium">
                                                 {item.title}
                                             </p>
                                             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
@@ -570,8 +570,8 @@ export default function Dashboard({
                                     Multi-install ops board
                                 </h2>
                                 <p className="mt-1 text-xs text-muted-foreground">
-                                    Cross-install priority for your WHMCS
-                                    estate — the hero demo for ops buyers.
+                                    Cross-install priority for your WHMCS estate
+                                    — the hero demo for ops buyers.
                                 </p>
                             </div>
                             <Button variant="ghost" size="sm" asChild>
@@ -766,10 +766,7 @@ export default function Dashboard({
                                     Open findings
                                 </p>
                                 <div className="mt-1 flex items-center gap-2">
-                                    <StatusBadge
-                                        status="open"
-                                        tone="warning"
-                                    />
+                                    <StatusBadge status="open" tone="warning" />
                                     <span className="text-sm tabular-nums">
                                         {stats.open_findings}
                                     </span>

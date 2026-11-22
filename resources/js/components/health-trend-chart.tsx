@@ -17,7 +17,12 @@ type Point = {
 
 type Props = {
     points: Point[];
-    metric?: 'score' | 'critical_count' | 'warning_count' | 'overdue_unpaid_count' | 'disk_free_percent';
+    metric?:
+        | 'score'
+        | 'critical_count'
+        | 'warning_count'
+        | 'overdue_unpaid_count'
+        | 'disk_free_percent';
     height?: number;
 };
 
@@ -60,8 +65,14 @@ export function HealthTrendChart({
     }
 
     const values = points.map((p) => metricValue(p, metric));
-    const min = Math.min(...values, metric === 'score' || metric === 'disk_free_percent' ? 0 : 0);
-    const maxBase = Math.max(...values, metric === 'score' || metric === 'disk_free_percent' ? 100 : 1);
+    const min = Math.min(
+        ...values,
+        metric === 'score' || metric === 'disk_free_percent' ? 0 : 0,
+    );
+    const maxBase = Math.max(
+        ...values,
+        metric === 'score' || metric === 'disk_free_percent' ? 100 : 1,
+    );
     const max = maxBase === min ? min + 1 : maxBase;
     const span = max - min;
 
@@ -77,7 +88,9 @@ export function HealthTrendChart({
         return { x, y, point, value: metricValue(point, metric) };
     });
 
-    const polyline = coords.map((c) => `${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(' ');
+    const polyline = coords
+        .map((c) => `${c.x.toFixed(1)},${c.y.toFixed(1)}`)
+        .join(' ');
     const first = coords[0];
     const last = coords[coords.length - 1];
     const area = `${first.x},${height - padY} ${polyline} ${last.x},${height - padY}`;
@@ -99,10 +112,7 @@ export function HealthTrendChart({
                 className="stroke-border"
                 strokeWidth="1"
             />
-            <polygon
-                points={area}
-                className="fill-brand/10"
-            />
+            <polygon points={area} className="fill-brand/10" />
             <polyline
                 fill="none"
                 stroke="currentColor"

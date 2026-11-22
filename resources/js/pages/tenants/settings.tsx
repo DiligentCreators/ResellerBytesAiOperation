@@ -181,13 +181,10 @@ export default function TenantSettings({
                                         type="number"
                                         min={1}
                                         max={10000}
-                                        defaultValue={
-                                            hourly_rate?.value ?? ''
-                                        }
+                                        defaultValue={hourly_rate?.value ?? ''}
                                         disabled={!canManage}
                                         placeholder={String(
-                                            hourly_rate?.platform_default ??
-                                                25,
+                                            hourly_rate?.platform_default ?? 25,
                                         )}
                                     />
                                     <InputError

@@ -399,9 +399,7 @@ function PlanFields({
                 <Input
                     name="entitlements[limits][history_days]"
                     type="number"
-                    defaultValue={
-                        plan?.entitlements.limits?.history_days ?? 90
-                    }
+                    defaultValue={plan?.entitlements.limits?.history_days ?? 90}
                     required
                     disabled={disabled}
                 />

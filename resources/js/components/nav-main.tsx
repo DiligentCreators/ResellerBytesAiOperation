@@ -42,7 +42,9 @@ export function NavMain({
                     const active =
                         isCurrentUrl(href) ||
                         (item.children?.some((child) =>
-                            isCurrentUrl(child.href.split('#')[0] ?? child.href),
+                            isCurrentUrl(
+                                child.href.split('#')[0] ?? child.href,
+                            ),
                         ) ??
                             false);
 

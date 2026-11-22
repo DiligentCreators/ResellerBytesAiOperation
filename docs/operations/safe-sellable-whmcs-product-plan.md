@@ -82,13 +82,13 @@ Operators **decide here**; they click in WHMCS.
 
 Per finding, a **Playbook card**:
 
-| Block | Content |
-|--------|---------|
-| Detected | Issue + evidence |
-| Impact | Risk if ignored |
+| Block      | Content                     |
+| ---------- | --------------------------- |
+| Detected   | Issue + evidence            |
+| Impact     | Risk if ignored             |
 | Safe steps | Numbered WHMCS/server steps |
-| Verify | Re-check signal |
-| Rollback | How to undo |
+| Verify     | Re-check signal             |
+| Rollback   | How to undo                 |
 
 Also:
 
@@ -138,9 +138,9 @@ Architecture addition: code-defined `SafeAction` allowlist in Laravel; narrow WH
 2. Hero demo: **multi-install** hosting dashboard (existing tenancy)
 3. Sanitized before/after case studies
 4. Objection handling:
-   - “WHMCS already shows this” → we correlate, prioritize, and close across installs
-   - “AI will break us” → read-only collect, allowlist, approve, audit
-   - “Another script” → signed addon, no customer PII in snapshots, SLA
+    - “WHMCS already shows this” → we correlate, prioritize, and close across installs
+    - “AI will break us” → read-only collect, allowlist, approve, audit
+    - “Another script” → signed addon, no customer PII in snapshots, SLA
 
 **Packaging suggestion:**
 
@@ -161,12 +161,12 @@ Architecture addition: code-defined `SafeAction` allowlist in Laravel; narrow WH
 
 ## 90-day order
 
-| Weeks | Focus |
-|-------|--------|
-| 1–2 | Phase 0 UX + landing + pilot script |
-| 3–6 | Phase 1 Fix Center |
-| 7–10 | First 1–2 safe actions |
-| Ongoing | Listing + 3 pilot case studies |
+| Weeks   | Focus                               |
+| ------- | ----------------------------------- |
+| 1–2     | Phase 0 UX + landing + pilot script |
+| 3–6     | Phase 1 Fix Center                  |
+| 7–10    | First 1–2 safe actions              |
+| Ongoing | Listing + 3 pilot case studies      |
 
 **Metrics:** pilot→paid conversion, time-to-first-resolved-finding, weekly re-check usage, severity-1 from our actions = 0.
 
@@ -174,11 +174,11 @@ Architecture addition: code-defined `SafeAction` allowlist in Laravel; narrow WH
 
 ## Implementation status (in-app)
 
-| Phase | Status | Notes |
-|-------|--------|--------|
-| Phase 0 | Done | Fix Center packaging, Last scan clean, checklist/copy, mark resolved |
-| Phase 1 | Done | Playbooks, statuses, assignees, re-check diff, weekly digest |
-| Phase 2 | Done | Allowlisted Safe Actions (≥4), entitlement, approve+audit+verify; no WHMCS writes |
+| Phase   | Status            | Notes                                                                                             |
+| ------- | ----------------- | ------------------------------------------------------------------------------------------------- |
+| Phase 0 | Done              | Fix Center packaging, Last scan clean, checklist/copy, mark resolved                              |
+| Phase 1 | Done              | Playbooks, statuses, assignees, re-check diff, weekly digest                                      |
+| Phase 2 | Done              | Allowlisted Safe Actions (≥4), entitlement, approve+audit+verify; no WHMCS writes                 |
 | Phase 3 | Done (in-app GTM) | `/product`, `/case-studies`, packaging copy, objections on pricing, multi-install dashboard board |
 
 **Still external / human:** WHMCS Marketplace listing submission, live pilot pricing confirmation, real customer case-study approvals.
@@ -193,7 +193,7 @@ Start **Phase 0 / Phase 1 in-app**:
 
 **No WHMCS write API yet.** Fastest path to a story WHMCS buyers will pay for.
 
-*(Superseded — Phases 0–3 in-app work is implemented. Next: build + deploy + pilot.)*
+_(Superseded — Phases 0–3 in-app work is implemented. Next: build + deploy + pilot.)_
 
 ---
 

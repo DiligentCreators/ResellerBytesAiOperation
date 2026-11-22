@@ -14,7 +14,15 @@ type SettingField = {
     key: string;
     label: string;
     help: string;
-    type: 'bool' | 'int' | 'float' | 'string' | 'email' | 'url' | 'json' | 'secret';
+    type:
+        | 'bool'
+        | 'int'
+        | 'float'
+        | 'string'
+        | 'email'
+        | 'url'
+        | 'json'
+        | 'secret';
     source: SettingSource;
     value: string | number | boolean | null;
     is_set: boolean;
@@ -276,14 +284,12 @@ export default function PlatformSettingsPage({
                                                     autoComplete="off"
                                                     placeholder="Replace secret…"
                                                     value={String(
-                                                        values[field.key] ??
-                                                            '',
+                                                        values[field.key] ?? '',
                                                     )}
                                                     onChange={(event) =>
                                                         updateField(
                                                             field.key,
-                                                            event.target
-                                                                .value,
+                                                            event.target.value,
                                                         )
                                                     }
                                                 />
@@ -298,11 +304,9 @@ export default function PlatformSettingsPage({
                                                     field.type === 'int' ||
                                                     field.type === 'float'
                                                         ? 'number'
-                                                        : field.type ===
-                                                            'email'
+                                                        : field.type === 'email'
                                                           ? 'email'
-                                                          : field.type ===
-                                                              'url'
+                                                          : field.type === 'url'
                                                             ? 'url'
                                                             : 'text'
                                                 }

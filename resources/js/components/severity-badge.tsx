@@ -1,4 +1,9 @@
-import { AlertTriangle, Info, ShieldAlert, type LucideIcon } from 'lucide-react';
+import {
+    AlertTriangle,
+    Info,
+    ShieldAlert,
+    type LucideIcon,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const severityConfig: Record<
@@ -65,7 +70,7 @@ export function SeverityBadge({ severity, className }: SeverityBadgeProps) {
     return (
         <span
             className={cn(
-                'inline-flex h-5 items-center gap-1 rounded-md px-1.5 text-xs font-medium ring-1 ring-inset capitalize',
+                'inline-flex h-5 items-center gap-1 rounded-md px-1.5 text-xs font-medium capitalize ring-1 ring-inset',
                 config.className,
                 className,
             )}

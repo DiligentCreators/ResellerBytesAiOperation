@@ -5,7 +5,6 @@ import { EmptyState } from '@/components/empty-state';
 import { PageHeader } from '@/components/page-header';
 import { Pagination } from '@/components/pagination';
 import { SeverityBadge } from '@/components/severity-badge';
-import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -16,7 +15,10 @@ import {
     SheetHeader,
     SheetTitle,
 } from '@/components/ui/sheet';
-import { approve, store as storeSafeAction } from '@/actions/App/Http/Controllers/SafeActionController';
+import {
+    approve,
+    store as storeSafeAction,
+} from '@/actions/App/Http/Controllers/SafeActionController';
 
 type GuidedStep = {
     step_index: number;
@@ -97,15 +99,14 @@ export default function FixCenterIndex({
     const { flash } = usePage().props as { flash?: { status?: string | null } };
     const [selected, setSelected] = useState<string[]>([]);
     const [activeIssue, setActiveIssue] = useState<Issue | null>(null);
-    const [drawerMode, setDrawerMode] = useState<'guide' | 'fix' | 'info' | null>(
-        null,
-    );
+    const [drawerMode, setDrawerMode] = useState<
+        'guide' | 'fix' | 'info' | null
+    >(null);
     const [fixPhase, setFixPhase] = useState<
         'preview' | 'approve' | 'status' | 'verified'
     >('preview');
-    const [selectedAction, setSelectedAction] = useState<SuggestedAction | null>(
-        null,
-    );
+    const [selectedAction, setSelectedAction] =
+        useState<SuggestedAction | null>(null);
     const [targetIds, setTargetIds] = useState<number[]>([]);
     const [pendingFixId, setPendingFixId] = useState<string | null>(null);
 
@@ -222,19 +223,23 @@ export default function FixCenterIndex({
                             type="button"
                             size="sm"
                             variant={
-                                filters.tab === tab.value ? 'default' : 'outline'
+                                filters.tab === tab.value
+                                    ? 'default'
+                                    : 'outline'
                             }
                             onClick={() => setTab(tab.value)}
                         >
                             {tab.label}
-                            <span className="ml-1 tabular-nums text-xs opacity-80">
+                            <span className="ml-1 text-xs tabular-nums opacity-80">
                                 {counts[tab.value]}
                             </span>
                         </Button>
                     ))}
                 </div>
 
-                {entitlements.fixes_bulk && bulkCapable.length > 0 && filters.tab === 'open' ? (
+                {entitlements.fixes_bulk &&
+                bulkCapable.length > 0 &&
+                filters.tab === 'open' ? (
                     <div className="flex flex-wrap items-center gap-3 rounded-md border border-border bg-surface px-3 py-2 text-sm">
                         <span className="text-muted-foreground">
                             {selected.length} selected (max{' '}
@@ -300,7 +305,9 @@ export default function FixCenterIndex({
                                                     checked={selected.includes(
                                                         issue.id,
                                                     )}
-                                                    onCheckedChange={(checked) =>
+                                                    onCheckedChange={(
+                                                        checked,
+                                                    ) =>
                                                         toggleSelected(
                                                             issue.id,
                                                             checked === true,
@@ -326,7 +333,8 @@ export default function FixCenterIndex({
                                                 </p>
                                                 <p className="text-xs text-muted-foreground">
                                                     {issue.installation}
-                                                    {issue.affected_count != null
+                                                    {issue.affected_count !=
+                                                    null
                                                         ? ` · ${issue.affected_count} affected`
                                                         : null}
                                                 </p>
@@ -368,7 +376,10 @@ export default function FixCenterIndex({
                                                     size="sm"
                                                     variant="outline"
                                                     onClick={() =>
-                                                        openDrawer(issue, 'info')
+                                                        openDrawer(
+                                                            issue,
+                                                            'info',
+                                                        )
                                                     }
                                                 >
                                                     Learn more
@@ -388,7 +399,9 @@ export default function FixCenterIndex({
                                                             type="submit"
                                                             size="sm"
                                                             variant="outline"
-                                                            disabled={processing}
+                                                            disabled={
+                                                                processing
+                                                            }
                                                         >
                                                             Un-ignore
                                                         </Button>
@@ -398,7 +411,10 @@ export default function FixCenterIndex({
                                                 <div className="flex flex-wrap gap-1">
                                                     {(
                                                         [
-                                                            ['7_days', '7 days'],
+                                                            [
+                                                                '7_days',
+                                                                '7 days',
+                                                            ],
                                                             [
                                                                 '30_days',
                                                                 '30 days',
@@ -548,7 +564,8 @@ export default function FixCenterIndex({
                                 </ol>
                                 {activeIssue.upgrade_to_one_click ? (
                                     <p className="text-sm text-muted-foreground">
-                                        This can be fixed in one click on Growth.{' '}
+                                        This can be fixed in one click on
+                                        Growth.{' '}
                                         <Link
                                             href={billing_plans_url}
                                             className="font-medium text-primary hover:underline"
@@ -586,8 +603,8 @@ export default function FixCenterIndex({
                             <SheetHeader>
                                 <SheetTitle>Fix now</SheetTitle>
                                 <SheetDescription>
-                                    Preview what will change, approve, then watch
-                                    status until verified.
+                                    Preview what will change, approve, then
+                                    watch status until verified.
                                 </SheetDescription>
                             </SheetHeader>
                             <div className="space-y-4 px-4">

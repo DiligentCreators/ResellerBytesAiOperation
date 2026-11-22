@@ -77,22 +77,17 @@ export default function ReportShow({ tenant, report }: Props) {
                 />
 
                 <p className="text-sm text-muted-foreground">
-                    Sent{' '}
-                    {formatDateTime(report.sent_at, timezone)}
+                    Sent {formatDateTime(report.sent_at, timezone)}
                 </p>
 
                 <ul className="space-y-2 text-sm">
                     <li>
-                        Health score:{' '}
-                        {asNumber(summary.health_score) ?? 'n/a'}
+                        Health score: {asNumber(summary.health_score) ?? 'n/a'}
                         {asNumber(summary.health_score_change) != null
                             ? ` (${asNumber(summary.health_score_change)! >= 0 ? '+' : ''}${asNumber(summary.health_score_change)})`
                             : ''}
                     </li>
-                    <li>
-                        Issues fixed:{' '}
-                        {asNumber(summary.issues_fixed) ?? 0}
-                    </li>
+                    <li>Issues fixed: {asNumber(summary.issues_fixed) ?? 0}</li>
                     <li>
                         Time saved:{' '}
                         {asString(summary.time_saved_hours_display) ?? '0.0'}{' '}
@@ -101,8 +96,7 @@ export default function ReportShow({ tenant, report }: Props) {
                     </li>
                     {asString(summary.recovered_display) ? (
                         <li>
-                            $ recovered: $
-                            {asString(summary.recovered_display)}
+                            $ recovered: ${asString(summary.recovered_display)}
                         </li>
                     ) : null}
                     <li>
@@ -147,11 +141,7 @@ export default function ReportShow({ tenant, report }: Props) {
                         </h2>
                         <ul className="space-y-1 text-sm">
                             {installations.map((installation, index) => (
-                                <li
-                                    key={
-                                        asString(installation.id) ?? index
-                                    }
-                                >
+                                <li key={asString(installation.id) ?? index}>
                                     {asString(installation.name) ?? 'Install'}:{' '}
                                     {asString(installation.heartbeat_state) ??
                                         'unknown'}

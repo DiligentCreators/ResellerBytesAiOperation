@@ -14,6 +14,10 @@ import {
 import { useWorkspaceTimezone } from '@/hooks/use-workspace-timezone';
 import { formatDate, formatDateTime } from '@/lib/dates';
 
+function formString(value: FormDataEntryValue | null): string {
+    return typeof value === 'string' ? value : '';
+}
+
 type ReportSummary = {
     health_score?: number | null;
     issues_fixed?: number | null;
@@ -97,7 +101,10 @@ export default function ReportsIndex({
         };
 
         Object.keys(next).forEach((key) => {
-            if (next[key as keyof typeof next] === '' || next[key as keyof typeof next] === undefined) {
+            if (
+                next[key as keyof typeof next] === '' ||
+                next[key as keyof typeof next] === undefined
+            ) {
                 delete next[key as keyof typeof next];
             }
         });
@@ -124,7 +131,9 @@ export default function ReportsIndex({
                     description={`Past weekly and monthly reports for ${tenant.name}, plus the full fix log.`}
                     actions={
                         <Button variant="outline" size="sm" asChild>
-                            <Link href={`/reports/trends?tenant_id=${tenant.id}`}>
+                            <Link
+                                href={`/reports/trends?tenant_id=${tenant.id}`}
+                            >
                                 <LineChart className="mr-2 size-4" />
                                 Health trends
                             </Link>
@@ -179,9 +188,12 @@ export default function ReportsIndex({
                                                 {reportTypeLabel(report.type)}
                                             </td>
                                             <td className="px-2 py-3 tabular-nums">
-                                                {formatDate(report.period_start, {
-                                                    timeZone: timezone,
-                                                })}{' '}
+                                                {formatDate(
+                                                    report.period_start,
+                                                    {
+                                                        timeZone: timezone,
+                                                    },
+                                                )}{' '}
                                                 –{' '}
                                                 {formatDate(report.period_end, {
                                                     timeZone: timezone,
@@ -272,17 +284,15 @@ export default function ReportsIndex({
                             event.preventDefault();
                             const form = new FormData(event.currentTarget);
                             applyFilters({
-                                mode: String(form.get('mode') || '') || undefined,
+                                mode: formString(form.get('mode')) || undefined,
                                 result:
-                                    String(form.get('result') || '') ||
-                                    undefined,
+                                    formString(form.get('result')) || undefined,
                                 integration_id:
-                                    String(form.get('integration_id') || '') ||
+                                    formString(form.get('integration_id')) ||
                                     undefined,
-                                from:
-                                    String(form.get('from') || '') || undefined,
-                                to: String(form.get('to') || '') || undefined,
-                                q: String(form.get('q') || '') || undefined,
+                                from: formString(form.get('from')) || undefined,
+                                to: formString(form.get('to')) || undefined,
+                                q: formString(form.get('q')) || undefined,
                             });
                         }}
                     >
@@ -294,9 +304,7 @@ export default function ReportsIndex({
                                 onValueChange={(value) =>
                                     applyFilters({
                                         mode:
-                                            value === 'all'
-                                                ? undefined
-                                                : value,
+                                            value === 'all' ? undefined : value,
                                     })
                                 }
                             >
@@ -329,15 +337,11 @@ export default function ReportsIndex({
                             <Label htmlFor="integration_id">Installation</Label>
                             <Select
                                 name="integration_id"
-                                defaultValue={
-                                    filters.integration_id ?? 'all'
-                                }
+                                defaultValue={filters.integration_id ?? 'all'}
                                 onValueChange={(value) =>
                                     applyFilters({
                                         integration_id:
-                                            value === 'all'
-                                                ? undefined
-                                                : value,
+                                            value === 'all' ? undefined : value,
                                     })
                                 }
                             >

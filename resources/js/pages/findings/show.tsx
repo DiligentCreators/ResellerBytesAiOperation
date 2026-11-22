@@ -152,7 +152,6 @@ export default function FindingShow({
     statuses,
     suggested_safe_actions = [],
     blocked_safe_action_keys = [],
-    safe_actions_enabled = false,
 }: Props) {
     const timezone = useWorkspaceTimezone();
     const { flash } = usePage().props as {
@@ -241,7 +240,9 @@ export default function FindingShow({
                         Re-check vs latest scan
                     </Button>
                     <Button variant="outline" size="sm" asChild>
-                        <Link href={`/diagnostic-runs/${finding.diagnostic_run_id}`}>
+                        <Link
+                            href={`/diagnostic-runs/${finding.diagnostic_run_id}`}
+                        >
                             Source snapshot
                         </Link>
                     </Button>
@@ -282,7 +283,8 @@ export default function FindingShow({
                                 </p>
                                 <ul className="flex flex-wrap gap-2">
                                     {finding.affected_ids?.map((id) => {
-                                        const checked = selectedIds.includes(id);
+                                        const checked =
+                                            selectedIds.includes(id);
                                         return (
                                             <li key={id}>
                                                 <label className="inline-flex items-center gap-1.5 rounded-md border border-border px-2 py-1 text-xs">
@@ -294,7 +296,9 @@ export default function FindingShow({
                                                                 (current) =>
                                                                     checked
                                                                         ? current.filter(
-                                                                              (value) =>
+                                                                              (
+                                                                                  value,
+                                                                              ) =>
                                                                                   value !==
                                                                                   id,
                                                                           )
@@ -386,7 +390,9 @@ export default function FindingShow({
                                                         <Button
                                                             type="submit"
                                                             size="sm"
-                                                            disabled={processing}
+                                                            disabled={
+                                                                processing
+                                                            }
                                                         >
                                                             Request approval
                                                         </Button>
@@ -467,7 +473,9 @@ export default function FindingShow({
                                             name="status_note"
                                             value={statusNote}
                                             onChange={(event) =>
-                                                setStatusNote(event.target.value)
+                                                setStatusNote(
+                                                    event.target.value,
+                                                )
                                             }
                                             rows={2}
                                             maxLength={500}
@@ -503,8 +511,7 @@ export default function FindingShow({
                     <section className="rounded-lg border border-border bg-card p-5 shadow-xs">
                         <h2 className="text-sm font-semibold">Workflow</h2>
                         <p className="mt-2 text-sm text-muted-foreground">
-                            Status:{' '}
-                            <StatusBadge status={finding.status} />
+                            Status: <StatusBadge status={finding.status} />
                             {finding.assignee
                                 ? ` · Assigned to ${finding.assignee.name}`
                                 : ' · Unassigned'}
@@ -622,14 +629,12 @@ export default function FindingShow({
                             className="size-4 text-slate-brand"
                             aria-hidden
                         />
-                        <h2 className="text-sm font-semibold">
-                            3. Safe steps
-                        </h2>
+                        <h2 className="text-sm font-semibold">3. Safe steps</h2>
                         <StatusBadge status={playbook.change_risk} />
                     </div>
                     <p className="mb-4 text-xs font-medium text-warning-fg">
-                        Manual action in WHMCS only — this platform never
-                        writes to WHMCS or invents free-form repairs.
+                        Manual action in WHMCS only — this platform never writes
+                        to WHMCS or invents free-form repairs.
                     </p>
                     {playbook.safe_steps.length === 0 ? (
                         <p className="text-sm text-muted-foreground">

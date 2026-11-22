@@ -46,11 +46,10 @@ const statusFilters = [
 
 export default function FindingsIndex({ findings, filters, health }: Props) {
     const setStatus = (status: string) => {
-        router.get(
-            '/findings',
-            status === 'all' ? {} : { status },
-            { preserveState: true, replace: true },
-        );
+        router.get('/findings', status === 'all' ? {} : { status }, {
+            preserveState: true,
+            replace: true,
+        });
     };
 
     return (
@@ -79,9 +78,9 @@ export default function FindingsIndex({ findings, filters, health }: Props) {
                                     Last scan clean
                                 </h2>
                                 <p className="mt-1 text-sm text-success-fg/90">
-                                    Analyzed diagnostics show no active findings.
-                                    Keep the weekly digest on and re-check after
-                                    the next WHMCS change window.
+                                    Analyzed diagnostics show no active
+                                    findings. Keep the weekly digest on and
+                                    re-check after the next WHMCS change window.
                                 </p>
                             </div>
                         </div>
@@ -108,7 +107,9 @@ export default function FindingsIndex({ findings, filters, health }: Props) {
 
                 {findings.data.length === 0 ? (
                     <EmptyState
-                        icon={health.last_scan_clean ? CheckCircle2 : ShieldAlert}
+                        icon={
+                            health.last_scan_clean ? CheckCircle2 : ShieldAlert
+                        }
                         title={
                             health.last_scan_clean
                                 ? 'Last scan clean'

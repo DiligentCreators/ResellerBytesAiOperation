@@ -90,7 +90,7 @@ export default function TenantAlerts({
                         <p className="font-medium">
                             Webhook signing secret (shown once)
                         </p>
-                        <p className="mt-1 break-all font-mono text-xs">
+                        <p className="mt-1 font-mono text-xs break-all">
                             {createdSigningSecret.secret}
                         </p>
                         <p className="mt-2 text-xs text-muted-foreground">
@@ -247,9 +247,7 @@ export default function TenantAlerts({
                                             action={`/tenants/${tenant.id}/alerts/channels/${channel.id}`}
                                             method="put"
                                             className="mt-4 space-y-4 rounded-md border border-border p-4"
-                                            onSuccess={() =>
-                                                setEditingId(null)
-                                            }
+                                            onSuccess={() => setEditingId(null)}
                                         >
                                             {({ errors, processing }) => (
                                                 <ChannelFields

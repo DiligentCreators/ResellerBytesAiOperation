@@ -12,19 +12,9 @@ type Props = {
 /**
  * Lightweight SVG sparkline — no chart library dependency.
  */
-export function HealthSparkline({
-    points,
-    className,
-    height = 40,
-}: Props) {
+export function HealthSparkline({ points, className, height = 40 }: Props) {
     if (points.length === 0) {
-        return (
-            <div
-                className={className}
-                style={{ height }}
-                aria-hidden
-            />
-        );
+        return <div className={className} style={{ height }} aria-hidden />;
     }
 
     const width = 160;
@@ -39,9 +29,7 @@ export function HealthSparkline({
             points.length === 1
                 ? width / 2
                 : pad + (index / (points.length - 1)) * (width - pad * 2);
-        const y =
-            pad +
-            (1 - (point.score - min) / span) * (height - pad * 2);
+        const y = pad + (1 - (point.score - min) / span) * (height - pad * 2);
         return `${x.toFixed(1)},${y.toFixed(1)}`;
     });
 
