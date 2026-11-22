@@ -2,13 +2,12 @@
 
 namespace App\Mail;
 
-use Carbon\CarbonImmutable;
+use App\Support\Reports\MonthlyValueReportPeriodLabel;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
-use Throwable;
 
 class MonthlyValueReportMail extends Mailable
 {
@@ -50,9 +49,7 @@ class MonthlyValueReportMail extends Mailable
             )
             : 'Health score was not available for this period.';
 
-        $periodLabel = is_string($this->summary['period_label'] ?? null) && $this->summary['period_label'] !== ''
-            ? (string) $this->summary['period_label']
-            : $this->fallbackPeriodLabel();
+        $periodLabel = MonthlyValueReportPeriodLabel::resolve($this->summary);
 
         $lines = [
             '<p>Monthly value report for <strong>'.e((string) ($this->summary['tenant_name'] ?? 'Workspace')).'</strong>.</p>',
@@ -67,36 +64,5 @@ class MonthlyValueReportMail extends Mailable
         ];
 
         return implode("\n", $lines);
-    }
-
-    private function fallbackPeriodLabel(): string
-    {
-        $start = $this->summary['period_start'] ?? null;
-        $end = $this->summary['period_end'] ?? null;
-
-        if (! is_string($start) || $start === '' || ! is_string($end) || $end === '') {
-            return 'Last 30 days';
-        }
-
-        try {
-            $startAt = CarbonImmutable::parse($start)->utc();
-            $endAt = CarbonImmutable::parse($end)->utc();
-        } catch (Throwable) {
-            return 'Last 30 days';
-        }
-
-        if ($startAt->year === $endAt->year) {
-            return sprintf(
-                'Last 30 days: %s - %s',
-                $startAt->format('M j'),
-                $endAt->format('M j, Y'),
-            );
-        }
-
-        return sprintf(
-            'Last 30 days: %s - %s',
-            $startAt->format('M j, Y'),
-            $endAt->format('M j, Y'),
-        );
     }
 }

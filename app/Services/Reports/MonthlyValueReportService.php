@@ -10,6 +10,7 @@ use App\Models\TenantSubscription;
 use App\Services\Mail\CentralOutboundMailer;
 use App\Services\PlatformSettings;
 use App\Services\Tenancy\TenantEntitlementService;
+use App\Support\Reports\MonthlyValueReportPeriodLabel;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -128,22 +129,7 @@ class MonthlyValueReportService
 
     public function periodLabel(CarbonInterface $periodStart, CarbonInterface $periodEnd): string
     {
-        $start = CarbonImmutable::instance($periodStart)->utc();
-        $end = CarbonImmutable::instance($periodEnd)->utc();
-
-        if ($start->year === $end->year) {
-            return sprintf(
-                'Last 30 days: %s - %s',
-                $start->format('M j'),
-                $end->format('M j, Y'),
-            );
-        }
-
-        return sprintf(
-            'Last 30 days: %s - %s',
-            $start->format('M j, Y'),
-            $end->format('M j, Y'),
-        );
+        return MonthlyValueReportPeriodLabel::lastThirtyDays($periodStart, $periodEnd);
     }
 
     public function hasValueEntitlement(string $tenantId): bool

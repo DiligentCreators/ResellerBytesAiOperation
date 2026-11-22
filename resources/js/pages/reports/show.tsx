@@ -10,6 +10,7 @@ type Props = {
         type: string;
         period_start: string | null;
         period_end: string | null;
+        period_label?: string | null;
         sent_at: string | null;
         summary: Record<string, unknown>;
     };
@@ -62,8 +63,8 @@ export default function ReportShow({ tenant, report }: Props) {
                 <PageHeader
                     title={title}
                     description={
-                        report.type === 'monthly_value'
-                            ? `${tenant.name} · Last 30 days: ${formatDate(report.period_start, { timeZone: timezone })} – ${formatDate(report.period_end, { timeZone: timezone })}`
+                        report.type === 'monthly_value' && report.period_label
+                            ? `${tenant.name} · ${report.period_label}`
                             : `${tenant.name} · ${formatDate(report.period_start, { timeZone: timezone })} – ${formatDate(report.period_end, { timeZone: timezone })}`
                     }
                     actions={

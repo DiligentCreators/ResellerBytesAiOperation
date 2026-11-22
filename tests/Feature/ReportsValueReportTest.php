@@ -15,6 +15,7 @@ use App\Services\PlatformSettings;
 use App\Services\Reports\MonthlyValueReportService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
+use Inertia\Testing\AssertableInertia as Assert;
 
 function createValueReportWorkspace(bool $entitled = true, ?Carbon $periodEndsAt = null): array
 {
@@ -274,4 +275,96 @@ it('uses a last-30-days window for yearly subscriptions, matching metrics and he
     expect($mail->render())->toContain($expectedLabel);
 
     Carbon::setTestNow();
+});
+
+it('labels old year-long value reports with a plain date range on the page and in resend mail', function () {
+    $this->withoutVite();
+    $workspace = createValueReportWorkspace(true);
+
+    $summary = [
+        'tenant_name' => $workspace['tenant']->name,
+        'period_start' => '2026-11-21',
+        'period_end' => '2027-11-22',
+        'issues_fixed' => 3,
+        'time_saved_hours_display' => '1.0',
+        'time_saved_value_display' => '50.00',
+        'outside_heartbeat_incidents' => 0,
+        'reports_url' => '/reports',
+        'findings_url' => '/findings',
+    ];
+
+    $report = TenantReportSend::factory()->monthlyValue()->create([
+        'tenant_id' => $workspace['tenant']->id,
+        'period_start' => '2026-11-21',
+        'period_end' => '2027-11-22',
+        'sent_at' => now('UTC'),
+        'summary' => $summary,
+    ]);
+
+    $expectedPlain = 'Nov 21, 2026 - Nov 22, 2027';
+
+    $this->actingAs($workspace['owner'])
+        ->get(route('reports.show', ['tenant' => $workspace['tenant'], 'report' => $report]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('reports/show')
+            ->where('report.period_label', $expectedPlain)
+            ->where('report.period_start', '2026-11-21')
+            ->where('report.period_end', '2027-11-22'));
+
+    $mail = new MonthlyValueReportMail($summary);
+    $html = $mail->render();
+
+    expect($html)->toContain($expectedPlain)
+        ->and($html)->not->toContain('Last 30 days');
+});
+
+it('labels new 30-day value reports with Last 30 days on the page and in resend mail', function () {
+    $this->withoutVite();
+    $workspace = createValueReportWorkspace(true);
+
+    $expectedLabel = 'Last 30 days: Oct 23 - Nov 22, 2026';
+    $summary = [
+        'tenant_name' => $workspace['tenant']->name,
+        'period_start' => '2026-10-23',
+        'period_end' => '2026-11-22',
+        'period_label' => $expectedLabel,
+        'issues_fixed' => 1,
+        'time_saved_hours_display' => '0.5',
+        'time_saved_value_display' => '25.00',
+        'outside_heartbeat_incidents' => 0,
+        'reports_url' => '/reports',
+        'findings_url' => '/findings',
+    ];
+
+    $report = TenantReportSend::factory()->monthlyValue()->create([
+        'tenant_id' => $workspace['tenant']->id,
+        'period_start' => '2026-10-23',
+        'period_end' => '2026-11-22',
+        'sent_at' => now('UTC'),
+        'summary' => $summary,
+    ]);
+
+    $this->actingAs($workspace['owner'])
+        ->get(route('reports.show', ['tenant' => $workspace['tenant'], 'report' => $report]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('reports/show')
+            ->where('report.period_label', $expectedLabel));
+
+    $mail = new MonthlyValueReportMail($summary);
+    expect($mail->render())->toContain($expectedLabel);
+});
+
+it('uses Last 30 days for short spans without an explicit period_label', function () {
+    $summary = [
+        'tenant_name' => 'Legacy Short Window',
+        'period_start' => '2026-10-23',
+        'period_end' => '2026-11-22',
+        'issues_fixed' => 0,
+    ];
+
+    $mail = new MonthlyValueReportMail($summary);
+
+    expect($mail->render())->toContain('Last 30 days: Oct 23 - Nov 22, 2026');
 });
