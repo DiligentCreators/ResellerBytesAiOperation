@@ -32,6 +32,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $status_updated_at
  * @property Carbon|null $resolved_at
  * @property string|null $status_note
+ * @property string|null $merged_into_finding_id
  * @property-read DiagnosticRun $diagnosticRun
  * @property-read User|null $assignee
  * @property-read Collection<int, DiagnosticRecommendation> $recommendations
@@ -89,6 +90,7 @@ class DiagnosticFinding extends Model
         'status_updated_at',
         'resolved_at',
         'status_note',
+        'merged_into_finding_id',
     ];
 
     protected $attributes = [
@@ -153,6 +155,17 @@ class DiagnosticFinding extends Model
     public function scopeActive(Builder $query): Builder
     {
         return $query->whereIn('status', self::ACTIVE_STATUSES);
+    }
+
+    /**
+     * Exclude findings that were closed only because they were merged into a duplicate.
+     *
+     * @param  Builder<static>  $query
+     * @return Builder<static>
+     */
+    public function scopeNotMerged(Builder $query): Builder
+    {
+        return $query->whereNull('merged_into_finding_id');
     }
 
     /**

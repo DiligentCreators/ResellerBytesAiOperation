@@ -89,6 +89,7 @@ class GettingStartedChecklist
 
         $hasResolvedFinding = DiagnosticFinding::query()
             ->where('tenant_id', $tenant->id)
+            ->notMerged()
             ->whereIn('status', [
                 DiagnosticFinding::STATUS_RESOLVED,
                 DiagnosticFinding::STATUS_ACCEPTED_RISK,

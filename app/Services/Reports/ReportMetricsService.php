@@ -100,6 +100,7 @@ class ReportMetricsService
             ->all());
 
         $issuesFixed = (clone $base)
+            ->notMerged()
             ->where('status', DiagnosticFinding::STATUS_RESOLVED)
             ->where('resolved_at', '>=', $start)
             ->where('resolved_at', '<=', $end)
@@ -120,6 +121,7 @@ class ReportMetricsService
         $recovered = $this->recoveredUsd($tenant, $start, $end);
 
         $heartbeatIncidents = (clone $base)
+            ->notMerged()
             ->where('issue_key', 'heartbeat.missed')
             ->where(function ($query) use ($start, $end): void {
                 $query->whereBetween('created_at', [$start, $end])

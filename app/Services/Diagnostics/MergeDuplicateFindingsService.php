@@ -46,11 +46,17 @@ class MergeDuplicateFindingsService
                         continue;
                     }
 
-                    $this->workflow->update($finding, null, [
+                    $updated = $this->workflow->update($finding, null, [
                         'status' => DiagnosticFinding::STATUS_RESOLVED,
                         'assignee_user_id' => $finding->assignee_user_id,
                         'status_note' => 'Merged into duplicate finding '.$group['kept_finding_id'].' by findings:merge-duplicates',
                     ]);
+
+                    // Mark as merge (not a real fix) so customer-facing resolved metrics exclude it.
+                    $updated->forceFill([
+                        'merged_into_finding_id' => $group['kept_finding_id'],
+                    ])->save();
+
                     $resolvedCount++;
                 }
             }

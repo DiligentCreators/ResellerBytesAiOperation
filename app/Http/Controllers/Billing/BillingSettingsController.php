@@ -93,6 +93,7 @@ class BillingSettingsController extends Controller
         $timeSaved = app(TimeSavedCalculator::class)->forTenantPeriod($tenant, $periodStart, $periodEnd);
         $issuesFixed = DiagnosticFinding::query()
             ->where('tenant_id', $tenant->id)
+            ->notMerged()
             ->where('status', DiagnosticFinding::STATUS_RESOLVED)
             ->where('resolved_at', '>=', $periodStart)
             ->where('resolved_at', '<=', $periodEnd)

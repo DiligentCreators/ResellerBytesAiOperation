@@ -11,6 +11,8 @@ use App\Models\WhmcsIntegration;
 use App\Services\Diagnostics\FindingContinuityService;
 use App\Services\Diagnostics\MergeDuplicateFindingsService;
 use App\Services\Diagnostics\WhmcsIssueCatalog;
+use App\Services\Reports\ReportMetricsService;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 /**
@@ -191,6 +193,8 @@ it('applies findings:merge-duplicates by resolving older AI duplicates and keepi
 
     expect($rule->status)->toBe(DiagnosticFinding::STATUS_OPEN)
         ->and($ai->status)->toBe(DiagnosticFinding::STATUS_RESOLVED)
+        ->and($ai->merged_into_finding_id)->toBe($rule->id)
+        ->and($rule->merged_into_finding_id)->toBeNull()
         ->and($ai->status_note)->toContain('Merged into duplicate finding '.$rule->id)
         ->and($ai->status_note)->toContain('findings:merge-duplicates')
         ->and(DiagnosticFinding::query()->count())->toBe($findingCountBefore)
@@ -221,9 +225,86 @@ it('is idempotent when findings:merge-duplicates --apply runs twice', function (
         ->assertSuccessful();
 
     expect($workspace['ai']->fresh()->status)->toBe(DiagnosticFinding::STATUS_RESOLVED)
+        ->and($workspace['ai']->fresh()->merged_into_finding_id)->toBe($workspace['rule']->id)
         ->and($workspace['ai']->fresh()->status_note)->toBe($aiStatusNote)
         ->and($workspace['rule']->fresh()->status)->toBe(DiagnosticFinding::STATUS_OPEN)
         ->and(AuditEvent::query()->count())->toBe($auditAfterFirst);
+});
+
+it('does not inflate ReportMetricsService issues_fixed when merging duplicates', function () {
+    $workspace = makeMergeDuplicatesWorkspace();
+
+    DiagnosticFinding::create([
+        'diagnostic_run_id' => $workspace['run']->id,
+        'tenant_id' => $workspace['tenant']->id,
+        'fingerprint' => hash('sha256', 'genuine-fix|'.uniqid()),
+        'category' => 'security',
+        'severity' => 'warning',
+        'title' => 'Genuinely fixed issue',
+        'summary' => 'A real fix, not a merge.',
+        'evidence' => [],
+        'status' => DiagnosticFinding::STATUS_RESOLVED,
+        'resolved_at' => now()->subDay(),
+    ]);
+
+    $periodStart = now()->subDays(7);
+    $periodEnd = now();
+    $metrics = app(ReportMetricsService::class);
+
+    $before = $metrics->build($workspace['tenant'], $periodStart, $periodEnd);
+
+    $this->artisan('findings:merge-duplicates', [
+        '--tenant' => $workspace['tenant']->id,
+        '--apply' => true,
+    ])->assertSuccessful();
+
+    $after = $metrics->build($workspace['tenant'], $periodStart, $periodEnd);
+    $ai = $workspace['ai']->fresh();
+
+    expect($before['issues_fixed'])->toBe(1)
+        ->and($after['issues_fixed'])->toBe($before['issues_fixed'])
+        ->and($after['resolved_this_week'])->toBe($before['resolved_this_week'])
+        ->and($ai->status)->toBe(DiagnosticFinding::STATUS_RESOLVED)
+        ->and($ai->merged_into_finding_id)->toBe($workspace['rule']->id)
+        ->and($ai->resolved_at)->not->toBeNull();
+});
+
+it('still counts genuinely resolved findings in ReportMetricsService issues_fixed', function () {
+    $workspace = makeMergeDuplicatesWorkspace();
+
+    $this->artisan('findings:merge-duplicates', [
+        '--tenant' => $workspace['tenant']->id,
+        '--apply' => true,
+    ])->assertSuccessful();
+
+    expect($workspace['ai']->fresh()->merged_into_finding_id)->toBe($workspace['rule']->id);
+
+    DiagnosticFinding::create([
+        'diagnostic_run_id' => $workspace['run']->id,
+        'tenant_id' => $workspace['tenant']->id,
+        'fingerprint' => hash('sha256', 'genuine-after-merge|'.uniqid()),
+        'category' => 'security',
+        'severity' => 'warning',
+        'title' => 'Fixed after merge',
+        'summary' => 'Real resolution.',
+        'evidence' => [],
+        'status' => DiagnosticFinding::STATUS_RESOLVED,
+        'resolved_at' => now(),
+        'merged_into_finding_id' => null,
+    ]);
+
+    $metrics = app(ReportMetricsService::class)->build(
+        $workspace['tenant'],
+        now()->subDays(7),
+        now(),
+    );
+
+    expect($metrics['issues_fixed'])->toBe(1)
+        ->and($metrics['resolved_this_week'])->toBe(1);
+});
+
+it('adds merged_into_finding_id on diagnostic_findings via migration on sqlite', function () {
+    expect(Schema::hasColumn('diagnostic_findings', 'merged_into_finding_id'))->toBeTrue();
 });
 
 it('scopes findings:merge-duplicates --tenant without touching another tenant', function () {
