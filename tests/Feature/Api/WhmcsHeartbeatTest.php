@@ -10,10 +10,14 @@ use App\Models\TenantMembership;
 use App\Models\TenantNotification;
 use App\Models\User;
 use App\Models\WhmcsIntegration;
+use App\Services\Diagnostics\FindingContinuityService;
+use App\Services\Diagnostics\WhmcsIssueCatalog;
 use App\Services\Monitoring\AutoCollectDueEvaluator;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
+use RuntimeException;
 
 function makeSignedHeartbeat(WhmcsIntegration $integration, array $overrides = [], ?string $nonce = null, ?int $timestamp = null): array
 {
@@ -279,8 +283,115 @@ test('heartbeat state machine transitions ok to stale to down to ok with notific
 
 test('heartbeats check command is safe with zero integrations', function () {
     $this->artisan('whmcs:heartbeats:check')
-        ->assertSuccessful()
-        ->expectsOutputToContain('Checked 0 integration(s)');
+        ->expectsOutputToContain('Checked 0 integration(s); updated 0 heartbeat state(s); 0 failed.')
+        ->assertSuccessful();
+});
+
+test('heartbeats check reopens a resolved heartbeat.missed finding on the latest run', function () {
+    $owner = User::factory()->withTwoFactor()->create(['email_verified_at' => now()]);
+    ['integration' => $integration] = createHeartbeatTenantWorkspace($owner);
+
+    config(['monitoring.heartbeat_stale_minutes' => 30]);
+
+    $catalog = WhmcsIssueCatalog::get('heartbeat.missed');
+    expect($catalog)->not->toBeNull();
+
+    $findingData = [
+        'category' => (string) ($catalog['category'] ?? 'cron'),
+        'title' => (string) ($catalog['title'] ?? 'Install heartbeat is overdue'),
+    ];
+    $fingerprint = app(FindingContinuityService::class)
+        ->fingerprintForIssueKey('heartbeat.missed', $findingData);
+
+    $run = DiagnosticRun::create([
+        'integration_id' => $integration->id,
+        'tenant_id' => $integration->tenant_id,
+        'snapshot_uuid' => (string) Str::uuid(),
+        'schema_version' => '1.1',
+        'addon_version' => '1.2.0',
+        'status' => 'analyzed',
+        'collected_at' => now('UTC'),
+        'received_at' => now('UTC'),
+        'payload' => ['collector' => ['capabilities' => [], 'limitations' => []]],
+        'payload_sha256' => hash('sha256', 'heartbeat-reopen-'.$integration->id),
+    ]);
+
+    DiagnosticFinding::create([
+        'diagnostic_run_id' => $run->id,
+        'tenant_id' => $integration->tenant_id,
+        'fingerprint' => $fingerprint,
+        'issue_key' => 'heartbeat.missed',
+        'source' => DiagnosticFinding::SOURCE_RULE,
+        'affected_count' => 1,
+        'fix_mode' => 'guided',
+        'category' => $findingData['category'],
+        'severity' => 'critical',
+        'title' => $findingData['title'],
+        'summary' => 'Previously resolved missed heartbeat.',
+        'evidence' => ['integration.heartbeat_state' => 'stale'],
+        'confidence' => 1,
+        'status' => DiagnosticFinding::STATUS_RESOLVED,
+        'status_note' => 'Heartbeats resumed.',
+        'status_updated_at' => now('UTC')->subHour(),
+        'resolved_at' => now('UTC')->subHour(),
+    ]);
+
+    $integration->forceFill([
+        'last_heartbeat_at' => now('UTC')->subMinutes(45),
+        'heartbeat_state' => WhmcsIntegration::HEARTBEAT_STATE_OK,
+    ])->save();
+
+    $this->artisan('whmcs:heartbeats:check')->assertSuccessful();
+
+    $findings = DiagnosticFinding::query()
+        ->where('diagnostic_run_id', $run->id)
+        ->where('fingerprint', $fingerprint)
+        ->get();
+
+    expect($findings)->toHaveCount(1)
+        ->and($integration->fresh()->heartbeat_state)->toBe(WhmcsIntegration::HEARTBEAT_STATE_STALE)
+        ->and($findings->first()->status)->toBe(DiagnosticFinding::STATUS_OPEN)
+        ->and($findings->first()->resolved_at)->toBeNull()
+        ->and($findings->first()->status_note)->toBeNull();
+});
+
+test('heartbeats check continues after one installation fails and exits non-zero', function () {
+    $owner = User::factory()->withTwoFactor()->create(['email_verified_at' => now()]);
+    ['integration' => $failing] = createHeartbeatTenantWorkspace($owner);
+    ['integration' => $healthy] = createHeartbeatTenantWorkspace($owner);
+
+    config(['monitoring.heartbeat_stale_minutes' => 30]);
+
+    foreach ([$failing, $healthy] as $integration) {
+        $integration->forceFill([
+            'last_heartbeat_at' => now('UTC')->subMinutes(45),
+            'heartbeat_state' => WhmcsIntegration::HEARTBEAT_STATE_OK,
+        ])->save();
+    }
+
+    Event::listen(InstallationHeartbeatStateChanged::class, function (InstallationHeartbeatStateChanged $event) use ($failing): void {
+        if ($event->integrationId === $failing->id) {
+            throw new RuntimeException('simulated heartbeat check failure');
+        }
+    });
+
+    Log::spy();
+
+    $this->artisan('whmcs:heartbeats:check')
+        ->expectsOutputToContain('1 failed')
+        ->assertFailed();
+
+    expect($failing->fresh()->heartbeat_state)->toBe(WhmcsIntegration::HEARTBEAT_STATE_OK)
+        ->and($healthy->fresh()->heartbeat_state)->toBe(WhmcsIntegration::HEARTBEAT_STATE_STALE);
+
+    Log::shouldHaveReceived('error')
+        ->withArgs(function (string $message, array $context) use ($failing): bool {
+            return $message === 'whmcs.heartbeats.check_failed'
+                && ($context['integration_id'] ?? null) === $failing->id
+                && ($context['exception'] ?? null) === RuntimeException::class
+                && str_contains((string) ($context['message'] ?? ''), 'simulated heartbeat check failure');
+        })
+        ->once();
 });
 
 test('integrations index exposes heartbeat monitoring props and auto-collect toggle', function () {

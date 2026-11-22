@@ -16,11 +16,12 @@ class CheckWhmcsHeartbeatsCommand extends Command
         $result = $heartbeats->checkMissedHeartbeats();
 
         $this->info(sprintf(
-            'Checked %d integration(s); updated %d heartbeat state(s).',
+            'Checked %d integration(s); updated %d heartbeat state(s); %d failed.',
             $result['checked'],
             $result['changed'],
+            $result['failed'],
         ));
 
-        return self::SUCCESS;
+        return $result['failed'] > 0 ? self::FAILURE : self::SUCCESS;
     }
 }

@@ -13,8 +13,11 @@ use App\Services\Diagnostics\WhmcsIssueCatalog;
 use App\Services\PlatformSettings;
 use App\Services\Tenancy\TenantNotificationService;
 use Carbon\CarbonInterface;
+use Illuminate\Database\QueryException;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Throwable;
 
@@ -52,7 +55,7 @@ class HeartbeatStateService
     /**
      * Evaluate stale/down thresholds for integrations that have ever heartbeated.
      *
-     * @return array{checked: int, changed: int}
+     * @return array{checked: int, changed: int, failed: int}
      */
     public function checkMissedHeartbeats(): array
     {
@@ -61,39 +64,49 @@ class HeartbeatStateService
         $now = now('UTC');
         $checked = 0;
         $changed = 0;
+        $failed = 0;
 
         WhmcsIntegration::query()
             ->where('status', 'active')
             ->whereNotNull('last_heartbeat_at')
             ->orderBy('id')
-            ->chunkById(100, function ($integrations) use ($staleMinutes, $downMinutes, $now, &$checked, &$changed): void {
+            ->chunkById(100, function ($integrations) use ($staleMinutes, $downMinutes, $now, &$checked, &$changed, &$failed): void {
                 foreach ($integrations as $integration) {
                     $checked++;
 
                     try {
-                        $last = Carbon::parse($integration->last_heartbeat_at)->utc();
-                    } catch (Throwable) {
-                        continue;
+                        try {
+                            $last = Carbon::parse($integration->last_heartbeat_at)->utc();
+                        } catch (Throwable) {
+                            continue;
+                        }
+
+                        $ageMinutes = $last->diffInMinutes($now);
+                        $desired = match (true) {
+                            $ageMinutes > $downMinutes => self::STATE_DOWN,
+                            $ageMinutes > $staleMinutes => self::STATE_STALE,
+                            default => self::STATE_OK,
+                        };
+
+                        $previous = (string) ($integration->heartbeat_state ?? self::STATE_UNKNOWN);
+                        if ($previous === $desired) {
+                            continue;
+                        }
+
+                        $this->transition($integration, $desired, $now);
+                        $changed++;
+                    } catch (Throwable $exception) {
+                        $failed++;
+                        Log::error('whmcs.heartbeats.check_failed', [
+                            'integration_id' => $integration->id,
+                            'exception' => $exception::class,
+                            'message' => $exception->getMessage(),
+                        ]);
                     }
-
-                    $ageMinutes = $last->diffInMinutes($now);
-                    $desired = match (true) {
-                        $ageMinutes > $downMinutes => self::STATE_DOWN,
-                        $ageMinutes > $staleMinutes => self::STATE_STALE,
-                        default => self::STATE_OK,
-                    };
-
-                    $previous = (string) ($integration->heartbeat_state ?? self::STATE_UNKNOWN);
-                    if ($previous === $desired) {
-                        continue;
-                    }
-
-                    $this->transition($integration, $desired, $now);
-                    $changed++;
                 }
             });
 
-        return ['checked' => $checked, 'changed' => $changed];
+        return ['checked' => $checked, 'changed' => $changed, 'failed' => $failed];
     }
 
     /**
@@ -189,42 +202,50 @@ class HeartbeatStateService
             'monitoring.heartbeat_stale_minutes' => $this->intSetting('monitoring.heartbeat_stale_minutes', 30),
         ];
 
-        $existing = DiagnosticFinding::query()
-            ->where('issue_key', 'heartbeat.missed')
-            ->where('source', DiagnosticFinding::SOURCE_RULE)
-            ->where('fingerprint', $fingerprint)
-            ->whereHas('diagnosticRun', fn ($query) => $query->where('integration_id', $integration->id))
-            ->active()
-            ->latest('created_at')
-            ->first();
+        $existing = $this->findMissedFindingForRefresh($run, $integration, $fingerprint);
 
         if ($existing !== null) {
-            $existing->forceFill([
-                'evidence' => $evidence,
-                'severity' => $findingData['severity'],
-                'status_updated_at' => $changedAt,
-            ])->save();
+            $this->reopenMissedFinding($existing, $evidence, $findingData['severity'], $changedAt);
 
             return;
         }
 
-        $finding = DiagnosticFinding::create([
-            'diagnostic_run_id' => $run->id,
-            'tenant_id' => $run->tenant_id,
-            'fingerprint' => $fingerprint,
-            'issue_key' => 'heartbeat.missed',
-            'source' => DiagnosticFinding::SOURCE_RULE,
-            'affected_count' => 1,
-            'fix_mode' => is_string($catalog['fix_mode'] ?? null) ? $catalog['fix_mode'] : 'guided',
-            'category' => $findingData['category'],
-            'severity' => $findingData['severity'],
-            'title' => $findingData['title'],
-            'summary' => $findingData['summary'],
-            'evidence' => $evidence,
-            'confidence' => 1,
-            'status' => DiagnosticFinding::STATUS_OPEN,
-            'status_updated_at' => $changedAt,
-        ]);
+        try {
+            $finding = DiagnosticFinding::create([
+                'diagnostic_run_id' => $run->id,
+                'tenant_id' => $run->tenant_id,
+                'fingerprint' => $fingerprint,
+                'issue_key' => 'heartbeat.missed',
+                'source' => DiagnosticFinding::SOURCE_RULE,
+                'affected_count' => 1,
+                'fix_mode' => is_string($catalog['fix_mode'] ?? null) ? $catalog['fix_mode'] : 'guided',
+                'category' => $findingData['category'],
+                'severity' => $findingData['severity'],
+                'title' => $findingData['title'],
+                'summary' => $findingData['summary'],
+                'evidence' => $evidence,
+                'confidence' => 1,
+                'status' => DiagnosticFinding::STATUS_OPEN,
+                'status_updated_at' => $changedAt,
+            ]);
+        } catch (UniqueConstraintViolationException|QueryException $exception) {
+            if (! $this->isUniqueViolation($exception)) {
+                throw $exception;
+            }
+
+            $existing = DiagnosticFinding::query()
+                ->where('diagnostic_run_id', $run->id)
+                ->where('fingerprint', $fingerprint)
+                ->first();
+
+            if ($existing === null) {
+                throw $exception;
+            }
+
+            $this->reopenMissedFinding($existing, $evidence, $findingData['severity'], $changedAt);
+
+            return;
+        }
 
         $steps = $catalog['guided_steps'] ?? [];
         if (is_array($steps)) {
@@ -247,6 +268,65 @@ class HeartbeatStateService
         }
 
         $this->continuity->inheritActiveWorkflow($finding);
+    }
+
+    private function findMissedFindingForRefresh(
+        DiagnosticRun $run,
+        WhmcsIntegration $integration,
+        string $fingerprint,
+    ): ?DiagnosticFinding {
+        $onRun = DiagnosticFinding::query()
+            ->where('diagnostic_run_id', $run->id)
+            ->where('fingerprint', $fingerprint)
+            ->first();
+
+        if ($onRun !== null) {
+            return $onRun;
+        }
+
+        return DiagnosticFinding::query()
+            ->where('issue_key', 'heartbeat.missed')
+            ->where('source', DiagnosticFinding::SOURCE_RULE)
+            ->where('fingerprint', $fingerprint)
+            ->whereHas('diagnosticRun', fn ($query) => $query->where('integration_id', $integration->id))
+            ->active()
+            ->latest('created_at')
+            ->first();
+    }
+
+    /**
+     * @param  array<string, mixed>  $evidence
+     */
+    private function reopenMissedFinding(
+        DiagnosticFinding $finding,
+        array $evidence,
+        string $severity,
+        CarbonInterface $changedAt,
+    ): void {
+        $finding->forceFill([
+            'evidence' => $evidence,
+            'severity' => $severity,
+            'status' => DiagnosticFinding::STATUS_OPEN,
+            'status_note' => null,
+            'status_updated_at' => $changedAt,
+            'resolved_at' => null,
+            'ignored_until' => null,
+        ])->save();
+    }
+
+    private function isUniqueViolation(QueryException $exception): bool
+    {
+        if ($exception instanceof UniqueConstraintViolationException) {
+            return true;
+        }
+
+        $sqlState = $exception->errorInfo[0] ?? null;
+        $driverCode = $exception->errorInfo[1] ?? null;
+
+        return $sqlState === '23505'
+            || $driverCode === 19
+            || $driverCode === 1062
+            || ($sqlState === '23000' && preg_match('/unique constraint|duplicate entry/i', $exception->getMessage()) === 1);
     }
 
     private function closeMissedFindings(WhmcsIntegration $integration): void
