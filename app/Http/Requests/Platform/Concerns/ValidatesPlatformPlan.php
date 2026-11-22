@@ -68,6 +68,7 @@ trait ValidatesPlatformPlan
             'entitlements.limits.integrations' => ['required', 'integer', 'min:0'],
             'entitlements.limits.diagnostics_per_period' => ['required', 'integer', 'min:0'],
             'entitlements.limits.retention_days' => ['required', 'integer', 'min:1'],
+            'entitlements.limits.history_days' => ['required', 'integer', 'min:1', 'max:3650'],
             'entitlements.support_level' => ['nullable', 'string', 'max:40'],
             'safe_actions_enabled' => ['sometimes', 'boolean'],
             'fixes_guided_enabled' => ['sometimes', 'boolean'],

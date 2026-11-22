@@ -11,6 +11,7 @@ use App\Models\WhmcsIntegration;
 use App\Services\Ai\OpenAiConfiguration;
 use App\Services\Audit\AuditEventWriter;
 use App\Services\Diagnostics\DeterministicFindingDetector;
+use App\Services\Health\HealthSnapshotRecorder;
 use App\Services\SafeActions\SafeActionExecutor;
 use App\Services\Tenancy\TenantResourceLimitService;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -83,6 +84,11 @@ class StoreDiagnosticSnapshotController extends Controller
 
                 // Guided verify needs findings from this snapshot before deciding cleared vs still present.
                 app(SafeActionExecutor::class)->verifyCollectFromSnapshot($integration->fresh() ?? $integration, $run);
+
+                app(HealthSnapshotRecorder::class)->recomputeForIntegration(
+                    $integration->fresh() ?? $integration,
+                    $run,
+                );
 
                 return $run;
             });

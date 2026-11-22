@@ -12,6 +12,7 @@ use App\Services\Diagnostics\AiBudgetService;
 use App\Services\Diagnostics\DeterministicFindingDetector;
 use App\Services\Diagnostics\FindingContinuityService;
 use App\Services\Diagnostics\WhmcsDiagnosticAnalyzer;
+use App\Services\Health\HealthSnapshotRecorder;
 use App\Services\Tenancy\TenantDatabaseContext;
 use App\Services\Tenancy\TenantEntitlementService;
 use App\Services\Tenancy\TenantResourceLimitService;
@@ -272,6 +273,12 @@ class AnalyzeDiagnosticRun implements ShouldQueue
                         'created_at' => now(),
                     ]);
                 }
+            }
+
+            $lockedRun->loadMissing('integration');
+            $integration = $lockedRun->integration;
+            if ($integration !== null) {
+                app(HealthSnapshotRecorder::class)->recomputeForIntegration($integration, $lockedRun);
             }
         });
     }

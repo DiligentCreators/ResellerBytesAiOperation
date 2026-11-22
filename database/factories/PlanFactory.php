@@ -44,6 +44,7 @@ class PlanFactory extends Factory
                     'integrations' => 1,
                     'diagnostics_per_period' => 50,
                     'retention_days' => 30,
+                    'history_days' => 90,
                 ],
                 'support_level' => 'email',
             ],

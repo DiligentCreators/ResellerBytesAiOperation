@@ -8,6 +8,7 @@ import {
     FileText,
     Layers,
     LayoutGrid,
+    LineChart,
     Mail,
     Receipt,
     Server,
@@ -53,6 +54,10 @@ export function AppSidebar() {
 
     const overviewItems: NavItem[] = [
         { title: 'Overview', href: dashboard(), icon: LayoutGrid },
+    ];
+
+    const reportsItems: NavItem[] = [
+        { title: 'Health trends', href: '/reports/trends', icon: LineChart },
     ];
 
     const diagnosticsItems: NavItem[] = [
@@ -192,6 +197,7 @@ export function AppSidebar() {
                 <NavMain items={overviewItems} label="Overview" />
                 {(isCustomerWorkspace || hasWorkspace) && (
                     <>
+                        <NavMain items={reportsItems} label="Reports" />
                         <NavMain items={diagnosticsItems} label="Diagnostics" />
                         <NavMain
                             items={integrationsItems}

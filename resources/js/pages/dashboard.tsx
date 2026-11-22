@@ -2,15 +2,20 @@ import { Head, Link, usePage } from '@inertiajs/react';
 import {
     Activity,
     AlertTriangle,
+    ArrowDownRight,
     ArrowUpRight,
     CheckCircle2,
     Circle,
+    Clock3,
     Download,
+    HeartPulse,
     LayoutGrid,
     Server,
     ShieldAlert,
+    Wrench,
 } from 'lucide-react';
 import { EmptyState } from '@/components/empty-state';
+import { HealthSparkline } from '@/components/health-sparkline';
 import { PageHeader } from '@/components/page-header';
 import { StatCard } from '@/components/stat-card';
 import { StatusBadge } from '@/components/status-badge';
@@ -51,14 +56,29 @@ type OnboardingChecklist = {
     };
 };
 
+type HeartbeatState = 'unknown' | 'ok' | 'stale' | 'down' | string;
+
 type Installation = {
     id: string;
     name: string;
     status: string;
     addon_version: string | null;
     last_seen_at: string | null;
+    last_heartbeat_at?: string | null;
+    heartbeat_state?: HeartbeatState;
     runs_count: number;
     open_findings: number;
+};
+
+type NeedsYouNowItem = {
+    id: string;
+    title: string;
+    severity: string;
+    issue_key: string | null;
+    fix_mode: string | null;
+    priority: number;
+    installation: string | null;
+    primary_action: 'fix_now' | 'start_guide' | 'review';
 };
 
 type Props = {
@@ -66,8 +86,23 @@ type Props = {
     latestRuns: DiagnosticRun[];
     installations?: Installation[];
     health?: {
+        score?: number | null;
+        change_vs_last_week?: number | null;
+        sparkline?: Array<{ date: string; score: number }>;
         last_scan_clean: boolean;
     };
+    needsYouNow?: NeedsYouNowItem[];
+    timeSaved?: {
+        hours: number;
+        hours_display: string;
+        value_usd: number;
+        value_display: string;
+        hourly_rate_usd: number;
+    } | null;
+    recovered?: {
+        amount: number;
+        display: string;
+    } | null;
     addon: {
         version: string;
         download_available: boolean;
@@ -76,11 +111,30 @@ type Props = {
     onboarding?: OnboardingChecklist | null;
 };
 
+function heartbeatBadge(state: HeartbeatState): {
+    label: string;
+    tone: 'success' | 'warning' | 'danger' | 'neutral';
+} {
+    switch (state) {
+        case 'ok':
+            return { label: 'Healthy', tone: 'success' };
+        case 'stale':
+            return { label: 'Stale', tone: 'warning' };
+        case 'down':
+            return { label: 'Down', tone: 'danger' };
+        default:
+            return { label: 'Waiting', tone: 'neutral' };
+    }
+}
+
 export default function Dashboard({
     stats,
     latestRuns,
     installations = [],
     health,
+    needsYouNow = [],
+    timeSaved = null,
+    recovered = null,
     addon,
     onboarding: onboardingState,
 }: Props) {
@@ -95,6 +149,10 @@ export default function Dashboard({
         stats.total_runs === 0 &&
         stats.open_findings === 0;
 
+    const score = health?.score ?? null;
+    const scoreChange = health?.change_vs_last_week ?? null;
+    const sparkline = health?.sparkline ?? [];
+
     return (
         <>
             <Head title="Overview" />
@@ -103,12 +161,17 @@ export default function Dashboard({
                     title="Overview"
                     description={`Good to see you, ${firstName}. Read-only health visibility for your WHMCS installation.`}
                     actions={
-                        <Button asChild>
-                            <Link href="/whmcs-addon/setup">
-                                <Download className="size-4" aria-hidden />
-                                WHMCS Addon & Setup
-                            </Link>
-                        </Button>
+                        <div className="flex flex-wrap gap-2">
+                            <Button variant="outline" asChild>
+                                <Link href="/reports/trends">Trends</Link>
+                            </Button>
+                            <Button asChild>
+                                <Link href="/whmcs-addon/setup">
+                                    <Download className="size-4" aria-hidden />
+                                    WHMCS Addon & Setup
+                                </Link>
+                            </Button>
+                        </div>
                     }
                 />
 
@@ -186,6 +249,217 @@ export default function Dashboard({
                         }
                     />
                 ) : null}
+
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    <Card>
+                        <CardHeader className="pb-2">
+                            <div className="flex items-start justify-between gap-2">
+                                <div>
+                                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                                        Health score
+                                    </CardTitle>
+                                    <p className="mt-2 text-3xl font-semibold tracking-tight">
+                                        {score != null ? score : '—'}
+                                    </p>
+                                </div>
+                                <HeartPulse
+                                    className="size-4 text-slate-brand"
+                                    aria-hidden
+                                />
+                            </div>
+                        </CardHeader>
+                        <CardContent className="space-y-3 pt-0">
+                            <HealthSparkline
+                                points={sparkline}
+                                className="text-brand"
+                            />
+                            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                                {scoreChange != null ? (
+                                    <span
+                                        className={
+                                            scoreChange >= 0
+                                                ? 'inline-flex items-center gap-0.5 text-success-fg'
+                                                : 'inline-flex items-center gap-0.5 text-danger-fg'
+                                        }
+                                    >
+                                        {scoreChange >= 0 ? (
+                                            <ArrowUpRight
+                                                className="size-3.5"
+                                                aria-hidden
+                                            />
+                                        ) : (
+                                            <ArrowDownRight
+                                                className="size-3.5"
+                                                aria-hidden
+                                            />
+                                        )}
+                                        {scoreChange >= 0 ? '+' : ''}
+                                        {scoreChange} vs last week
+                                    </span>
+                                ) : (
+                                    <span>No week-over-week change yet</span>
+                                )}
+                                <Link
+                                    href="/reports/trends"
+                                    className="text-brand underline-offset-2 hover:underline"
+                                >
+                                    View trends
+                                </Link>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="md:col-span-1 xl:col-span-1">
+                        <CardHeader className="pb-2">
+                            <div className="flex items-start justify-between gap-2">
+                                <CardTitle className="text-sm font-medium text-muted-foreground">
+                                    Needs you now
+                                </CardTitle>
+                                <Wrench
+                                    className="size-4 text-slate-brand"
+                                    aria-hidden
+                                />
+                            </div>
+                        </CardHeader>
+                        <CardContent className="pt-0">
+                            {needsYouNow.length === 0 ? (
+                                <p className="text-sm text-muted-foreground">
+                                    Nothing urgent — keep an eye on the next
+                                    scan.
+                                </p>
+                            ) : (
+                                <ul className="space-y-3">
+                                    {needsYouNow.map((item) => (
+                                        <li
+                                            key={item.id}
+                                            className="rounded-md border border-border/70 px-3 py-2"
+                                        >
+                                            <p className="text-sm font-medium leading-snug">
+                                                {item.title}
+                                            </p>
+                                            <p className="mt-0.5 text-xs text-muted-foreground">
+                                                {item.installation ??
+                                                    'Installation'}{' '}
+                                                · {item.severity}
+                                            </p>
+                                            <div className="mt-2">
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    asChild
+                                                >
+                                                    <Link href="/fix-center">
+                                                        {item.primary_action ===
+                                                        'start_guide'
+                                                            ? 'Start guide'
+                                                            : item.primary_action ===
+                                                                'fix_now'
+                                                              ? 'Fix now'
+                                                              : 'Review'}
+                                                    </Link>
+                                                </Button>
+                                            </div>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader className="pb-2">
+                            <div className="flex items-start justify-between gap-2">
+                                <CardTitle className="text-sm font-medium text-muted-foreground">
+                                    Time saved this month
+                                </CardTitle>
+                                <Clock3
+                                    className="size-4 text-slate-brand"
+                                    aria-hidden
+                                />
+                            </div>
+                        </CardHeader>
+                        <CardContent className="pt-0">
+                            <p className="text-3xl font-semibold tracking-tight">
+                                {timeSaved
+                                    ? `${timeSaved.hours_display}h`
+                                    : '0.0h'}
+                            </p>
+                            <p className="mt-1 text-sm text-muted-foreground">
+                                {timeSaved
+                                    ? `≈ $${timeSaved.value_display} at $${timeSaved.hourly_rate_usd}/hr`
+                                    : 'Verified fixes will appear here'}
+                            </p>
+                            {recovered ? (
+                                <p className="mt-3 rounded-md bg-success-soft px-2.5 py-1.5 text-xs text-success-fg">
+                                    Recovered this month: ${recovered.display}
+                                </p>
+                            ) : null}
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader className="pb-2">
+                            <div className="flex items-start justify-between gap-2">
+                                <CardTitle className="text-sm font-medium text-muted-foreground">
+                                    Installations
+                                </CardTitle>
+                                <Server
+                                    className="size-4 text-slate-brand"
+                                    aria-hidden
+                                />
+                            </div>
+                        </CardHeader>
+                        <CardContent className="space-y-3 pt-0">
+                            {installations.length === 0 ? (
+                                <p className="text-sm text-muted-foreground">
+                                    No installations connected yet.
+                                </p>
+                            ) : (
+                                installations.slice(0, 4).map((install) => {
+                                    const heartbeat = heartbeatBadge(
+                                        install.heartbeat_state ?? 'unknown',
+                                    );
+                                    return (
+                                        <div
+                                            key={install.id}
+                                            className="flex items-start justify-between gap-2"
+                                        >
+                                            <div className="min-w-0">
+                                                <p className="truncate text-sm font-medium">
+                                                    {install.name}
+                                                </p>
+                                                <p className="mt-0.5 text-xs text-muted-foreground">
+                                                    Last heartbeat{' '}
+                                                    {formatDateTime(
+                                                        install.last_heartbeat_at ??
+                                                            null,
+                                                        timezone,
+                                                    )}
+                                                </p>
+                                            </div>
+                                            <StatusBadge
+                                                status={heartbeat.label}
+                                                tone={heartbeat.tone}
+                                            />
+                                        </div>
+                                    );
+                                })
+                            )}
+                            {installations.length > 4 ? (
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="px-0"
+                                    asChild
+                                >
+                                    <Link href="/integrations">
+                                        View all installations
+                                    </Link>
+                                </Button>
+                            ) : null}
+                        </CardContent>
+                    </Card>
+                </div>
 
                 {installations.length > 1 ? (
                     <section className="rounded-lg border border-border bg-card p-5 shadow-xs">
@@ -348,7 +622,7 @@ export default function Dashboard({
                                                     <td className="px-4 font-medium">
                                                         <Link
                                                             href={`/diagnostic-runs/${run.id}`}
-                                                            className="text-primary hover:underline"
+                                                            className="hover:underline"
                                                         >
                                                             {
                                                                 run.integration_name
@@ -364,7 +638,7 @@ export default function Dashboard({
                                                             timezone,
                                                         )}
                                                     </td>
-                                                    <td className="px-4 tabular-nums">
+                                                    <td className="px-4">
                                                         {run.findings_count}
                                                     </td>
                                                     <td className="px-4">
@@ -383,22 +657,18 @@ export default function Dashboard({
 
                     <Card>
                         <CardHeader>
-                            <CardTitle>Health & setup</CardTitle>
+                            <CardTitle>At a glance</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <div>
                                 <p className="text-xs font-medium text-muted-foreground">
-                                    Open findings by severity
+                                    Open findings
                                 </p>
-                                <div className="mt-2 flex flex-wrap gap-2">
+                                <div className="mt-1 flex items-center gap-2">
                                     <StatusBadge
-                                        status="critical"
-                                        tone="danger"
+                                        status="open"
+                                        tone="warning"
                                     />
-                                    <span className="text-sm tabular-nums">
-                                        {stats.critical_findings}
-                                    </span>
-                                    <StatusBadge status="open" tone="warning" />
                                     <span className="text-sm tabular-nums">
                                         {stats.open_findings}
                                     </span>

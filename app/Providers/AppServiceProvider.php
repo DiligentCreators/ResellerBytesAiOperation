@@ -3,6 +3,8 @@
 namespace App\Providers;
 
 use App\Contracts\AuditCheckpointObjectStore;
+use App\Events\InstallationHeartbeatStateChanged;
+use App\Listeners\RecomputeHealthScoreOnHeartbeatChange;
 use App\Services\Audit\S3AuditCheckpointObjectStore;
 use App\Services\Diagnostics\Rules\IssueRule;
 use App\Services\Diagnostics\Rules\IssueRuleRegistry;
@@ -57,6 +59,7 @@ class AppServiceProvider extends ServiceProvider
         $this->configureTrustedProxies();
         $this->configureDefaults();
         $this->registerQueueMetricsListeners();
+        Event::listen(InstallationHeartbeatStateChanged::class, RecomputeHealthScoreOnHeartbeatChange::class);
         $this->overlayPlatformSettings();
     }
 

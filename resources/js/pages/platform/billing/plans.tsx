@@ -392,6 +392,21 @@ function PlanFields({
                 />
             </div>
             <div className="space-y-2">
+                <Label>History days</Label>
+                <Input
+                    name="entitlements[limits][history_days]"
+                    type="number"
+                    defaultValue={
+                        plan?.entitlements.limits?.history_days ?? 90
+                    }
+                    required
+                    disabled={disabled}
+                />
+                <InputError
+                    message={errors['entitlements.limits.history_days']}
+                />
+            </div>
+            <div className="space-y-2">
                 <Label>Support level</Label>
                 <Input
                     name="entitlements[support_level]"

@@ -23,6 +23,7 @@ use App\Http\Controllers\PlatformAiSettingsController;
 use App\Http\Controllers\PlatformMailSettingsController;
 use App\Http\Controllers\PricingController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\Reports\HealthTrendsController;
 use App\Http\Controllers\SafeActionController;
 use App\Http\Controllers\TenantAuditExportController;
 use App\Http\Controllers\TenantMembershipController;
@@ -102,8 +103,10 @@ Route::middleware(['auth', 'verified', EnsureTwoFactorEnabled::class])->group(fu
     });
 
     Route::get('dashboard', DashboardController::class)->name('dashboard');
+    Route::get('reports/trends', HealthTrendsController::class)->name('reports.trends');
     Route::get('tenants/{tenant}/settings', [TenantSettingsController::class, 'show'])->name('tenants.settings.show');
     Route::put('tenants/{tenant}/settings/branding', [TenantSettingsController::class, 'update'])->middleware('throttle:tenants-settings-branding-update')->name('tenants.settings.branding.update');
+    Route::put('tenants/{tenant}/settings/hourly-rate', [TenantSettingsController::class, 'updateHourlyRate'])->middleware('throttle:tenants-settings-branding-update')->name('tenants.settings.hourly-rate.update');
     Route::get('tenants/{tenant}/memberships', [TenantMembershipController::class, 'index'])->name('tenants.memberships.index');
     Route::post('tenants/{tenant}/memberships', [TenantMembershipController::class, 'invite'])->middleware('throttle:tenants-memberships-invite')->name('tenants.memberships.invite');
     Route::get('tenants/{tenantId}/membership/invitation/{membershipId}', [TenantMembershipController::class, 'showInvitation'])->middleware(['signed', 'throttle:tenants-memberships-invitation-show'])->name('tenants.memberships.invitation.show');

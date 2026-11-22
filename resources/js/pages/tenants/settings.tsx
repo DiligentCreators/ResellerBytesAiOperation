@@ -1,5 +1,5 @@
 import { Form, Head } from '@inertiajs/react';
-import { Palette } from 'lucide-react';
+import { Clock3, Palette } from 'lucide-react';
 import InputError from '@/components/input-error';
 import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
@@ -14,8 +14,13 @@ type Branding = {
 };
 
 type Props = {
-    tenant: { id: string; name: string };
+    tenant: { id: string; name: string; hourly_rate_usd?: number | null };
     branding: Branding;
+    hourly_rate?: {
+        value: number | null;
+        effective: number;
+        platform_default: number;
+    };
     canManage: boolean;
     status?: string;
 };
@@ -23,6 +28,7 @@ type Props = {
 export default function TenantSettings({
     tenant,
     branding,
+    hourly_rate,
     canManage,
     status,
 }: Props) {
@@ -133,6 +139,74 @@ export default function TenantSettings({
                                     <p className="text-sm text-muted-foreground">
                                         You can view branding, but only owners
                                         and admins can change it.
+                                    </p>
+                                )}
+                            </>
+                        )}
+                    </Form>
+                </section>
+
+                <section className="rounded-lg border border-border bg-card shadow-xs">
+                    <div className="flex items-center gap-2 border-b border-border px-5 py-4">
+                        <Clock3
+                            className="size-4 text-slate-brand"
+                            aria-hidden
+                        />
+                        <h2 className="text-sm font-semibold">
+                            Time-saved hourly rate
+                        </h2>
+                    </div>
+                    <Form
+                        action={`/tenants/${tenant.id}/settings/hourly-rate`}
+                        method="put"
+                        className="space-y-5 p-5"
+                    >
+                        {({ errors, processing }) => (
+                            <>
+                                <p className="text-sm text-muted-foreground">
+                                    Used to estimate dollar value of verified
+                                    fixes on Home. Leave blank to use the
+                                    platform default ($
+                                    {hourly_rate?.platform_default ?? 25}
+                                    /hr). Effective rate now: $
+                                    {hourly_rate?.effective ?? 25}/hr.
+                                </p>
+                                <div className="grid gap-2">
+                                    <Label htmlFor="hourly_rate_usd">
+                                        Workspace hourly rate (USD)
+                                    </Label>
+                                    <Input
+                                        id="hourly_rate_usd"
+                                        name="hourly_rate_usd"
+                                        type="number"
+                                        min={1}
+                                        max={10000}
+                                        defaultValue={
+                                            hourly_rate?.value ?? ''
+                                        }
+                                        disabled={!canManage}
+                                        placeholder={String(
+                                            hourly_rate?.platform_default ??
+                                                25,
+                                        )}
+                                    />
+                                    <InputError
+                                        message={errors.hourly_rate_usd}
+                                    />
+                                </div>
+                                {canManage ? (
+                                    <div className="-mx-5 -mb-5 flex justify-end rounded-b-lg border-t border-border bg-surface px-5 py-3">
+                                        <Button
+                                            type="submit"
+                                            disabled={processing}
+                                        >
+                                            Save hourly rate
+                                        </Button>
+                                    </div>
+                                ) : (
+                                    <p className="text-sm text-muted-foreground">
+                                        Only owners and admins can change the
+                                        hourly rate.
                                     </p>
                                 )}
                             </>
