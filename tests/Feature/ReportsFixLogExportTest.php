@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\SafeActionExecution;
+use App\Models\SafeActionLateResult;
 use App\Models\Tenant;
 use App\Models\TenantMembership;
 use App\Models\User;
@@ -75,10 +76,11 @@ it('streams a tenant-scoped fix log csv with expected columns and no secrets', f
     $csv = $response->streamedContent();
     $lines = array_values(array_filter(preg_split("/\r\n|\n|\r/", trim($csv)) ?: []));
 
-    expect($lines[0])->toBe('date,installation,issue,mode,approved_by,rejected_by,rejected_at,rejection_reason,result,minutes_saved');
+    expect($lines[0])->toBe('date,installation,issue,mode,decision,decided_by,decided_at,decision_reason,approved_by,rejected_by,rejected_at,rejection_reason,result,minutes_saved');
     expect($csv)->toContain('Alpha WHMCS')
         ->and($csv)->toContain('one_click')
         ->and($csv)->toContain('45')
+        ->and($csv)->toContain('Approved by')
         ->and($csv)->not->toContain('secret_should_not_appear')
         ->and($csv)->not->toContain('other_tenant_action')
         ->and($csv)->not->toContain('Bravo WHMCS');
@@ -142,12 +144,89 @@ it('presents rejected and cancelled fix log rows with rejector date and reason',
         ->streamedContent();
 
     $lines = array_values(array_filter(preg_split("/\r\n|\n|\r/", trim($csv)) ?: []));
-    expect($lines[0])->toBe('date,installation,issue,mode,approved_by,rejected_by,rejected_at,rejection_reason,result,minutes_saved');
+    expect($lines[0])->toBe('date,installation,issue,mode,decision,decided_by,decided_at,decision_reason,approved_by,rejected_by,rejected_at,rejection_reason,result,minutes_saved');
     expect($csv)->toContain($rejector->name)
         ->and($csv)->toContain('Not needed this maintenance window')
         ->and($csv)->toContain('Cancel before addon pickup')
+        ->and($csv)->toContain('Rejected by')
+        ->and($csv)->toContain('Cancelled by')
         ->and($csv)->toContain('rejected')
         ->and($csv)->toContain('cancelled');
+});
+
+it('shows late addon results in the fix log ui print and csv with latest status time and count', function () {
+    $this->withoutVite();
+    $workspace = createFixLogWorkspace('Late Fix Log WHMCS');
+    $rejector = $workspace['owner'];
+    $lateAt = now()->subMinutes(3);
+
+    $execution = SafeActionExecution::create([
+        'tenant_id' => $workspace['tenant']->id,
+        'integration_id' => $workspace['integration']->id,
+        'action_key' => 'pull_and_run_diagnostic_collect',
+        'issue_key' => 'diagnostics.stale',
+        'mode' => SafeActionExecution::MODE_ONE_CLICK,
+        'status' => SafeActionExecution::STATUS_CANCELLED,
+        'risk_level' => 'low',
+        'requested_by_user_id' => $rejector->id,
+        'rejected_by_user_id' => $rejector->id,
+        'rejection_reason' => 'Cancel before addon pickup',
+        'requested_at' => now()->subHours(2),
+        'rejected_at' => now()->subHour(),
+        'late_result_status' => 'success',
+        'late_result_at' => $lateAt,
+        'result' => [
+            'summary' => 'Addon finished after cancel',
+            'late' => true,
+            'addon_status' => 'success',
+        ],
+    ]);
+
+    SafeActionLateResult::create([
+        'tenant_id' => $workspace['tenant']->id,
+        'safe_action_execution_id' => $execution->id,
+        'status' => 'failed',
+        'payload_summary' => ['summary' => 'First late failure'],
+        'received_at' => $lateAt->copy()->subMinute(),
+    ]);
+    SafeActionLateResult::create([
+        'tenant_id' => $workspace['tenant']->id,
+        'safe_action_execution_id' => $execution->id,
+        'status' => 'success',
+        'payload_summary' => ['summary' => 'Addon finished after cancel'],
+        'received_at' => $lateAt,
+    ]);
+
+    $expectedResult = 'Cancelled - addon later reported success · '.$lateAt->toIso8601String().' · 2';
+
+    $this->actingAs($rejector)
+        ->get(route('reports.index'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('reports/index')
+            ->where('fixLog.data.0.result', $expectedResult)
+            ->where('fixLog.data.0.late_result_count', 2)
+            ->where('fixLog.data.0.late_result_status', 'success')
+            ->where('fixLog.data.0.decision_label', 'Cancelled by'));
+
+    $this->actingAs($rejector)
+        ->get(route('reports.fix-log.print', $workspace['tenant']))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('reports/fix-log-print')
+            ->where('rows.0.result', $expectedResult)
+            ->where('rows.0.late_result_count', 2)
+            ->where('rows.0.decision_label', 'Cancelled by'));
+
+    $csv = $this->actingAs($rejector)
+        ->get(route('reports.fix-log.export', $workspace['tenant']))
+        ->assertOk()
+        ->streamedContent();
+
+    expect($csv)->toContain('Cancelled by')
+        ->and($csv)->toContain('Cancelled - addon later reported success')
+        ->and($csv)->toContain($lateAt->toIso8601String())
+        ->and($csv)->toContain(' · 2');
 });
 
 it('rejects fix log export for outsiders', function () {

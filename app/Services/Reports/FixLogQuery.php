@@ -32,6 +32,7 @@ class FixLogQuery
                 'rejector:id,name',
                 'requester:id,name',
             ])
+            ->withCount('lateResults')
             ->orderByDesc('requested_at')
             ->orderByDesc('id');
 
@@ -89,6 +90,10 @@ class FixLogQuery
             'installation',
             'issue',
             'mode',
+            'decision',
+            'decided_by',
+            'decided_at',
+            'decision_reason',
             'approved_by',
             'rejected_by',
             'rejected_at',
@@ -110,11 +115,15 @@ class FixLogQuery
             $row['installation'],
             $this->csvSafe($row['issue']),
             $row['mode'],
+            $this->csvSafe($row['decision_label']),
+            $this->csvSafe($row['decided_by']),
+            $row['decided_at'],
+            $this->csvSafe($row['decision_reason']),
             $this->csvSafe($row['approved_by']),
             $this->csvSafe($row['rejected_by']),
             $row['rejected_at'],
             $this->csvSafe($row['rejection_reason']),
-            $row['result'],
+            $this->csvSafe($row['result']),
             $row['minutes_saved'],
         ];
     }
@@ -130,10 +139,15 @@ class FixLogQuery
      *     decision_label: string,
      *     approved_by: string|null,
      *     decided_by: string|null,
+     *     decided_at: string|null,
+     *     decision_reason: string|null,
      *     rejected_by: string|null,
      *     rejected_at: string|null,
      *     rejection_reason: string|null,
      *     result: string,
+     *     late_result_status: string|null,
+     *     late_result_at: string|null,
+     *     late_result_count: int,
      *     minutes_saved: int|null
      * }>
      */
@@ -157,10 +171,15 @@ class FixLogQuery
      *     decision_label: string,
      *     approved_by: string|null,
      *     decided_by: string|null,
+     *     decided_at: string|null,
+     *     decision_reason: string|null,
      *     rejected_by: string|null,
      *     rejected_at: string|null,
      *     rejection_reason: string|null,
      *     result: string,
+     *     late_result_status: string|null,
+     *     late_result_at: string|null,
+     *     late_result_count: int,
      *     minutes_saved: int|null
      * }
      */
@@ -175,6 +194,12 @@ class FixLogQuery
         $isRejection = $this->isRejectionStatus($execution->status);
         $rejectedBy = $isRejection ? $this->rejectorName($execution) : null;
         $approvedBy = $isRejection ? null : $this->approverName($execution);
+        $lateResultCount = (int) ($execution->late_results_count ?? 0);
+        if ($lateResultCount < 1 && $execution->late_result_status !== null) {
+            $lateResultCount = 1;
+        }
+        $lateResultAt = $execution->late_result_at?->toIso8601String();
+        $lateResultStatus = $execution->late_result_status;
 
         return [
             'id' => $execution->id,
@@ -187,12 +212,50 @@ class FixLogQuery
             'decision_label' => $this->decisionLabel($execution->status),
             'approved_by' => $approvedBy,
             'decided_by' => $isRejection ? $rejectedBy : $approvedBy,
+            'decided_at' => $isRejection
+                ? $execution->rejected_at?->toIso8601String()
+                : $execution->approved_at?->toIso8601String(),
+            'decision_reason' => $isRejection
+                ? $execution->rejection_reason
+                : $execution->approval_reason,
             'rejected_by' => $rejectedBy,
             'rejected_at' => $isRejection ? $execution->rejected_at?->toIso8601String() : null,
             'rejection_reason' => $isRejection ? $execution->rejection_reason : null,
-            'result' => $execution->status,
+            'result' => $this->formatResult($execution, $lateResultCount),
+            'late_result_status' => $lateResultStatus,
+            'late_result_at' => $lateResultAt,
+            'late_result_count' => $lateResultCount,
             'minutes_saved' => $execution->minutes_saved,
         ];
+    }
+
+    private function formatResult(SafeActionExecution $execution, int $lateResultCount): string
+    {
+        if ($lateResultCount < 1 || $execution->late_result_status === null) {
+            return $execution->status;
+        }
+
+        $statusLabel = match ($execution->status) {
+            SafeActionExecution::STATUS_CANCELLED => 'Cancelled',
+            SafeActionExecution::STATUS_REJECTED => 'Rejected',
+            default => $execution->status,
+        };
+
+        $parts = [
+            sprintf(
+                '%s - addon later reported %s',
+                $statusLabel,
+                $execution->late_result_status,
+            ),
+        ];
+
+        if ($execution->late_result_at !== null) {
+            $parts[] = $execution->late_result_at->toIso8601String();
+        }
+
+        $parts[] = (string) $lateResultCount;
+
+        return implode(' · ', $parts);
     }
 
     private function isRejectionStatus(string $status): bool

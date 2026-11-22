@@ -2,9 +2,11 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
 /**
@@ -42,6 +44,8 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $verified_at
  * @property string|null $late_result_status
  * @property Carbon|null $late_result_at
+ * @property-read Collection<int, SafeActionLateResult> $lateResults
+ * @property-read int|null $late_results_count
  */
 class SafeActionExecution extends Model
 {
@@ -197,5 +201,13 @@ class SafeActionExecution extends Model
     public function rejector(): BelongsTo
     {
         return $this->belongsTo(User::class, 'rejected_by_user_id');
+    }
+
+    /** @return HasMany<SafeActionLateResult, $this> */
+    public function lateResults(): HasMany
+    {
+        return $this->hasMany(SafeActionLateResult::class, 'safe_action_execution_id')
+            ->orderBy('received_at')
+            ->orderBy('id');
     }
 }

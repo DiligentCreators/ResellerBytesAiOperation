@@ -7,6 +7,7 @@ use App\Http\Requests\RejectSafeActionRequest;
 use App\Http\Requests\StoreSafeActionRequest;
 use App\Models\DiagnosticFinding;
 use App\Models\SafeActionExecution;
+use App\Models\SafeActionLateResult;
 use App\Models\User;
 use App\Models\WhmcsIntegration;
 use App\Services\SafeActions\SafeActionExecutor;
@@ -64,6 +65,7 @@ class SafeActionController extends Controller
             'requester:id,name',
             'approver:id,name',
             'rejector:id,name',
+            'lateResults',
         ]);
 
         $definition = app(SafeActionRegistry::class)->get($safeAction->action_key);
@@ -377,6 +379,21 @@ class SafeActionController extends Controller
                 && $execution->wasPickedUpByAgent()
                 ? SafeActionExecution::REJECT_AFTER_PICKUP_MESSAGE
                 : null;
+            $payload['late_results'] = $execution->lateResults
+                ->map(function (SafeActionLateResult $lateResult): array {
+                    $summary = $lateResult->payload_summary['summary'] ?? null;
+                    $errorCode = $lateResult->payload_summary['error_code'] ?? null;
+
+                    return [
+                        'id' => $lateResult->id,
+                        'status' => $lateResult->status,
+                        'summary' => is_string($summary) ? $summary : null,
+                        'error_code' => is_string($errorCode) ? $errorCode : null,
+                        'received_at' => $lateResult->received_at?->toIso8601String(),
+                    ];
+                })
+                ->values()
+                ->all();
         }
 
         return $payload;

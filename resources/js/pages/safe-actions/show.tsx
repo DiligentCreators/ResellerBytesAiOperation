@@ -46,6 +46,13 @@ type Execution = {
     verified_at: string | null;
     late_result_status: string | null;
     late_result_at: string | null;
+    late_results?: Array<{
+        id: string;
+        status: string;
+        summary: string | null;
+        error_code: string | null;
+        received_at: string | null;
+    }>;
     integration_name: string | null;
     requester_name: string | null;
     approver_name: string | null;
@@ -400,24 +407,56 @@ export default function SafeActionShow({
                     </section>
                 ) : null}
 
-                {execution.result ? (
+                {(execution.late_results?.length ?? 0) > 0 ||
+                execution.result?.late === true ? (
                     <section className="rounded-lg border border-border bg-card p-5 shadow-xs">
                         <h2 className="text-sm font-semibold">
-                            {execution.result.late === true
-                                ? 'Late addon result'
-                                : 'Result'}
+                            Late addon results
                         </h2>
-                        {execution.result.late === true ? (
-                            <p className="mt-2 text-xs text-muted-foreground">
-                                Recorded after cancel/reject
-                                {execution.late_result_at
-                                    ? ` · ${formatDateTime(execution.late_result_at, timezone)}`
-                                    : ''}
-                                {execution.late_result_status
-                                    ? ` · ${execution.late_result_status}`
-                                    : ''}
+                        <p className="mt-2 text-xs text-muted-foreground">
+                            Recorded after cancel/reject · latest{' '}
+                            {execution.late_result_status ?? '—'}
+                            {execution.late_result_at
+                                ? ` · ${formatDateTime(execution.late_result_at, timezone)}`
+                                : ''}
+                            {` · ${Math.max(execution.late_results?.length ?? 0, 1)} total`}
+                        </p>
+                        {(execution.late_results?.length ?? 0) > 0 ? (
+                            <ul className="mt-3 space-y-3">
+                                {execution.late_results!.map((lateResult) => (
+                                    <li
+                                        key={lateResult.id}
+                                        className="rounded-md border border-border bg-surface/50 px-3 py-2"
+                                    >
+                                        <p className="text-xs text-muted-foreground">
+                                            {lateResult.received_at
+                                                ? formatDateTime(
+                                                      lateResult.received_at,
+                                                      timezone,
+                                                  )
+                                                : '—'}
+                                            {` · ${lateResult.status}`}
+                                            {lateResult.error_code
+                                                ? ` · ${lateResult.error_code}`
+                                                : ''}
+                                        </p>
+                                        <p className="mt-1 text-sm">
+                                            {lateResult.summary ?? 'No summary'}
+                                        </p>
+                                    </li>
+                                ))}
+                            </ul>
+                        ) : (
+                            <p className="mt-2 text-sm">
+                                {asDisplayString(execution.result?.summary)}
                             </p>
-                        ) : null}
+                        )}
+                    </section>
+                ) : null}
+
+                {execution.result && execution.result.late !== true ? (
+                    <section className="rounded-lg border border-border bg-card p-5 shadow-xs">
+                        <h2 className="text-sm font-semibold">Result</h2>
                         <p className="mt-2 text-sm">
                             {asDisplayString(execution.result.summary)}
                         </p>

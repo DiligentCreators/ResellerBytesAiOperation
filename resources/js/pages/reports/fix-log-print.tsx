@@ -11,10 +11,15 @@ type FixRow = {
     decision_label: string;
     approved_by: string | null;
     decided_by: string | null;
+    decided_at: string | null;
+    decision_reason: string | null;
     rejected_by: string | null;
     rejected_at: string | null;
     rejection_reason: string | null;
     result: string;
+    late_result_status: string | null;
+    late_result_at: string | null;
+    late_result_count: number;
     minutes_saved: number | null;
 };
 

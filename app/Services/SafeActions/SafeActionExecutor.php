@@ -6,6 +6,7 @@ use App\Events\FixActionFailed;
 use App\Models\DiagnosticFinding;
 use App\Models\DiagnosticRun;
 use App\Models\SafeActionExecution;
+use App\Models\SafeActionLateResult;
 use App\Models\User;
 use App\Models\WhmcsIntegration;
 use App\Services\Audit\AuditEventWriter;
@@ -484,19 +485,30 @@ class SafeActionExecutor
     ): SafeActionExecution {
         $receivedAt = now();
         $preservedStatus = $execution->status;
+        $payloadSummary = [
+            'summary' => $summary,
+            'evidence' => $evidence,
+            'error_code' => $errorCode,
+            'applied_by' => 'whmcs_addon',
+            'addon_status' => $status,
+            'late' => true,
+            'preserved_status' => $preservedStatus,
+        ];
+
+        SafeActionLateResult::query()->create([
+            'tenant_id' => $execution->tenant_id,
+            'safe_action_execution_id' => $execution->id,
+            'status' => $status,
+            'payload_summary' => $payloadSummary,
+            'received_at' => $receivedAt,
+        ]);
 
         $execution->forceFill([
             'late_result_status' => $status,
             'late_result_at' => $receivedAt,
             'result' => [
-                'summary' => $summary,
-                'evidence' => $evidence,
-                'error_code' => $errorCode,
-                'applied_by' => 'whmcs_addon',
-                'addon_status' => $status,
-                'late' => true,
+                ...$payloadSummary,
                 'received_at' => $receivedAt->toIso8601String(),
-                'preserved_status' => $preservedStatus,
             ],
         ])->save();
 
