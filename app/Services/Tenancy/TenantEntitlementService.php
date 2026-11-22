@@ -45,7 +45,7 @@ class TenantEntitlementService
             $enabled = $entitlements[$feature] === true;
         } else {
             $subscription->loadMissing('plan');
-            $planEntitlements = (array) ($subscription->plan?->entitlements ?? []);
+            $planEntitlements = (array) ($subscription->plan->entitlements ?? []);
             $enabled = ($planEntitlements[$feature] ?? false) === true;
         }
 

@@ -16,20 +16,20 @@ class FindingContinuityService
      * @param  array{
      *     category: string,
      *     title: string,
-     *     summary?: string,
+     *     summary: string,
      *     evidence_paths: list<string>,
-     *     severity?: string,
-     *     confidence?: mixed,
-     *     recommendations?: mixed
+     *     severity: string,
+     *     confidence: mixed,
+     *     recommendations: list<array{recommendation: string, rationale: string, risk_level: string}>
      * }  $findingData
      * @return array{
      *     category: string,
      *     title: string,
-     *     summary?: string,
+     *     summary: string,
      *     evidence_paths: list<string>,
-     *     severity?: string,
-     *     confidence?: mixed,
-     *     recommendations?: mixed
+     *     severity: string,
+     *     confidence: mixed,
+     *     recommendations: list<array{recommendation: string, rationale: string, risk_level: string}>
      * }
      */
     public function stabilizeFindingData(array $findingData): array

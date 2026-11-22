@@ -8,6 +8,7 @@ use App\Contracts\AuditCheckpointObjectStore;
 use App\Data\AuditCheckpointObjectVersion;
 use DateTimeImmutable;
 use DateTimeZone;
+use JsonException;
 use RuntimeException;
 use Symfony\Component\Process\Process;
 use Throwable;
@@ -37,8 +38,8 @@ final class S3AuditCheckpointObjectStore implements AuditCheckpointObjectStore
                 '--object-lock-retain-until-date', $retainUntil->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d\TH:i:s\Z'),
             ]);
 
-            $version = json_decode($response, true, 512, JSON_THROW_ON_ERROR);
-            $versionId = is_array($version) ? ($version['VersionId'] ?? null) : null;
+            $version = $this->decodeJsonObject($response);
+            $versionId = $version['VersionId'] ?? null;
             if (! is_string($versionId) || trim($versionId) === '') {
                 throw new RuntimeException('audit_anchor_object_version_missing');
             }
@@ -113,8 +114,8 @@ final class S3AuditCheckpointObjectStore implements AuditCheckpointObjectStore
                 '--version-id', $versionId,
                 $path,
             ]);
-            $download = json_decode($response, true, 512, JSON_THROW_ON_ERROR);
-            $downloadVersion = is_array($download) ? ($download['VersionId'] ?? null) : null;
+            $download = $this->decodeJsonObject($response);
+            $downloadVersion = $download['VersionId'] ?? null;
             if (! is_string($downloadVersion) || ! hash_equals($versionId, $downloadVersion)) {
                 throw new RuntimeException('audit_anchor_object_version_mismatch');
             }
@@ -212,12 +213,7 @@ final class S3AuditCheckpointObjectStore implements AuditCheckpointObjectStore
         }
 
         try {
-            $response = json_decode($this->run($settings, $arguments), true, 512, JSON_THROW_ON_ERROR);
-            if (! is_array($response)) {
-                throw new RuntimeException('audit_anchor_storage_invalid_response');
-            }
-
-            return $response;
+            return $this->decodeJsonObject($this->run($settings, $arguments));
         } catch (RuntimeException $exception) {
             if (str_contains($exception->getMessage(), 'NoSuchKey')
                 || str_contains($exception->getMessage(), 'Not Found')
@@ -230,14 +226,37 @@ final class S3AuditCheckpointObjectStore implements AuditCheckpointObjectStore
     }
 
     /**
+     * @return array<string, mixed>
+     */
+    private function decodeJsonObject(string $payload): array
+    {
+        try {
+            $decoded = json_decode($payload, true, 512, JSON_THROW_ON_ERROR);
+        } catch (JsonException $exception) {
+            throw new RuntimeException('audit_anchor_storage_invalid_response', 0, $exception);
+        }
+
+        if (! is_array($decoded)) {
+            throw new RuntimeException('audit_anchor_storage_invalid_response');
+        }
+
+        return $decoded;
+    }
+
+    /**
      * @param  array{bucket: string, endpoint: string, region: string, aws_binary: string, access_key: string, secret_key: string}  $settings
      * @param  list<string>  $arguments
      */
     private function run(array $settings, array $arguments): string
     {
+        $binary = $settings['aws_binary'];
+        // PHP stubs (tests / constrained environments) must run through the PHP binary;
+        // shebang scripts are not portable on Windows.
+        $command = str_ends_with(strtolower($binary), '.php')
+            ? [PHP_BINARY, $binary, ...$arguments]
+            : [$binary, ...$arguments];
         $command = [
-            $settings['aws_binary'],
-            ...$arguments,
+            ...$command,
             '--endpoint-url', $settings['endpoint'],
             '--region', $settings['region'],
             '--output', 'json',

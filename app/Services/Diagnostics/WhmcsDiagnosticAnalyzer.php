@@ -25,7 +25,21 @@ class WhmcsDiagnosticAnalyzer
     ];
 
     /**
-     * @return array{summary: string, no_findings_reason: ?string, findings: array<int, array<string, mixed>>, response_id: ?string, usage: array<string, int>}
+     * @return array{
+     *     summary: string,
+     *     no_findings_reason: ?string,
+     *     findings: list<array{
+     *         category: string,
+     *         severity: string,
+     *         title: string,
+     *         summary: string,
+     *         evidence_paths: list<string>,
+     *         confidence: mixed,
+     *         recommendations: list<array{recommendation: string, rationale: string, risk_level: string}>
+     *     }>,
+     *     response_id: ?string,
+     *     usage: array<string, int>
+     * }
      */
     public function analyze(DiagnosticRun $run, ?callable $beforeSubmit = null, ?callable $afterResponse = null): array
     {
@@ -251,7 +265,19 @@ PROMPT;
     /**
      * @param  array<string, mixed>  $decoded
      * @param  array<string, mixed>  $payload
-     * @return array{summary: string, no_findings_reason: ?string, findings: array<int, array<string, mixed>>}
+     * @return array{
+     *     summary: string,
+     *     no_findings_reason: ?string,
+     *     findings: list<array{
+     *         category: string,
+     *         severity: string,
+     *         title: string,
+     *         summary: string,
+     *         evidence_paths: list<string>,
+     *         confidence: mixed,
+     *         recommendations: list<array{recommendation: string, rationale: string, risk_level: string}>
+     *     }>
+     * }
      */
     private function validateOutput(array $decoded, array $payload): array
     {
@@ -306,8 +332,44 @@ PROMPT;
             throw new RuntimeException('provider_no_findings_reason_unexpected');
         }
 
-        /** @var array<int, array<string, mixed>> $findings */
-        $findings = $this->filterFindingsByEvidence(array_values($validated['findings']), $payload);
+        $normalized = [];
+        foreach (array_values($validated['findings']) as $finding) {
+            if (! is_array($finding)) {
+                throw new RuntimeException('provider_output_schema_invalid');
+            }
+
+            $paths = [];
+            foreach ($finding['evidence_paths'] as $path) {
+                if (is_string($path)) {
+                    $paths[] = $path;
+                }
+            }
+
+            $recommendations = [];
+            foreach ($finding['recommendations'] ?? [] as $recommendation) {
+                if (! is_array($recommendation)) {
+                    throw new RuntimeException('provider_output_schema_invalid');
+                }
+
+                $recommendations[] = [
+                    'recommendation' => (string) $recommendation['recommendation'],
+                    'rationale' => (string) $recommendation['rationale'],
+                    'risk_level' => (string) $recommendation['risk_level'],
+                ];
+            }
+
+            $normalized[] = [
+                'category' => (string) $finding['category'],
+                'severity' => (string) $finding['severity'],
+                'title' => (string) $finding['title'],
+                'summary' => (string) $finding['summary'],
+                'evidence_paths' => $paths,
+                'confidence' => $finding['confidence'],
+                'recommendations' => $recommendations,
+            ];
+        }
+
+        $findings = $this->filterFindingsByEvidence($normalized, $payload);
 
         $noFindingsReason = is_string($validated['no_findings_reason'])
             ? $validated['no_findings_reason']
@@ -329,9 +391,25 @@ PROMPT;
     /**
      * Keep findings that still have at least one verified evidence path; strip unverifiable paths.
      *
-     * @param  array<int, array<string, mixed>>  $findings
+     * @param  list<array{
+     *     category: string,
+     *     severity: string,
+     *     title: string,
+     *     summary: string,
+     *     evidence_paths: list<string>,
+     *     confidence: mixed,
+     *     recommendations: list<array{recommendation: string, rationale: string, risk_level: string}>
+     * }>  $findings
      * @param  array<string, mixed>  $payload
-     * @return array<int, array<string, mixed>>
+     * @return list<array{
+     *     category: string,
+     *     severity: string,
+     *     title: string,
+     *     summary: string,
+     *     evidence_paths: list<string>,
+     *     confidence: mixed,
+     *     recommendations: list<array{recommendation: string, rationale: string, risk_level: string}>
+     * }>
      */
     private function filterFindingsByEvidence(array $findings, array $payload): array
     {
@@ -341,7 +419,7 @@ PROMPT;
             $validPaths = [];
 
             foreach ($finding['evidence_paths'] as $path) {
-                if (is_string($path) && $this->hasEvidencePath($payload, $path)) {
+                if ($this->hasEvidencePath($payload, $path)) {
                     $validPaths[] = $path;
                 }
             }
