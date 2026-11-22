@@ -47,6 +47,9 @@ class FindingController extends Controller
 
         if ($statusFilter === 'active') {
             $query->active();
+        } elseif (in_array($statusFilter, DiagnosticFinding::CLOSED_STATUSES, true)) {
+            // Merged duplicates are closed only as dedupe copies — not customer "fixed" issues.
+            $query->notMerged()->where('status', $statusFilter);
         } elseif (in_array($statusFilter, DiagnosticFinding::STATUSES, true)) {
             $query->where('status', $statusFilter);
         }

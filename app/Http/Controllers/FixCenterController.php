@@ -52,7 +52,7 @@ class FixCenterController extends Controller
         } elseif ($tab === 'fixing') {
             $query->notIgnored()->where('status', DiagnosticFinding::STATUS_IN_PROGRESS);
         } elseif ($tab === 'fixed') {
-            $query->whereIn('status', DiagnosticFinding::CLOSED_STATUSES);
+            $query->notMerged()->whereIn('status', DiagnosticFinding::CLOSED_STATUSES);
         } else {
             $query->ignored();
         }
@@ -184,7 +184,7 @@ class FixCenterController extends Controller
         return [
             'open' => (clone $base)->notIgnored()->where('status', DiagnosticFinding::STATUS_OPEN)->count(),
             'fixing' => (clone $base)->notIgnored()->where('status', DiagnosticFinding::STATUS_IN_PROGRESS)->count(),
-            'fixed' => (clone $base)->whereIn('status', DiagnosticFinding::CLOSED_STATUSES)->count(),
+            'fixed' => (clone $base)->notMerged()->whereIn('status', DiagnosticFinding::CLOSED_STATUSES)->count(),
             'ignored' => (clone $base)->ignored()->count(),
         ];
     }

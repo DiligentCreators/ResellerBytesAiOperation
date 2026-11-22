@@ -338,6 +338,35 @@ it('returns 404 for another tenant fix center actions', function () {
         ->assertNotFound();
 });
 
+it('does not inflate fixed tab or counts with merged duplicate findings', function () {
+    $workspace = createFixCenterWorkspace();
+
+    $genuine = createFixCenterFinding($workspace, 'service.suspended_but_paid', [
+        'status' => DiagnosticFinding::STATUS_RESOLVED,
+        'resolved_at' => now()->subHour(),
+        'merged_into_finding_id' => null,
+    ]);
+
+    createFixCenterFinding($workspace, 'cron.not_running', [
+        'fix_mode' => 'guided',
+        'category' => 'cron',
+        'severity' => 'critical',
+        'status' => DiagnosticFinding::STATUS_RESOLVED,
+        'resolved_at' => now()->subMinutes(30),
+        'merged_into_finding_id' => $genuine->id,
+    ]);
+
+    $this->actingAs($workspace['owner'])
+        ->get('/fix-center?tab=fixed')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('fix-center/index')
+            ->where('filters.tab', 'fixed')
+            ->where('counts.fixed', 1)
+            ->has('issues.data', 1)
+            ->where('issues.data.0.id', $genuine->id));
+});
+
 it('keeps legacy findings and safe-actions pages working with fix center links', function () {
     $workspace = createFixCenterWorkspace();
     $finding = createFixCenterFinding($workspace, 'cron.not_running', [

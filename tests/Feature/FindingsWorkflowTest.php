@@ -223,6 +223,37 @@ it('compares finding fingerprints against a newer analyzed run', function () {
     expect(app(FindingRecheckComparer::class)->compare($finding->fresh())['status'])->toBe('still_present');
 });
 
+it('excludes merged duplicates from the resolved findings filter', function () {
+    ['owner' => $owner, 'run' => $run, 'tenant' => $tenant, 'finding' => $genuine] = createFindingWorkspace(null, [
+        'status' => DiagnosticFinding::STATUS_RESOLVED,
+        'resolved_at' => now()->subHour(),
+        'merged_into_finding_id' => null,
+    ]);
+
+    DiagnosticFinding::create([
+        'diagnostic_run_id' => $run->id,
+        'tenant_id' => $tenant->id,
+        'fingerprint' => hash('sha256', 'merged-duplicate|'.uniqid()),
+        'category' => 'cron',
+        'severity' => 'warning',
+        'title' => 'Merged duplicate copy',
+        'summary' => 'Closed only because it was merged.',
+        'evidence' => [],
+        'status' => DiagnosticFinding::STATUS_RESOLVED,
+        'resolved_at' => now()->subMinutes(30),
+        'merged_into_finding_id' => $genuine->id,
+    ]);
+
+    $this->actingAs($owner)
+        ->get('/findings?status=resolved')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('findings/index')
+            ->has('findings.data', 1)
+            ->where('findings.data.0.id', $genuine->id)
+            ->where('filters.status', 'resolved'));
+});
+
 it('shows last scan clean on findings index when analyzed and no active findings', function () {
     ['owner' => $owner, 'finding' => $finding] = createFindingWorkspace(null, [
         'status' => DiagnosticFinding::STATUS_RESOLVED,
