@@ -2,6 +2,7 @@
 
 use ResellerBytesAiOps\CredentialsFile;
 use ResellerBytesAiOps\CronMonitor;
+use ResellerBytesAiOps\FailureCode;
 use ResellerBytesAiOps\RuntimeRoots;
 use ResellerBytesAiOps\SignedApiClient;
 use ResellerBytesAiOps\WhmcsActivityLogger;
@@ -13,6 +14,7 @@ if (! defined('WHMCS')) {
 
 require_once __DIR__.'/lib/CredentialsFile.php';
 require_once __DIR__.'/lib/RuntimeRoots.php';
+require_once __DIR__.'/lib/FailureCode.php';
 require_once __DIR__.'/lib/WhmcsDataSource.php';
 require_once __DIR__.'/lib/CapsuleWhmcsDataSource.php';
 require_once __DIR__.'/lib/SnapshotRedactor.php';
@@ -94,7 +96,7 @@ add_hook('AfterCronJob', 1, static function (): void {
     } catch (Throwable $exception) {
         // Heartbeat / auto-collect / remediation failures must never interrupt WHMCS cron.
         try {
-            $code = $exception->getMessage();
+            $code = FailureCode::sanitize($exception->getMessage());
             $previousFailure = $GLOBALS['resellerbytes_ai_ops_last_hook_failure'] ?? null;
             if ($previousFailure !== $code) {
                 (new WhmcsActivityLogger)->log('ResellerBytes AI Ops cron hook failed: '.$code);

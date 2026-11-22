@@ -43,6 +43,7 @@ jobs:
           php whmcs-addon/tests/cron_monitor_test.php
           php whmcs-addon/tests/remediation_localapi_test.php
           php whmcs-addon/tests/runtime_roots_test.php
+          php whmcs-addon/tests/failure_code_test.php
           php whmcs-addon/tests/cron_hook_test.php
 
   ci:

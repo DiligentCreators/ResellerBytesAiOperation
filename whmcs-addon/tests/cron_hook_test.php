@@ -44,6 +44,11 @@ namespace WHMCS\Database {
     {
         public static function table(string $table): CapsuleQuery
         {
+            $throwMessage = $GLOBALS['rb_test_capsule_throw_message'] ?? null;
+            if (is_string($throwMessage) && $throwMessage !== '') {
+                throw new \RuntimeException($throwMessage);
+            }
+
             return new CapsuleQuery($table);
         }
     }
@@ -217,10 +222,45 @@ namespace {
             ! str_contains($GLOBALS['rb_activity_logs'][0], $credentialsPath),
             'Failure log must never contain the credentials path.',
         );
+        assertCronHook(
+            $GLOBALS['rb_activity_logs'][0] === 'ResellerBytes AI Ops cron hook failed: credentials_file_path_must_be_absolute',
+            'Snake_case failure codes must be logged as-is.',
+        );
 
         $GLOBALS['rb_activity_logs'] = [];
         $afterCronJob();
         assertCronHook($GLOBALS['rb_activity_logs'] === [], 'Identical hook failure codes must not spam the activity log.');
+
+        // Dirty exception messages must never reach the activity log.
+        $dirtyMessage = 'SQLSTATE[HY000] General error: SELECT * FROM secrets at /var/www/secret/path';
+        $GLOBALS['rb_test_credentials_path'] = $credentialsPath;
+        $GLOBALS['rb_test_capsule_throw_message'] = $dirtyMessage;
+        $GLOBALS['rb_activity_logs'] = [];
+        $GLOBALS['resellerbytes_ai_ops_last_hook_failure'] = null;
+        $_SERVER['DOCUMENT_ROOT'] = '';
+        $afterCronJob();
+        assertCronHook(count($GLOBALS['rb_activity_logs']) === 1, 'Dirty exceptions must log a single sanitized activity line.');
+        assertCronHook(
+            $GLOBALS['rb_activity_logs'][0] === 'ResellerBytes AI Ops cron hook failed: unexpected_error',
+            'Dirty exception messages must be logged as unexpected_error.',
+        );
+        assertCronHook(
+            ! str_contains($GLOBALS['rb_activity_logs'][0], 'SQLSTATE'),
+            'Failure log must never contain SQLSTATE text.',
+        );
+        assertCronHook(
+            ! str_contains($GLOBALS['rb_activity_logs'][0], '/var/www/secret/path'),
+            'Failure log must never contain filesystem paths.',
+        );
+        assertCronHook(
+            ! str_contains($GLOBALS['rb_activity_logs'][0], 'SELECT'),
+            'Failure log must never contain SQL text.',
+        );
+
+        $GLOBALS['rb_activity_logs'] = [];
+        $afterCronJob();
+        assertCronHook($GLOBALS['rb_activity_logs'] === [], 'Identical sanitized unexpected_error codes must not spam the activity log.');
+        $GLOBALS['rb_test_capsule_throw_message'] = null;
 
         // Success path under CLI with empty DOCUMENT_ROOT (POSIX absolute paths only).
         if (DIRECTORY_SEPARATOR === '/') {

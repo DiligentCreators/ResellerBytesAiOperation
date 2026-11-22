@@ -55,6 +55,7 @@ it('downloads an addon archive with a verifiable Ed25519 signature and expected 
     expect($archive->locateName('resellerbytes_ai_ops/resellerbytes_ai_ops.php'))->not->toBeFalse();
     expect($archive->locateName('resellerbytes_ai_ops/lib/CredentialsFile.php'))->not->toBeFalse();
     expect($archive->locateName('resellerbytes_ai_ops/lib/RuntimeRoots.php'))->not->toBeFalse();
+    expect($archive->locateName('resellerbytes_ai_ops/lib/FailureCode.php'))->not->toBeFalse();
     expect($archive->locateName('resellerbytes_ai_ops/lib/DiagnosticCollector.php'))->not->toBeFalse();
     expect($archive->locateName('resellerbytes_ai_ops/lib/SignedApiClient.php'))->not->toBeFalse();
     if (is_file(base_path('whmcs-addon/modules/addons/resellerbytes_ai_ops/hooks.php'))) {
