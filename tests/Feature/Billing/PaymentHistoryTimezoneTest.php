@@ -10,6 +10,7 @@ use Database\Seeders\PlanSeeder;
 
 it('passes a labelled timezone for payment history rendering', function (): void {
     test()->seed(PlanSeeder::class);
+    priceSeededCatalog();
     config()->set('billing.default_gateway', 'sandbox');
 
     $tenant = Tenant::create([
@@ -47,6 +48,7 @@ it('passes a labelled timezone for payment history rendering', function (): void
 
 it('falls back to UTC when the tenant has no timezone', function (): void {
     test()->seed(PlanSeeder::class);
+    priceSeededCatalog();
     config()->set('billing.default_gateway', 'sandbox');
 
     $tenant = Tenant::create([

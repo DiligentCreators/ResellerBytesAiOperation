@@ -21,6 +21,9 @@ class RouteRateLimiterServiceProvider extends ServiceProvider
         'onboarding-workspace' => 20,
         'onboarding-plan' => 20,
         'onboarding-whmcs' => 20,
+        'onboarding-heartbeat-status' => 30,
+        'onboarding-first-scan' => 20,
+        'onboarding-getting-started-dismiss' => 20,
         'billing-checkout-store' => 10,
         'billing-trial-store' => 10,
         'billing-sandbox-approve' => 20,
@@ -30,6 +33,8 @@ class RouteRateLimiterServiceProvider extends ServiceProvider
         'platform-staff-destroy' => 10,
         'platform-mail-settings-update' => 10,
         'platform-mail-settings-test' => 3,
+        'platform-settings-update' => 10,
+        'platform-settings-reset' => 20,
         'platform-ai-settings-update' => 10,
         'platform-ai-settings-generate-signing-keys' => 5,
         'platform-billing-gateway-replay' => 20,
@@ -48,7 +53,15 @@ class RouteRateLimiterServiceProvider extends ServiceProvider
         'tenants-memberships-revoke' => 20,
         'tenants-notifications-index' => 30,
         'tenants-notifications-read' => 30,
+        'tenants-alerts-index' => 30,
+        'tenants-alerts-store' => 20,
+        'tenants-alerts-update' => 20,
+        'tenants-alerts-destroy' => 20,
+        'tenants-alerts-test' => 5,
+        'tenants-auto-fix-update' => 20,
         'tenants-audit-events-export' => 3,
+        'reports-fix-log-export' => 5,
+        'reports-resend' => 5,
         'billing-settings-details' => 20,
         'billing-subscriptions-cancel' => 10,
         'billing-subscriptions-resume' => 10,
@@ -57,6 +70,7 @@ class RouteRateLimiterServiceProvider extends ServiceProvider
         'diagnostic-runs-reanalyze' => 5,
         'whmcs-addon-download' => 10,
         'api-whmcs-diagnostic-snapshots' => 30,
+        'api-whmcs-heartbeats' => 60,
         'user-password-update' => 6,
     ];
 
@@ -64,6 +78,15 @@ class RouteRateLimiterServiceProvider extends ServiceProvider
     {
         foreach (self::LIMITS as $name => $perMinute) {
             RateLimiter::for($name, function (Request $request) use ($name, $perMinute) {
+                if ($name === 'api-whmcs-heartbeats') {
+                    $integrationId = $request->header('X-RB-Integration');
+                    $actor = is_string($integrationId) && $integrationId !== ''
+                        ? $integrationId
+                        : ($request->ip() ?? 'anonymous');
+
+                    return Limit::perMinute($perMinute)->by($name.'|'.$actor);
+                }
+
                 $actor = $request->user()?->getAuthIdentifier() ?? $request->ip();
 
                 return Limit::perMinute($perMinute)->by($name.'|'.$actor);

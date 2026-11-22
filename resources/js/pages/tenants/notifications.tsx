@@ -1,4 +1,4 @@
-import { Head, router } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import { Bell } from 'lucide-react';
 import { EmptyState } from '@/components/empty-state';
 import { PageHeader } from '@/components/page-header';
@@ -40,6 +40,13 @@ export default function TenantNotifications({ tenant, notifications }: Props) {
                         icon={Bell}
                         title="No notifications yet"
                         description="Operational alerts for this workspace will show up here."
+                        action={
+                            <Button size="sm" asChild>
+                                <Link href={`/tenants/${tenant.id}/alerts`}>
+                                    Add an alert channel
+                                </Link>
+                            </Button>
+                        }
                     />
                 ) : (
                     <div className="overflow-hidden rounded-lg border border-border bg-card shadow-xs">

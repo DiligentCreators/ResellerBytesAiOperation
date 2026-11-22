@@ -117,10 +117,20 @@ type SuggestedSafeAction = {
     risk_level: string;
     requires_password_confirm: boolean;
     execution_target: string;
+    entitlement?: string;
+    bulk_allowed?: boolean;
+    max_items?: number;
+    can_one_click?: boolean;
+    can_bulk?: boolean;
+    upgrade_hint?: string | null;
 };
 
 type Props = {
-    finding: Finding;
+    finding: Finding & {
+        issue_key?: string | null;
+        affected_count?: number | null;
+        affected_ids?: number[];
+    };
     playbook: Playbook;
     recheck: Recheck;
     assignees: Assignee[];
@@ -129,6 +139,8 @@ type Props = {
     suggested_safe_actions?: SuggestedSafeAction[];
     blocked_safe_action_keys?: string[];
     safe_actions_enabled?: boolean;
+    fixes_one_click_enabled?: boolean;
+    fixes_bulk_enabled?: boolean;
 };
 
 export default function FindingShow({
@@ -140,7 +152,6 @@ export default function FindingShow({
     statuses,
     suggested_safe_actions = [],
     blocked_safe_action_keys = [],
-    safe_actions_enabled = false,
 }: Props) {
     const timezone = useWorkspaceTimezone();
     const { flash } = usePage().props as {
@@ -148,6 +159,9 @@ export default function FindingShow({
     };
     const [, copy] = useClipboard();
     const [copied, setCopied] = useState(false);
+    const [selectedIds, setSelectedIds] = useState<number[]>(
+        finding.affected_ids ?? [],
+    );
     const [statusNote, setStatusNote] = useState(finding.status_note ?? '');
 
     const copyChecklist = async () => {
@@ -174,6 +188,9 @@ export default function FindingShow({
                     description={`${finding.integration_name} · Guided Fix Center — WHMCS stays read-only for this platform`}
                     actions={
                         <div className="flex flex-wrap items-center gap-2">
+                            <Button variant="outline" size="sm" asChild>
+                                <Link href="/fix-center">Open Fix Center</Link>
+                            </Button>
                             <StatusBadge status={finding.severity} />
                             <StatusBadge status={finding.status} />
                             <StatusBadge
@@ -223,7 +240,9 @@ export default function FindingShow({
                         Re-check vs latest scan
                     </Button>
                     <Button variant="outline" size="sm" asChild>
-                        <Link href={`/diagnostic-runs/${finding.diagnostic_run_id}`}>
+                        <Link
+                            href={`/diagnostic-runs/${finding.diagnostic_run_id}`}
+                        >
                             Source snapshot
                         </Link>
                     </Button>
@@ -238,7 +257,6 @@ export default function FindingShow({
                 </section>
 
                 {can_manage &&
-                safe_actions_enabled &&
                 finding.integration_id &&
                 (suggested_safe_actions.length > 0 ||
                     blocked_safe_action_keys.length > 0) ? (
@@ -247,9 +265,9 @@ export default function FindingShow({
                             Request Safe Action
                         </h2>
                         <p className="mt-1 text-sm text-muted-foreground">
-                            Flow: Approve here → Apply in WHMCS → Verify scan.
-                            The finding clears only when runtime proof matches —
-                            never free-form AI repairs.
+                            Preview affected IDs, approve, apply in WHMCS, then
+                            verify. The finding clears only when the next
+                            snapshot shows it cleared or reduced.
                         </p>
                         {blocked_safe_action_keys.length > 0 ? (
                             <p className="mt-3 text-sm text-warning-fg">
@@ -257,6 +275,47 @@ export default function FindingShow({
                                 progress (awaiting apply or verify). Finish that
                                 cycle before requesting again.
                             </p>
+                        ) : null}
+                        {(finding.affected_ids?.length ?? 0) > 0 ? (
+                            <div className="mt-4 space-y-2">
+                                <p className="text-xs font-medium text-muted-foreground">
+                                    Affected items (select for bulk)
+                                </p>
+                                <ul className="flex flex-wrap gap-2">
+                                    {finding.affected_ids?.map((id) => {
+                                        const checked =
+                                            selectedIds.includes(id);
+                                        return (
+                                            <li key={id}>
+                                                <label className="inline-flex items-center gap-1.5 rounded-md border border-border px-2 py-1 text-xs">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={checked}
+                                                        onChange={() => {
+                                                            setSelectedIds(
+                                                                (current) =>
+                                                                    checked
+                                                                        ? current.filter(
+                                                                              (
+                                                                                  value,
+                                                                              ) =>
+                                                                                  value !==
+                                                                                  id,
+                                                                          )
+                                                                        : [
+                                                                              ...current,
+                                                                              id,
+                                                                          ],
+                                                            );
+                                                        }}
+                                                    />
+                                                    #{id}
+                                                </label>
+                                            </li>
+                                        );
+                                    })}
+                                </ul>
+                            </div>
                         ) : null}
                         {suggested_safe_actions.length > 0 ? (
                             <ul className="mt-4 space-y-3">
@@ -272,41 +331,75 @@ export default function FindingShow({
                                             <p className="text-sm text-muted-foreground">
                                                 {action.description}
                                             </p>
+                                            {action.upgrade_hint ? (
+                                                <p className="mt-2 text-sm text-warning-fg">
+                                                    {action.upgrade_hint}
+                                                </p>
+                                            ) : null}
                                         </div>
-                                        <Form
-                                            {...storeSafeAction.form()}
-                                            className="shrink-0"
-                                        >
-                                            {({ processing }) => (
-                                                <>
-                                                    <input
-                                                        type="hidden"
-                                                        name="integration_id"
-                                                        value={
-                                                            finding.integration_id ??
-                                                            ''
-                                                        }
-                                                    />
-                                                    <input
-                                                        type="hidden"
-                                                        name="action_key"
-                                                        value={action.key}
-                                                    />
-                                                    <input
-                                                        type="hidden"
-                                                        name="finding_id"
-                                                        value={finding.id}
-                                                    />
-                                                    <Button
-                                                        type="submit"
-                                                        size="sm"
-                                                        disabled={processing}
-                                                    >
-                                                        Request approval
-                                                    </Button>
-                                                </>
-                                            )}
-                                        </Form>
+                                        {action.can_one_click ? (
+                                            <Form
+                                                {...storeSafeAction.form()}
+                                                className="shrink-0"
+                                            >
+                                                {({ processing }) => (
+                                                    <>
+                                                        <input
+                                                            type="hidden"
+                                                            name="integration_id"
+                                                            value={
+                                                                finding.integration_id ??
+                                                                ''
+                                                            }
+                                                        />
+                                                        <input
+                                                            type="hidden"
+                                                            name="action_key"
+                                                            value={action.key}
+                                                        />
+                                                        <input
+                                                            type="hidden"
+                                                            name="finding_id"
+                                                            value={finding.id}
+                                                        />
+                                                        <input
+                                                            type="hidden"
+                                                            name="input[mode]"
+                                                            value={
+                                                                action.can_bulk &&
+                                                                selectedIds.length >
+                                                                    1
+                                                                    ? 'bulk'
+                                                                    : 'one_click'
+                                                            }
+                                                        />
+                                                        {(action.can_bulk
+                                                            ? selectedIds
+                                                            : selectedIds.slice(
+                                                                  0,
+                                                                  1,
+                                                              )
+                                                        ).map((id) => (
+                                                            <input
+                                                                key={id}
+                                                                type="hidden"
+                                                                name="input[target_ids][]"
+                                                                value={id}
+                                                            />
+                                                        ))}
+                                                        <Button
+                                                            type="submit"
+                                                            size="sm"
+                                                            disabled={
+                                                                processing
+                                                            }
+                                                        >
+                                                            Request approval
+                                                        </Button>
+                                                    </>
+                                                )}
+                                            </Form>
+                                        ) : null}
                                     </li>
                                 ))}
                             </ul>
@@ -324,7 +417,7 @@ export default function FindingShow({
                         <Form
                             {...updateFinding.form(finding.id)}
                             className="mt-4 grid gap-4 sm:grid-cols-2"
-                            preserveScroll
+                            options={{ preserveScroll: true }}
                         >
                             {({ processing }) => (
                                 <>
@@ -380,7 +473,9 @@ export default function FindingShow({
                                             name="status_note"
                                             value={statusNote}
                                             onChange={(event) =>
-                                                setStatusNote(event.target.value)
+                                                setStatusNote(
+                                                    event.target.value,
+                                                )
                                             }
                                             rows={2}
                                             maxLength={500}
@@ -416,8 +511,7 @@ export default function FindingShow({
                     <section className="rounded-lg border border-border bg-card p-5 shadow-xs">
                         <h2 className="text-sm font-semibold">Workflow</h2>
                         <p className="mt-2 text-sm text-muted-foreground">
-                            Status:{' '}
-                            <StatusBadge status={finding.status} />
+                            Status: <StatusBadge status={finding.status} />
                             {finding.assignee
                                 ? ` · Assigned to ${finding.assignee.name}`
                                 : ' · Unassigned'}
@@ -535,14 +629,12 @@ export default function FindingShow({
                             className="size-4 text-slate-brand"
                             aria-hidden
                         />
-                        <h2 className="text-sm font-semibold">
-                            3. Safe steps
-                        </h2>
+                        <h2 className="text-sm font-semibold">3. Safe steps</h2>
                         <StatusBadge status={playbook.change_risk} />
                     </div>
                     <p className="mb-4 text-xs font-medium text-warning-fg">
-                        Manual action in WHMCS only — this platform never
-                        writes to WHMCS or invents free-form repairs.
+                        Manual action in WHMCS only — this platform never writes
+                        to WHMCS or invents free-form repairs.
                     </p>
                     {playbook.safe_steps.length === 0 ? (
                         <p className="text-sm text-muted-foreground">

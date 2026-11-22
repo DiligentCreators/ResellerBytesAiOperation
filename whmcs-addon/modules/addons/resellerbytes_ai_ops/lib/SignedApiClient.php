@@ -9,7 +9,7 @@ final class SignedApiClient
 {
     private const BASE_URL = 'https://ops.resellerbytes.com';
 
-    public const ADDON_VERSION = '1.1.0';
+    public const ADDON_VERSION = '1.2.0';
 
     private const MAX_RESPONSE_BYTES = 16384;
 
@@ -22,7 +22,7 @@ final class SignedApiClient
     {
         $snapshot = [
             'snapshot_uuid' => $this->uuidV4(),
-            'schema_version' => '1.0',
+            'schema_version' => '1.1',
             'addon_version' => self::ADDON_VERSION,
             'collected_at' => gmdate('Y-m-d\TH:i:s\Z'),
             'payload' => $diagnostics,
@@ -47,6 +47,48 @@ final class SignedApiClient
         return [
             'http_status' => $response['http_status'],
             'duplicate' => $response['json']['data']['duplicate'],
+        ];
+    }
+
+    /**
+     * @param  array{integration_id: string, secret: string}  $credentials
+     * @param  array<string, mixed>  $body
+     * @return array{http_status: int, accepted: bool, auto_collect_due: bool, pending_approved_actions: bool}
+     */
+    public function heartbeat(
+        array $credentials,
+        array $body,
+        int $connectTimeout = 5,
+        int $timeout = 30,
+    ): array {
+        try {
+            $response = $this->request(
+                $credentials,
+                'POST',
+                '/api/v1/whmcs/heartbeats',
+                $body,
+                $connectTimeout,
+                $timeout,
+            );
+        } catch (RuntimeException $exception) {
+            if ($exception->getMessage() === 'http_response_invalid') {
+                throw new RuntimeException('heartbeat_response_invalid');
+            }
+
+            throw new RuntimeException('heartbeat_submission_failed');
+        }
+
+        if (! in_array($response['http_status'], [200, 202], true)
+            || ! isset($response['json']['data']['accepted'])
+            || ! is_bool($response['json']['data']['accepted'])) {
+            throw new RuntimeException('heartbeat_submission_failed');
+        }
+
+        return [
+            'http_status' => $response['http_status'],
+            'accepted' => $response['json']['data']['accepted'],
+            'auto_collect_due' => (bool) ($response['json']['data']['auto_collect_due'] ?? false),
+            'pending_approved_actions' => (bool) ($response['json']['data']['pending_approved_actions'] ?? false),
         ];
     }
 
@@ -106,8 +148,14 @@ final class SignedApiClient
      * @param  array<string, mixed>|null  $jsonBody
      * @return array{http_status: int, json: array<string, mixed>}
      */
-    public function request(array $credentials, string $method, string $path, ?array $jsonBody): array
-    {
+    public function request(
+        array $credentials,
+        string $method,
+        string $path,
+        ?array $jsonBody,
+        int $connectTimeout = 5,
+        int $timeout = 30,
+    ): array {
         if (! function_exists('curl_init')) {
             throw new RuntimeException('curl_extension_unavailable');
         }
@@ -167,8 +215,8 @@ final class SignedApiClient
 
                 return strlen($chunk);
             },
-            CURLOPT_CONNECTTIMEOUT => 5,
-            CURLOPT_TIMEOUT => 30,
+            CURLOPT_CONNECTTIMEOUT => max(1, $connectTimeout),
+            CURLOPT_TIMEOUT => max(1, $timeout),
             CURLOPT_FOLLOWLOCATION => false,
             CURLOPT_SSL_VERIFYPEER => true,
             CURLOPT_SSL_VERIFYHOST => 2,

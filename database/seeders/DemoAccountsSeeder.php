@@ -11,10 +11,10 @@ use App\Models\TenantSubscription;
 use App\Models\User;
 use App\Services\Audit\AuditEventWriter;
 use App\Services\Billing\InvoiceNumberGenerator;
+use App\Support\Operations\DemoAccountsPassword;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Laravel\Fortify\Contracts\TwoFactorAuthenticationProvider;
-use RuntimeException;
 
 class DemoAccountsSeeder extends Seeder
 {
@@ -24,12 +24,8 @@ class DemoAccountsSeeder extends Seeder
             return;
         }
 
-        // Local demo password: config/operations.php → demo_accounts.password (DEMO_ACCOUNTS_PASSWORD).
-        // No hard-coded fallback here — production already returns early; non-production uses config default.
-        $password = (string) config('operations.demo_accounts.password');
-        if ($password === '') {
-            throw new RuntimeException('DEMO_ACCOUNTS_PASSWORD / operations.demo_accounts.password is required outside production.');
-        }
+        // Local demo password: env/config, or a stable encrypted per-install value (DemoAccountsPassword).
+        $password = app(DemoAccountsPassword::class)->resolve();
 
         $recoveryCodes = [
             'LOCAL-TEST-RECOVERY-01',
@@ -128,14 +124,13 @@ class DemoAccountsSeeder extends Seeder
                 ]);
             }
 
-            if (Plan::query()->where('code', 'growth')->doesntExist()) {
-                $this->call(PlanSeeder::class);
-            }
+            // PlanSeeder only creates missing codes and never overwrites live prices.
+            $this->call(PlanSeeder::class);
 
             $growth = Plan::query()->where('code', 'growth')->firstOrFail();
-
             if (! TenantSubscription::query()->where('tenant_id', $tenant->id)->exists()) {
-                $amount = $growth->price_monthly_minor;
+                // Snapshot amount for demo invoices only — never hardcode catalog prices.
+                $amount = $growth->price_monthly_minor ?? random_int(1_000, 99_999);
                 $entitlements = $growth->entitlements;
 
                 $subscription = TenantSubscription::create([

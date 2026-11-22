@@ -2,6 +2,8 @@
 
 namespace App\Services\Tenancy;
 
+use App\Models\DiagnosticFinding;
+use App\Models\DiagnosticRun;
 use App\Models\Tenant;
 use App\Models\TenantSubscription;
 use App\Models\WhmcsIntegration;
@@ -12,7 +14,13 @@ class OnboardingProgress
      * Derive onboarding step completion from real tenant state, persist
      * onboarding_completed_at when every step is done, and return checklist data.
      *
-     * @return array{needed: bool, tenant_id: string, steps: array{workspace: bool, plan: bool, whmcs: bool}, current_step: string}
+     * @return array{
+     *     needed: bool,
+     *     tenant_id: string,
+     *     steps: array{workspace: bool, plan: bool, whmcs: bool, first_scan: bool},
+     *     current_step: string,
+     *     first_scan: array{ready: bool, issues_count: int, one_click_count: int}|null
+     * }
      */
     public function forTenant(Tenant $tenant): array
     {
@@ -24,15 +32,18 @@ class OnboardingProgress
                     'workspace' => true,
                     'plan' => true,
                     'whmcs' => true,
+                    'first_scan' => true,
                 ],
                 'current_step' => 'done',
+                'first_scan' => null,
             ];
         }
 
         $steps = $this->deriveSteps($tenant);
         $this->persistDerivedFlags($tenant, $steps);
+        $firstScan = $this->firstScanSummary($tenant);
 
-        if ($steps['workspace'] && $steps['plan'] && $steps['whmcs']) {
+        if ($steps['workspace'] && $steps['plan'] && $steps['whmcs'] && $steps['first_scan']) {
             $tenant->forceFill(['onboarding_completed_at' => now()])->save();
 
             return [
@@ -40,6 +51,7 @@ class OnboardingProgress
                 'tenant_id' => (string) $tenant->id,
                 'steps' => $steps,
                 'current_step' => 'done',
+                'first_scan' => $firstScan,
             ];
         }
 
@@ -48,21 +60,24 @@ class OnboardingProgress
             'tenant_id' => (string) $tenant->id,
             'steps' => $steps,
             'current_step' => $this->currentStep($steps),
+            'first_scan' => $firstScan,
         ];
     }
 
     /**
-     * @return array{workspace: bool, plan: bool, whmcs: bool}
+     * @return array{workspace: bool, plan: bool, whmcs: bool, first_scan: bool}
      */
     public function deriveSteps(Tenant $tenant): array
     {
         $onboarding = (array) data_get($tenant->settings, 'onboarding', []);
+        $alertEmail = data_get($tenant->settings, 'alerts.email');
 
         $workspaceSaved = filled($onboarding['workspace_completed_at'] ?? null)
             || (
                 filled($tenant->name)
                 && filled($tenant->timezone)
                 && filled($tenant->country_code)
+                && filled($alertEmail)
             );
 
         $hasSubscription = TenantSubscription::query()
@@ -72,21 +87,112 @@ class OnboardingProgress
 
         $planDone = filled($onboarding['plan_completed_at'] ?? null) || $hasSubscription;
 
-        $hasIntegration = WhmcsIntegration::query()
+        $hasHeartbeat = WhmcsIntegration::query()
             ->where('tenant_id', $tenant->id)
+            ->whereNotNull('last_heartbeat_at')
             ->exists();
 
-        $whmcsDone = filled($onboarding['whmcs_completed_at'] ?? null) || $hasIntegration;
+        $whmcsDone = $hasHeartbeat;
+
+        $firstScanDone = filled($onboarding['first_scan_completed_at'] ?? null);
 
         return [
             'workspace' => $workspaceSaved,
             'plan' => $planDone,
             'whmcs' => $whmcsDone,
+            'first_scan' => $firstScanDone,
         ];
     }
 
     /**
-     * @param  array{workspace: bool, plan: bool, whmcs: bool}  $steps
+     * First-scan step is ready once the latest run has been processed by the
+     * synchronous rule engine (status received), finished AI analysis, or
+     * failed AI analysis. AI analysis remains optional when OpenAI is unset.
+     *
+     * @return array{ready: bool, issues_count: int, one_click_count: int, has_analyzed_run: bool}
+     */
+    public function firstScanSummary(Tenant $tenant): array
+    {
+        $latestRun = DiagnosticRun::query()
+            ->where('tenant_id', $tenant->id)
+            ->latest('received_at')
+            ->first();
+
+        // queued/analyzing means rules ran but AI is still in flight — keep waiting
+        // so the configured AI path is unchanged for operators who enable it.
+        $readyStatuses = ['received', 'analyzed', 'analysis_failed'];
+
+        if ($latestRun === null || ! in_array($latestRun->status, $readyStatuses, true)) {
+            return [
+                'ready' => false,
+                'issues_count' => 0,
+                'one_click_count' => 0,
+                'has_analyzed_run' => false,
+            ];
+        }
+
+        // Prefer rule-engine findings for the count shown during onboarding.
+        $issuesCount = DiagnosticFinding::query()
+            ->where('diagnostic_run_id', $latestRun->id)
+            ->where('tenant_id', $tenant->id)
+            ->where('source', 'rule')
+            ->active()
+            ->count();
+
+        $oneClickCount = DiagnosticFinding::query()
+            ->where('diagnostic_run_id', $latestRun->id)
+            ->where('tenant_id', $tenant->id)
+            ->where('source', 'rule')
+            ->active()
+            ->where('fix_mode', 'one_click')
+            ->count();
+
+        return [
+            'ready' => true,
+            'issues_count' => $issuesCount,
+            'one_click_count' => $oneClickCount,
+            'has_analyzed_run' => $latestRun->status === 'analyzed',
+        ];
+    }
+
+    /**
+     * Heartbeat wait status for the onboarding live checker.
+     *
+     * @return array{
+     *     connected: bool,
+     *     last_heartbeat_at: string|null,
+     *     waiting_started_at: string|null,
+     *     waiting_seconds: int,
+     *     show_troubleshooting: bool
+     * }
+     */
+    public function heartbeatStatus(Tenant $tenant): array
+    {
+        $integration = WhmcsIntegration::query()
+            ->where('tenant_id', $tenant->id)
+            ->orderByDesc('last_heartbeat_at')
+            ->orderByDesc('created_at')
+            ->first();
+
+        $lastHeartbeatAt = $integration?->last_heartbeat_at;
+        $waitingStartedAt = $integration !== null
+            ? $integration->created_at
+            : $tenant->created_at;
+        $waitingSeconds = $waitingStartedAt === null
+            ? 0
+            : max(0, (int) now()->diffInSeconds($waitingStartedAt, absolute: true));
+
+        return [
+            'connected' => $lastHeartbeatAt !== null,
+            'last_heartbeat_at' => $lastHeartbeatAt?->toIso8601String(),
+            'waiting_started_at' => $waitingStartedAt?->toIso8601String(),
+            'waiting_seconds' => $waitingSeconds,
+            'show_troubleshooting' => $lastHeartbeatAt === null && $waitingSeconds >= 600,
+        ];
+    }
+
+    /**
+     * @param  array{workspace: bool, plan: bool, whmcs: bool, first_scan: bool}  $steps
      */
     private function persistDerivedFlags(Tenant $tenant, array $steps): void
     {
@@ -95,7 +201,7 @@ class OnboardingProgress
         $dirty = false;
         $now = now()->toIso8601String();
 
-        foreach (['workspace', 'plan', 'whmcs'] as $step) {
+        foreach (['workspace', 'plan', 'whmcs', 'first_scan'] as $step) {
             $key = $step.'_completed_at';
 
             if ($steps[$step] && ! filled($onboarding[$key] ?? null)) {
@@ -113,7 +219,7 @@ class OnboardingProgress
     }
 
     /**
-     * @param  array{workspace: bool, plan: bool, whmcs: bool}  $steps
+     * @param  array{workspace: bool, plan: bool, whmcs: bool, first_scan: bool}  $steps
      */
     private function currentStep(array $steps): string
     {
@@ -127,6 +233,10 @@ class OnboardingProgress
 
         if (! $steps['whmcs']) {
             return 'whmcs';
+        }
+
+        if (! $steps['first_scan']) {
+            return 'first_scan';
         }
 
         return 'done';

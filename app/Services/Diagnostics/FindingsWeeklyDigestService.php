@@ -2,141 +2,39 @@
 
 namespace App\Services\Diagnostics;
 
-use App\Mail\FindingsWeeklyDigestMail;
-use App\Models\DiagnosticFinding;
-use App\Models\SafeActionExecution;
 use App\Models\Tenant;
-use App\Models\TenantMembership;
-use App\Services\Mail\CentralOutboundMailer;
+use App\Services\Reports\WeeklyHealthReportService;
 use Carbon\CarbonInterface;
-use Illuminate\Support\Facades\URL;
 
+/**
+ * Backwards-compatible facade for findings:send-weekly-digest.
+ * Weekly health report logic lives in WeeklyHealthReportService.
+ */
 class FindingsWeeklyDigestService
 {
-    public function __construct(private readonly CentralOutboundMailer $mailer) {}
+    public function __construct(
+        private readonly WeeklyHealthReportService $weeklyReports,
+    ) {}
 
     /**
-     * @return array{tenants: int, recipients: int, skipped_clean: int}
+     * @return array{tenants: int, recipients: int, skipped_clean: int, skipped_schedule: int, skipped_idempotent: int}
      */
-    public function send(?CarbonInterface $since = null): array
+    public function send(?CarbonInterface $since = null, ?string $tenantId = null, bool $force = false): array
     {
-        $since ??= now()->subDays(7);
-        $tenants = 0;
-        $recipients = 0;
-        $skippedClean = 0;
+        // $since is retained for BC with callers; schedule/idempotency drive the real period.
+        unset($since);
 
-        Tenant::query()
-            ->where('status', Tenant::STATUS_ACTIVE)
-            ->orderBy('id')
-            ->chunkById(50, function ($chunk) use ($since, &$tenants, &$recipients, &$skippedClean): void {
-                foreach ($chunk as $tenant) {
-                    $digest = $this->buildDigest($tenant, $since);
-                    $tenants++;
-
-                    if ($digest['open'] === 0
-                        && $digest['in_progress'] === 0
-                        && $digest['resolved_this_week'] === 0
-                        && $digest['awaiting_safe_actions'] === 0) {
-                        $skippedClean++;
-                        // Still send a clean digest so owners see "Last scan clean".
-                    }
-
-                    $members = TenantMembership::query()
-                        ->where('tenant_id', $tenant->id)
-                        ->where('status', TenantMembership::STATUS_ACTIVE)
-                        ->whereIn('role', [
-                            TenantMembership::ROLE_OWNER,
-                            TenantMembership::ROLE_ADMIN,
-                            TenantMembership::ROLE_OPERATOR,
-                        ])
-                        ->with('user:id,name,email')
-                        ->get();
-
-                    $mailable = new FindingsWeeklyDigestMail($digest);
-
-                    foreach ($members as $membership) {
-                        $email = $membership->user?->email;
-                        if (! is_string($email) || $email === '') {
-                            continue;
-                        }
-
-                        $this->mailer->send(
-                            $email,
-                            $mailable->envelope()->subject,
-                            $mailable->render(),
-                            strip_tags(str_replace(['</p>', '</li>', '</h1>', '</h2>'], ["\n", "\n", "\n", "\n"], $mailable->render())),
-                        );
-                        $recipients++;
-                    }
-                }
-            });
-
-        return [
-            'tenants' => $tenants,
-            'recipients' => $recipients,
-            'skipped_clean' => $skippedClean,
-        ];
+        return $this->weeklyReports->send(null, $tenantId, $force);
     }
 
     /**
-     * @return array{
-     *     tenant_name: string,
-     *     open: int,
-     *     in_progress: int,
-     *     critical: int,
-     *     resolved_this_week: int,
-     *     accepted_risk: int,
-     *     awaiting_safe_actions: int,
-     *     top_findings: list<array{title: string, severity: string, status: string, integration_name: string}>,
-     *     findings_url: string,
-     *     safe_actions_url: string
-     * }
+     * @return array<string, mixed>
      */
     public function buildDigest(Tenant $tenant, CarbonInterface $since): array
     {
-        $base = DiagnosticFinding::query()->where('tenant_id', $tenant->id);
-        $current = (clone $base)->currentIssues();
+        $periodEnd = now('UTC');
+        $periodStart = $since->copy()->utc();
 
-        $topFindings = (clone $current)
-            ->active()
-            ->with('diagnosticRun.integration:id,name')
-            ->orderByRaw("CASE severity WHEN 'critical' THEN 1 WHEN 'warning' THEN 2 ELSE 3 END")
-            ->orderByDesc('created_at')
-            ->limit(8)
-            ->get()
-            ->map(fn (DiagnosticFinding $finding): array => [
-                'title' => $finding->title,
-                'severity' => $finding->severity,
-                'status' => $finding->status,
-                'integration_name' => $finding->diagnosticRun->integration->name ?? 'Unknown',
-            ])
-            ->all();
-
-        $awaitingSafeActions = SafeActionExecution::query()
-            ->where('tenant_id', $tenant->id)
-            ->where('status', SafeActionExecution::STATUS_AWAITING_AGENT)
-            ->count();
-
-        $needsRecheck = SafeActionExecution::query()
-            ->where('tenant_id', $tenant->id)
-            ->where('status', SafeActionExecution::STATUS_COMPLETED)
-            ->count();
-
-        return [
-            'tenant_name' => $tenant->name,
-            'open' => (clone $current)->where('status', DiagnosticFinding::STATUS_OPEN)->count(),
-            'in_progress' => (clone $current)->where('status', DiagnosticFinding::STATUS_IN_PROGRESS)->count(),
-            'critical' => (clone $current)->active()->where('severity', 'critical')->count(),
-            'resolved_this_week' => (clone $base)
-                ->where('status', DiagnosticFinding::STATUS_RESOLVED)
-                ->where('resolved_at', '>=', $since)
-                ->count(),
-            'accepted_risk' => (clone $current)->where('status', DiagnosticFinding::STATUS_ACCEPTED_RISK)->count(),
-            'awaiting_safe_actions' => $awaitingSafeActions,
-            'needs_recheck' => $needsRecheck,
-            'top_findings' => $topFindings,
-            'findings_url' => URL::route('findings.index', ['status' => 'active']),
-            'safe_actions_url' => URL::route('safe-actions.index'),
-        ];
+        return $this->weeklyReports->buildDigest($tenant, $periodStart, $periodEnd);
     }
 }

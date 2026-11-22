@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ApproveSafeActionRequest;
+use App\Http\Requests\RejectSafeActionRequest;
 use App\Http\Requests\StoreSafeActionRequest;
 use App\Models\DiagnosticFinding;
 use App\Models\SafeActionExecution;
+use App\Models\SafeActionLateResult;
 use App\Models\User;
 use App\Models\WhmcsIntegration;
 use App\Services\SafeActions\SafeActionExecutor;
@@ -32,7 +34,7 @@ class SafeActionController extends Controller
 
         $executions = SafeActionExecution::query()
             ->whereIn('integration_id', app(TenantRecordQuery::class)->integrations($user)->pluck('id'))
-            ->with(['integration:id,name', 'requester:id,name', 'approver:id,name'])
+            ->with(['integration:id,name', 'requester:id,name', 'approver:id,name', 'rejector:id,name'])
             ->latest('requested_at')
             ->paginate(20)
             ->through(fn (SafeActionExecution $execution): array => $this->serializeExecution($execution));
@@ -62,15 +64,19 @@ class SafeActionController extends Controller
             'finding:id,title,severity,status',
             'requester:id,name',
             'approver:id,name',
+            'rejector:id,name',
+            'lateResults',
         ]);
 
         $definition = app(SafeActionRegistry::class)->get($safeAction->action_key);
+        $canExecute = $this->canExecute(Auth::user(), $safeAction->integration);
 
         return Inertia::render('safe-actions/show', [
             'execution' => $this->serializeExecution($safeAction, detailed: true),
             'definition' => $definition,
             'can_approve' => $safeAction->status === SafeActionExecution::STATUS_PENDING_APPROVAL
-                && $this->canExecute(Auth::user(), $safeAction->integration),
+                && $canExecute,
+            'can_reject' => $canExecute && $safeAction->isRejectable(),
         ]);
     }
 
@@ -84,6 +90,7 @@ class SafeActionController extends Controller
         $this->authorizeExecute($integration);
 
         $definition = $registry->get($request->string('action_key')->toString());
+        $this->requireFixesEnabled($registry, $definition['key']);
 
         try {
             $this->requireEntitlement($integration, $definition['entitlement']);
@@ -93,10 +100,40 @@ class SafeActionController extends Controller
             ]);
         }
 
+        $input = is_array($request->input('input')) ? $request->input('input') : [];
+        // Server alone decides auto mode — never accept it from HTTP clients.
+        if (($input['mode'] ?? null) === SafeActionExecution::MODE_AUTO) {
+            throw ValidationException::withMessages([
+                'input.mode' => 'Auto mode can only be created by the platform auto-fix runner.',
+            ]);
+        }
+        $mode = is_string($input['mode'] ?? null) ? $input['mode'] : SafeActionExecution::MODE_ONE_CLICK;
+        $targetCount = is_array($input['target_ids'] ?? null) ? count($input['target_ids']) : 0;
+        if ($mode === 'bulk' || $targetCount > 1) {
+            try {
+                $this->requireEntitlement($integration, 'fixes.bulk');
+            } catch (AuthorizationException $exception) {
+                throw ValidationException::withMessages([
+                    'input.target_ids' => $exception->getMessage(),
+                ]);
+            }
+        }
+
         $finding = null;
         if ($request->filled('finding_id')) {
             $finding = DiagnosticFinding::query()->findOrFail($request->string('finding_id')->toString());
             if (! app(TenantRecordQuery::class)->findings(Auth::user())->whereKey($finding->id)->exists()) {
+                throw new NotFoundHttpException;
+            }
+            $finding->loadMissing('diagnosticRun');
+            if ($finding->diagnosticRun?->integration_id !== $integration->id) {
+                throw ValidationException::withMessages([
+                    'finding_id' => 'Finding does not belong to this integration.',
+                ]);
+            }
+            if ($finding->tenant_id !== null
+                && $integration->tenant_id !== null
+                && $finding->tenant_id !== $integration->tenant_id) {
                 throw new NotFoundHttpException;
             }
         }
@@ -106,11 +143,24 @@ class SafeActionController extends Controller
                 $integration,
                 $request->user(),
                 $definition['key'],
-                $request->input('input', []),
+                $input,
                 $finding,
             );
         } catch (InvalidArgumentException $exception) {
-            throw ValidationException::withMessages(['action_key' => $exception->getMessage()]);
+            $message = $exception->getMessage();
+            $lower = strtolower($message);
+            $field = match (true) {
+                str_contains($lower, 'not bound'),
+                str_contains($lower, 'does not belong to this finding'),
+                str_contains($lower, 'does not belong to this integration'),
+                str_contains($lower, 'requires a finding') => 'finding_id',
+                str_contains($lower, 'affected'),
+                str_contains($lower, 'explicit target_ids'),
+                str_contains($lower, 'selected target is not') => 'input.target_ids',
+                default => 'action_key',
+            };
+
+            throw ValidationException::withMessages([$field => $message]);
         }
 
         return redirect()
@@ -129,6 +179,7 @@ class SafeActionController extends Controller
         $this->authorizeExecute($safeAction->integration);
 
         $definition = $registry->get($safeAction->action_key);
+        $this->requireFixesEnabled($registry, $safeAction->action_key);
         $this->requireEntitlement($safeAction->integration, $definition['entitlement']);
 
         if ($definition['requires_password_confirm']) {
@@ -147,7 +198,7 @@ class SafeActionController extends Controller
         }
 
         try {
-            $executor->approve($safeAction, $request->user(), $request->string('approval_reason')->toString());
+            $execution = $executor->approve($safeAction, $request->user(), $request->string('approval_reason')->toString());
         } catch (\Throwable $exception) {
             throw ValidationException::withMessages([
                 'approval_reason' => $exception->getMessage(),
@@ -155,8 +206,62 @@ class SafeActionController extends Controller
         }
 
         return redirect()
-            ->route('safe-actions.show', $safeAction)
-            ->with('status', 'Safe action approved, executed, and audited.');
+            ->route('safe-actions.show', $execution)
+            ->with('status', $this->approvalStatusMessage($execution));
+    }
+
+    public function reject(
+        RejectSafeActionRequest $request,
+        SafeActionExecution $safeAction,
+        SafeActionExecutor $executor,
+        SafeActionRegistry $registry,
+    ): RedirectResponse {
+        $this->authorizeExecution($safeAction);
+        $safeAction->loadMissing('integration');
+        $this->authorizeExecute($safeAction->integration);
+
+        $definition = $registry->get($safeAction->action_key);
+        $this->requireEntitlement($safeAction->integration, $definition['entitlement']);
+
+        $reason = $request->filled('rejection_reason')
+            ? $request->string('rejection_reason')->toString()
+            : null;
+
+        try {
+            $execution = $executor->reject($safeAction, $request->user(), $reason);
+        } catch (ValidationException $exception) {
+            throw $exception;
+        } catch (\Throwable $exception) {
+            throw ValidationException::withMessages([
+                'rejection_reason' => $exception->getMessage(),
+            ]);
+        }
+
+        $statusMessage = $execution->status === SafeActionExecution::STATUS_CANCELLED
+            ? 'Safe action cancelled before the WHMCS addon could apply it.'
+            : 'Safe action rejected. The related finding stays open.';
+
+        if ($request->shouldReturnToFixCenter()) {
+            return redirect()
+                ->route('fix-center.index', $request->fixCenterQuery())
+                ->with('status', $statusMessage);
+        }
+
+        return redirect()
+            ->route('safe-actions.show', $execution)
+            ->with('status', $statusMessage);
+    }
+
+    private function approvalStatusMessage(SafeActionExecution $execution): string
+    {
+        if (in_array($execution->status, [
+            SafeActionExecution::STATUS_COMPLETED,
+            SafeActionExecution::STATUS_VERIFIED,
+        ], true)) {
+            return 'Safe action approved, executed, and audited.';
+        }
+
+        return 'Safe action approved and queued. The WHMCS addon will run it on its next check-in; the result appears here.';
     }
 
     private function authorizeExecution(SafeActionExecution $execution): void
@@ -213,6 +318,19 @@ class SafeActionController extends Controller
         app(TenantEntitlementService::class)->requireFeature($integration->tenant_id, $feature);
     }
 
+    private function requireFixesEnabled(SafeActionRegistry $registry, string $actionKey): void
+    {
+        if (! $registry->isOneClickOrBulkAction($actionKey)) {
+            return;
+        }
+
+        if (! $registry->fixesEnabled()) {
+            throw ValidationException::withMessages([
+                'action_key' => SafeActionRegistry::FIXES_DISABLED_MESSAGE,
+            ]);
+        }
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -221,27 +339,61 @@ class SafeActionController extends Controller
         $payload = [
             'id' => $execution->id,
             'action_key' => $execution->action_key,
+            'mode' => $execution->mode,
+            'batch_id' => $execution->batch_id,
+            'issue_key' => $execution->issue_key,
+            'items_total' => $execution->items_total,
+            'items_succeeded' => $execution->items_succeeded,
+            'minutes_saved' => $execution->minutes_saved,
             'status' => $execution->status,
             'risk_level' => $execution->risk_level,
             'requires_password_confirm' => $execution->requires_password_confirm,
             'requested_at' => $execution->requested_at?->toIso8601String(),
             'approved_at' => $execution->approved_at?->toIso8601String(),
+            'agent_picked_up_at' => $execution->agent_picked_up_at?->toIso8601String(),
+            'rejected_at' => $execution->rejected_at?->toIso8601String(),
             'executed_at' => $execution->executed_at?->toIso8601String(),
             'verified_at' => $execution->verified_at?->toIso8601String(),
+            'late_result_status' => $execution->late_result_status,
+            'late_result_at' => $execution->late_result_at?->toIso8601String(),
             'integration_name' => $execution->integration?->name,
             'integration_id' => $execution->integration_id,
             'requester_name' => $execution->requester?->name,
             'approver_name' => $execution->approver?->name,
+            'rejector_name' => $execution->rejector?->name,
             'finding_id' => $execution->finding_id,
         ];
 
         if ($detailed) {
             $payload['approval_reason'] = $execution->approval_reason;
+            $payload['rejection_reason'] = $execution->rejection_reason;
             $payload['input'] = $execution->input;
+            $payload['preview'] = $execution->preview;
+            $payload['target_ids'] = $execution->target_ids;
+            $payload['resolved_params'] = $execution->resolved_params;
             $payload['result'] = $execution->result;
             $payload['before_evidence'] = $execution->before_evidence;
             $payload['after_evidence'] = $execution->after_evidence;
             $payload['finding_title'] = $execution->finding?->title;
+            $payload['reject_blocked_reason'] = $execution->status === SafeActionExecution::STATUS_AWAITING_AGENT
+                && $execution->wasPickedUpByAgent()
+                ? SafeActionExecution::REJECT_AFTER_PICKUP_MESSAGE
+                : null;
+            $payload['late_results'] = $execution->lateResults
+                ->map(function (SafeActionLateResult $lateResult): array {
+                    $summary = $lateResult->payload_summary['summary'] ?? null;
+                    $errorCode = $lateResult->payload_summary['error_code'] ?? null;
+
+                    return [
+                        'id' => $lateResult->id,
+                        'status' => $lateResult->status,
+                        'summary' => is_string($summary) ? $summary : null,
+                        'error_code' => is_string($errorCode) ? $errorCode : null,
+                        'received_at' => $lateResult->received_at?->toIso8601String(),
+                    ];
+                })
+                ->values()
+                ->all();
         }
 
         return $payload;

@@ -14,8 +14,8 @@ type Plan = {
     code: string;
     name: string;
     description: string | null;
-    price_monthly_minor: number;
-    price_yearly_minor: number;
+    price_monthly_minor: number | null;
+    price_yearly_minor: number | null;
     currency: string;
     trial_days: number;
     trial_enabled: boolean;
@@ -192,7 +192,9 @@ export default function BillingPlans({
                                 <p className="mt-4 text-3xl font-semibold tracking-tight tabular-nums">
                                     {plan.is_contact_sales
                                         ? 'Custom'
-                                        : formatMoney(price, plan.currency)}
+                                        : price == null
+                                          ? 'Not priced'
+                                          : formatMoney(price, plan.currency)}
                                 </p>
                                 <p className="text-xs text-muted-foreground">
                                     {plan.is_contact_sales

@@ -70,6 +70,9 @@ function createSafeActionAgentWorkspace(): array
         'entitlements' => [
             'diagnostics.analysis' => true,
             'safe_actions.enabled' => true,
+            'fixes.guided' => true,
+            'fixes.one_click' => true,
+            'fixes.bulk' => true,
             'limits' => ['integrations' => 5, 'members' => 10, 'diagnostics_per_period' => 100, 'retention_days' => 30],
         ],
         'current_period_starts_at' => now()->subDay(),

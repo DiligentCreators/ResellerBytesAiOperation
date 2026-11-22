@@ -56,6 +56,11 @@ export default function SafeActionsIndex({
                 <PageHeader
                     title="Safe Actions"
                     description="Allowlisted, human-approved, audited actions only. No free-form AI repairs and no WHMCS writes from the model."
+                    actions={
+                        <Button variant="outline" size="sm" asChild>
+                            <Link href="/fix-center">Open Fix Center</Link>
+                        </Button>
+                    }
                 />
 
                 {flash?.status ? (

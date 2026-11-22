@@ -11,10 +11,10 @@ type Plan = {
     code: string;
     name: string;
     description: string | null;
-    price_monthly_minor: number;
-    price_yearly_minor: number;
-    price_monthly: string;
-    price_yearly: string;
+    price_monthly_minor: number | null;
+    price_yearly_minor: number | null;
+    price_monthly: string | null;
+    price_yearly: string | null;
     currency: string;
     trial_days: number;
     trial_enabled: boolean;
@@ -26,6 +26,7 @@ type Plan = {
     monthly_active: boolean;
     yearly_active: boolean;
     prices_confirmed_at: string | null;
+    needs_pricing: boolean;
     code_locked: boolean;
     kelviq_plan_identifier_monthly: string | null;
     kelviq_plan_identifier_yearly: string | null;
@@ -35,6 +36,12 @@ type Plan = {
         'diagnostics.analysis'?: boolean;
         'diagnostics.reanalyze'?: boolean;
         'safe_actions.enabled'?: boolean;
+        'fixes.guided'?: boolean;
+        'fixes.one_click'?: boolean;
+        'fixes.bulk'?: boolean;
+        'fixes.auto'?: boolean;
+        'alerts.channels'?: boolean;
+        'reports.value'?: boolean;
     };
 };
 
@@ -257,9 +264,10 @@ function PlanFields({
                     type="number"
                     step="0.01"
                     min="0"
-                    defaultValue={plan?.price_monthly ?? '0.00'}
+                    defaultValue={plan?.price_monthly ?? ''}
                     required
                     disabled={disabled}
+                    placeholder="Set in major units"
                 />
                 <InputError message={errors.price_monthly} />
             </div>
@@ -270,9 +278,10 @@ function PlanFields({
                     type="number"
                     step="0.01"
                     min="0"
-                    defaultValue={plan?.price_yearly ?? '0.00'}
+                    defaultValue={plan?.price_yearly ?? ''}
                     required
                     disabled={disabled}
+                    placeholder="Set in major units"
                 />
                 <InputError message={errors.price_yearly} />
             </div>
@@ -386,6 +395,19 @@ function PlanFields({
                 />
             </div>
             <div className="space-y-2">
+                <Label>History days</Label>
+                <Input
+                    name="entitlements[limits][history_days]"
+                    type="number"
+                    defaultValue={plan?.entitlements.limits?.history_days ?? 90}
+                    required
+                    disabled={disabled}
+                />
+                <InputError
+                    message={errors['entitlements.limits.history_days']}
+                />
+            </div>
+            <div className="space-y-2">
                 <Label>Support level</Label>
                 <Input
                     name="entitlements[support_level]"
@@ -405,6 +427,72 @@ function PlanFields({
                     disabled={disabled}
                 />
                 Safe Actions enabled
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+                <input
+                    type="checkbox"
+                    name="fixes_guided_enabled"
+                    value="1"
+                    defaultChecked={plan?.entitlements['fixes.guided'] ?? true}
+                    disabled={disabled}
+                />
+                Guided fixes enabled
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+                <input
+                    type="checkbox"
+                    name="fixes_one_click_enabled"
+                    value="1"
+                    defaultChecked={
+                        plan?.entitlements['fixes.one_click'] ?? false
+                    }
+                    disabled={disabled}
+                />
+                One-click fixes (Growth+)
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+                <input
+                    type="checkbox"
+                    name="fixes_bulk_enabled"
+                    value="1"
+                    defaultChecked={plan?.entitlements['fixes.bulk'] ?? false}
+                    disabled={disabled}
+                />
+                Bulk fixes (Growth+)
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+                <input
+                    type="checkbox"
+                    name="fixes_auto_enabled"
+                    value="1"
+                    defaultChecked={plan?.entitlements['fixes.auto'] ?? false}
+                    disabled={disabled}
+                />
+                Auto-fix policies (Pro)
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+                <input
+                    type="checkbox"
+                    name="alerts_channels_enabled"
+                    value="1"
+                    defaultChecked={
+                        plan?.entitlements['alerts.channels'] ?? false
+                    }
+                    disabled={disabled}
+                />
+                Alert channels (Growth+)
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+                <input
+                    type="checkbox"
+                    name="reports_value_enabled"
+                    value="1"
+                    defaultChecked={
+                        plan?.entitlements['reports.value'] ?? false
+                    }
+                    disabled={disabled}
+                />
+                Monthly value report (Pro)
             </label>
             <label className="flex items-center gap-2 text-sm">
                 <input
@@ -569,13 +657,17 @@ export default function PlatformPlansPage({
                                                         deactivated
                                                     </span>
                                                 )}
+                                                {plan.needs_pricing && (
+                                                    <span className="ml-2 text-xs text-warning-fg">
+                                                        needs pricing
+                                                    </span>
+                                                )}
                                             </h2>
                                             <p className="text-sm text-muted-foreground tabular-nums">
-                                                {formatMoney(
-                                                    plan.price_monthly_minor,
-                                                    plan.currency,
-                                                )}
-                                                /mo
+                                                {plan.price_monthly_minor ===
+                                                null
+                                                    ? 'Not priced'
+                                                    : `${formatMoney(plan.price_monthly_minor, plan.currency)}/mo`}
                                             </p>
                                         </div>
                                         <FormErrorSummary errors={errors} />

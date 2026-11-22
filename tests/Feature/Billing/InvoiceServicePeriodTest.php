@@ -10,6 +10,7 @@ use Database\Seeders\PlanSeeder;
 
 it('includes service period on invoice list detail and print props', function (): void {
     test()->seed(PlanSeeder::class);
+    priceSeededCatalog();
     config()->set('billing.default_gateway', 'sandbox');
 
     $tenant = Tenant::create([
@@ -68,6 +69,7 @@ it('includes service period on invoice list detail and print props', function ()
 
 it('falls back to a single line item when invoice lines are empty', function (): void {
     test()->seed(PlanSeeder::class);
+    priceSeededCatalog();
     config()->set('billing.default_gateway', 'sandbox');
 
     $tenant = Tenant::create([

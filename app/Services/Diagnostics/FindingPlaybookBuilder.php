@@ -22,23 +22,24 @@ class FindingPlaybookBuilder
     public function build(DiagnosticFinding $finding): array
     {
         $finding->loadMissing('recommendations');
+        $catalog = $this->catalogEntry($finding);
 
         $evidence = $this->humanReadableEvidence($finding->evidence ?? []);
-        $safeSteps = $finding->recommendations
-            ->values()
-            ->map(fn (DiagnosticRecommendation $recommendation, int $index): array => [
-                'step' => $index + 1,
-                'action' => $recommendation->recommendation,
-                'rationale' => $recommendation->rationale,
-                'risk_level' => $recommendation->risk_level,
-            ])
-            ->all();
+        $safeSteps = $this->safeSteps($finding, $catalog);
 
-        $changeRisk = $this->highestRisk(
-            $finding->recommendations->pluck('risk_level')->filter()->values()->all()
-        );
+        /** @var list<string> $riskLevels */
+        $riskLevels = [];
+        foreach ($safeSteps as $step) {
+            if (is_string($step['risk_level'] ?? null) && $step['risk_level'] !== '') {
+                $riskLevels[] = $step['risk_level'];
+            }
+        }
+        if (is_string($catalog['risk'] ?? null) && $catalog['risk'] !== '') {
+            $riskLevels[] = $catalog['risk'];
+        }
+        $changeRisk = $this->highestRisk($riskLevels);
 
-        $deepLinks = $this->deepLinksForCategory($finding->category);
+        $deepLinks = $this->deepLinksForFinding($finding, $catalog);
         $rollback = $this->rollbackGuidance($changeRisk, $safeSteps);
 
         $playbook = [
@@ -51,7 +52,7 @@ class FindingPlaybookBuilder
             ],
             'impact' => [
                 'summary' => $finding->summary,
-                'why_it_matters' => $this->whyItMatters($finding),
+                'why_it_matters' => $this->whyItMatters($finding, $catalog),
             ],
             'safe_steps' => $safeSteps,
             'verify' => [
@@ -119,13 +120,95 @@ class FindingPlaybookBuilder
         return $encoded === false ? '[unreadable evidence]' : $encoded;
     }
 
-    private function whyItMatters(DiagnosticFinding $finding): string
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function catalogEntry(DiagnosticFinding $finding): ?array
     {
+        $issueKey = $finding->issue_key;
+        if (! is_string($issueKey) || $issueKey === '') {
+            return null;
+        }
+
+        return WhmcsIssueCatalog::get($issueKey);
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $catalog
+     * @return list<array{step: int, action: string, rationale: string|null, risk_level: string|null}>
+     */
+    private function safeSteps(DiagnosticFinding $finding, ?array $catalog): array
+    {
+        if (is_array($catalog['guided_steps'] ?? null) && $catalog['guided_steps'] !== []) {
+            $risk = is_string($catalog['risk'] ?? null) ? $catalog['risk'] : null;
+            $rationale = is_string($catalog['why_it_matters'] ?? null) ? $catalog['why_it_matters'] : null;
+            /** @var list<array{step: int, action: string, rationale: string|null, risk_level: string|null}> $steps */
+            $steps = [];
+            $index = 1;
+            foreach ($catalog['guided_steps'] as $step) {
+                if (! is_string($step) || trim($step) === '') {
+                    continue;
+                }
+                $steps[] = [
+                    'step' => $index,
+                    'action' => $step,
+                    'rationale' => $rationale,
+                    'risk_level' => $risk,
+                ];
+                $index++;
+            }
+
+            if ($steps !== []) {
+                return $steps;
+            }
+        }
+
+        /** @var list<array{step: int, action: string, rationale: string|null, risk_level: string|null}> $fromRecommendations */
+        $fromRecommendations = [];
+        foreach ($finding->recommendations->values() as $index => $recommendation) {
+            /** @var DiagnosticRecommendation $recommendation */
+            $fromRecommendations[] = [
+                'step' => $index + 1,
+                'action' => $recommendation->recommendation,
+                'rationale' => $recommendation->rationale,
+                'risk_level' => $recommendation->risk_level,
+            ];
+        }
+
+        return $fromRecommendations;
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $catalog
+     */
+    private function whyItMatters(DiagnosticFinding $finding, ?array $catalog): string
+    {
+        if (is_string($catalog['why_it_matters'] ?? null) && trim($catalog['why_it_matters']) !== '') {
+            return $catalog['why_it_matters'];
+        }
+
         return match ($finding->severity) {
             'critical' => 'Left unresolved, this can cause outages, security exposure, or billing/ops failures that customers notice first.',
             'warning' => 'This increases operational risk and can become customer-visible if ignored through the next change window.',
             default => 'This is lower urgency, but tracking it keeps WHMCS healthier and reduces surprise work later.',
         };
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $catalog
+     * @return list<array{label: string, path: string, note: string}>
+     */
+    private function deepLinksForFinding(DiagnosticFinding $finding, ?array $catalog): array
+    {
+        if (is_string($catalog['whmcs_admin_path'] ?? null) && trim($catalog['whmcs_admin_path']) !== '') {
+            return [[
+                'label' => 'WHMCS admin path',
+                'path' => $catalog['whmcs_admin_path'],
+                'note' => 'Open in WHMCS admin. No secrets are included in this deep-link hint.',
+            ]];
+        }
+
+        return $this->deepLinksForCategory($finding->category);
     }
 
     /**

@@ -42,7 +42,9 @@ export default function ProductPage({
                     </p>
                     <div className="mt-8 flex flex-wrap gap-3">
                         <Button asChild>
-                            <Link href={register.url()}>Start 14-day pilot</Link>
+                            <Link href={register.url()}>
+                                Start 14-day pilot
+                            </Link>
                         </Button>
                         <Button variant="outline" asChild>
                             <Link href={pricing.url()}>View packaging</Link>

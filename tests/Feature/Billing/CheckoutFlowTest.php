@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Artisan;
 function billingCheckoutFixture(string $role = TenantMembership::ROLE_OWNER): array
 {
     test()->seed(PlanSeeder::class);
+    priceSeededCatalog();
 
     $tenant = Tenant::create([
         'name' => 'Checkout Tenant',

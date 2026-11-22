@@ -16,20 +16,20 @@ class FindingContinuityService
      * @param  array{
      *     category: string,
      *     title: string,
-     *     summary?: string,
+     *     summary: string,
      *     evidence_paths: list<string>,
-     *     severity?: string,
-     *     confidence?: mixed,
-     *     recommendations?: mixed
+     *     severity: string,
+     *     confidence: mixed,
+     *     recommendations: list<array{recommendation: string, rationale: string, risk_level: string}>
      * }  $findingData
      * @return array{
      *     category: string,
      *     title: string,
-     *     summary?: string,
+     *     summary: string,
      *     evidence_paths: list<string>,
-     *     severity?: string,
-     *     confidence?: mixed,
-     *     recommendations?: mixed
+     *     severity: string,
+     *     confidence: mixed,
+     *     recommendations: list<array{recommendation: string, rationale: string, risk_level: string}>
      * }
      */
     public function stabilizeFindingData(array $findingData): array
@@ -61,6 +61,21 @@ class FindingContinuityService
             $findingData['category'],
             mb_strtolower($findingData['title']),
             implode('|', $paths),
+        ]));
+    }
+
+    /**
+     * Stable fingerprint for catalog-backed rule findings (issue_key is the continuity key).
+     *
+     * @param  array{category: string, title: string, evidence_paths?: list<string>}  $findingData
+     */
+    public function fingerprintForIssueKey(string $issueKey, array $findingData): string
+    {
+        return hash('sha256', implode("\n", [
+            'rule',
+            $issueKey,
+            $findingData['category'],
+            mb_strtolower($findingData['title']),
         ]));
     }
 
@@ -165,10 +180,46 @@ class FindingContinuityService
             return [];
         }
 
-        $findingIds = DiagnosticFinding::query()
-            ->where('fingerprint', $finding->fingerprint)
-            ->whereHas('diagnosticRun', fn (Builder $query) => $query->where('integration_id', $integrationId))
-            ->pluck('id');
+        $findingIds = $this->relatedFindingIds($finding, $integrationId);
+
+        $keys = [];
+        foreach (
+            SafeActionExecution::query()
+                ->where('integration_id', $integrationId)
+                ->whereIn('finding_id', $findingIds)
+                ->whereIn('status', [
+                    SafeActionExecution::STATUS_PENDING_APPROVAL,
+                    SafeActionExecution::STATUS_APPROVED,
+                    SafeActionExecution::STATUS_AWAITING_AGENT,
+                    SafeActionExecution::STATUS_COMPLETED,
+                ])
+                ->pluck('action_key')
+                ->unique()
+                ->values() as $key
+        ) {
+            if (is_string($key) && $key !== '') {
+                $keys[] = $key;
+            }
+        }
+
+        return $keys;
+    }
+
+    /**
+     * Latest in-flight safe action for this finding fingerprint (approval or addon wait).
+     */
+    public function pendingSafeActionExecution(DiagnosticFinding $finding): ?SafeActionExecution
+    {
+        $finding->loadMissing('diagnosticRun');
+        $integrationId = $finding->diagnosticRun?->integration_id;
+        if ($integrationId === null) {
+            return null;
+        }
+
+        $findingIds = $this->relatedFindingIds($finding, $integrationId);
+        if ($findingIds === []) {
+            return null;
+        }
 
         return SafeActionExecution::query()
             ->where('integration_id', $integrationId)
@@ -177,12 +228,56 @@ class FindingContinuityService
                 SafeActionExecution::STATUS_PENDING_APPROVAL,
                 SafeActionExecution::STATUS_APPROVED,
                 SafeActionExecution::STATUS_AWAITING_AGENT,
-                SafeActionExecution::STATUS_COMPLETED,
             ])
-            ->pluck('action_key')
-            ->unique()
-            ->values()
-            ->all();
+            ->orderByDesc('requested_at')
+            ->orderByDesc('id')
+            ->first();
+    }
+
+    /**
+     * Latest completed fix still waiting for the next snapshot to verify.
+     */
+    public function awaitingVerificationSafeActionExecution(DiagnosticFinding $finding): ?SafeActionExecution
+    {
+        $finding->loadMissing('diagnosticRun');
+        $integrationId = $finding->diagnosticRun?->integration_id;
+        if ($integrationId === null) {
+            return null;
+        }
+
+        $findingIds = $this->relatedFindingIds($finding, $integrationId);
+        if ($findingIds === []) {
+            return null;
+        }
+
+        return SafeActionExecution::query()
+            ->where('integration_id', $integrationId)
+            ->whereIn('finding_id', $findingIds)
+            ->where('status', SafeActionExecution::STATUS_COMPLETED)
+            ->orderByDesc('executed_at')
+            ->orderByDesc('requested_at')
+            ->orderByDesc('id')
+            ->first();
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function relatedFindingIds(DiagnosticFinding $finding, string $integrationId): array
+    {
+        $ids = [];
+        foreach (
+            DiagnosticFinding::query()
+                ->where('fingerprint', $finding->fingerprint)
+                ->whereHas('diagnosticRun', fn (Builder $query) => $query->where('integration_id', $integrationId))
+                ->pluck('id') as $id
+        ) {
+            if (is_string($id) && $id !== '') {
+                $ids[] = $id;
+            }
+        }
+
+        return $ids;
     }
 
     /**
@@ -211,8 +306,13 @@ class FindingContinuityService
         });
     }
 
+    /**
+     * @param  Builder<DiagnosticFinding>  $findingsQuery
+     */
     public function countCurrentActiveIssues(Builder $findingsQuery): int
     {
-        return $this->scopeCurrentIssues((clone $findingsQuery)->active())->count();
+        $active = (clone $findingsQuery)->whereIn('status', DiagnosticFinding::ACTIVE_STATUSES);
+
+        return $this->scopeCurrentIssues($active)->count();
     }
 }

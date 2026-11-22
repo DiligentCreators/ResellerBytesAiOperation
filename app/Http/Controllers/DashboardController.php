@@ -8,6 +8,8 @@ use App\Models\Tenant;
 use App\Models\TenantMembership;
 use App\Models\User;
 use App\Services\Ai\OpenAiConfiguration;
+use App\Services\Health\HealthDashboardPresenter;
+use App\Services\Tenancy\GettingStartedChecklist;
 use App\Services\Tenancy\OnboardingProgress;
 use App\Services\Tenancy\TenantRecordQuery;
 use App\Support\WhmcsAddonPackageSigner;
@@ -21,6 +23,8 @@ class DashboardController extends Controller
         WhmcsAddonPackageSigner $signer,
         OpenAiConfiguration $openAi,
         OnboardingProgress $onboardingProgress,
+        GettingStartedChecklist $gettingStartedChecklist,
+        HealthDashboardPresenter $healthPresenter,
     ): Response {
         /** @var User|null $user */
         $user = Auth::user();
@@ -45,28 +49,12 @@ class DashboardController extends Controller
 
         $signingConfigured = $signer->isConfigured();
 
-        $installations = $tenantRecords->integrations($user)
-            ->withCount([
-                'diagnosticRuns as runs_count',
-            ])
-            ->orderBy('name')
-            ->limit(12)
-            ->get()
-            ->map(fn ($integration): array => [
-                'id' => $integration->id,
-                'name' => $integration->name,
-                'status' => $integration->status,
-                'addon_version' => $integration->addon_version,
-                'last_seen_at' => $integration->last_seen_at?->toIso8601String(),
-                'runs_count' => $integration->runs_count,
-                'open_findings' => $tenantRecords->findings($user)
-                    ->currentIssues()
-                    ->whereHas('diagnosticRun', fn ($query) => $query->where('integration_id', $integration->id))
-                    ->active()
-                    ->count(),
-            ]);
+        $installations = $healthPresenter->installationsStatus($user);
 
         $integrationIds = $tenantRecords->integrations($user)->pluck('id');
+
+        $lastScanClean = $tenantRecords->runs($user)->where('status', 'analyzed')->exists()
+            && ! $tenantRecords->findings($user)->currentIssues()->active()->exists();
 
         return Inertia::render('dashboard', [
             'stats' => [
@@ -87,10 +75,10 @@ class DashboardController extends Controller
                     ->where('status', SafeActionExecution::STATUS_COMPLETED)
                     ->count(),
             ],
-            'health' => [
-                'last_scan_clean' => $tenantRecords->runs($user)->where('status', 'analyzed')->exists()
-                    && ! $tenantRecords->findings($user)->currentIssues()->active()->exists(),
-            ],
+            'health' => $healthPresenter->healthCard($user, $lastScanClean),
+            'needsYouNow' => $healthPresenter->needsYouNow($user),
+            'timeSaved' => $healthPresenter->timeSavedThisMonth($user),
+            'recovered' => $healthPresenter->recoveredThisMonth($user),
             'installations' => $installations,
             'latestRuns' => $latestRuns,
             'addon' => [
@@ -99,11 +87,12 @@ class DashboardController extends Controller
                 'ai_configured' => $openAi->isConfigured(),
             ],
             'onboarding' => $this->onboardingChecklist($user, $onboardingProgress),
+            'gettingStarted' => $gettingStartedChecklist->forOwner($user),
         ]);
     }
 
     /**
-     * @return array{needed: bool, tenant_id: ?string, steps: array{workspace: bool, plan: bool, whmcs: bool}}|null
+     * @return array{needed: bool, tenant_id: ?string, steps: array{workspace: bool, plan: bool, whmcs: bool, first_scan: bool}}|null
      */
     private function onboardingChecklist(?User $user, OnboardingProgress $onboardingProgress): ?array
     {

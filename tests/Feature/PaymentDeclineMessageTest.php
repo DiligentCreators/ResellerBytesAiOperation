@@ -11,6 +11,7 @@ use Database\Seeders\PlanSeeder;
 
 it('shows a customer-friendly decline message after sandbox decline', function () {
     $this->seed(PlanSeeder::class);
+    priceSeededCatalog();
     config()->set('billing.default_gateway', 'sandbox');
 
     $tenant = Tenant::create([
@@ -49,6 +50,7 @@ it('shows a customer-friendly decline message after sandbox decline', function (
 
 it('exposes the same decline copy on checkout return for failed invoices', function () {
     $this->seed(PlanSeeder::class);
+    priceSeededCatalog();
     config()->set('billing.default_gateway', 'sandbox');
 
     $tenant = Tenant::create([

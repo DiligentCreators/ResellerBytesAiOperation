@@ -14,6 +14,7 @@ use Database\Seeders\PlanSeeder;
 function scheduledChangeReplaceFixture(): array
 {
     test()->seed(PlanSeeder::class);
+    priceSeededCatalog();
     config()->set('billing.default_gateway', 'sandbox');
 
     $tenant = Tenant::create([
@@ -76,7 +77,7 @@ it('exposes the existing pending change on the schedule confirm page', function 
             ->where('changeMode', 'downgrade')
             ->where('scheduledChangeIsSameTarget', false)
             ->where('scheduledChange.plan_code', 'business')
-            ->where('scheduledChange.plan_name', 'Business')
+            ->where('scheduledChange.plan_name', $business->name)
             ->where('scheduledChange.charge_period', 'monthly')
             ->has('scheduledChange.change_at'));
 });
@@ -104,8 +105,8 @@ it('replaces a pending scheduled change and flashes that it replaced the earlier
     $response->assertRedirect(route('billing.settings.show', $tenant));
     $status = session('status');
     expect($status)->toBeString()
-        ->and($status)->toContain('replaced the previous change to Business (monthly)')
-        ->and($status)->toContain('Starter (monthly)')
+        ->and($status)->toContain('replaced the previous change to '.$business->name.' (monthly)')
+        ->and($status)->toContain($starter->name.' (monthly)')
         ->and($status)->toContain($previousWhen)
         ->and($status)->not->toMatch('/\d{4}-\d{2}-\d{2}T/');
 

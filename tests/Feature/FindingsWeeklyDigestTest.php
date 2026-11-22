@@ -9,6 +9,8 @@ use App\Models\User;
 use App\Models\WhmcsIntegration;
 use App\Services\Diagnostics\FindingsWeeklyDigestService;
 use App\Services\Mail\CentralOutboundMailer;
+use App\Services\PlatformSettings;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
@@ -77,6 +79,10 @@ it('builds a weekly digest payload for a tenant', function () {
 });
 
 it('sends weekly digests through platform mail for owner admin and operator roles only', function () {
+    Carbon::setTestNow('2026-11-16 09:30:00');
+    app(PlatformSettings::class)->set('reports.weekly_day', 1);
+    app(PlatformSettings::class)->set('reports.weekly_time', '09:00');
+
     $owner = User::factory()->withTwoFactor()->create([
         'email' => 'digest-owner@example.com',
         'email_verified_at' => now(),
@@ -89,6 +95,7 @@ it('sends weekly digests through platform mail for owner admin and operator role
         'name' => 'Mail Digest Workspace',
         'slug' => 'mail-digest-'.uniqid(),
         'status' => Tenant::STATUS_ACTIVE,
+        'timezone' => 'UTC',
         'created_by_user_id' => $owner->id,
     ]);
     $tenant->memberships()->create([
@@ -116,13 +123,94 @@ it('sends weekly digests through platform mail for owner admin and operator role
 
     expect($result['recipients'])->toBe(1)
         ->and($recipients)->toBe(['digest-owner@example.com']);
+
+    Carbon::setTestNow();
 });
 
 it('exposes the weekly digest artisan command', function () {
     $this->artisan('findings:send-weekly-digest')->assertSuccessful();
 });
 
+it('sends weekly digest for one tenant with --tenant and --force even when not due', function () {
+    Carbon::setTestNow('2026-11-17 10:00:00'); // Tuesday — not the default Monday schedule
+    app(PlatformSettings::class)->set('reports.weekly_day', 1);
+    app(PlatformSettings::class)->set('reports.weekly_time', '09:00');
+
+    $owner = User::factory()->withTwoFactor()->create([
+        'email' => 'force-digest@example.com',
+        'email_verified_at' => now(),
+    ]);
+    $tenant = Tenant::create([
+        'name' => 'Force Digest Workspace',
+        'slug' => 'force-digest-'.uniqid(),
+        'status' => Tenant::STATUS_ACTIVE,
+        'timezone' => 'UTC',
+        'created_by_user_id' => $owner->id,
+    ]);
+    $tenant->memberships()->create([
+        'user_id' => $owner->id,
+        'role' => TenantMembership::ROLE_OWNER,
+        'status' => TenantMembership::STATUS_ACTIVE,
+        'accepted_at' => now(),
+    ]);
+
+    $otherOwner = User::factory()->withTwoFactor()->create([
+        'email' => 'other-digest@example.com',
+        'email_verified_at' => now(),
+    ]);
+    $other = Tenant::create([
+        'name' => 'Other Digest Workspace',
+        'slug' => 'other-digest-'.uniqid(),
+        'status' => Tenant::STATUS_ACTIVE,
+        'timezone' => 'UTC',
+        'created_by_user_id' => $otherOwner->id,
+    ]);
+    $other->memberships()->create([
+        'user_id' => $otherOwner->id,
+        'role' => TenantMembership::ROLE_OWNER,
+        'status' => TenantMembership::STATUS_ACTIVE,
+        'accepted_at' => now(),
+    ]);
+
+    $recipients = [];
+    $mailer = Mockery::mock(CentralOutboundMailer::class);
+    $mailer->shouldReceive('send')
+        ->andReturnUsing(function (string $to) use (&$recipients): void {
+            $recipients[] = $to;
+        });
+    app()->instance(CentralOutboundMailer::class, $mailer);
+
+    $this->artisan('findings:send-weekly-digest', [
+        '--tenant' => $tenant->id,
+        '--force' => true,
+    ])->assertSuccessful();
+
+    expect($recipients)->toBe(['force-digest@example.com']);
+
+    // Force bypasses idempotency for a second immediate send.
+    $this->artisan('findings:send-weekly-digest', [
+        '--tenant' => $tenant->id,
+        '--force' => true,
+    ])->assertSuccessful();
+
+    expect($recipients)->toBe(['force-digest@example.com', 'force-digest@example.com']);
+
+    Carbon::setTestNow();
+});
+
+it('fails findings:send-weekly-digest when --tenant does not match an active tenant', function () {
+    $this->artisan('findings:send-weekly-digest', [
+        '--tenant' => (string) Str::uuid(),
+    ])
+        ->expectsOutputToContain('No active tenant matched')
+        ->assertFailed();
+});
+
 it('logs digests when platform mail driver is log', function () {
+    Carbon::setTestNow('2026-11-16 09:30:00');
+    app(PlatformSettings::class)->set('reports.weekly_day', 1);
+    app(PlatformSettings::class)->set('reports.weekly_time', '09:00');
+
     $owner = User::factory()->withTwoFactor()->create([
         'email' => 'log-digest@example.com',
         'email_verified_at' => now(),
@@ -131,6 +219,7 @@ it('logs digests when platform mail driver is log', function () {
         'name' => 'Log Digest Workspace',
         'slug' => 'log-digest-'.uniqid(),
         'status' => Tenant::STATUS_ACTIVE,
+        'timezone' => 'UTC',
         'created_by_user_id' => $owner->id,
     ]);
     $tenant->memberships()->create([
@@ -148,4 +237,6 @@ it('logs digests when platform mail driver is log', function () {
         ->withArgs(fn (string $message): bool => $message === 'outbound_mail.preview')
         ->atLeast()
         ->once();
+
+    Carbon::setTestNow();
 });

@@ -68,8 +68,15 @@ trait ValidatesPlatformPlan
             'entitlements.limits.integrations' => ['required', 'integer', 'min:0'],
             'entitlements.limits.diagnostics_per_period' => ['required', 'integer', 'min:0'],
             'entitlements.limits.retention_days' => ['required', 'integer', 'min:1'],
+            'entitlements.limits.history_days' => ['required', 'integer', 'min:1', 'max:3650'],
             'entitlements.support_level' => ['nullable', 'string', 'max:40'],
             'safe_actions_enabled' => ['sometimes', 'boolean'],
+            'fixes_guided_enabled' => ['sometimes', 'boolean'],
+            'fixes_one_click_enabled' => ['sometimes', 'boolean'],
+            'fixes_bulk_enabled' => ['sometimes', 'boolean'],
+            'fixes_auto_enabled' => ['sometimes', 'boolean'],
+            'alerts_channels_enabled' => ['sometimes', 'boolean'],
+            'reports_value_enabled' => ['sometimes', 'boolean'],
         ];
 
         // Code is immutable once any subscription references the plan — never required or accepted.
@@ -144,8 +151,22 @@ trait ValidatesPlatformPlan
             'diagnostics.analysis' => true,
             'diagnostics.reanalyze' => true,
             'safe_actions.enabled' => $this->boolean('safe_actions_enabled'),
+            'fixes.guided' => $this->boolean('fixes_guided_enabled'),
+            'fixes.one_click' => $this->boolean('fixes_one_click_enabled'),
+            'fixes.bulk' => $this->boolean('fixes_bulk_enabled'),
+            'fixes.auto' => $this->boolean('fixes_auto_enabled'),
+            'alerts.channels' => $this->boolean('alerts_channels_enabled'),
+            'reports.value' => $this->boolean('reports_value_enabled'),
         ];
-        unset($data['safe_actions_enabled']);
+        unset(
+            $data['safe_actions_enabled'],
+            $data['fixes_guided_enabled'],
+            $data['fixes_one_click_enabled'],
+            $data['fixes_bulk_enabled'],
+            $data['fixes_auto_enabled'],
+            $data['alerts_channels_enabled'],
+            $data['reports_value_enabled'],
+        );
 
         $data['prices_confirmed_at'] = now();
 

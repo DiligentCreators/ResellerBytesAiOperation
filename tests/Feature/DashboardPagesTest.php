@@ -54,5 +54,9 @@ it('exposes last scan clean health on the dashboard', function () {
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('dashboard')
-            ->has('health.last_scan_clean'));
+            ->has('health.last_scan_clean')
+            ->has('health.sparkline')
+            ->has('needsYouNow')
+            ->has('timeSaved')
+            ->has('installations'));
 });

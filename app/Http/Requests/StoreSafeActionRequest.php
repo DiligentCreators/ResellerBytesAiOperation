@@ -25,6 +25,10 @@ class StoreSafeActionRequest extends FormRequest
             'action_key' => ['required', 'string', Rule::in($keys)],
             'finding_id' => ['nullable', 'uuid', 'exists:diagnostic_findings,id'],
             'input' => ['sometimes', 'array'],
+            // Auto mode is reserved for AutoFixRunner; HTTP clients may not request it.
+            'input.mode' => ['sometimes', 'string', Rule::in(['one_click', 'guided', 'bulk'])],
+            'input.target_ids' => ['sometimes', 'array', 'max:500'],
+            'input.target_ids.*' => ['integer', 'min:1'],
         ];
     }
 }

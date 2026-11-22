@@ -21,6 +21,15 @@ use LogicException;
  * @property int $secret_version
  * @property string|null $addon_version
  * @property Carbon|null $last_seen_at
+ * @property Carbon|null $last_heartbeat_at
+ * @property Carbon|null $last_cron_at
+ * @property Carbon|null $last_daily_cron_at
+ * @property string|null $cron_php_version
+ * @property string|null $collector_schema_version
+ * @property bool $auto_collect_enabled
+ * @property Carbon|null $last_auto_collect_at
+ * @property string $heartbeat_state
+ * @property Carbon|null $heartbeat_state_changed_at
  * @property Carbon|null $pending_diagnostic_collect_at
  * @property string|null $pending_diagnostic_collect_execution_id
  * @property array<string, mixed>|null $host_connection
@@ -32,6 +41,14 @@ class WhmcsIntegration extends Model
 {
     use HasUuids;
 
+    public const HEARTBEAT_STATE_UNKNOWN = 'unknown';
+
+    public const HEARTBEAT_STATE_OK = 'ok';
+
+    public const HEARTBEAT_STATE_STALE = 'stale';
+
+    public const HEARTBEAT_STATE_DOWN = 'down';
+
     protected $fillable = [
         'owner_user_id',
         'tenant_id',
@@ -41,6 +58,15 @@ class WhmcsIntegration extends Model
         'secret_version',
         'addon_version',
         'last_seen_at',
+        'last_heartbeat_at',
+        'last_cron_at',
+        'last_daily_cron_at',
+        'cron_php_version',
+        'collector_schema_version',
+        'auto_collect_enabled',
+        'last_auto_collect_at',
+        'heartbeat_state',
+        'heartbeat_state_changed_at',
         'pending_diagnostic_collect_at',
         'pending_diagnostic_collect_execution_id',
         'host_connection',
@@ -49,6 +75,11 @@ class WhmcsIntegration extends Model
     protected $hidden = [
         'secret',
         'host_connection',
+    ];
+
+    protected $attributes = [
+        'auto_collect_enabled' => true,
+        'heartbeat_state' => self::HEARTBEAT_STATE_UNKNOWN,
     ];
 
     protected static function booted(): void
@@ -67,6 +98,12 @@ class WhmcsIntegration extends Model
             'secret' => 'encrypted',
             'secret_version' => 'integer',
             'last_seen_at' => 'immutable_datetime',
+            'last_heartbeat_at' => 'immutable_datetime',
+            'last_cron_at' => 'immutable_datetime',
+            'last_daily_cron_at' => 'immutable_datetime',
+            'auto_collect_enabled' => 'boolean',
+            'last_auto_collect_at' => 'immutable_datetime',
+            'heartbeat_state_changed_at' => 'immutable_datetime',
             'pending_diagnostic_collect_at' => 'immutable_datetime',
             'host_connection' => 'encrypted:array',
         ];

@@ -229,8 +229,13 @@ class PlatformPlanController extends Controller
             'description' => $plan->description,
             'price_monthly_minor' => $plan->price_monthly_minor,
             'price_yearly_minor' => $plan->price_yearly_minor,
-            'price_monthly' => number_format($plan->price_monthly_minor / 100, 2, '.', ''),
-            'price_yearly' => number_format($plan->price_yearly_minor / 100, 2, '.', ''),
+            'price_monthly' => $plan->price_monthly_minor !== null
+                ? number_format($plan->price_monthly_minor / 100, 2, '.', '')
+                : null,
+            'price_yearly' => $plan->price_yearly_minor !== null
+                ? number_format($plan->price_yearly_minor / 100, 2, '.', '')
+                : null,
+            'needs_pricing' => ! $plan->hasPrices() && ! $plan->is_contact_sales,
             'currency' => $plan->currency,
             'trial_days' => $plan->trial_days,
             'trial_enabled' => (bool) $plan->trial_enabled,

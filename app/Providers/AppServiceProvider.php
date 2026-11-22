@@ -3,10 +3,22 @@
 namespace App\Providers;
 
 use App\Contracts\AuditCheckpointObjectStore;
+use App\Events\CriticalFindingRaised;
+use App\Events\FixActionAutoQueued;
+use App\Events\FixActionFailed;
+use App\Events\InstallationHeartbeatStateChanged;
+use App\Listeners\RecomputeHealthScoreOnHeartbeatChange;
+use App\Services\Alerts\AlertDispatcher;
 use App\Services\Audit\S3AuditCheckpointObjectStore;
+use App\Services\Diagnostics\Rules\IssueRule;
+use App\Services\Diagnostics\Rules\IssueRuleRegistry;
 use App\Services\Mail\CentralOutboundMailer;
 use App\Services\Mail\PlatformMailTransport;
 use App\Services\Operations\QueueJobMetricsTracker;
+use App\Services\PlatformSettings;
+use App\Support\Http\HostDnsResolver;
+use App\Support\Http\PhpHostDnsResolver;
+use App\Support\PlatformSettings\PlatformSettingsRegistry;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Middleware\TrustProxies;
@@ -21,6 +33,7 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
+use Throwable;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -30,6 +43,17 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->bind(AuditCheckpointObjectStore::class, S3AuditCheckpointObjectStore::class);
+        $this->app->bind(HostDnsResolver::class, PhpHostDnsResolver::class);
+        $this->app->singleton(PlatformSettingsRegistry::class);
+        $this->app->singleton(PlatformSettings::class);
+        $this->app->singleton(IssueRuleRegistry::class, function ($app): IssueRuleRegistry {
+            $rules = array_map(
+                static fn (string $class): IssueRule => $app->make($class),
+                IssueRuleRegistry::ruleClasses(),
+            );
+
+            return new IssueRuleRegistry($rules);
+        });
     }
 
     /**
@@ -42,6 +66,37 @@ class AppServiceProvider extends ServiceProvider
         $this->configureTrustedProxies();
         $this->configureDefaults();
         $this->registerQueueMetricsListeners();
+        Event::listen(InstallationHeartbeatStateChanged::class, RecomputeHealthScoreOnHeartbeatChange::class);
+        Event::listen(
+            InstallationHeartbeatStateChanged::class,
+            [AlertDispatcher::class, 'handleHeartbeatStateChanged'],
+        );
+        Event::listen(
+            CriticalFindingRaised::class,
+            [AlertDispatcher::class, 'handleCriticalFindingRaised'],
+        );
+        Event::listen(
+            FixActionFailed::class,
+            [AlertDispatcher::class, 'handleFixActionFailed'],
+        );
+        Event::listen(
+            FixActionAutoQueued::class,
+            [AlertDispatcher::class, 'handleFixActionAutoQueued'],
+        );
+        $this->overlayPlatformSettings();
+    }
+
+    /**
+     * Push DB-backed platform settings onto config() so existing consumers see them.
+     * Guarded so artisan, migrations, and fresh installs never break.
+     */
+    private function overlayPlatformSettings(): void
+    {
+        try {
+            $this->app->make(PlatformSettings::class)->overlayOntoConfig();
+        } catch (Throwable) {
+            //
+        }
     }
 
     /**

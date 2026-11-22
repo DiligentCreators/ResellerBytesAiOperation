@@ -2,10 +2,8 @@
 
 namespace App\Http\Middleware;
 
-use App\Models\Tenant;
-use App\Models\TenantMembership;
 use App\Models\User;
-use App\Services\CentralStaffAuthorization;
+use App\Support\TwoFactorPolicy;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -13,11 +11,13 @@ use Symfony\Component\HttpFoundation\Response;
 class EnsureTwoFactorEnabled
 {
     /**
-     * Require confirmed two-factor authentication for central/platform staff, and for
-     * members of workspaces whose owner has enabled require_two_factor.
-     *
-     * Self-serve customers without those obligations are not blocked; the UI encourages 2FA.
+     * When platform security.two_factor_required is on: require confirmed 2FA for
+     * central/platform staff and for members of workspaces with require_two_factor.
+     * When off: never redirect anyone for missing 2FA (self-enrolled users still
+     * face Fortify's login challenge).
      */
+    public function __construct(private readonly TwoFactorPolicy $policy) {}
+
     public function handle(Request $request, Closure $next): Response
     {
         $user = $request->user();
@@ -26,29 +26,12 @@ class EnsureTwoFactorEnabled
             return $next($request);
         }
 
-        if ($this->mustEnforceTwoFactor($user)) {
+        if ($this->policy->isRequiredFor($user)) {
             return redirect()
                 ->route('security.edit')
                 ->with('status', 'Enable and confirm two-factor authentication before continuing.');
         }
 
         return $next($request);
-    }
-
-    private function mustEnforceTwoFactor(User $user): bool
-    {
-        $authorization = app(CentralStaffAuthorization::class);
-
-        if ($authorization->isPlatformOperator($user)) {
-            return true;
-        }
-
-        return $user->tenantMemberships()
-            ->where('status', TenantMembership::STATUS_ACTIVE)
-            ->whereHas('tenant', function ($query): void {
-                $query->where('status', Tenant::STATUS_ACTIVE)
-                    ->where('require_two_factor', true);
-            })
-            ->exists();
     }
 }

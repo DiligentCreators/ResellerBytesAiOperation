@@ -1,0 +1,42 @@
+{
+    "system": {
+        "whmcs_version": "8.13.7",
+        "web_php_version": "8.2.28",
+        "database_version": "10.11.19-MariaDB",
+        "web_server": "Apache",
+        "application_url_configured": true,
+        "error_display_disabled": true,
+        "configuration_file_writable": false
+    },
+    "php": {
+        "memory_limit": "512M",
+        "extensions": {
+            "curl": true,
+            "json": true,
+            "mbstring": true,
+            "openssl": true,
+            "pdo": true,
+            "pdo_mysql": true,
+            "soap": true,
+            "xml": true,
+            "gd": true,
+            "iconv": true,
+            "intl": true,
+            "zip": true,
+            "zlib": true,
+            "fileinfo": true,
+            "bcmath": true,
+            "ioncube_loader": true,
+            "sodium": true
+        }
+    },
+    "warnings": [],
+    "collector": {
+        "capabilities": [
+            "web_php_version",
+            "whmcs_version",
+            "php_extension_availability"
+        ],
+        "limitations": ["whmcs_db_unavailable", "local_api_unavailable"]
+    }
+}

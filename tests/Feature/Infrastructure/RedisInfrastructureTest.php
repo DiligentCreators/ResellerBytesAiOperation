@@ -2,7 +2,9 @@
 
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Session;
+use Throwable;
 
 test('Redis can serve cache, session, and queue workloads', function () {
     config([
@@ -11,6 +13,12 @@ test('Redis can serve cache, session, and queue workloads', function () {
         'session.connection' => 'default',
         'queue.default' => 'redis',
     ]);
+
+    try {
+        Redis::connection()->ping();
+    } catch (Throwable $exception) {
+        test()->markTestSkipped('Redis is not reachable: '.$exception->getMessage());
+    }
 
     $cacheKey = 'redis-infrastructure-test-'.bin2hex(random_bytes(8));
 

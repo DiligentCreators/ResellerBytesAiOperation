@@ -54,7 +54,9 @@ class TrialService
         }
 
         if (! $plan->isCheckoutable()) {
-            throw new InvalidArgumentException('billing_plan_not_checkoutable');
+            throw new InvalidArgumentException(
+                $plan->hasPrices() ? 'billing_plan_not_checkoutable' : 'billing_plan_price_missing',
+            );
         }
 
         if (! $plan->intervalIsActive($billingPeriod)) {

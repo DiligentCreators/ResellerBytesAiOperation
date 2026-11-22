@@ -12,6 +12,8 @@ use Illuminate\Support\Carbon;
 /**
  * @property array<string, mixed> $entitlements
  * @property list<string>|null $features
+ * @property int|null $price_monthly_minor
+ * @property int|null $price_yearly_minor
  * @property int $trial_days Trial length in days when trial_enabled; paid checkout never applies this.
  * @property bool $trial_enabled
  * @property bool $monthly_active
@@ -81,7 +83,13 @@ class Plan extends Model
 
     public function priceForPeriod(string $period): int
     {
-        return $period === 'yearly' ? $this->price_yearly_minor : $this->price_monthly_minor;
+        $amount = $period === 'yearly' ? $this->price_yearly_minor : $this->price_monthly_minor;
+
+        if ($amount === null) {
+            throw new \RuntimeException('billing_plan_price_missing');
+        }
+
+        return $amount;
     }
 
     public function intervalIsActive(string $period): bool
@@ -89,9 +97,17 @@ class Plan extends Model
         return $period === 'yearly' ? (bool) $this->yearly_active : (bool) $this->monthly_active;
     }
 
+    /**
+     * True when both catalog price columns are set (admin has entered amounts).
+     */
+    public function hasPrices(): bool
+    {
+        return $this->price_monthly_minor !== null && $this->price_yearly_minor !== null;
+    }
+
     public function isCheckoutable(): bool
     {
-        return $this->is_active && ! $this->is_contact_sales;
+        return $this->is_active && ! $this->is_contact_sales && $this->hasPrices();
     }
 
     public function kelviqPlanIdentifierForPeriod(string $period): ?string
@@ -104,13 +120,14 @@ class Plan extends Model
     }
 
     /**
-     * True while any public active plan has never had prices confirmed in admin.
+     * True while any public active purchasable plan has never had prices confirmed in admin.
      */
     public static function catalogHasUnconfirmedPrices(): bool
     {
         return static::query()
             ->where('is_active', true)
             ->where('is_public', true)
+            ->where('is_contact_sales', false)
             ->whereNull('prices_confirmed_at')
             ->exists();
     }
@@ -132,6 +149,17 @@ class Plan extends Model
      */
     public function scopePublicCatalog(Builder $query): Builder
     {
-        return $query->where('is_active', true)->where('is_public', true)->orderBy('sort_order')->orderBy('id');
+        return $query
+            ->where('is_active', true)
+            ->where('is_public', true)
+            ->where(function (Builder $inner): void {
+                $inner->where('is_contact_sales', true)
+                    ->orWhere(function (Builder $priced): void {
+                        $priced->whereNotNull('price_monthly_minor')
+                            ->whereNotNull('price_yearly_minor');
+                    });
+            })
+            ->orderBy('sort_order')
+            ->orderBy('id');
     }
 }

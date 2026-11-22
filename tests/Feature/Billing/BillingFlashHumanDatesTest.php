@@ -11,6 +11,7 @@ use Database\Seeders\PlanSeeder;
 
 it('uses a human date without an ISO timestamp in the schedule flash', function (): void {
     test()->seed(PlanSeeder::class);
+    priceSeededCatalog();
     config()->set('billing.default_gateway', 'sandbox');
 
     $tenant = Tenant::create([
@@ -58,6 +59,7 @@ it('uses a human date without an ISO timestamp in the schedule flash', function 
 
 it('keeps other billing status flashes free of ISO timestamps', function (): void {
     test()->seed(PlanSeeder::class);
+    priceSeededCatalog();
     config()->set('billing.default_gateway', 'sandbox');
 
     $tenant = Tenant::create([

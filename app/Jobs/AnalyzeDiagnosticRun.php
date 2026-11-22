@@ -8,9 +8,12 @@ use App\Models\DiagnosticRun;
 use App\Models\TenantMembership;
 use App\Models\User;
 use App\Services\Ai\OpenAiConfiguration;
+use App\Services\Alerts\CriticalFindingAlertGate;
 use App\Services\Diagnostics\AiBudgetService;
+use App\Services\Diagnostics\DeterministicFindingDetector;
 use App\Services\Diagnostics\FindingContinuityService;
 use App\Services\Diagnostics\WhmcsDiagnosticAnalyzer;
+use App\Services\Health\HealthSnapshotRecorder;
 use App\Services\Tenancy\TenantDatabaseContext;
 use App\Services\Tenancy\TenantEntitlementService;
 use App\Services\Tenancy\TenantResourceLimitService;
@@ -178,7 +181,14 @@ class AnalyzeDiagnosticRun implements ShouldQueue
                 return;
             }
 
-            $lockedRun->findings()->delete();
+            // Preserve deterministic rule findings; only replace AI-sourced rows.
+            $lockedRun->findings()
+                ->where('source', '!=', DeterministicFindingDetector::SOURCE)
+                ->each(function (DiagnosticFinding $finding): void {
+                    $finding->recommendations()->delete();
+                    $finding->delete();
+                });
+
             $createdFingerprints = [];
             $continuity = app(FindingContinuityService::class);
 
@@ -200,6 +210,7 @@ class AnalyzeDiagnosticRun implements ShouldQueue
                     'diagnostic_run_id' => $lockedRun->id,
                     'tenant_id' => $lockedRun->tenant_id,
                     'fingerprint' => $fingerprint,
+                    'source' => DiagnosticFinding::SOURCE_AI,
                     'category' => $findingData['category'],
                     'severity' => $findingData['severity'],
                     'title' => $findingData['title'],
@@ -220,7 +231,11 @@ class AnalyzeDiagnosticRun implements ShouldQueue
                 }
 
                 $continuity->inheritActiveWorkflow($finding);
+                app(CriticalFindingAlertGate::class)->maybeRaise($finding);
             }
+
+            $actor = User::query()->find($this->ownerUserId);
+            app(DeterministicFindingDetector::class)->detect($lockedRun, $actor);
 
             $lockedRun->forceFill([
                 'status' => 'analyzed',
@@ -234,7 +249,6 @@ class AnalyzeDiagnosticRun implements ShouldQueue
                 'analysis_usage' => $result['usage'],
             ])->save();
 
-            $actor = User::query()->find($this->ownerUserId);
             if ($actor !== null) {
                 $continuity->clearAbsentActiveFindings($lockedRun->fresh() ?? $lockedRun, $actor);
             }
@@ -261,6 +275,12 @@ class AnalyzeDiagnosticRun implements ShouldQueue
                         'created_at' => now(),
                     ]);
                 }
+            }
+
+            $lockedRun->loadMissing('integration');
+            $integration = $lockedRun->integration;
+            if ($integration !== null) {
+                app(HealthSnapshotRecorder::class)->recomputeForIntegration($integration, $lockedRun);
             }
         });
     }

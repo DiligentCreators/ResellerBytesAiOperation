@@ -15,6 +15,23 @@ beforeEach(function () {
     ]);
 });
 
+/**
+ * Write a portable PHP CLI stub. The store invokes *.php binaries via PHP_BINARY.
+ */
+function fakeAuditAwsCli(string $body): string
+{
+    $script = tempnam(sys_get_temp_dir(), 'rb-audit-s3-cli-');
+    if (! is_string($script)) {
+        throw new RuntimeException('fake_s3_cli_script_failed');
+    }
+
+    $path = $script.'.php';
+    @unlink($script);
+    file_put_contents($path, "<?php\n".$body);
+
+    return $path;
+}
+
 it('fails closed when the dedicated audit bucket is not configured', function () {
     config(['audit.anchor.storage.bucket' => null]);
 
@@ -56,23 +73,22 @@ it('rejects endpoints containing embedded credentials', function () {
 });
 
 it('creates and reads back an exact immutable S3 object version through the CLI adapter', function () {
-    $script = tempnam(sys_get_temp_dir(), 'rb-audit-s3-cli-');
-    $state = $script.'.object';
-    if (! is_string($script)) {
-        throw new RuntimeException('fake_s3_cli_script_failed');
+    $state = tempnam(sys_get_temp_dir(), 'rb-audit-s3-object-');
+    if (! is_string($state)) {
+        throw new RuntimeException('fake_s3_cli_state_failed');
     }
 
-    $program = "#!/usr/bin/env php\n<?php\n".
+    $script = fakeAuditAwsCli(
         '$state = '.var_export($state, true).";\n".
         '$args = $argv;'."\n".
         'function optionValue(array $args, string $name): ?string { $index = array_search($name, $args, true); return $index === false ? null : ($args[$index + 1] ?? null); }'."\n".
-        '$action = $args[2] ?? null;'."\n".
+        '$action = $args[1] ?? null;'."\n".
+        'if ($action === "s3api") { $action = $args[2] ?? null; }'."\n".
         'if ($action === "put-object") { $body = optionValue($args, "--body"); file_put_contents($state, file_get_contents((string) $body)); echo json_encode(["VersionId" => "test-version-1"]); exit(0); }'."\n".
         'if ($action === "head-object") { echo json_encode(["VersionId" => "test-version-1", "ObjectLockMode" => "COMPLIANCE", "ObjectLockRetainUntilDate" => "2027-11-15T00:00:00Z"]); exit(0); }'."\n".
         'if ($action === "get-object") { $index = array_search("--version-id", $args, true); $destination = $index === false ? null : ($args[$index + 2] ?? null); file_put_contents((string) $destination, file_get_contents($state)); echo json_encode(["VersionId" => "test-version-1"]); exit(0); }'."\n".
-        'fwrite(STDERR, "unsupported fake operation"); exit(2);'."\n";
-    file_put_contents($script, $program);
-    chmod($script, 0700);
+        'fwrite(STDERR, "unsupported fake operation"); exit(2);'."\n"
+    );
     config(['audit.anchor.storage.aws_cli_binary' => $script]);
 
     try {
@@ -99,19 +115,14 @@ it('creates and reads back an exact immutable S3 object version through the CLI 
 });
 
 it('bounds external checkpoint downloads before loading them into memory', function () {
-    $script = tempnam(sys_get_temp_dir(), 'rb-audit-s3-oversized-');
-    if (! is_string($script)) {
-        throw new RuntimeException('fake_s3_cli_script_failed');
-    }
-
-    $program = "#!/usr/bin/env php\n<?php\n".
+    $script = fakeAuditAwsCli(
         '$args = $argv;'."\n".
-        '$action = $args[2] ?? null;'."\n".
+        '$action = $args[1] ?? null;'."\n".
+        'if ($action === "s3api") { $action = $args[2] ?? null; }'."\n".
         'if ($action === "head-object") { echo json_encode(["VersionId" => "test-version-1", "ObjectLockMode" => "COMPLIANCE", "ObjectLockRetainUntilDate" => "2027-11-15T00:00:00Z"]); exit(0); }'."\n".
         'if ($action === "get-object") { $index = array_search("--version-id", $args, true); $destination = $index === false ? null : ($args[$index + 2] ?? null); file_put_contents((string) $destination, str_repeat("x", 65537)); echo json_encode(["VersionId" => "test-version-1"]); exit(0); }'."\n".
-        'fwrite(STDERR, "unsupported fake operation"); exit(2);'."\n";
-    file_put_contents($script, $program);
-    chmod($script, 0700);
+        'fwrite(STDERR, "unsupported fake operation"); exit(2);'."\n"
+    );
     config(['audit.anchor.storage.aws_cli_binary' => $script]);
 
     try {
@@ -119,6 +130,20 @@ it('bounds external checkpoint downloads before loading them into memory', funct
             'audit-anchors/test/checkpoint.json',
             'test-version-1',
         ))->toThrow(RuntimeException::class, 'audit_anchor_object_readback_oversized');
+    } finally {
+        @unlink($script);
+    }
+});
+
+it('fails closed with a stable code when the CLI returns non-JSON output', function () {
+    $script = fakeAuditAwsCli(
+        'fwrite(STDOUT, "not-json"); exit(0);'."\n"
+    );
+    config(['audit.anchor.storage.aws_cli_binary' => $script]);
+
+    try {
+        expect(fn () => app(S3AuditCheckpointObjectStore::class)->findImmutableObject('audit-anchors/test/checkpoint.json'))
+            ->toThrow(RuntimeException::class, 'audit_anchor_storage_invalid_response');
     } finally {
         @unlink($script);
     }

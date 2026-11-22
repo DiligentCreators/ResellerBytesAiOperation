@@ -6,9 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\StoreDiagnosticSnapshotRequest;
 use App\Jobs\AnalyzeDiagnosticRun;
 use App\Models\DiagnosticRun;
+use App\Models\User;
 use App\Models\WhmcsIntegration;
 use App\Services\Ai\OpenAiConfiguration;
 use App\Services\Audit\AuditEventWriter;
+use App\Services\Diagnostics\DeterministicFindingDetector;
+use App\Services\Health\HealthSnapshotRecorder;
 use App\Services\SafeActions\SafeActionExecutor;
 use App\Services\Tenancy\TenantResourceLimitService;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -55,6 +58,8 @@ class StoreDiagnosticSnapshotController extends Controller
 
                 $integration->forceFill([
                     'addon_version' => $validated['addon_version'],
+                    'collector_schema_version' => $validated['schema_version'],
+                    'last_auto_collect_at' => now(),
                     'last_seen_at' => now(),
                 ])->save();
 
@@ -70,7 +75,19 @@ class StoreDiagnosticSnapshotController extends Controller
                     'occurred_at' => now(),
                 ]);
 
+                $actor = $integration->owner_user_id !== null
+                    ? User::query()->find($integration->owner_user_id)
+                    : null;
+                app(DeterministicFindingDetector::class)->detect($run, $actor);
+
+                // Verify only after the rule engine has written findings for this run.
+                // Otherwise clear-or-reduced treats a missing finding row as cleared.
                 app(SafeActionExecutor::class)->verifyCollectFromSnapshot($integration->fresh() ?? $integration, $run);
+
+                app(HealthSnapshotRecorder::class)->recomputeForIntegration(
+                    $integration->fresh() ?? $integration,
+                    $run,
+                );
 
                 return $run;
             });

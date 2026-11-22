@@ -7,6 +7,7 @@ use App\Concerns\ProfileValidationRules;
 use App\Models\User;
 use App\Services\Tenancy\TenantProvisioningService;
 use App\Support\CountryCodes;
+use App\Support\RegistrationPolicy;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -17,7 +18,10 @@ class CreateNewUser implements CreatesNewUsers
 {
     use PasswordValidationRules, ProfileValidationRules;
 
-    public function __construct(private readonly TenantProvisioningService $tenants) {}
+    public function __construct(
+        private readonly TenantProvisioningService $tenants,
+        private readonly RegistrationPolicy $registration,
+    ) {}
 
     /**
      * Validate and create a newly registered user with their owner workspace.
@@ -28,6 +32,10 @@ class CreateNewUser implements CreatesNewUsers
     {
         // Rate limiting is enforced on register.store via ThrottleSensitiveAuthRequests
         // (named limiter `register` — 5/min/IP), including invalid payloads.
+        // EnsureRegistrationIsOpen blocks the route; this is defense in depth.
+        if (! $this->registration->isOpen()) {
+            abort(403, RegistrationPolicy::CLOSED_MESSAGE);
+        }
 
         Validator::make($input, [
             ...$this->profileRules(),

@@ -6,6 +6,7 @@ use App\Models\DiagnosticFinding;
 use App\Models\TenantMembership;
 use App\Models\User;
 use App\Services\Audit\AuditEventWriter;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
@@ -38,9 +39,9 @@ class FindingWorkflowService
                 }
 
                 $locked->status = $status;
-                $locked->status_updated_at = now();
+                $locked->status_updated_at = Carbon::now();
                 $locked->resolved_at = in_array($status, DiagnosticFinding::CLOSED_STATUSES, true)
-                    ? ($locked->resolved_at ?? now())
+                    ? ($locked->resolved_at ?? Carbon::now())
                     : null;
             }
 

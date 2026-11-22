@@ -17,12 +17,14 @@ class PlanFactory extends Factory
      */
     public function definition(): array
     {
+        $monthly = fake()->numberBetween(1000, 50_000);
+
         return [
             'code' => 'plan-'.fake()->unique()->slug(2),
             'name' => fake()->words(2, true),
             'description' => fake()->sentence(),
-            'price_monthly_minor' => 2900,
-            'price_yearly_minor' => 29000,
+            'price_monthly_minor' => $monthly,
+            'price_yearly_minor' => $monthly * fake()->numberBetween(8, 12),
             'currency' => 'USD',
             'trial_days' => 14,
             'trial_enabled' => false,
@@ -34,11 +36,18 @@ class PlanFactory extends Factory
                 'diagnostics.analysis' => true,
                 'diagnostics.reanalyze' => true,
                 'safe_actions.enabled' => true,
+                'fixes.guided' => true,
+                'fixes.one_click' => true,
+                'fixes.bulk' => true,
+                'fixes.auto' => true,
+                'alerts.channels' => true,
+                'reports.value' => true,
                 'limits' => [
                     'members' => 5,
                     'integrations' => 1,
                     'diagnostics_per_period' => 50,
                     'retention_days' => 30,
+                    'history_days' => 90,
                 ],
                 'support_level' => 'email',
             ],

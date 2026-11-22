@@ -3,6 +3,7 @@ import { CheckCircle2, ShieldAlert } from 'lucide-react';
 import { EmptyState } from '@/components/empty-state';
 import { PageHeader } from '@/components/page-header';
 import { Pagination } from '@/components/pagination';
+import { SeverityBadge } from '@/components/severity-badge';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
 
@@ -45,11 +46,10 @@ const statusFilters = [
 
 export default function FindingsIndex({ findings, filters, health }: Props) {
     const setStatus = (status: string) => {
-        router.get(
-            '/findings',
-            status === 'all' ? {} : { status },
-            { preserveState: true, replace: true },
-        );
+        router.get('/findings', status === 'all' ? {} : { status }, {
+            preserveState: true,
+            replace: true,
+        });
     };
 
     return (
@@ -59,6 +59,11 @@ export default function FindingsIndex({ findings, filters, health }: Props) {
                 <PageHeader
                     title="Findings"
                     description="One current issue per installation signal. History keeps older scan rows. Approve → Apply in WHMCS → Verify scan."
+                    actions={
+                        <Button variant="outline" size="sm" asChild>
+                            <Link href="/fix-center">Open Fix Center</Link>
+                        </Button>
+                    }
                 />
 
                 {health.last_scan_clean ? (
@@ -73,9 +78,9 @@ export default function FindingsIndex({ findings, filters, health }: Props) {
                                     Last scan clean
                                 </h2>
                                 <p className="mt-1 text-sm text-success-fg/90">
-                                    Analyzed diagnostics show no active findings.
-                                    Keep the weekly digest on and re-check after
-                                    the next WHMCS change window.
+                                    Analyzed diagnostics show no active
+                                    findings. Keep the weekly digest on and
+                                    re-check after the next WHMCS change window.
                                 </p>
                             </div>
                         </div>
@@ -102,7 +107,9 @@ export default function FindingsIndex({ findings, filters, health }: Props) {
 
                 {findings.data.length === 0 ? (
                     <EmptyState
-                        icon={health.last_scan_clean ? CheckCircle2 : ShieldAlert}
+                        icon={
+                            health.last_scan_clean ? CheckCircle2 : ShieldAlert
+                        }
                         title={
                             health.last_scan_clean
                                 ? 'Last scan clean'
@@ -114,6 +121,21 @@ export default function FindingsIndex({ findings, filters, health }: Props) {
                                 : health.analyzed_runs === 0
                                   ? 'Findings appear after diagnostic analysis has run.'
                                   : 'Try another status filter or wait for the next scan.'
+                        }
+                        action={
+                            health.analyzed_runs === 0 ? (
+                                <Button size="sm" asChild>
+                                    <Link href="/whmcs-addon/setup">
+                                        Connect WHMCS
+                                    </Link>
+                                </Button>
+                            ) : (
+                                <Button size="sm" asChild>
+                                    <Link href="/fix-center">
+                                        Open Fix Center
+                                    </Link>
+                                </Button>
+                            )
                         }
                     />
                 ) : (
@@ -163,8 +185,8 @@ export default function FindingsIndex({ findings, filters, health }: Props) {
                                             {finding.category}
                                         </td>
                                         <td className="px-4">
-                                            <StatusBadge
-                                                status={finding.severity}
+                                            <SeverityBadge
+                                                severity={finding.severity}
                                             />
                                         </td>
                                         <td className="px-4">

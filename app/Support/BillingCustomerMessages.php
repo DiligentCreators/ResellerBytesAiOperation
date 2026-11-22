@@ -38,4 +38,6 @@ final class BillingCustomerMessages
     public const CHECKOUT_PLAN_CHANGE_PENDING = 'A plan change is already in progress. Finish or abandon that checkout before starting another.';
 
     public const CHECKOUT_FORBIDDEN = 'You do not have permission to manage billing for this workspace.';
+
+    public const CHECKOUT_PLAN_NEEDS_PRICING = 'This plan is not available for purchase yet. A platform admin must set prices first.';
 }

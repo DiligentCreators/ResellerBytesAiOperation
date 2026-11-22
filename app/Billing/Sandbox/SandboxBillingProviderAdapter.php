@@ -32,10 +32,7 @@ class SandboxBillingProviderAdapter implements BillingProviderAdapter
             throw new RuntimeException('billing_sandbox_signature_headers_missing');
         }
 
-        $secret = (string) config('billing.sandbox.signing_secret');
-        if ($secret === '') {
-            throw new RuntimeException('billing_sandbox_signing_secret_missing');
-        }
+        $secret = app(SandboxSigningSecret::class)->resolve();
 
         $expected = hash_hmac('sha256', $timestamp.'.'.$rawBody, $secret);
         if (! hash_equals($expected, $signature)) {

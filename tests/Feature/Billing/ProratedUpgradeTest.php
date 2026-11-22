@@ -14,6 +14,7 @@ use Database\Seeders\PlanSeeder;
 function proratedUpgradeFixture(): array
 {
     test()->seed(PlanSeeder::class);
+    priceSeededCatalog();
     config()->set('billing.default_gateway', 'sandbox');
     CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-11-21 12:00:00', 'UTC'));
 
@@ -125,31 +126,20 @@ it('charges the gateway only for total_due and writes plan plus credit invoice l
 it('completes a zero-total upgrade without a gateway checkout', function (): void {
     [$tenant, $user, , $growth, $current] = proratedUpgradeFixture();
 
-    // Business monthly paid in full on day 1; upgrading to a cheaper-than-credit
-    // but still higher Growth monthly is impossible — instead put the tenant on a
-    // high custom current amount and upgrade to Growth whose price is fully covered.
+    // Monthly → yearly is always an upgrade. Day-1 unused credit ≈ current
+    // unit_amount, so set yearly below that to land a zero-total upgrade.
     CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-11-01 08:00:00', 'UTC'));
-    $growth->forceFill(['price_monthly_minor' => 2000])->save();
+    $currentAmount = (int) $current->unit_amount_minor;
+    $yearly = max(100, intdiv($currentAmount, 2));
     $current->forceFill([
         'current_period_starts_at' => CarbonImmutable::parse('2026-11-01 00:00:00', 'UTC'),
         'current_period_ends_at' => CarbonImmutable::parse('2026-12-01 00:00:00', 'UTC'),
-        // Current normalized monthly must be < 2000 so this is an upgrade, while
-        // unused-time credit (≈ unit_amount on day 1) still covers the new price.
-        // Use a synthetic lower current list price via unit_amount < growth after bump...
-        // Better: current Starter 1000 → Growth 2000 with unit_amount 1000 on day 1
-        // leaves credit 1000 and total_due 1000. For zero, set unit_amount high
-        // enough that credit caps at new price while classifier still sees upgrade
-        // via plan price comparison — classifier uses unit_amount for current.
-        // So: force current unit_amount to 1500 and growth to 2000 → upgrade with
-        // day-1 credit 1500, total_due 500. For zero: unit_amount 5000, growth 2000
-        // → classifier sees 2000 < 5000 = downgrade. Use monthly→yearly instead.
-        'unit_amount_minor' => 4900,
-        'plan_id' => Plan::query()->where('code', 'starter')->value('id'),
-        'plan_code' => 'starter',
     ])->save();
 
-    // Monthly → yearly is always an upgrade. Price yearly capped by day-1 credit.
-    $growth->forceFill(['price_yearly_minor' => 4000])->save();
+    $growth->forceFill([
+        'price_monthly_minor' => max(100, intdiv($currentAmount, 3)),
+        'price_yearly_minor' => $yearly,
+    ])->save();
 
     $change = app(SubscriptionManagementService::class)->changePlan(
         $tenant->id,

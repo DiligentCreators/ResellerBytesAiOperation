@@ -8,7 +8,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-/** @property array<string, mixed> $settings */
+/**
+ * @property array<string, mixed> $settings
+ * @property int|null $hourly_rate_usd
+ */
 class Tenant extends Model
 {
     use HasUuids;
@@ -27,6 +30,7 @@ class Tenant extends Model
         'status',
         'country_code',
         'timezone',
+        'hourly_rate_usd',
         'require_two_factor',
         'onboarding_completed_at',
         'created_by_user_id',
@@ -37,6 +41,7 @@ class Tenant extends Model
     {
         return [
             'settings' => 'array',
+            'hourly_rate_usd' => 'integer',
             'require_two_factor' => 'boolean',
             'onboarding_completed_at' => 'immutable_datetime',
         ];
@@ -86,10 +91,22 @@ class Tenant extends Model
         return $this->hasMany(WhmcsIntegration::class);
     }
 
+    /** @return HasMany<WhmcsHealthSnapshot, $this> */
+    public function healthSnapshots(): HasMany
+    {
+        return $this->hasMany(WhmcsHealthSnapshot::class);
+    }
+
     /** @return HasMany<TenantNotification, $this> */
     public function notifications(): HasMany
     {
         return $this->hasMany(TenantNotification::class);
+    }
+
+    /** @return HasMany<TenantAlertChannel, $this> */
+    public function alertChannels(): HasMany
+    {
+        return $this->hasMany(TenantAlertChannel::class);
     }
 
     /** @return HasMany<TenantSubscription, $this> */

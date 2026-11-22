@@ -6,7 +6,9 @@ use App\Models\Tenant;
 use App\Models\TenantMembership;
 use App\Models\User;
 use App\Services\CentralStaffAuthorization;
+use App\Services\Navigation\WorkspaceNavigationBuilder;
 use App\Services\Tenancy\TenantRoleAuthorization;
+use App\Support\TwoFactorPolicy;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Inertia\Middleware;
@@ -24,6 +26,7 @@ class HandleInertiaRequests extends Middleware
     {
         $authorization = app(CentralStaffAuthorization::class);
         $roleAuthorization = app(TenantRoleAuthorization::class);
+        $twoFactorPolicy = app(TwoFactorPolicy::class);
         $user = $request->user();
         $memberships = $this->activeMemberships($user);
         $tenants = $memberships
@@ -54,11 +57,15 @@ class HandleInertiaRequests extends Middleware
                 'two_factor_enabled' => $twoFactorEnabled,
                 'encourage_two_factor' => $user instanceof User && ! $twoFactorEnabled,
             ],
+            'security' => [
+                'twoFactorRequiredByPlatform' => $twoFactorPolicy->isPlatformRequirementEnabled(),
+            ],
             'flash' => [
                 'integration_credentials' => fn () => $request->session()->get('integration_credentials'),
                 'status' => fn () => $request->session()->get('status'),
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
+            'navigation' => app(WorkspaceNavigationBuilder::class)->forRequest($request),
         ];
     }
 

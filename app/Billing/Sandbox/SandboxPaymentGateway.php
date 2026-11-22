@@ -130,7 +130,7 @@ class SandboxPaymentGateway implements PaymentGateway
         ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
 
         $timestamp = (string) now('UTC')->timestamp;
-        $secret = (string) config('billing.sandbox.signing_secret');
+        $secret = app(SandboxSigningSecret::class)->resolve();
         $signature = hash_hmac('sha256', $timestamp.'.'.$body, $secret);
 
         app(TenantBillingWebhookGateway::class)->ingestConfigured('sandbox', $body, [

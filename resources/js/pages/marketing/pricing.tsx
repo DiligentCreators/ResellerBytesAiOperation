@@ -11,8 +11,8 @@ type Plan = {
     code: string;
     name: string;
     description: string | null;
-    price_monthly_minor: number;
-    price_yearly_minor: number;
+    price_monthly_minor: number | null;
+    price_yearly_minor: number | null;
     currency: string;
     trial_days: number;
     trial_enabled: boolean;
@@ -64,10 +64,16 @@ export default function PricingPage({
                 !plan.is_contact_sales &&
                 plan.monthly_active &&
                 plan.yearly_active &&
+                plan.price_monthly_minor != null &&
+                plan.price_yearly_minor != null &&
                 plan.price_monthly_minor > 0 &&
                 plan.price_yearly_minor > 0,
         );
-        if (!sample) {
+        if (
+            !sample ||
+            sample.price_monthly_minor == null ||
+            sample.price_yearly_minor == null
+        ) {
             return null;
         }
         const monthlyCost = sample.price_monthly_minor * 12;
@@ -156,7 +162,9 @@ export default function PricingPage({
                                 ? plan.price_yearly_minor
                                 : plan.price_monthly_minor;
                             const perMonth =
-                                periodIsYearly && !plan.is_contact_sales
+                                periodIsYearly &&
+                                !plan.is_contact_sales &&
+                                plan.price_yearly_minor != null
                                     ? Math.round(plan.price_yearly_minor / 12)
                                     : null;
                             const highlighted = plan.code === highlightedCode;
@@ -191,12 +199,15 @@ export default function PricingPage({
                                         <span className="text-4xl font-semibold tracking-tight tabular-nums">
                                             {plan.is_contact_sales
                                                 ? 'Custom'
-                                                : formatMoney(
-                                                      perMonth ?? price,
-                                                      plan.currency,
-                                                  )}
+                                                : price == null
+                                                  ? 'Contact sales'
+                                                  : formatMoney(
+                                                        perMonth ?? price,
+                                                        plan.currency,
+                                                    )}
                                         </span>
-                                        {!plan.is_contact_sales ? (
+                                        {!plan.is_contact_sales &&
+                                        price != null ? (
                                             <span className="text-sm text-muted-foreground">
                                                 /month
                                             </span>
@@ -204,7 +215,8 @@ export default function PricingPage({
                                     </div>
                                     {periodIsYearly &&
                                     !plan.is_contact_sales &&
-                                    perMonth !== null ? (
+                                    perMonth !== null &&
+                                    plan.price_yearly_minor != null ? (
                                         <p className="mt-1 text-xs text-muted-foreground">
                                             billed yearly{' '}
                                             {formatMoney(

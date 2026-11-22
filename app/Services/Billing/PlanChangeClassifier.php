@@ -68,10 +68,10 @@ class PlanChangeClassifier
     public function normalizedMonthlyMinor(Plan $plan, string $period): int
     {
         if ($period === 'yearly') {
-            return intdiv($plan->price_yearly_minor, 12);
+            return intdiv($plan->priceForPeriod('yearly'), 12);
         }
 
-        return $plan->price_monthly_minor;
+        return $plan->priceForPeriod('monthly');
     }
 
     public function normalizedMonthlyMinorFromSubscription(TenantSubscription $subscription, string $period): int
