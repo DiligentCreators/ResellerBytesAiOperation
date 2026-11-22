@@ -10,6 +10,18 @@ use Illuminate\Database\Eloquent\Builder;
 
 class FindingContinuityService
 {
+    /**
+     * Map AI evidence paths to catalog issue keys. A null value means the key is
+     * chosen from title keywords (see {@see issueKeyForWebPhpVersionTitle()}).
+     *
+     * @var array<string, string|null>
+     */
+    public const AI_EVIDENCE_ISSUE_KEY_MAP = [
+        'system.error_display_disabled' => 'php.display_errors_on',
+        'system.configuration_file_writable' => 'security.config_writable',
+        'system.web_php_version' => null,
+    ];
+
     public function __construct(private readonly FindingWorkflowService $workflow) {}
 
     /**
@@ -50,6 +62,121 @@ class FindingContinuityService
     }
 
     /**
+     * Map an AI finding onto a catalog issue key when evidence (and title, when
+     * needed) match a known deterministic issue.
+     *
+     * @param  array{category?: string, title?: string, evidence_paths?: list<string>}  $findingData
+     */
+    public function canonicalIssueKeyFor(array $findingData): ?string
+    {
+        $paths = $findingData['evidence_paths'] ?? [];
+        if (! is_array($paths)) {
+            return null;
+        }
+
+        $normalizedPaths = [];
+        foreach ($paths as $path) {
+            if (is_string($path) && $path !== '') {
+                $normalizedPaths[] = $path;
+            }
+        }
+
+        $title = mb_strtolower((string) ($findingData['title'] ?? ''));
+
+        foreach (self::AI_EVIDENCE_ISSUE_KEY_MAP as $evidencePath => $issueKey) {
+            if (! in_array($evidencePath, $normalizedPaths, true)) {
+                continue;
+            }
+
+            if (is_string($issueKey)) {
+                return $issueKey;
+            }
+
+            if ($evidencePath === 'system.web_php_version') {
+                return $this->issueKeyForWebPhpVersionTitle($title);
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Stabilize AI finding data and converge mapped findings onto catalog title,
+     * category, and issue-key fingerprints shared with rule findings.
+     *
+     * @param  array{
+     *     category: string,
+     *     title: string,
+     *     summary: string,
+     *     evidence_paths: list<string>,
+     *     severity: string,
+     *     confidence: mixed,
+     *     recommendations: list<array{recommendation: string, rationale: string, risk_level: string}>
+     * }  $findingData
+     * @return array{
+     *     finding_data: array{
+     *         category: string,
+     *         title: string,
+     *         summary: string,
+     *         evidence_paths: list<string>,
+     *         severity: string,
+     *         confidence: mixed,
+     *         recommendations: list<array{recommendation: string, rationale: string, risk_level: string}>
+     *     },
+     *     issue_key: string|null,
+     *     fingerprint: string,
+     *     fix_mode: string|null
+     * }
+     */
+    public function resolveAiFindingIdentity(array $findingData): array
+    {
+        $findingData = $this->stabilizeFindingData($findingData);
+        $issueKey = $this->canonicalIssueKeyFor($findingData);
+
+        if ($issueKey !== null) {
+            $catalog = WhmcsIssueCatalog::get($issueKey);
+            if ($catalog !== null) {
+                $findingData['title'] = (string) ($catalog['title'] ?? $findingData['title']);
+                $findingData['category'] = (string) ($catalog['category'] ?? $findingData['category']);
+
+                return [
+                    'finding_data' => $findingData,
+                    'issue_key' => $issueKey,
+                    'fingerprint' => $this->fingerprintForIssueKey($issueKey, $findingData),
+                    'fix_mode' => is_string($catalog['fix_mode'] ?? null) ? $catalog['fix_mode'] : null,
+                ];
+            }
+        }
+
+        return [
+            'finding_data' => $findingData,
+            'issue_key' => null,
+            'fingerprint' => $this->fingerprintFor($findingData),
+            'fix_mode' => null,
+        ];
+    }
+
+    /**
+     * Append an AI summary onto a winning rule finding when it adds new detail.
+     */
+    public function appendAiSummaryIfUseful(DiagnosticFinding $ruleFinding, string $aiSummary): void
+    {
+        $aiSummary = trim($aiSummary);
+        if ($aiSummary === '') {
+            return;
+        }
+
+        $existing = trim((string) $ruleFinding->summary);
+        if ($existing !== '' && str_contains($existing, $aiSummary)) {
+            return;
+        }
+
+        $ruleFinding->forceFill([
+            'summary' => $existing === '' ? $aiSummary : $existing."\n\n".$aiSummary,
+        ])->save();
+    }
+
+    /**
      * @param  array{category: string, title: string, evidence_paths: list<string>}  $findingData
      */
     public function fingerprintFor(array $findingData): string
@@ -77,6 +204,24 @@ class FindingContinuityService
             $findingData['category'],
             mb_strtolower($findingData['title']),
         ]));
+    }
+
+    private function issueKeyForWebPhpVersionTitle(string $lowerTitle): ?string
+    {
+        if (
+            str_contains($lowerTitle, 'end-of-life')
+            || str_contains($lowerTitle, 'end of life')
+            || str_contains($lowerTitle, 'no longer supported')
+            || preg_match('/\beol\b/', $lowerTitle) === 1
+        ) {
+            return 'php.version_eol';
+        }
+
+        if (str_contains($lowerTitle, 'unsupported') || str_contains($lowerTitle, 'compatib')) {
+            return 'php.version_unsupported';
+        }
+
+        return null;
     }
 
     public function markAppliedAwaitingVerify(DiagnosticFinding $finding, User $actor, string $actionKey): void

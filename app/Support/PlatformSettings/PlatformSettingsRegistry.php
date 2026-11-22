@@ -239,6 +239,15 @@ final class PlatformSettingsRegistry
                 rules: ['array'],
             ),
             new PlatformSettingDefinition(
+                key: 'monitoring.php_eol_branches',
+                group: 'monitoring',
+                label: 'PHP end-of-life branches',
+                help: 'JSON list of PHP major.minor branches treated as end-of-life by php.version_eol (e.g. 7.4, 8.0, 8.1).',
+                type: PlatformSettingDefinition::TYPE_JSON,
+                default: static fn (): array => (array) config('monitoring.php_eol_branches', []),
+                rules: ['array'],
+            ),
+            new PlatformSettingDefinition(
                 key: 'monitoring.whmcs_security_baselines',
                 group: 'monitoring',
                 label: 'WHMCS security baselines',

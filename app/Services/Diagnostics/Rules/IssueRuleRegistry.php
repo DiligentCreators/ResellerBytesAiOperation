@@ -60,6 +60,7 @@ class IssueRuleRegistry
             EmailSendingFailedRule::class,
             TicketsSlaBreachRule::class,
             PhpVersionUnsupportedRule::class,
+            PhpVersionEolRule::class,
             PhpExtensionMissingRule::class,
             IoncubeOutdatedRule::class,
             PhpDisplayErrorsOnRule::class,

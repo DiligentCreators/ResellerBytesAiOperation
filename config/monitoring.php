@@ -30,6 +30,16 @@ return [
     ],
 
     /*
+     * PHP major.minor branches considered end-of-life for php.version_eol.
+     * Overridable via the platform settings registry.
+     */
+    'php_eol_branches' => [
+        '7.4',
+        '8.0',
+        '8.1',
+    ],
+
+    /*
      * Latest security baseline patch per WHMCS major.minor line.
      */
     'whmcs_security_baselines' => [
