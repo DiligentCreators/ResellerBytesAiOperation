@@ -4,6 +4,11 @@ namespace {
     use ResellerBytesAiOps\RemediationRunner;
     use ResellerBytesAiOps\SignedApiClient;
 
+    require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/LocalApiClient.php';
+    require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/WhmcsLocalApiClient.php';
+    require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/ActivityLogger.php';
+    require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/WhmcsActivityLogger.php';
+    require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/FakeLocalApiClient.php';
     require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/RemediationRunner.php';
     require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/SignedApiClient.php';
 

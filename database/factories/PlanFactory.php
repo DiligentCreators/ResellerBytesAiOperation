@@ -36,6 +36,9 @@ class PlanFactory extends Factory
                 'diagnostics.analysis' => true,
                 'diagnostics.reanalyze' => true,
                 'safe_actions.enabled' => true,
+                'fixes.guided' => true,
+                'fixes.one_click' => true,
+                'fixes.bulk' => true,
                 'limits' => [
                     'members' => 5,
                     'integrations' => 1,

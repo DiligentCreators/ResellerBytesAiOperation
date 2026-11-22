@@ -15,6 +15,11 @@ require_once __DIR__.'/lib/CapsuleWhmcsDataSource.php';
 require_once __DIR__.'/lib/SnapshotRedactor.php';
 require_once __DIR__.'/lib/DiagnosticCollector.php';
 require_once __DIR__.'/lib/SignedApiClient.php';
+require_once __DIR__.'/lib/LocalApiClient.php';
+require_once __DIR__.'/lib/WhmcsLocalApiClient.php';
+require_once __DIR__.'/lib/ActivityLogger.php';
+require_once __DIR__.'/lib/WhmcsActivityLogger.php';
+require_once __DIR__.'/lib/FakeLocalApiClient.php';
 require_once __DIR__.'/lib/RemediationRunner.php';
 require_once __DIR__.'/lib/CronMonitor.php';
 

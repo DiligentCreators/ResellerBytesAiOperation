@@ -39,6 +39,9 @@ function createSafeActionWorkspace(array $entitlements = []): array
             'diagnostics.analysis' => true,
             'diagnostics.reanalyze' => true,
             'safe_actions.enabled' => true,
+            'fixes.guided' => true,
+            'fixes.one_click' => true,
+            'fixes.bulk' => true,
             'limits' => ['integrations' => 5, 'members' => 10, 'diagnostics_per_period' => 100, 'retention_days' => 30],
         ], $entitlements),
         'current_period_starts_at' => now()->subDay(),
@@ -92,7 +95,7 @@ it('lists allowlisted safe actions for entitled operators', function () {
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('safe-actions/index')
-            ->has('actions', 7)
+            ->has('actions', 15)
             ->has('integrations', 1)
             ->has('executions.data'));
 });

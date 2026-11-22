@@ -70,6 +70,9 @@ trait ValidatesPlatformPlan
             'entitlements.limits.retention_days' => ['required', 'integer', 'min:1'],
             'entitlements.support_level' => ['nullable', 'string', 'max:40'],
             'safe_actions_enabled' => ['sometimes', 'boolean'],
+            'fixes_guided_enabled' => ['sometimes', 'boolean'],
+            'fixes_one_click_enabled' => ['sometimes', 'boolean'],
+            'fixes_bulk_enabled' => ['sometimes', 'boolean'],
         ];
 
         // Code is immutable once any subscription references the plan — never required or accepted.
@@ -144,8 +147,16 @@ trait ValidatesPlatformPlan
             'diagnostics.analysis' => true,
             'diagnostics.reanalyze' => true,
             'safe_actions.enabled' => $this->boolean('safe_actions_enabled'),
+            'fixes.guided' => $this->boolean('fixes_guided_enabled'),
+            'fixes.one_click' => $this->boolean('fixes_one_click_enabled'),
+            'fixes.bulk' => $this->boolean('fixes_bulk_enabled'),
         ];
-        unset($data['safe_actions_enabled']);
+        unset(
+            $data['safe_actions_enabled'],
+            $data['fixes_guided_enabled'],
+            $data['fixes_one_click_enabled'],
+            $data['fixes_bulk_enabled'],
+        );
 
         $data['prices_confirmed_at'] = now();
 

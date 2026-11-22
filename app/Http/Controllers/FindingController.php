@@ -104,22 +104,56 @@ class FindingController extends Controller
         $canManage = $this->canManageFindings($user, $finding);
         $integration = $finding->diagnosticRun->integration;
         $safeActionsEnabled = false;
+        $oneClickEnabled = false;
+        $bulkEnabled = false;
 
         if ($integration?->tenant_id !== null) {
+            $entitlements = app(TenantEntitlementService::class);
             try {
-                app(TenantEntitlementService::class)->requireFeature($integration->tenant_id, 'safe_actions.enabled');
+                $entitlements->requireFeature($integration->tenant_id, 'safe_actions.enabled');
                 $safeActionsEnabled = true;
             } catch (AuthorizationException) {
                 $safeActionsEnabled = false;
             }
+
+            try {
+                $entitlements->requireFeature($integration->tenant_id, 'fixes.one_click');
+                $oneClickEnabled = true;
+            } catch (AuthorizationException) {
+                $oneClickEnabled = false;
+            }
+
+            try {
+                $entitlements->requireFeature($integration->tenant_id, 'fixes.bulk');
+                $bulkEnabled = true;
+            } catch (AuthorizationException) {
+                $bulkEnabled = false;
+            }
         }
 
-        $blockedKeys = $safeActionsEnabled && $canManage
+        $blockedKeys = $canManage
             ? $continuity->blockedSafeActionKeys($finding)
             : [];
-        $suggested = $safeActionsEnabled && $canManage
+        $affectedIds = $this->affectedIdsFromEvidence(is_array($finding->evidence) ? $finding->evidence : []);
+        $suggested = $canManage
             ? collect($safeActionMapper->suggestedActions($finding))
                 ->reject(fn (array $action): bool => in_array($action['key'], $blockedKeys, true))
+                ->map(function (array $action) use ($safeActionsEnabled, $oneClickEnabled, $bulkEnabled): array {
+                    $entitlement = $action['entitlement'] ?? 'safe_actions.enabled';
+                    $canExecute = match ($entitlement) {
+                        'fixes.one_click' => $oneClickEnabled,
+                        default => $safeActionsEnabled,
+                    };
+
+                    return [
+                        ...$action,
+                        'can_one_click' => $canExecute,
+                        'can_bulk' => $canExecute && $bulkEnabled && ($action['bulk_allowed'] ?? false),
+                        'upgrade_hint' => $canExecute
+                            ? null
+                            : 'Upgrade to Growth to fix in one click. Guided steps remain available below.',
+                    ];
+                })
                 ->values()
                 ->all()
             : [];
@@ -138,6 +172,9 @@ class FindingController extends Controller
                 'status_updated_at' => $finding->status_updated_at?->toIso8601String(),
                 'resolved_at' => $finding->resolved_at?->toIso8601String(),
                 'status_note' => $finding->status_note,
+                'issue_key' => $finding->issue_key,
+                'affected_count' => $finding->affected_count,
+                'affected_ids' => $affectedIds,
                 'integration_id' => $integration?->id,
                 'integration_name' => $integration?->name,
                 'diagnostic_run_id' => $finding->diagnostic_run_id,
@@ -161,7 +198,9 @@ class FindingController extends Controller
             'statuses' => DiagnosticFinding::STATUSES,
             'suggested_safe_actions' => $suggested,
             'blocked_safe_action_keys' => $blockedKeys,
-            'safe_actions_enabled' => $safeActionsEnabled,
+            'safe_actions_enabled' => $safeActionsEnabled || $oneClickEnabled,
+            'fixes_one_click_enabled' => $oneClickEnabled,
+            'fixes_bulk_enabled' => $bulkEnabled,
         ]);
     }
 
@@ -236,6 +275,35 @@ class FindingController extends Controller
     }
 
     /**
+     * @param  array<string, mixed>  $evidence
+     * @return list<int>
+     */
+    private function affectedIdsFromEvidence(array $evidence): array
+    {
+        foreach ($evidence as $value) {
+            if (! is_array($value)) {
+                continue;
+            }
+
+            $ids = [];
+            foreach ($value as $item) {
+                if (is_int($item) || (is_string($item) && ctype_digit($item))) {
+                    $id = (int) $item;
+                    if ($id > 0) {
+                        $ids[] = $id;
+                    }
+                }
+            }
+
+            if ($ids !== []) {
+                return array_values(array_slice(array_unique($ids), 0, 50));
+            }
+        }
+
+        return [];
+    }
+
+    /**
      * @return list<array{id: int, name: string, email: string}>
      */
     private function assignableMembers(DiagnosticFinding $finding): array
@@ -257,7 +325,8 @@ class FindingController extends Controller
             ]];
         }
 
-        return TenantMembership::query()
+        $members = [];
+        $memberships = TenantMembership::query()
             ->where('tenant_id', $integration->tenant_id)
             ->where('status', TenantMembership::STATUS_ACTIVE)
             ->whereIn('role', [
@@ -267,14 +336,20 @@ class FindingController extends Controller
                 TenantMembership::ROLE_VIEWER,
             ])
             ->with('user:id,name,email')
-            ->get()
-            ->map(fn (TenantMembership $membership): ?array => $membership->user === null ? null : [
+            ->get();
+
+        foreach ($memberships as $membership) {
+            if ($membership->user === null) {
+                continue;
+            }
+
+            $members[] = [
                 'id' => $membership->user->id,
                 'name' => $membership->user->name,
                 'email' => $membership->user->email,
-            ])
-            ->filter()
-            ->values()
-            ->all();
+            ];
+        }
+
+        return $members;
     }
 }

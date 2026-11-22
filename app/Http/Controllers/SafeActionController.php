@@ -93,6 +93,19 @@ class SafeActionController extends Controller
             ]);
         }
 
+        $input = is_array($request->input('input')) ? $request->input('input') : [];
+        $mode = is_string($input['mode'] ?? null) ? $input['mode'] : 'one_click';
+        $targetCount = is_array($input['target_ids'] ?? null) ? count($input['target_ids']) : 0;
+        if ($mode === 'bulk' || $targetCount > 1) {
+            try {
+                $this->requireEntitlement($integration, 'fixes.bulk');
+            } catch (AuthorizationException $exception) {
+                throw ValidationException::withMessages([
+                    'input.target_ids' => $exception->getMessage(),
+                ]);
+            }
+        }
+
         $finding = null;
         if ($request->filled('finding_id')) {
             $finding = DiagnosticFinding::query()->findOrFail($request->string('finding_id')->toString());
@@ -106,7 +119,7 @@ class SafeActionController extends Controller
                 $integration,
                 $request->user(),
                 $definition['key'],
-                $request->input('input', []),
+                $input,
                 $finding,
             );
         } catch (InvalidArgumentException $exception) {
@@ -221,6 +234,12 @@ class SafeActionController extends Controller
         $payload = [
             'id' => $execution->id,
             'action_key' => $execution->action_key,
+            'mode' => $execution->mode,
+            'batch_id' => $execution->batch_id,
+            'issue_key' => $execution->issue_key,
+            'items_total' => $execution->items_total,
+            'items_succeeded' => $execution->items_succeeded,
+            'minutes_saved' => $execution->minutes_saved,
             'status' => $execution->status,
             'risk_level' => $execution->risk_level,
             'requires_password_confirm' => $execution->requires_password_confirm,
@@ -238,6 +257,8 @@ class SafeActionController extends Controller
         if ($detailed) {
             $payload['approval_reason'] = $execution->approval_reason;
             $payload['input'] = $execution->input;
+            $payload['preview'] = $execution->preview;
+            $payload['target_ids'] = $execution->target_ids;
             $payload['result'] = $execution->result;
             $payload['before_evidence'] = $execution->before_evidence;
             $payload['after_evidence'] = $execution->after_evidence;

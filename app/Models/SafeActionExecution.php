@@ -12,7 +12,13 @@ use Illuminate\Support\Carbon;
  * @property string|null $tenant_id
  * @property string $integration_id
  * @property string|null $finding_id
+ * @property string|null $issue_key
  * @property string $action_key
+ * @property string $mode
+ * @property string|null $batch_id
+ * @property int|null $items_total
+ * @property int|null $items_succeeded
+ * @property int|null $minutes_saved
  * @property string $status
  * @property string $risk_level
  * @property int $requested_by_user_id
@@ -20,6 +26,8 @@ use Illuminate\Support\Carbon;
  * @property string|null $approval_reason
  * @property bool $requires_password_confirm
  * @property array<string, mixed>|null $input
+ * @property array<string, mixed>|null $preview
+ * @property array<int, int>|null $target_ids
  * @property array<string, mixed>|null $result
  * @property array<string, mixed>|null $before_evidence
  * @property array<string, mixed>|null $after_evidence
@@ -46,6 +54,14 @@ class SafeActionExecution extends Model
 
     public const STATUS_CANCELLED = 'cancelled';
 
+    public const MODE_ONE_CLICK = 'one_click';
+
+    public const MODE_GUIDED = 'guided';
+
+    public const MODE_AUTO = 'auto';
+
+    public const MODE_BULK = 'bulk';
+
     public const STATUSES = [
         self::STATUS_PENDING_APPROVAL,
         self::STATUS_APPROVED,
@@ -60,7 +76,13 @@ class SafeActionExecution extends Model
         'tenant_id',
         'integration_id',
         'finding_id',
+        'issue_key',
         'action_key',
+        'mode',
+        'batch_id',
+        'items_total',
+        'items_succeeded',
+        'minutes_saved',
         'status',
         'risk_level',
         'requested_by_user_id',
@@ -68,6 +90,8 @@ class SafeActionExecution extends Model
         'approval_reason',
         'requires_password_confirm',
         'input',
+        'preview',
+        'target_ids',
         'result',
         'before_evidence',
         'after_evidence',
@@ -77,11 +101,20 @@ class SafeActionExecution extends Model
         'verified_at',
     ];
 
+    protected $attributes = [
+        'mode' => self::MODE_ONE_CLICK,
+    ];
+
     protected function casts(): array
     {
         return [
             'requires_password_confirm' => 'boolean',
+            'items_total' => 'integer',
+            'items_succeeded' => 'integer',
+            'minutes_saved' => 'integer',
             'input' => 'array',
+            'preview' => 'array',
+            'target_ids' => 'array',
             'result' => 'array',
             'before_evidence' => 'array',
             'after_evidence' => 'array',

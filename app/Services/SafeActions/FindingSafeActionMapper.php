@@ -16,7 +16,11 @@ class FindingSafeActionMapper
      *     description: string,
      *     risk_level: string,
      *     requires_password_confirm: bool,
-     *     execution_target: string
+     *     execution_target: string,
+     *     entitlement: string,
+     *     bulk_allowed: bool,
+     *     max_items: int,
+     *     auto_allowed: bool
      * }>
      */
     public function suggestedActions(DiagnosticFinding $finding): array
@@ -43,6 +47,10 @@ class FindingSafeActionMapper
                 'risk_level' => $definition['risk_level'],
                 'requires_password_confirm' => $definition['requires_password_confirm'],
                 'execution_target' => $definition['execution_target'],
+                'entitlement' => $definition['entitlement'],
+                'bulk_allowed' => $definition['bulk_allowed'],
+                'max_items' => $definition['max_items'],
+                'auto_allowed' => $definition['auto_allowed'],
             ];
         }
 

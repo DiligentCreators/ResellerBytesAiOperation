@@ -36,6 +36,9 @@ type Plan = {
         'diagnostics.analysis'?: boolean;
         'diagnostics.reanalyze'?: boolean;
         'safe_actions.enabled'?: boolean;
+        'fixes.guided'?: boolean;
+        'fixes.one_click'?: boolean;
+        'fixes.bulk'?: boolean;
     };
 };
 
@@ -408,6 +411,38 @@ function PlanFields({
                     disabled={disabled}
                 />
                 Safe Actions enabled
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+                <input
+                    type="checkbox"
+                    name="fixes_guided_enabled"
+                    value="1"
+                    defaultChecked={plan?.entitlements['fixes.guided'] ?? true}
+                    disabled={disabled}
+                />
+                Guided fixes enabled
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+                <input
+                    type="checkbox"
+                    name="fixes_one_click_enabled"
+                    value="1"
+                    defaultChecked={
+                        plan?.entitlements['fixes.one_click'] ?? false
+                    }
+                    disabled={disabled}
+                />
+                One-click fixes (Growth+)
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+                <input
+                    type="checkbox"
+                    name="fixes_bulk_enabled"
+                    value="1"
+                    defaultChecked={plan?.entitlements['fixes.bulk'] ?? false}
+                    disabled={disabled}
+                />
+                Bulk fixes (Growth+)
             </label>
             <label className="flex items-center gap-2 text-sm">
                 <input

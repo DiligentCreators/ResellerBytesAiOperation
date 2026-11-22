@@ -37,6 +37,9 @@ class PlanSeeder extends Seeder
                     'diagnostics.analysis' => true,
                     'diagnostics.reanalyze' => true,
                     'safe_actions.enabled' => false,
+                    'fixes.guided' => true,
+                    'fixes.one_click' => false,
+                    'fixes.bulk' => false,
                     'limits' => [
                         'members' => 3,
                         'integrations' => 1,
@@ -67,6 +70,9 @@ class PlanSeeder extends Seeder
                     'diagnostics.analysis' => true,
                     'diagnostics.reanalyze' => true,
                     'safe_actions.enabled' => true,
+                    'fixes.guided' => true,
+                    'fixes.one_click' => true,
+                    'fixes.bulk' => true,
                     'limits' => [
                         'members' => 10,
                         'integrations' => 3,
@@ -97,6 +103,9 @@ class PlanSeeder extends Seeder
                     'diagnostics.analysis' => true,
                     'diagnostics.reanalyze' => true,
                     'safe_actions.enabled' => true,
+                    'fixes.guided' => true,
+                    'fixes.one_click' => true,
+                    'fixes.bulk' => true,
                     'limits' => [
                         'members' => 25,
                         'integrations' => 10,
@@ -127,6 +136,9 @@ class PlanSeeder extends Seeder
                     'diagnostics.analysis' => true,
                     'diagnostics.reanalyze' => true,
                     'safe_actions.enabled' => true,
+                    'fixes.guided' => true,
+                    'fixes.one_click' => true,
+                    'fixes.bulk' => true,
                     'limits' => [
                         'members' => 100,
                         'integrations' => 50,

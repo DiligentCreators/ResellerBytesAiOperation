@@ -279,6 +279,24 @@ final class PlatformSettingsRegistry
                 min: 0,
                 max: 1000,
             ),
+            new PlatformSettingDefinition(
+                key: 'fixes.overdue_reminder_messagename',
+                group: 'fixes',
+                label: 'Overdue reminder email template',
+                help: 'WHMCS SendEmail messagename used by invoice_send_overdue_reminder.',
+                type: PlatformSettingDefinition::TYPE_STRING,
+                default: static fn (): string => (string) config('fixes.overdue_reminder_messagename', 'First Invoice Overdue Notice'),
+                rules: ['string', 'max:120'],
+            ),
+            new PlatformSettingDefinition(
+                key: 'fixes.minutes_saved_overrides',
+                group: 'fixes',
+                label: 'Minutes-saved overrides',
+                help: 'JSON map of issue_key to minutes_saved override (per succeeded item).',
+                type: PlatformSettingDefinition::TYPE_JSON,
+                default: static fn (): array => (array) config('fixes.minutes_saved_overrides', []),
+                rules: ['array'],
+            ),
 
             // Reports
             new PlatformSettingDefinition(

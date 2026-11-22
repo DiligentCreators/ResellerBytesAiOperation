@@ -15,9 +15,22 @@ type Definition = {
     requires_password_confirm: boolean;
 };
 
+type PreviewItem = {
+    id?: number | null;
+    command?: string;
+    params?: Record<string, unknown>;
+    note?: string;
+};
+
 type Execution = {
     id: string;
     action_key: string;
+    mode?: string | null;
+    batch_id?: string | null;
+    issue_key?: string | null;
+    items_total?: number | null;
+    items_succeeded?: number | null;
+    minutes_saved?: number | null;
     status: string;
     risk_level: string;
     requires_password_confirm: boolean;
@@ -29,6 +42,13 @@ type Execution = {
     requester_name: string | null;
     approver_name: string | null;
     approval_reason: string | null;
+    preview?: {
+        items?: PreviewItem[];
+        refused?: { id?: number | null; reason?: string }[];
+        target_ids?: number[];
+        description?: string;
+    } | null;
+    target_ids?: number[] | null;
     result: Record<string, unknown> | null;
     before_evidence: Record<string, unknown> | null;
     after_evidence: Record<string, unknown> | null;
@@ -121,7 +141,51 @@ export default function SafeActionShow({
                             required before approve.
                         </p>
                     ) : null}
+                    {execution.mode || execution.items_total != null ? (
+                        <p className="mt-3 text-sm text-muted-foreground">
+                            Mode: {execution.mode ?? 'one_click'}
+                            {execution.items_total != null
+                                ? ` · ${execution.items_total} item(s)`
+                                : ''}
+                            {execution.minutes_saved != null
+                                ? ` · ${execution.minutes_saved} min saved`
+                                : ''}
+                        </p>
+                    ) : null}
                 </section>
+
+                {execution.preview?.items &&
+                execution.preview.items.length > 0 ? (
+                    <section className="rounded-lg border border-border bg-card p-5 shadow-xs">
+                        <h2 className="text-sm font-semibold">
+                            Preview — what will run
+                        </h2>
+                        <ul className="mt-3 space-y-2 text-sm">
+                            {execution.preview.items.map((item, index) => (
+                                <li
+                                    key={`${item.command ?? 'cmd'}-${item.id ?? index}`}
+                                    className="rounded-md border border-border px-3 py-2 font-mono text-xs"
+                                >
+                                    {item.command}
+                                    {item.id != null ? ` #${item.id}` : ''}
+                                    {item.params
+                                        ? ` ${JSON.stringify(item.params)}`
+                                        : ''}
+                                </li>
+                            ))}
+                        </ul>
+                        {execution.preview.refused &&
+                        execution.preview.refused.length > 0 ? (
+                            <ul className="mt-3 space-y-1 text-sm text-warning-fg">
+                                {execution.preview.refused.map((item, index) => (
+                                    <li key={`${item.id ?? index}-${item.reason}`}>
+                                        Refused #{item.id}: {item.reason}
+                                    </li>
+                                ))}
+                            </ul>
+                        ) : null}
+                    </section>
+                ) : null}
 
                 {can_approve ? (
                     <section className="rounded-lg border border-border bg-card p-5 shadow-xs">

@@ -11,6 +11,7 @@ use App\Services\Audit\AuditEventWriter;
 use App\Services\Diagnostics\FindingContinuityService;
 use App\Services\Diagnostics\FindingPlaybookBuilder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use InvalidArgumentException;
 use RuntimeException;
 
@@ -21,6 +22,8 @@ class SafeActionExecutor
         private readonly AuditEventWriter $audit,
         private readonly FindingPlaybookBuilder $playbookBuilder,
         private readonly FindingContinuityService $continuity,
+        private readonly SafeActionPreviewBuilder $previewBuilder,
+        private readonly SafeActionMinutesSavedCalculator $minutesSaved,
     ) {}
 
     /**
@@ -46,17 +49,65 @@ class SafeActionExecutor
             }
         }
 
-        return DB::transaction(function () use ($integration, $actor, $actionKey, $definition, $input, $finding): SafeActionExecution {
+        $mode = $this->resolveMode($definition, $input);
+        $usesLocalApiTargets = ($definition['entitlement'] ?? '') === 'fixes.one_click'
+            || $actionKey === 'whmcs_clear_template_cache';
+
+        $preview = null;
+        $targetIds = null;
+        $itemsTotal = null;
+        $batchId = null;
+
+        if ($usesLocalApiTargets) {
+            $selectedIds = $this->selectedIdsFromInput($input);
+            $preview = $this->previewBuilder->build(
+                $actionKey,
+                $integration,
+                $finding,
+                $selectedIds,
+                $mode,
+            );
+
+            if ($preview['items_total'] < 1 && $actionKey !== 'whmcs_clear_template_cache') {
+                $refused = $preview['refused'][0]['reason'] ?? null;
+                if ($refused === 'terminate_refused') {
+                    throw new InvalidArgumentException('Module terminate queue items are refused. Use guided remediation only.');
+                }
+
+                throw new InvalidArgumentException('No executable targets remain after preview validation.');
+            }
+
+            $targetIds = $preview['target_ids'];
+            $itemsTotal = $preview['items_total'];
+            $batchId = ($mode === SafeActionExecution::MODE_BULK || $itemsTotal > 1)
+                ? (string) Str::uuid()
+                : null;
+            $input = array_merge($input, [
+                'target_ids' => $targetIds,
+                'preview_commands' => array_map(
+                    static fn (array $item): string => (string) $item['command'],
+                    $preview['items'],
+                ),
+            ]);
+        }
+
+        return DB::transaction(function () use ($integration, $actor, $actionKey, $definition, $input, $finding, $mode, $preview, $batchId, $itemsTotal, $targetIds): SafeActionExecution {
             $execution = SafeActionExecution::query()->create([
                 'tenant_id' => $integration->tenant_id,
                 'integration_id' => $integration->id,
                 'finding_id' => $finding?->id,
+                'issue_key' => $finding?->issue_key,
                 'action_key' => $actionKey,
+                'mode' => $mode,
+                'batch_id' => $batchId,
+                'items_total' => $itemsTotal,
                 'status' => SafeActionExecution::STATUS_PENDING_APPROVAL,
                 'risk_level' => $definition['risk_level'],
                 'requested_by_user_id' => $actor->id,
                 'requires_password_confirm' => $definition['requires_password_confirm'],
                 'input' => $input,
+                'preview' => $preview,
+                'target_ids' => $targetIds,
                 'before_evidence' => $this->captureBeforeEvidence($integration),
                 'requested_at' => now(),
             ]);
@@ -72,6 +123,9 @@ class SafeActionExecutor
                     'action_key' => $actionKey,
                     'risk_level' => $definition['risk_level'],
                     'integration_id' => $integration->id,
+                    'mode' => $mode,
+                    'items_total' => $itemsTotal,
+                    'batch_id' => $batchId,
                 ],
                 'occurred_at' => now(),
             ]);
@@ -153,7 +207,7 @@ class SafeActionExecutor
             ],
         ])->save();
 
-        if (in_array($execution->action_key, ['pull_and_run_diagnostic_collect', 'request_diagnostic_collect'], true)) {
+        if ($this->shouldQueueVerifyCollect($execution->action_key)) {
             $execution->loadMissing('integration');
             $execution->integration?->forceFill([
                 'pending_diagnostic_collect_at' => now(),
@@ -203,15 +257,21 @@ class SafeActionExecutor
 
             if ($status === 'success') {
                 $proven = $this->hasRuntimeProof($locked->action_key, $evidence);
+                $itemsSucceeded = $this->countSucceededItems($evidence, $locked);
+                $minutes = $this->minutesSaved->calculate($locked->issue_key, $itemsSucceeded);
                 $locked->forceFill([
                     'status' => $proven
                         ? SafeActionExecution::STATUS_VERIFIED
                         : SafeActionExecution::STATUS_COMPLETED,
+                    'items_succeeded' => $itemsSucceeded,
+                    'minutes_saved' => $minutes,
                     'result' => [
                         'summary' => $summary,
                         'evidence' => $evidence,
                         'applied_by' => 'whmcs_addon',
                         'runtime_proven' => $proven,
+                        'items_succeeded' => $itemsSucceeded,
+                        'minutes_saved' => $minutes,
                         'lifecycle' => $proven
                             ? 'verified'
                             : 'applied_awaiting_verify',
@@ -221,10 +281,17 @@ class SafeActionExecutor
                     'verified_at' => $proven ? now() : null,
                 ])->save();
 
-                if ($integration->pending_diagnostic_collect_execution_id === $locked->id) {
+                if ($proven) {
+                    if ($integration->pending_diagnostic_collect_execution_id === $locked->id) {
+                        $integration->forceFill([
+                            'pending_diagnostic_collect_at' => null,
+                            'pending_diagnostic_collect_execution_id' => null,
+                        ])->save();
+                    }
+                } elseif ($this->shouldQueueVerifyCollect($locked->action_key)) {
                     $integration->forceFill([
-                        'pending_diagnostic_collect_at' => null,
-                        'pending_diagnostic_collect_execution_id' => null,
+                        'pending_diagnostic_collect_at' => now(),
+                        'pending_diagnostic_collect_execution_id' => $locked->id,
                     ])->save();
                 }
 
@@ -241,6 +308,8 @@ class SafeActionExecutor
                         'action_key' => $locked->action_key,
                         'summary' => $summary,
                         'runtime_proven' => $proven,
+                        'items_succeeded' => $itemsSucceeded,
+                        'minutes_saved' => $minutes,
                     ],
                     'occurred_at' => now(),
                 ]);
@@ -287,8 +356,117 @@ class SafeActionExecutor
             'pull_and_run_diagnostic_collect', 'request_diagnostic_collect' => ($evidence['remediation_applied'] ?? false) === true
                 || array_key_exists('duplicate', $evidence)
                 || array_key_exists('http_status', $evidence),
+            'whmcs_clear_template_cache' => ($evidence['templates_c_cleared'] ?? false) === true,
             default => false,
         };
+    }
+
+    /**
+     * @param  array<string, mixed>  $evidence
+     */
+    private function countSucceededItems(array $evidence, SafeActionExecution $execution): int
+    {
+        $results = $evidence['item_results'] ?? null;
+        if (is_array($results)) {
+            $succeeded = 0;
+            foreach ($results as $result) {
+                if (is_array($result) && ($result['status'] ?? null) === 'success') {
+                    $succeeded++;
+                }
+            }
+
+            return $succeeded;
+        }
+
+        if (($evidence['remediation_applied'] ?? false) === true) {
+            return max(1, (int) ($execution->items_total ?? 1));
+        }
+
+        return 0;
+    }
+
+    private function shouldQueueVerifyCollect(string $actionKey): bool
+    {
+        if (in_array($actionKey, ['pull_and_run_diagnostic_collect', 'request_diagnostic_collect'], true)) {
+            return true;
+        }
+
+        if (! $this->registry->isAllowlisted($actionKey)) {
+            return false;
+        }
+
+        $definition = $this->registry->get($actionKey);
+
+        return ($definition['execution_target'] ?? null) === 'addon'
+            && ($definition['entitlement'] ?? null) === 'fixes.one_click';
+    }
+
+    /**
+     * @param  array{
+     *     bulk_allowed: bool,
+     *     max_items: int
+     * }  $definition
+     * @param  array<string, mixed>  $input
+     */
+    private function resolveMode(array $definition, array $input): string
+    {
+        $requested = isset($input['mode']) && is_string($input['mode'])
+            ? $input['mode']
+            : SafeActionExecution::MODE_ONE_CLICK;
+
+        if (! in_array($requested, [
+            SafeActionExecution::MODE_ONE_CLICK,
+            SafeActionExecution::MODE_GUIDED,
+            SafeActionExecution::MODE_AUTO,
+            SafeActionExecution::MODE_BULK,
+        ], true)) {
+            $requested = SafeActionExecution::MODE_ONE_CLICK;
+        }
+
+        $selected = $this->selectedIdsFromInput($input);
+        if ($requested === SafeActionExecution::MODE_ONE_CLICK && $selected !== null && count($selected) > 1) {
+            $requested = SafeActionExecution::MODE_BULK;
+        }
+
+        if ($requested === SafeActionExecution::MODE_BULK && ! $definition['bulk_allowed']) {
+            throw new InvalidArgumentException('This safe action does not allow bulk mode.');
+        }
+
+        if ($requested === SafeActionExecution::MODE_AUTO && ! ($definition['auto_allowed'] ?? false)) {
+            throw new InvalidArgumentException('This safe action does not allow auto mode.');
+        }
+
+        return $requested;
+    }
+
+    /**
+     * @param  array<string, mixed>  $input
+     * @return list<int>|null
+     */
+    private function selectedIdsFromInput(array $input): ?array
+    {
+        if (! array_key_exists('target_ids', $input)) {
+            return null;
+        }
+
+        $raw = $input['target_ids'];
+        if (! is_array($raw)) {
+            throw new InvalidArgumentException('target_ids must be a list of integers.');
+        }
+
+        $ids = [];
+        foreach ($raw as $value) {
+            if (! is_int($value) && ! (is_string($value) && ctype_digit($value))) {
+                throw new InvalidArgumentException('target_ids must contain integers only.');
+            }
+            $id = (int) $value;
+            if ($id < 1) {
+                throw new InvalidArgumentException('target_ids must contain positive integers only.');
+            }
+            $ids[] = $id;
+        }
+
+        return array_values(array_unique($ids));
     }
 
     /**
@@ -422,6 +600,15 @@ class SafeActionExecutor
                 return;
             }
 
+            if (! $this->findingClearedOrReduced($execution, $run)
+                && ! in_array($execution->action_key, [
+                    'pull_and_run_diagnostic_collect',
+                    'request_diagnostic_collect',
+                    'whmcs_clear_template_cache',
+                ], true)) {
+                return;
+            }
+
             $execution->forceFill([
                 'status' => SafeActionExecution::STATUS_VERIFIED,
                 'verified_at' => now(),
@@ -436,6 +623,14 @@ class SafeActionExecutor
                 'pending_diagnostic_collect_execution_id' => null,
             ])->save();
 
+            if ($execution->finding_id !== null) {
+                $finding = DiagnosticFinding::query()->find($execution->finding_id);
+                $actor = User::query()->find($execution->approved_by_user_id ?? $execution->requested_by_user_id);
+                if ($finding !== null && $actor !== null && $finding->isActive()) {
+                    $this->continuity->resolveProvenSiblings($finding, $actor, $execution->action_key);
+                }
+            }
+
             $this->audit->append([
                 'actor_type' => 'integration',
                 'actor_id' => $integration->id,
@@ -444,12 +639,45 @@ class SafeActionExecutor
                 'subject_type' => 'safe_action_execution',
                 'subject_id' => $execution->id,
                 'metadata' => [
-                    'action_key' => 'request_diagnostic_collect',
+                    'action_key' => $execution->action_key,
                     'diagnostic_run_id' => $run->id,
                 ],
                 'occurred_at' => now(),
             ]);
         });
+    }
+
+    private function findingClearedOrReduced(SafeActionExecution $execution, DiagnosticRun $run): bool
+    {
+        if ($execution->issue_key === null || $execution->issue_key === '') {
+            return in_array($execution->action_key, [
+                'pull_and_run_diagnostic_collect',
+                'request_diagnostic_collect',
+                'whmcs_clear_template_cache',
+            ], true);
+        }
+
+        $beforeCount = null;
+        if ($execution->finding_id !== null) {
+            $beforeCount = DiagnosticFinding::query()->whereKey($execution->finding_id)->value('affected_count');
+        }
+
+        $current = DiagnosticFinding::query()
+            ->where('diagnostic_run_id', $run->id)
+            ->where('issue_key', $execution->issue_key)
+            ->where('source', 'rule')
+            ->first();
+
+        if ($current === null) {
+            return true;
+        }
+
+        if ($beforeCount === null) {
+            return false;
+        }
+
+        return is_numeric($current->affected_count)
+            && (int) $current->affected_count < (int) $beforeCount;
     }
 
     /**
