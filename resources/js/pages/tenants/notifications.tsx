@@ -29,12 +29,16 @@ type Props = {
 };
 
 function notificationTitle(notification: Notification): string {
-    if (typeof notification.title === 'string' && notification.title.trim() !== '') {
+    if (
+        typeof notification.title === 'string' &&
+        notification.title.trim() !== ''
+    ) {
         return notification.title;
     }
 
     const eventType =
-        (typeof notification.event_type === 'string' && notification.event_type) ||
+        (typeof notification.event_type === 'string' &&
+            notification.event_type) ||
         (typeof notification.type === 'string' && notification.type) ||
         '';
 
@@ -46,7 +50,10 @@ function notificationTitle(notification: Notification): string {
 }
 
 function notificationMessage(notification: Notification): string | null {
-    if (typeof notification.message === 'string' && notification.message.trim() !== '') {
+    if (
+        typeof notification.message === 'string' &&
+        notification.message.trim() !== ''
+    ) {
         return notification.message;
     }
 
@@ -65,10 +72,7 @@ function notificationMessage(notification: Notification): string | null {
     return null;
 }
 
-export default function TenantNotifications({
-    tenant,
-    notifications,
-}: Props) {
+export default function TenantNotifications({ tenant, notifications }: Props) {
     const workspaceTimezone = useWorkspaceTimezone();
     const tenantId = typeof tenant?.id === 'string' ? tenant.id : '';
     const tenantName =
@@ -80,7 +84,9 @@ export default function TenantNotifications({
             ? tenant.timezone
             : undefined) || workspaceTimezone;
     const items = Array.isArray(notifications?.data) ? notifications.data : [];
-    const links = Array.isArray(notifications?.links) ? notifications.links : [];
+    const links = Array.isArray(notifications?.links)
+        ? notifications.links
+        : [];
 
     return (
         <>
@@ -115,7 +121,8 @@ export default function TenantNotifications({
                                         ? notification.id
                                         : index;
                                 const isUnread = !notification?.read_at;
-                                const message = notificationMessage(notification);
+                                const message =
+                                    notificationMessage(notification);
 
                                 return (
                                     <li
@@ -128,7 +135,9 @@ export default function TenantNotifications({
                                     >
                                         <div className="min-w-0">
                                             <p className="text-sm font-medium">
-                                                {notificationTitle(notification)}
+                                                {notificationTitle(
+                                                    notification,
+                                                )}
                                             </p>
                                             {message ? (
                                                 <p className="mt-1 text-sm text-muted-foreground">
@@ -140,7 +149,9 @@ export default function TenantNotifications({
                                                     notification?.created_at,
                                                     timezone,
                                                 )}
-                                                {isUnread ? ' · Unread' : ' · Read'}
+                                                {isUnread
+                                                    ? ' · Unread'
+                                                    : ' · Read'}
                                             </p>
                                         </div>
                                         {isUnread && tenantId ? (
@@ -150,10 +161,13 @@ export default function TenantNotifications({
                                                 variant="secondary"
                                                 onClick={() =>
                                                     router.post(
-                                                        markNotificationRead.url({
-                                                            tenant: tenantId,
-                                                            notification: id,
-                                                        }),
+                                                        markNotificationRead.url(
+                                                            {
+                                                                tenant: tenantId,
+                                                                notification:
+                                                                    id,
+                                                            },
+                                                        ),
                                                     )
                                                 }
                                             >
