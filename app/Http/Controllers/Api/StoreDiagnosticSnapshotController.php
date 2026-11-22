@@ -75,14 +75,13 @@ class StoreDiagnosticSnapshotController extends Controller
                     'occurred_at' => now(),
                 ]);
 
-                app(SafeActionExecutor::class)->verifyCollectFromSnapshot($integration->fresh() ?? $integration, $run);
-
                 $actor = $integration->owner_user_id !== null
                     ? User::query()->find($integration->owner_user_id)
                     : null;
                 app(DeterministicFindingDetector::class)->detect($run, $actor);
 
-                // Guided verify needs findings from this snapshot before deciding cleared vs still present.
+                // Verify only after the rule engine has written findings for this run.
+                // Otherwise clear-or-reduced treats a missing finding row as cleared.
                 app(SafeActionExecutor::class)->verifyCollectFromSnapshot($integration->fresh() ?? $integration, $run);
 
                 app(HealthSnapshotRecorder::class)->recomputeForIntegration(

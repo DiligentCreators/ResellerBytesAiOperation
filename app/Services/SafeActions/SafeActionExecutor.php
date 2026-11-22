@@ -620,20 +620,18 @@ class SafeActionExecutor
                 ->lockForUpdate()
                 ->first();
 
-            if ($execution === null || ! in_array($execution->status, [
-                SafeActionExecution::STATUS_COMPLETED,
-                SafeActionExecution::STATUS_AWAITING_AGENT,
-            ], true)) {
+            // Only executions the addon reported as applied (result endpoint success →
+            // completed/succeeded with executed_at) may be verified by a snapshot.
+            // pending_approval, approved, awaiting_agent, and other not-yet-applied states
+            // must remain untouched so they stay in the addon pending queue.
+            if ($execution === null
+                || $execution->status !== SafeActionExecution::STATUS_COMPLETED
+                || $execution->executed_at === null) {
                 return;
             }
 
             // Guided completions must wait until the rule engine no longer detects the issue.
-            // Do not treat awaiting-agent collect success as verified for guided mode.
             if ($execution->mode === SafeActionExecution::MODE_GUIDED) {
-                if ($execution->status !== SafeActionExecution::STATUS_COMPLETED) {
-                    return;
-                }
-
                 if (! $this->findingClearedOrReduced($execution, $run)) {
                     return;
                 }
