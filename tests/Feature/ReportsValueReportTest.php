@@ -271,8 +271,9 @@ it('uses a last-30-days window for yearly subscriptions, matching metrics and he
         ->and($expectedLabel)->toBe('Last 30 days: Oct 23 - Nov 22, 2026')
         ->and($bodies[0] ?? '')->toContain($expectedLabel);
 
-    $mail = new MonthlyValueReportMail($report->summary);
-    expect($mail->render())->toContain($expectedLabel);
+    $mail = app(MonthlyValueReportService::class)->mailableFor($report);
+    expect($mail->render())->toContain($expectedLabel)
+        ->and($mail->resolvedPeriodLabel())->toBe($expectedLabel);
 
     Carbon::setTestNow();
 });
@@ -281,10 +282,11 @@ it('labels old year-long value reports with a plain date range on the page and i
     $this->withoutVite();
     $workspace = createValueReportWorkspace(true);
 
+    // Stored row is year-long; summary dates are a 1-day window (would become "Last 30 days" alone).
     $summary = [
         'tenant_name' => $workspace['tenant']->name,
         'period_start' => '2026-11-21',
-        'period_end' => '2027-11-22',
+        'period_end' => '2026-11-22',
         'issues_fixed' => 3,
         'time_saved_hours_display' => '1.0',
         'time_saved_value_display' => '50.00',
@@ -312,11 +314,21 @@ it('labels old year-long value reports with a plain date range on the page and i
             ->where('report.period_start', '2026-11-21')
             ->where('report.period_end', '2027-11-22'));
 
-    $mail = new MonthlyValueReportMail($summary);
-    $html = $mail->render();
+    $bodies = [];
+    $mailer = Mockery::mock(CentralOutboundMailer::class);
+    $mailer->shouldReceive('send')
+        ->once()
+        ->andReturnUsing(function (string $to, string $subject, string $html) use (&$bodies): void {
+            $bodies[] = $html;
+        });
+    app()->instance(CentralOutboundMailer::class, $mailer);
 
+    app(MonthlyValueReportService::class)->resendTo($report, $workspace['owner']->email);
+
+    $html = $bodies[0] ?? '';
     expect($html)->toContain($expectedPlain)
-        ->and($html)->not->toContain('Last 30 days');
+        ->and($html)->not->toContain('Last 30 days')
+        ->and(app(MonthlyValueReportService::class)->mailableFor($report)->resolvedPeriodLabel())->toBe($expectedPlain);
 });
 
 it('labels new 30-day value reports with Last 30 days on the page and in resend mail', function () {
@@ -352,8 +364,19 @@ it('labels new 30-day value reports with Last 30 days on the page and in resend 
             ->component('reports/show')
             ->where('report.period_label', $expectedLabel));
 
-    $mail = new MonthlyValueReportMail($summary);
-    expect($mail->render())->toContain($expectedLabel);
+    $bodies = [];
+    $mailer = Mockery::mock(CentralOutboundMailer::class);
+    $mailer->shouldReceive('send')
+        ->once()
+        ->andReturnUsing(function (string $to, string $subject, string $html) use (&$bodies): void {
+            $bodies[] = $html;
+        });
+    app()->instance(CentralOutboundMailer::class, $mailer);
+
+    app(MonthlyValueReportService::class)->resendTo($report, $workspace['owner']->email);
+
+    expect($bodies[0] ?? '')->toContain($expectedLabel)
+        ->and(app(MonthlyValueReportService::class)->mailableFor($report)->resolvedPeriodLabel())->toBe($expectedLabel);
 });
 
 it('uses Last 30 days for short spans without an explicit period_label', function () {
@@ -367,4 +390,101 @@ it('uses Last 30 days for short spans without an explicit period_label', functio
     $mail = new MonthlyValueReportMail($summary);
 
     expect($mail->render())->toContain('Last 30 days: Oct 23 - Nov 22, 2026');
+});
+
+it('never re-derives the mail period label from summary dates when a label is given', function () {
+    $summary = [
+        'tenant_name' => 'Explicit Label Workspace',
+        'period_start' => '2026-11-21',
+        'period_end' => '2026-11-22',
+        'issues_fixed' => 0,
+    ];
+
+    $mail = new MonthlyValueReportMail($summary, 'Nov 21, 2026 - Nov 22, 2027');
+
+    expect($mail->resolvedPeriodLabel())->toBe('Nov 21, 2026 - Nov 22, 2027')
+        ->and($mail->render())->toContain('Nov 21, 2026 - Nov 22, 2027')
+        ->and($mail->render())->not->toContain('Last 30 days');
+});
+
+it('renders a stored value report via reports:render-value-report without sending', function () {
+    $workspace = createValueReportWorkspace(true);
+
+    $summary = [
+        'tenant_name' => $workspace['tenant']->name,
+        'period_start' => '2026-11-21',
+        'period_end' => '2026-11-22',
+        'issues_fixed' => 2,
+        'time_saved_hours_display' => '1.0',
+        'time_saved_value_display' => '50.00',
+        'outside_heartbeat_incidents' => 0,
+        'reports_url' => '/reports',
+        'findings_url' => '/findings',
+    ];
+
+    $report = TenantReportSend::factory()->monthlyValue()->create([
+        'tenant_id' => $workspace['tenant']->id,
+        'period_start' => '2026-11-21',
+        'period_end' => '2027-11-22',
+        'sent_at' => now('UTC'),
+        'summary' => $summary,
+    ]);
+
+    $expectedPlain = 'Nov 21, 2026 - Nov 22, 2027';
+    $expectedSubject = sprintf(
+        '[%s] Your monthly value report — %d issues fixed',
+        $workspace['tenant']->name,
+        2,
+    );
+
+    $mailer = Mockery::mock(CentralOutboundMailer::class);
+    $mailer->shouldNotReceive('send');
+    app()->instance(CentralOutboundMailer::class, $mailer);
+
+    $this->artisan('reports:render-value-report', ['report_id' => $report->id])
+        ->expectsOutputToContain('period_label: '.$expectedPlain)
+        ->expectsOutputToContain('subject: '.$expectedSubject)
+        ->assertSuccessful();
+});
+
+it('refuses reports:render-value-report in production', function () {
+    $workspace = createValueReportWorkspace(true);
+    $report = TenantReportSend::factory()->monthlyValue()->create([
+        'tenant_id' => $workspace['tenant']->id,
+        'period_start' => '2026-10-23',
+        'period_end' => '2026-11-22',
+        'sent_at' => now('UTC'),
+        'summary' => ['tenant_name' => $workspace['tenant']->name, 'issues_fixed' => 0],
+    ]);
+
+    $previous = app()->environment();
+    app()->detectEnvironment(fn (): string => 'production');
+
+    try {
+        $this->artisan('reports:render-value-report', ['report_id' => $report->id])
+            ->expectsOutputToContain('refuses to run in production')
+            ->assertFailed();
+    } finally {
+        app()->detectEnvironment(fn (): string => $previous);
+    }
+});
+
+it('fails reports:render-value-report when the report id is missing or not monthly value', function () {
+    $workspace = createValueReportWorkspace(true);
+    $weekly = TenantReportSend::factory()->create([
+        'tenant_id' => $workspace['tenant']->id,
+        'type' => TenantReportSend::TYPE_WEEKLY,
+        'period_start' => '2026-11-10',
+        'period_end' => '2026-11-17',
+        'sent_at' => now('UTC'),
+        'summary' => [],
+    ]);
+
+    $this->artisan('reports:render-value-report', ['report_id' => (string) Str::uuid()])
+        ->expectsOutputToContain('No monthly value report matched')
+        ->assertFailed();
+
+    $this->artisan('reports:render-value-report', ['report_id' => $weekly->id])
+        ->expectsOutputToContain('No monthly value report matched')
+        ->assertFailed();
 });

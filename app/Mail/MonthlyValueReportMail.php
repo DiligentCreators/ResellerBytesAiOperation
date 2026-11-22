@@ -16,8 +16,12 @@ class MonthlyValueReportMail extends Mailable
 
     /**
      * @param  array<string, mixed>  $summary
+     * @param  string|null  $periodLabel  When set, used as-is (never re-derived from summary dates).
      */
-    public function __construct(public readonly array $summary) {}
+    public function __construct(
+        public readonly array $summary,
+        public readonly ?string $periodLabel = null,
+    ) {}
 
     public function envelope(): Envelope
     {
@@ -37,6 +41,15 @@ class MonthlyValueReportMail extends Mailable
         );
     }
 
+    public function resolvedPeriodLabel(): string
+    {
+        if (is_string($this->periodLabel) && $this->periodLabel !== '') {
+            return $this->periodLabel;
+        }
+
+        return MonthlyValueReportPeriodLabel::resolve($this->summary);
+    }
+
     private function renderHtml(): string
     {
         $from = $this->summary['health_score_previous'] ?? null;
@@ -49,7 +62,7 @@ class MonthlyValueReportMail extends Mailable
             )
             : 'Health score was not available for this period.';
 
-        $periodLabel = MonthlyValueReportPeriodLabel::resolve($this->summary);
+        $periodLabel = $this->resolvedPeriodLabel();
 
         $lines = [
             '<p>Monthly value report for <strong>'.e((string) ($this->summary['tenant_name'] ?? 'Workspace')).'</strong>.</p>',

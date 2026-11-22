@@ -161,12 +161,27 @@ class MonthlyValueReportService
     }
 
     /**
+     * Build the monthly value report mail from the stored report row (same period
+     * label resolution as ReportShowController).
+     */
+    public function mailableFor(TenantReportSend $report): MonthlyValueReportMail
+    {
+        $summary = is_array($report->summary) ? $report->summary : [];
+        $periodLabel = MonthlyValueReportPeriodLabel::resolve(
+            $summary,
+            $report->period_start?->toDateString(),
+            $report->period_end?->toDateString(),
+        );
+
+        return new MonthlyValueReportMail($summary, $periodLabel);
+    }
+
+    /**
      * @return array{sent: bool}
      */
     public function resendTo(TenantReportSend $report, string $email): array
     {
-        $summary = is_array($report->summary) ? $report->summary : [];
-        $mailable = new MonthlyValueReportMail($summary);
+        $mailable = $this->mailableFor($report);
         $html = $mailable->render();
         $this->mailer->send(
             $email,
@@ -234,7 +249,10 @@ class MonthlyValueReportService
                     ->with('user:id,name,email')
                     ->get();
 
-                $mailable = new MonthlyValueReportMail($summary);
+                $periodLabel = is_string($summary['period_label'] ?? null) && $summary['period_label'] !== ''
+                    ? $summary['period_label']
+                    : $this->periodLabel($periodStart, $periodEnd);
+                $mailable = new MonthlyValueReportMail($summary, $periodLabel);
 
                 foreach ($members as $membership) {
                     $email = $membership->user?->email;
