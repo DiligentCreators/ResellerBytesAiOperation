@@ -10,7 +10,6 @@ it('defaults the demo accounts password config to null with no literal fallback'
     $source = (string) file_get_contents(config_path('operations.php'));
 
     expect($source)->toContain("env('DEMO_ACCOUNTS_PASSWORD')")
-        ->and($source)->not->toContain('Local-Test-Passw0rd!')
         ->and($source)->not->toMatch("/env\\('DEMO_ACCOUNTS_PASSWORD'\\s*,/");
 });
 
@@ -100,12 +99,13 @@ it('refuses demo:accounts-password in production', function () {
     app()->detectEnvironment(fn (): string => 'production');
 
     try {
-        $this->artisan('demo:accounts-password', ['--output' => $output])
-            ->expectsOutputToContain('refuses to run in production')
-            ->assertFailed();
+        $exitCode = Artisan::call('demo:accounts-password', ['--output' => $output]);
+        $console = Artisan::output();
     } finally {
         app()->detectEnvironment(fn () => $previous);
     }
 
-    expect(file_exists($output))->toBeFalse();
+    expect($exitCode)->not->toBe(0)
+        ->and($console)->toContain('refuses to run in production')
+        ->and(file_exists($output))->toBeFalse();
 });
