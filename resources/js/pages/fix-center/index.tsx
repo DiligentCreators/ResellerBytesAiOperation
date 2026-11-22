@@ -1,15 +1,10 @@
 import { Form, Head, Link, router, usePage } from '@inertiajs/react';
-import {
-    AlertTriangle,
-    CheckCircle2,
-    Info,
-    ShieldAlert,
-    Wrench,
-} from 'lucide-react';
+import { CheckCircle2, Wrench } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { EmptyState } from '@/components/empty-state';
 import { PageHeader } from '@/components/page-header';
 import { Pagination } from '@/components/pagination';
+import { SeverityBadge } from '@/components/severity-badge';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -91,26 +86,6 @@ const tabs = [
     { value: 'fixed', label: 'Fixed' },
     { value: 'ignored', label: 'Ignored' },
 ] as const;
-
-function severityIcon(severity: string) {
-    if (severity === 'critical') {
-        return ShieldAlert;
-    }
-    if (severity === 'warning') {
-        return AlertTriangle;
-    }
-    return Info;
-}
-
-function severityWord(severity: string): string {
-    if (severity === 'critical') {
-        return 'Critical';
-    }
-    if (severity === 'warning') {
-        return 'Warning';
-    }
-    return 'Info';
-}
 
 export default function FixCenterIndex({
     issues,
@@ -299,11 +274,17 @@ export default function FixCenterIndex({
                                 : `No ${filters.tab} issues`
                         }
                         description="When a scan finds something to fix, it shows up here in plain language."
+                        action={
+                            <Button size="sm" asChild>
+                                <Link href="/integrations">
+                                    Check installations
+                                </Link>
+                            </Button>
+                        }
                     />
                 ) : (
                     <div className="space-y-3">
                         {issues.data.map((issue) => {
-                            const Icon = severityIcon(issue.severity);
                             const canBulkSelect =
                                 entitlements.fixes_bulk && issue.can_bulk;
 
@@ -329,34 +310,16 @@ export default function FixCenterIndex({
                                                     className="mt-1"
                                                 />
                                             ) : null}
-                                            <div
-                                                className={`mt-0.5 rounded-md p-1.5 ${
-                                                    issue.severity === 'critical'
-                                                        ? 'bg-danger-soft text-danger-fg'
-                                                        : issue.severity ===
-                                                            'warning'
-                                                          ? 'bg-warning-soft text-warning-fg'
-                                                          : 'bg-info-soft text-info-fg'
-                                                }`}
-                                            >
-                                                <Icon
-                                                    className="size-4"
-                                                    aria-hidden
-                                                />
-                                            </div>
                                             <div className="min-w-0 space-y-1">
                                                 <div className="flex flex-wrap items-center gap-2">
                                                     <h2 className="text-sm font-semibold text-foreground">
                                                         {issue.title}
                                                     </h2>
-                                                    <StatusBadge
-                                                        status={issue.severity}
+                                                    <SeverityBadge
+                                                        severity={
+                                                            issue.severity
+                                                        }
                                                     />
-                                                    <span className="text-xs font-medium text-muted-foreground">
-                                                        {severityWord(
-                                                            issue.severity,
-                                                        )}
-                                                    </span>
                                                 </div>
                                                 <p className="text-sm text-muted-foreground">
                                                     {issue.why_it_matters}

@@ -4,6 +4,7 @@ import { EmptyState } from '@/components/empty-state';
 import { PageHeader } from '@/components/page-header';
 import { Pagination } from '@/components/pagination';
 import { StatusBadge } from '@/components/status-badge';
+import { Button } from '@/components/ui/button';
 import { useWorkspaceTimezone } from '@/hooks/use-workspace-timezone';
 import { formatDateTime } from '@/lib/dates';
 
@@ -28,11 +29,11 @@ export default function DiagnosticRunsIndex({ runs }: Props) {
 
     return (
         <>
-            <Head title="Diagnostic Runs" />
+            <Head title="History" />
             <div className="space-y-6">
                 <PageHeader
-                    title="Diagnostic Runs"
-                    description="Sanitized diagnostic snapshots received from your WHMCS installation."
+                    title="History"
+                    description="Sanitized diagnostic snapshots received from your WHMCS installations."
                 />
 
                 {runs.data.length === 0 ? (
@@ -40,6 +41,13 @@ export default function DiagnosticRunsIndex({ runs }: Props) {
                         icon={Activity}
                         title="No diagnostic runs yet"
                         description="Once the WHMCS addon submits a snapshot, it will appear here."
+                        action={
+                            <Button size="sm" asChild>
+                                <Link href="/whmcs-addon/setup">
+                                    Open addon setup
+                                </Link>
+                            </Button>
+                        }
                     />
                 ) : (
                     <div className="overflow-hidden rounded-lg border border-border bg-card shadow-xs">

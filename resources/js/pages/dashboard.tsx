@@ -1,4 +1,4 @@
-import { Head, Link, usePage } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
     Activity,
     AlertTriangle,
@@ -17,13 +17,17 @@ import {
 import { EmptyState } from '@/components/empty-state';
 import { HealthSparkline } from '@/components/health-sparkline';
 import { PageHeader } from '@/components/page-header';
+import { SeverityBadge } from '@/components/severity-badge';
 import { StatCard } from '@/components/stat-card';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useWorkspaceTimezone } from '@/hooks/use-workspace-timezone';
 import { formatDateTime } from '@/lib/dates';
-import { show as onboarding } from '@/routes/onboarding';
+import {
+    dismissGettingStarted,
+    show as onboarding,
+} from '@/actions/App/Http/Controllers/OnboardingController';
 import { edit as editSecurity } from '@/routes/security';
 
 type DashboardStats = {
@@ -53,6 +57,19 @@ type OnboardingChecklist = {
         workspace: boolean;
         plan: boolean;
         whmcs: boolean;
+        first_scan: boolean;
+    };
+};
+
+type GettingStartedChecklist = {
+    visible: boolean;
+    dismissed: boolean;
+    completed: boolean;
+    tenant_id: string;
+    items: {
+        alert_channel: boolean;
+        first_fix: boolean;
+        invite_teammate: boolean;
     };
 };
 
@@ -109,6 +126,7 @@ type Props = {
         ai_configured: boolean;
     };
     onboarding?: OnboardingChecklist | null;
+    gettingStarted?: GettingStartedChecklist | null;
 };
 
 function heartbeatBadge(state: HeartbeatState): {
@@ -137,6 +155,7 @@ export default function Dashboard({
     recovered = null,
     addon,
     onboarding: onboardingState,
+    gettingStarted = null,
 }: Props) {
     const { auth } = usePage().props;
     const timezone = useWorkspaceTimezone();
@@ -192,6 +211,7 @@ export default function Dashboard({
                                             ['workspace', 'Workspace details'],
                                             ['plan', 'Choose a plan'],
                                             ['whmcs', 'Connect WHMCS'],
+                                            ['first_scan', 'First scan'],
                                         ] as const
                                     ).map(([key, label]) => (
                                         <li
@@ -223,20 +243,97 @@ export default function Dashboard({
                     </section>
                 )}
 
+                {gettingStarted?.visible ? (
+                    <section className="rounded-lg border border-border bg-card p-5 shadow-xs">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                            <div>
+                                <h2 className="text-sm font-semibold">
+                                    Getting started
+                                </h2>
+                                <p className="mt-1 text-sm text-muted-foreground">
+                                    A few quick wins after onboarding.
+                                </p>
+                                <ul className="mt-3 space-y-2 text-sm">
+                                    {(
+                                        [
+                                            [
+                                                'alert_channel',
+                                                'Add an alert channel',
+                                                tenantId
+                                                    ? `/tenants/${tenantId}/alerts`
+                                                    : '/dashboard',
+                                            ],
+                                            [
+                                                'first_fix',
+                                                'Run your first fix',
+                                                '/fix-center',
+                                            ],
+                                            [
+                                                'invite_teammate',
+                                                'Invite a teammate',
+                                                tenantId
+                                                    ? `/tenants/${tenantId}/memberships`
+                                                    : '/dashboard',
+                                            ],
+                                        ] as const
+                                    ).map(([key, label, href]) => (
+                                        <li
+                                            key={key}
+                                            className="flex items-center justify-between gap-3"
+                                        >
+                                            <span className="flex items-center gap-2">
+                                                {gettingStarted.items[key] ? (
+                                                    <CheckCircle2
+                                                        className="size-4 text-success-fg"
+                                                        aria-hidden
+                                                    />
+                                                ) : (
+                                                    <Circle
+                                                        className="size-4 text-slate-brand"
+                                                        aria-hidden
+                                                    />
+                                                )}
+                                                {label}
+                                            </span>
+                                            {!gettingStarted.items[key] ? (
+                                                <Link
+                                                    href={href}
+                                                    className="text-sm font-medium text-primary hover:underline"
+                                                >
+                                                    Open
+                                                </Link>
+                                            ) : null}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() =>
+                                    router.post(dismissGettingStarted.url())
+                                }
+                            >
+                                Dismiss
+                            </Button>
+                        </div>
+                    </section>
+                ) : null}
+
                 {isEmptyWorkspace && !onboardingState?.needed ? (
                     <EmptyState
                         icon={LayoutGrid}
                         title="Your workspace is ready"
                         description={
                             auth.two_factor_enabled
-                                ? 'Connect your first WHMCS integration to start seeing diagnostic activity here.'
-                                : 'Connect your first WHMCS integration after the workspace owner confirms two-factor authentication (TOTP).'
+                                ? 'Connect your first WHMCS installation to start seeing diagnostic activity here.'
+                                : 'Connect your first WHMCS installation after the workspace owner confirms two-factor authentication (TOTP).'
                         }
                         action={
                             auth.two_factor_enabled ? (
                                 <Button size="sm" asChild>
                                     <Link href="/integrations">
-                                        Connect a service
+                                        Connect an installation
                                     </Link>
                                 </Button>
                             ) : (
@@ -337,11 +434,15 @@ export default function Dashboard({
                                             <p className="text-sm font-medium leading-snug">
                                                 {item.title}
                                             </p>
-                                            <p className="mt-0.5 text-xs text-muted-foreground">
-                                                {item.installation ??
-                                                    'Installation'}{' '}
-                                                · {item.severity}
-                                            </p>
+                                            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                                                <span>
+                                                    {item.installation ??
+                                                        'Installation'}
+                                                </span>
+                                                <SeverityBadge
+                                                    severity={item.severity}
+                                                />
+                                            </div>
                                             <div className="mt-2">
                                                 <Button
                                                     size="sm"

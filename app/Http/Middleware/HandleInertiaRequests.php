@@ -6,6 +6,7 @@ use App\Models\Tenant;
 use App\Models\TenantMembership;
 use App\Models\User;
 use App\Services\CentralStaffAuthorization;
+use App\Services\Navigation\WorkspaceNavigationBuilder;
 use App\Services\Tenancy\TenantRoleAuthorization;
 use App\Support\TwoFactorPolicy;
 use Illuminate\Http\Request;
@@ -64,6 +65,7 @@ class HandleInertiaRequests extends Middleware
                 'status' => fn () => $request->session()->get('status'),
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
+            'navigation' => app(WorkspaceNavigationBuilder::class)->forRequest($request),
         ];
     }
 

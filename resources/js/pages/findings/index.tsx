@@ -3,6 +3,7 @@ import { CheckCircle2, ShieldAlert } from 'lucide-react';
 import { EmptyState } from '@/components/empty-state';
 import { PageHeader } from '@/components/page-header';
 import { Pagination } from '@/components/pagination';
+import { SeverityBadge } from '@/components/severity-badge';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
 
@@ -120,6 +121,21 @@ export default function FindingsIndex({ findings, filters, health }: Props) {
                                   ? 'Findings appear after diagnostic analysis has run.'
                                   : 'Try another status filter or wait for the next scan.'
                         }
+                        action={
+                            health.analyzed_runs === 0 ? (
+                                <Button size="sm" asChild>
+                                    <Link href="/whmcs-addon/setup">
+                                        Connect WHMCS
+                                    </Link>
+                                </Button>
+                            ) : (
+                                <Button size="sm" asChild>
+                                    <Link href="/fix-center">
+                                        Open Fix Center
+                                    </Link>
+                                </Button>
+                            )
+                        }
                     />
                 ) : (
                     <div className="overflow-hidden rounded-lg border border-border bg-card shadow-xs">
@@ -168,8 +184,8 @@ export default function FindingsIndex({ findings, filters, health }: Props) {
                                             {finding.category}
                                         </td>
                                         <td className="px-4">
-                                            <StatusBadge
-                                                status={finding.severity}
+                                            <SeverityBadge
+                                                severity={finding.severity}
                                             />
                                         </td>
                                         <td className="px-4">

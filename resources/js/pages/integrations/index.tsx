@@ -87,11 +87,11 @@ export default function IntegrationsIndex({ integrations }: Props) {
 
     return (
         <>
-            <Head title="WHMCS Integrations" />
+            <Head title="Installations" />
             <div className="space-y-6">
                 <PageHeader
-                    title="WHMCS Integrations"
-                    description="Connected WHMCS installations and their diagnostic activity."
+                    title="Installations"
+                    description="Connected WHMCS installations, addon setup, host connection, and diagnostic activity."
                 />
 
                 {showCredentials && credentials ? (
@@ -545,9 +545,9 @@ export default function IntegrationsIndex({ integrations }: Props) {
                 )}
 
                 {canManage && integrations.data.length > 0 ? (
-                    <section className="space-y-4">
+                    <section id="host-connection" className="space-y-4 scroll-mt-6">
                         <PageHeader
-                            title="Host credentials (optional)"
+                            title="Host connection"
                             description="Store encrypted FTP credentials once for allowlisted Safe Action fallbacks when the WHMCS web user cannot chmod or write .user.ini. Passwords are never included in diagnostic snapshots."
                         />
                         {integrations.data.map((item) =>

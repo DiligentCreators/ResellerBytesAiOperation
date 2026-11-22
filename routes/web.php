@@ -32,6 +32,7 @@ use App\Http\Controllers\Reports\ReportShowController;
 use App\Http\Controllers\SafeActionController;
 use App\Http\Controllers\TenantAlertChannelController;
 use App\Http\Controllers\TenantAuditExportController;
+use App\Http\Controllers\TenantAutoFixSettingsController;
 use App\Http\Controllers\TenantMembershipController;
 use App\Http\Controllers\TenantNotificationController;
 use App\Http\Controllers\TenantSettingsController;
@@ -59,6 +60,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::put('onboarding/workspace', [OnboardingController::class, 'updateWorkspace'])->middleware('throttle:onboarding-workspace')->name('onboarding.workspace');
     Route::post('onboarding/plan', [OnboardingController::class, 'completePlan'])->middleware('throttle:onboarding-plan')->name('onboarding.plan');
     Route::post('onboarding/whmcs', [OnboardingController::class, 'completeWhmcs'])->middleware('throttle:onboarding-whmcs')->name('onboarding.whmcs');
+    Route::get('onboarding/heartbeat-status', [OnboardingController::class, 'heartbeatStatus'])->middleware('throttle:onboarding-heartbeat-status')->name('onboarding.heartbeat-status');
+    Route::post('onboarding/first-scan', [OnboardingController::class, 'completeFirstScan'])->middleware('throttle:onboarding-first-scan')->name('onboarding.first-scan');
+    Route::post('onboarding/getting-started/dismiss', [OnboardingController::class, 'dismissGettingStarted'])->middleware('throttle:onboarding-getting-started-dismiss')->name('onboarding.getting-started.dismiss');
     Route::get('billing/plans', BillingPlansController::class)->name('billing.plans');
 
     Route::get('tenants/{tenant}/billing/checkout/{plan}', [CheckoutController::class, 'show'])->name('billing.checkout.show');
@@ -123,6 +127,7 @@ Route::middleware(['auth', 'verified', EnsureTwoFactorEnabled::class])->group(fu
     Route::get('tenants/{tenant}/settings', [TenantSettingsController::class, 'show'])->name('tenants.settings.show');
     Route::put('tenants/{tenant}/settings/branding', [TenantSettingsController::class, 'update'])->middleware('throttle:tenants-settings-branding-update')->name('tenants.settings.branding.update');
     Route::put('tenants/{tenant}/settings/hourly-rate', [TenantSettingsController::class, 'updateHourlyRate'])->middleware('throttle:tenants-settings-branding-update')->name('tenants.settings.hourly-rate.update');
+    Route::get('tenants/{tenant}/auto-fix', [TenantAutoFixSettingsController::class, 'show'])->name('tenants.auto-fix.show');
     Route::get('tenants/{tenant}/memberships', [TenantMembershipController::class, 'index'])->name('tenants.memberships.index');
     Route::post('tenants/{tenant}/memberships', [TenantMembershipController::class, 'invite'])->middleware('throttle:tenants-memberships-invite')->name('tenants.memberships.invite');
     Route::get('tenants/{tenantId}/membership/invitation/{membershipId}', [TenantMembershipController::class, 'showInvitation'])->middleware(['signed', 'throttle:tenants-memberships-invitation-show'])->name('tenants.memberships.invitation.show');

@@ -1,4 +1,5 @@
 import type { Auth, IntegrationCredentialsFlash } from '@/types/auth';
+import type { SharedNavigation } from '@/types/navigation';
 
 declare module 'react' {
     interface InputHTMLAttributes<T> {
@@ -19,6 +20,7 @@ declare module '@inertiajs/core' {
                 status?: string | null;
             };
             sidebarOpen: boolean;
+            navigation: SharedNavigation;
             [key: string]: unknown;
         };
     }

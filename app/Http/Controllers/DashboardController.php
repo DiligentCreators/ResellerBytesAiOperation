@@ -9,6 +9,7 @@ use App\Models\TenantMembership;
 use App\Models\User;
 use App\Services\Ai\OpenAiConfiguration;
 use App\Services\Health\HealthDashboardPresenter;
+use App\Services\Tenancy\GettingStartedChecklist;
 use App\Services\Tenancy\OnboardingProgress;
 use App\Services\Tenancy\TenantRecordQuery;
 use App\Support\WhmcsAddonPackageSigner;
@@ -22,6 +23,7 @@ class DashboardController extends Controller
         WhmcsAddonPackageSigner $signer,
         OpenAiConfiguration $openAi,
         OnboardingProgress $onboardingProgress,
+        GettingStartedChecklist $gettingStartedChecklist,
         HealthDashboardPresenter $healthPresenter,
     ): Response {
         /** @var User|null $user */
@@ -85,11 +87,12 @@ class DashboardController extends Controller
                 'ai_configured' => $openAi->isConfigured(),
             ],
             'onboarding' => $this->onboardingChecklist($user, $onboardingProgress),
+            'gettingStarted' => $gettingStartedChecklist->forOwner($user),
         ]);
     }
 
     /**
-     * @return array{needed: bool, tenant_id: ?string, steps: array{workspace: bool, plan: bool, whmcs: bool}}|null
+     * @return array{needed: bool, tenant_id: ?string, steps: array{workspace: bool, plan: bool, whmcs: bool, first_scan: bool}}|null
      */
     private function onboardingChecklist(?User $user, OnboardingProgress $onboardingProgress): ?array
     {

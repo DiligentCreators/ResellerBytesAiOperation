@@ -1,24 +1,24 @@
 import { Link, usePage } from '@inertiajs/react';
 import {
     Activity,
+    BellRing,
     BookOpen,
     Bot,
     CreditCard,
     Download,
     FileText,
+    Home,
     Layers,
     LayoutGrid,
-    LineChart,
     Mail,
+    Plug,
     Receipt,
-    Server,
     Settings,
-    ShieldAlert,
-    ShieldCheck,
+    Shield,
     SlidersHorizontal,
     Users,
     Wrench,
-    BellRing,
+    type LucideIcon,
 } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
@@ -36,7 +36,7 @@ import {
     SidebarSeparator,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
-import type { NavItem } from '@/types';
+import type { NavItem, SharedNavItem } from '@/types';
 
 const footerNavItems: NavItem[] = [
     {
@@ -46,145 +46,52 @@ const footerNavItems: NavItem[] = [
     },
 ];
 
+const customerIcons: Record<string, LucideIcon> = {
+    Home,
+    'Fix Center': Wrench,
+    Reports: FileText,
+    Installations: Plug,
+    Settings,
+};
+
+const platformIcons: Record<string, LucideIcon> = {
+    'Overview / MRR': LayoutGrid,
+    'Plan catalog': Layers,
+    Gateway: Receipt,
+    'Billing settings': CreditCard,
+    'Platform settings': SlidersHorizontal,
+    Mail,
+    'AI and signing': Bot,
+    Staff: Users,
+};
+
+function withIcons(
+    items: SharedNavItem[],
+    icons: Record<string, LucideIcon>,
+): NavItem[] {
+    return items.map((item) => ({
+        title: item.title,
+        href: item.href,
+        icon: icons[item.title] ?? Activity,
+        children: item.children,
+    }));
+}
+
 export function AppSidebar() {
-    const { auth } = usePage().props;
-    const permissions = auth.central_permissions ?? [];
-    const hasWorkspace = (auth.tenants?.length ?? 0) > 0;
-    const isCustomerWorkspace = hasWorkspace || !auth.is_platform_operator;
-    const primaryTenantId = auth.tenants?.[0]?.id;
-
-    const overviewItems: NavItem[] = [
-        { title: 'Overview', href: dashboard(), icon: LayoutGrid },
-    ];
-
-    const reportsItems: NavItem[] = [
-        { title: 'Reports', href: '/reports', icon: FileText },
-        { title: 'Health trends', href: '/reports/trends', icon: LineChart },
-    ];
-
-    const diagnosticsItems: NavItem[] = [
-        { title: 'Fix Center', href: '/fix-center', icon: Wrench },
-        { title: 'Diagnostic Runs', href: '/diagnostic-runs', icon: Activity },
-        { title: 'Findings', href: '/findings', icon: ShieldAlert },
-        { title: 'Safe Actions', href: '/safe-actions', icon: ShieldCheck },
-    ];
-
-    const integrationsItems: NavItem[] = [
-        { title: 'Integrations', href: '/integrations', icon: Server },
-    ];
-
-    if (isCustomerWorkspace || hasWorkspace) {
-        integrationsItems.push({
-            title: 'WHMCS Addon',
-            href: '/whmcs-addon/setup',
-            icon: Download,
-        });
-    }
-
-    const billingItems: NavItem[] = [];
-    if (primaryTenantId) {
-        billingItems.push(
-            {
-                title: 'Plans',
-                href: '/billing/plans',
-                icon: Layers,
-            },
-            {
-                title: 'Billing settings',
-                href: `/tenants/${primaryTenantId}/billing`,
-                icon: CreditCard,
-            },
-            {
-                title: 'Invoices',
-                href: `/tenants/${primaryTenantId}/billing/invoices`,
-                icon: Receipt,
-            },
-        );
-    }
-
-    const teamItems: NavItem[] = [];
-    if (primaryTenantId) {
-        teamItems.push(
-            {
-                title: 'Members',
-                href: `/tenants/${primaryTenantId}/memberships`,
-                icon: Users,
-            },
-            {
-                title: 'Workspace',
-                href: `/tenants/${primaryTenantId}/settings`,
-                icon: Settings,
-            },
-            {
-                title: 'Notifications',
-                href: `/tenants/${primaryTenantId}/notifications`,
-                icon: FileText,
-            },
-            {
-                title: 'Alert channels',
-                href: `/tenants/${primaryTenantId}/alerts`,
-                icon: BellRing,
-            },
-        );
-    }
-
-    const platformItems: NavItem[] = [];
-
-    if (permissions.includes('billing')) {
-        platformItems.push(
-            {
-                title: 'Billing admin',
-                href: '/platform/billing',
-                icon: CreditCard,
-            },
-            {
-                title: 'Plan catalog',
-                href: '/platform/billing/plans',
-                icon: Layers,
-            },
-            {
-                title: 'Kelviq gateway',
-                href: '/platform/billing/gateway',
-                icon: Receipt,
-            },
-        );
-    }
-
-    if (permissions.includes('billing.settings.manage')) {
-        platformItems.push({
-            title: 'Billing settings',
-            href: '/platform/billing/settings',
-            icon: Settings,
-        });
-    }
-
-    if (permissions.includes('settings')) {
-        platformItems.push(
-            {
-                title: 'Platform settings',
-                href: '/platform/settings',
-                icon: SlidersHorizontal,
-            },
-            {
-                title: 'Mail Settings',
-                href: '/platform/mail-settings',
-                icon: Mail,
-            },
-            {
-                title: 'AI & Addon Signing',
-                href: '/platform/ai-settings',
-                icon: Bot,
-            },
-        );
-    }
-
-    if (auth.is_platform_admin) {
-        platformItems.push({
-            title: 'Central Staff',
-            href: '/platform/staff',
-            icon: Users,
-        });
-    }
+    const { auth, navigation } = usePage().props;
+    const customerItems = withIcons(navigation?.customer ?? [], customerIcons);
+    const platformItems = withIcons(navigation?.platform ?? [], {
+        ...platformIcons,
+        // Fallbacks for any renamed platform links.
+        'Central Staff': Users,
+        'Kelviq gateway': Receipt,
+        'Billing admin': CreditCard,
+        'Mail Settings': Mail,
+        'AI & Addon Signing': Bot,
+        Alerts: BellRing,
+        Download,
+        Shield,
+    });
 
     return (
         <Sidebar collapsible="icon" variant="sidebar">
@@ -201,29 +108,15 @@ export function AppSidebar() {
                 <TenantSwitcher />
             </SidebarHeader>
             <SidebarContent>
-                <NavMain items={overviewItems} label="Overview" />
-                {(isCustomerWorkspace || hasWorkspace) && (
+                {customerItems.length > 0 ? (
+                    <NavMain items={customerItems} />
+                ) : null}
+                {auth.is_platform_operator && platformItems.length > 0 ? (
                     <>
-                        <NavMain items={reportsItems} label="Reports" />
-                        <NavMain items={diagnosticsItems} label="Diagnostics" />
-                        <NavMain
-                            items={integrationsItems}
-                            label="Integrations"
-                        />
-                    </>
-                )}
-                {billingItems.length > 0 && (
-                    <NavMain items={billingItems} label="Billing" />
-                )}
-                {teamItems.length > 0 && (
-                    <NavMain items={teamItems} label="Team" />
-                )}
-                {auth.is_platform_operator && platformItems.length > 0 && (
-                    <>
-                        <SidebarSeparator />
+                        {customerItems.length > 0 ? <SidebarSeparator /> : null}
                         <NavMain items={platformItems} label="Platform" />
                     </>
-                )}
+                ) : null}
             </SidebarContent>
             <SidebarFooter className="border-t border-sidebar-border">
                 <NavFooter items={footerNavItems} className="mt-auto" />

@@ -42,10 +42,14 @@ class TenantProvisioningService
                     'branding' => [
                         'display_name' => $name,
                     ],
+                    'alerts' => [
+                        'email' => $owner->email,
+                    ],
                     'onboarding' => [
                         'workspace_completed_at' => null,
                         'plan_completed_at' => null,
                         'whmcs_completed_at' => null,
+                        'first_scan_completed_at' => null,
                     ],
                 ],
             ]);
