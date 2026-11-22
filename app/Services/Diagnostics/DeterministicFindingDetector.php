@@ -6,6 +6,7 @@ use App\Models\DiagnosticFinding;
 use App\Models\DiagnosticRecommendation;
 use App\Models\DiagnosticRun;
 use App\Models\User;
+use App\Services\Alerts\CriticalFindingAlertGate;
 use App\Services\Diagnostics\Rules\DetectedIssue;
 use App\Services\Diagnostics\Rules\IssueRuleRegistry;
 use Illuminate\Database\Eloquent\Builder;
@@ -18,6 +19,7 @@ class DeterministicFindingDetector
     public function __construct(
         private readonly IssueRuleRegistry $rules,
         private readonly FindingContinuityService $continuity,
+        private readonly CriticalFindingAlertGate $criticalAlerts,
     ) {}
 
     /**
@@ -115,6 +117,7 @@ class DeterministicFindingDetector
                 }
 
                 $this->continuity->inheritActiveWorkflow($finding);
+                $this->criticalAlerts->maybeRaise($finding);
                 $created[] = $finding;
             }
 

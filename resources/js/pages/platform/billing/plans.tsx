@@ -39,6 +39,7 @@ type Plan = {
         'fixes.guided'?: boolean;
         'fixes.one_click'?: boolean;
         'fixes.bulk'?: boolean;
+        'alerts.channels'?: boolean;
     };
 };
 
@@ -458,6 +459,18 @@ function PlanFields({
                     disabled={disabled}
                 />
                 Bulk fixes (Growth+)
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+                <input
+                    type="checkbox"
+                    name="alerts_channels_enabled"
+                    value="1"
+                    defaultChecked={
+                        plan?.entitlements['alerts.channels'] ?? false
+                    }
+                    disabled={disabled}
+                />
+                Alert channels (Growth+)
             </label>
             <label className="flex items-center gap-2 text-sm">
                 <input

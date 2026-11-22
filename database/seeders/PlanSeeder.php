@@ -40,6 +40,7 @@ class PlanSeeder extends Seeder
                     'fixes.guided' => true,
                     'fixes.one_click' => false,
                     'fixes.bulk' => false,
+                    'alerts.channels' => false,
                     'limits' => [
                         'members' => 3,
                         'integrations' => 1,
@@ -74,6 +75,7 @@ class PlanSeeder extends Seeder
                     'fixes.guided' => true,
                     'fixes.one_click' => true,
                     'fixes.bulk' => true,
+                    'alerts.channels' => true,
                     'limits' => [
                         'members' => 10,
                         'integrations' => 3,
@@ -108,6 +110,7 @@ class PlanSeeder extends Seeder
                     'fixes.guided' => true,
                     'fixes.one_click' => true,
                     'fixes.bulk' => true,
+                    'alerts.channels' => true,
                     'limits' => [
                         'members' => 25,
                         'integrations' => 10,
@@ -142,6 +145,7 @@ class PlanSeeder extends Seeder
                     'fixes.guided' => true,
                     'fixes.one_click' => true,
                     'fixes.bulk' => true,
+                    'alerts.channels' => true,
                     'limits' => [
                         'members' => 100,
                         'integrations' => 50,

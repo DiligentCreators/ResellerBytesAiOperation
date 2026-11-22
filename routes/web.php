@@ -25,6 +25,7 @@ use App\Http\Controllers\PricingController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\Reports\HealthTrendsController;
 use App\Http\Controllers\SafeActionController;
+use App\Http\Controllers\TenantAlertChannelController;
 use App\Http\Controllers\TenantAuditExportController;
 use App\Http\Controllers\TenantMembershipController;
 use App\Http\Controllers\TenantNotificationController;
@@ -116,6 +117,11 @@ Route::middleware(['auth', 'verified', EnsureTwoFactorEnabled::class])->group(fu
     Route::post('tenants/{tenant}/memberships/{membership}/revoke', [TenantMembershipController::class, 'revoke'])->middleware('throttle:tenants-memberships-revoke')->name('tenants.memberships.revoke');
     Route::get('tenants/{tenant}/notifications', [TenantNotificationController::class, 'index'])->middleware('throttle:tenants-notifications-index')->name('tenants.notifications.index');
     Route::post('tenants/{tenant}/notifications/{notification}/read', [TenantNotificationController::class, 'markRead'])->middleware('throttle:tenants-notifications-read')->name('tenants.notifications.read');
+    Route::get('tenants/{tenant}/alerts', [TenantAlertChannelController::class, 'index'])->middleware('throttle:tenants-alerts-index')->name('tenants.alerts.index');
+    Route::post('tenants/{tenant}/alerts/channels', [TenantAlertChannelController::class, 'store'])->middleware('throttle:tenants-alerts-store')->name('tenants.alerts.channels.store');
+    Route::put('tenants/{tenant}/alerts/channels/{channel}', [TenantAlertChannelController::class, 'update'])->middleware('throttle:tenants-alerts-update')->name('tenants.alerts.channels.update');
+    Route::delete('tenants/{tenant}/alerts/channels/{channel}', [TenantAlertChannelController::class, 'destroy'])->middleware('throttle:tenants-alerts-destroy')->name('tenants.alerts.channels.destroy');
+    Route::post('tenants/{tenant}/alerts/channels/{channel}/test', [TenantAlertChannelController::class, 'test'])->middleware('throttle:tenants-alerts-test')->name('tenants.alerts.channels.test');
     Route::get('tenants/{tenant}/audit-events/export', TenantAuditExportController::class)->middleware('throttle:tenants-audit-events-export')->name('tenants.audit-events.export');
 
     Route::get('tenants/{tenant}/billing', [BillingSettingsController::class, 'show'])->name('billing.settings.show');

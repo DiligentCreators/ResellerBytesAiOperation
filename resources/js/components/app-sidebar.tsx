@@ -18,6 +18,7 @@ import {
     SlidersHorizontal,
     Users,
     Wrench,
+    BellRing,
 } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
@@ -117,6 +118,11 @@ export function AppSidebar() {
                 title: 'Notifications',
                 href: `/tenants/${primaryTenantId}/notifications`,
                 icon: FileText,
+            },
+            {
+                title: 'Alert channels',
+                href: `/tenants/${primaryTenantId}/alerts`,
+                icon: BellRing,
             },
         );
     }

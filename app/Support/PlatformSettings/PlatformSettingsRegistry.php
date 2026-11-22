@@ -342,6 +342,19 @@ final class PlatformSettingsRegistry
                 max: 10000,
             ),
 
+            // Workspace alerts
+            new PlatformSettingDefinition(
+                key: 'alerts.repeat_minutes',
+                group: 'alerts',
+                label: 'Workspace alert repeat (minutes)',
+                help: 'Minimum minutes before the same workspace alert dedupe key may be re-sent to a channel.',
+                type: PlatformSettingDefinition::TYPE_INT,
+                default: static fn (): int => (int) config('alerts.repeat_minutes', 60),
+                rules: ['integer', 'min:1', 'max:1440'],
+                min: 1,
+                max: 1440,
+            ),
+
             // Alerts (operations)
             new PlatformSettingDefinition(
                 key: 'operations.alerts.enabled',

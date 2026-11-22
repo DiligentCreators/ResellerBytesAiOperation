@@ -2,6 +2,7 @@
 
 namespace App\Services\SafeActions;
 
+use App\Events\FixActionFailed;
 use App\Models\DiagnosticFinding;
 use App\Models\DiagnosticRun;
 use App\Models\SafeActionExecution;
@@ -357,6 +358,10 @@ class SafeActionExecutor
                     ],
                     'occurred_at' => now(),
                 ]);
+
+                if (is_string($locked->tenant_id)) {
+                    event(new FixActionFailed($locked->id, $locked->tenant_id));
+                }
             }
 
             return $locked->fresh() ?? $locked;
@@ -586,6 +591,10 @@ class SafeActionExecutor
                 ],
                 'occurred_at' => now(),
             ]);
+
+            if (is_string($execution->tenant_id)) {
+                event(new FixActionFailed($execution->id, $execution->tenant_id));
+            }
 
             throw $exception;
         }

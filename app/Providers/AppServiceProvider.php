@@ -3,8 +3,11 @@
 namespace App\Providers;
 
 use App\Contracts\AuditCheckpointObjectStore;
+use App\Events\CriticalFindingRaised;
+use App\Events\FixActionFailed;
 use App\Events\InstallationHeartbeatStateChanged;
 use App\Listeners\RecomputeHealthScoreOnHeartbeatChange;
+use App\Services\Alerts\AlertDispatcher;
 use App\Services\Audit\S3AuditCheckpointObjectStore;
 use App\Services\Diagnostics\Rules\IssueRule;
 use App\Services\Diagnostics\Rules\IssueRuleRegistry;
@@ -60,6 +63,18 @@ class AppServiceProvider extends ServiceProvider
         $this->configureDefaults();
         $this->registerQueueMetricsListeners();
         Event::listen(InstallationHeartbeatStateChanged::class, RecomputeHealthScoreOnHeartbeatChange::class);
+        Event::listen(
+            InstallationHeartbeatStateChanged::class,
+            [AlertDispatcher::class, 'handleHeartbeatStateChanged'],
+        );
+        Event::listen(
+            CriticalFindingRaised::class,
+            [AlertDispatcher::class, 'handleCriticalFindingRaised'],
+        );
+        Event::listen(
+            FixActionFailed::class,
+            [AlertDispatcher::class, 'handleFixActionFailed'],
+        );
         $this->overlayPlatformSettings();
     }
 

@@ -8,6 +8,7 @@ use App\Models\DiagnosticRun;
 use App\Models\TenantMembership;
 use App\Models\User;
 use App\Services\Ai\OpenAiConfiguration;
+use App\Services\Alerts\CriticalFindingAlertGate;
 use App\Services\Diagnostics\AiBudgetService;
 use App\Services\Diagnostics\DeterministicFindingDetector;
 use App\Services\Diagnostics\FindingContinuityService;
@@ -230,6 +231,7 @@ class AnalyzeDiagnosticRun implements ShouldQueue
                 }
 
                 $continuity->inheritActiveWorkflow($finding);
+                app(CriticalFindingAlertGate::class)->maybeRaise($finding);
             }
 
             $actor = User::query()->find($this->ownerUserId);

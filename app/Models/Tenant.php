@@ -103,6 +103,12 @@ class Tenant extends Model
         return $this->hasMany(TenantNotification::class);
     }
 
+    /** @return HasMany<TenantAlertChannel, $this> */
+    public function alertChannels(): HasMany
+    {
+        return $this->hasMany(TenantAlertChannel::class);
+    }
+
     /** @return HasMany<TenantSubscription, $this> */
     public function subscriptions(): HasMany
     {
