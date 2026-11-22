@@ -57,6 +57,8 @@ class StoreDiagnosticSnapshotController extends Controller
 
                 $integration->forceFill([
                     'addon_version' => $validated['addon_version'],
+                    'collector_schema_version' => $validated['schema_version'],
+                    'last_auto_collect_at' => now(),
                     'last_seen_at' => now(),
                 ])->save();
 

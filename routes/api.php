@@ -8,17 +8,21 @@ use App\Http\Middleware\AuthenticateWhmcsIntegration;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1/whmcs')
-    ->middleware(['throttle:api-whmcs-diagnostic-snapshots', AuthenticateWhmcsIntegration::class])
+    ->middleware([AuthenticateWhmcsIntegration::class])
     ->group(function (): void {
         Route::post('diagnostic-snapshots', StoreDiagnosticSnapshotController::class)
+            ->middleware('throttle:api-whmcs-diagnostic-snapshots')
             ->name('api.whmcs.diagnostic-snapshots.store');
 
         Route::post('heartbeats', StoreHeartbeatController::class)
+            ->middleware('throttle:api-whmcs-heartbeats')
             ->name('api.whmcs.heartbeats.store');
 
         Route::get('safe-actions/pending', ListPendingSafeActionsController::class)
+            ->middleware('throttle:api-whmcs-diagnostic-snapshots')
             ->name('api.whmcs.safe-actions.pending');
 
         Route::post('safe-actions/{safeAction}/result', StoreSafeActionResultController::class)
+            ->middleware('throttle:api-whmcs-diagnostic-snapshots')
             ->name('api.whmcs.safe-actions.result');
     });

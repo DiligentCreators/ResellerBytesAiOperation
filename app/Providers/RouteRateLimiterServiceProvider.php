@@ -59,6 +59,7 @@ class RouteRateLimiterServiceProvider extends ServiceProvider
         'diagnostic-runs-reanalyze' => 5,
         'whmcs-addon-download' => 10,
         'api-whmcs-diagnostic-snapshots' => 30,
+        'api-whmcs-heartbeats' => 60,
         'user-password-update' => 6,
     ];
 
@@ -66,6 +67,15 @@ class RouteRateLimiterServiceProvider extends ServiceProvider
     {
         foreach (self::LIMITS as $name => $perMinute) {
             RateLimiter::for($name, function (Request $request) use ($name, $perMinute) {
+                if ($name === 'api-whmcs-heartbeats') {
+                    $integrationId = $request->header('X-RB-Integration');
+                    $actor = is_string($integrationId) && $integrationId !== ''
+                        ? $integrationId
+                        : ($request->ip() ?? 'anonymous');
+
+                    return Limit::perMinute($perMinute)->by($name.'|'.$actor);
+                }
+
                 $actor = $request->user()?->getAuthIdentifier() ?? $request->ip();
 
                 return Limit::perMinute($perMinute)->by($name.'|'.$actor);

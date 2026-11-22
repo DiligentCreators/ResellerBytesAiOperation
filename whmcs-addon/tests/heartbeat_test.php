@@ -51,7 +51,7 @@ namespace {
         }
     }
 
-    $GLOBALS['rb_mock_response_body'] = '{"data":{"accepted":true}}';
+    $GLOBALS['rb_mock_response_body'] = '{"data":{"accepted":true,"auto_collect_due":true,"pending_approved_actions":false}}';
     $GLOBALS['rb_mock_http_status'] = 202;
     $GLOBALS['rb_mock_curl_exec_result'] = true;
 
@@ -68,6 +68,8 @@ namespace {
 
     assertHeartbeatCondition($result['http_status'] === 202, 'Heartbeat HTTP status was not preserved.');
     assertHeartbeatCondition($result['accepted'] === true, 'Heartbeat accepted flag was not preserved.');
+    assertHeartbeatCondition($result['auto_collect_due'] === true, 'auto_collect_due was not preserved.');
+    assertHeartbeatCondition($result['pending_approved_actions'] === false, 'pending_approved_actions was not preserved.');
     assertHeartbeatCondition(
         $GLOBALS['rb_mock_curl_url'] === 'https://ops.resellerbytes.com/api/v1/whmcs/heartbeats',
         'Heartbeat used an unexpected API destination.',

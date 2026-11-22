@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\RotateWhmcsIntegrationRequest;
 use App\Http\Requests\StoreWhmcsIntegrationRequest;
+use App\Http\Requests\UpdateWhmcsIntegrationAutoCollectRequest;
 use App\Http\Requests\UpdateWhmcsIntegrationHostConnectionRequest;
 use App\Models\WhmcsIntegration;
 use App\Services\Audit\AuditEventWriter;
@@ -33,6 +34,10 @@ class WhmcsIntegrationController extends Controller
                 'status' => $integration->status,
                 'addon_version' => $integration->addon_version,
                 'last_seen_at' => $integration->last_seen_at?->toIso8601String(),
+                'last_heartbeat_at' => $integration->last_heartbeat_at?->toIso8601String(),
+                'cron_php_version' => $integration->cron_php_version,
+                'heartbeat_state' => $integration->heartbeat_state ?? WhmcsIntegration::HEARTBEAT_STATE_UNKNOWN,
+                'auto_collect_enabled' => (bool) $integration->auto_collect_enabled,
                 'diagnostic_runs_count' => $integration->diagnostic_runs_count,
                 'tenant_id' => $integration->tenant_id,
                 'host_connection_configured' => $integration->hasHostConnection(),
@@ -185,5 +190,51 @@ class WhmcsIntegrationController extends Controller
         ]);
 
         return back()->with('status', $status);
+    }
+
+    public function updateAutoCollect(
+        UpdateWhmcsIntegrationAutoCollectRequest $request,
+        WhmcsIntegration $integration,
+        AuditEventWriter $audit,
+    ): RedirectResponse {
+        $user = $request->user();
+
+        $visible = app(TenantRecordQuery::class)->integrations($user)
+            ->whereKey($integration->id)
+            ->exists();
+
+        if (! $visible || $integration->tenant_id === null) {
+            abort(404);
+        }
+
+        try {
+            app(TenantRoleAuthorization::class)->require($user, $integration->tenant_id, 'integrations.manage');
+        } catch (AuthorizationException) {
+            abort(403);
+        }
+
+        $enabled = $request->boolean('auto_collect_enabled');
+        $integration->forceFill(['auto_collect_enabled' => $enabled])->save();
+
+        $audit->append([
+            'actor_type' => 'user',
+            'actor_id' => (string) $user->id,
+            'tenant_id' => $integration->tenant_id,
+            'event_type' => 'integration.auto_collect.updated',
+            'subject_type' => 'whmcs_integration',
+            'subject_id' => $integration->id,
+            'metadata' => [
+                'auto_collect_enabled' => $enabled,
+            ],
+            'ip_address' => $request->ip(),
+            'occurred_at' => now(),
+        ]);
+
+        return back()->with(
+            'status',
+            $enabled
+                ? 'Automatic diagnostic collection enabled for this installation.'
+                : 'Automatic diagnostic collection disabled for this installation.',
+        );
     }
 }

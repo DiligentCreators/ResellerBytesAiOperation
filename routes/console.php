@@ -293,6 +293,10 @@ Schedule::command('whmcs:nonces:prune')
     ->everyFifteenMinutes()
     ->withoutOverlapping();
 
+Schedule::command('whmcs:heartbeats:check')
+    ->everyMinute()
+    ->withoutOverlapping();
+
 Schedule::command('diagnostics:recover-queued')
     ->everyFiveMinutes()
     ->withoutOverlapping();

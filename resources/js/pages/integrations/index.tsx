@@ -14,12 +14,18 @@ import { formatDateTime } from '@/lib/dates';
 import { edit as editSecurity } from '@/routes/security';
 import type { IntegrationCredentialsFlash } from '@/types/auth';
 
+type HeartbeatState = 'unknown' | 'ok' | 'stale' | 'down';
+
 type Integration = {
     id: string;
     name: string;
     status: string;
     addon_version: string | null;
     last_seen_at: string | null;
+    last_heartbeat_at: string | null;
+    cron_php_version: string | null;
+    heartbeat_state: HeartbeatState;
+    auto_collect_enabled: boolean;
     diagnostic_runs_count: number;
     tenant_id: string | null;
     host_connection_configured?: boolean;
@@ -32,20 +38,28 @@ type Integration = {
     } | null;
 };
 
+function heartbeatBadge(state: HeartbeatState): {
+    label: string;
+    tone: 'success' | 'warning' | 'danger' | 'neutral';
+} {
+    switch (state) {
+        case 'ok':
+            return { label: 'Online', tone: 'success' };
+        case 'stale':
+            return { label: 'Stale', tone: 'warning' };
+        case 'down':
+            return { label: 'Down', tone: 'danger' };
+        default:
+            return { label: 'Waiting for first heartbeat', tone: 'neutral' };
+    }
+}
+
 type Props = {
     integrations: {
         data: Integration[];
         links: { url: string | null; label: string; active: boolean }[];
     };
 };
-
-function formatLastSeen(value: string | null, timeZone?: string): string {
-    if (!value) {
-        return 'Never connected';
-    }
-
-    return formatDateTime(value, timeZone);
-}
 
 function credentialsJson(credentials: IntegrationCredentialsFlash): string {
     return JSON.stringify(
@@ -350,14 +364,25 @@ export default function IntegrationsIndex({ integrations }: Props) {
                                         Status
                                     </th>
                                     <th scope="col" className="h-9 px-4">
+                                        Heartbeat
+                                    </th>
+                                    <th scope="col" className="h-9 px-4">
                                         Addon
                                     </th>
                                     <th scope="col" className="h-9 px-4">
-                                        Last seen
+                                        Cron PHP
+                                    </th>
+                                    <th scope="col" className="h-9 px-4">
+                                        Last heartbeat
                                     </th>
                                     <th scope="col" className="h-9 px-4">
                                         Snapshots
                                     </th>
+                                    {canManage ? (
+                                        <th scope="col" className="h-9 px-4">
+                                            Auto-collect
+                                        </th>
+                                    ) : null}
                                     {canManage ? (
                                         <th scope="col" className="h-9 px-4">
                                             Actions
@@ -366,76 +391,153 @@ export default function IntegrationsIndex({ integrations }: Props) {
                                 </tr>
                             </thead>
                             <tbody>
-                                {integrations.data.map((item) => (
-                                    <tr
-                                        key={item.id}
-                                        className="h-11 border-b border-border last:border-0 hover:bg-surface/70"
-                                    >
-                                        <td className="px-4">
-                                            <p className="font-medium">
-                                                {item.name}
-                                            </p>
-                                            <p className="mt-0.5 font-mono text-xs text-muted-foreground">
-                                                {item.id}
-                                            </p>
-                                        </td>
-                                        <td className="px-4">
-                                            <StatusBadge status={item.status} />
-                                        </td>
-                                        <td className="px-4 text-muted-foreground">
-                                            {item.addon_version ??
-                                                'Not reported'}
-                                        </td>
-                                        <td className="px-4 text-muted-foreground">
-                                            {formatLastSeen(
-                                                item.last_seen_at,
-                                                timezone,
-                                            )}
-                                        </td>
-                                        <td className="px-4 tabular-nums">
-                                            {item.diagnostic_runs_count}
-                                        </td>
-                                        {canManage ? (
+                                {integrations.data.map((item) => {
+                                    const heartbeat = heartbeatBadge(
+                                        item.heartbeat_state ?? 'unknown',
+                                    );
+
+                                    return (
+                                        <tr
+                                            key={item.id}
+                                            className="h-11 border-b border-border last:border-0 hover:bg-surface/70"
+                                        >
                                             <td className="px-4">
-                                                {item.status === 'active' &&
-                                                item.tenant_id ? (
-                                                    <Form
-                                                        action={`/integrations/${item.id}/rotate`}
-                                                        method="post"
-                                                        options={{
-                                                            preserveScroll: true,
-                                                        }}
-                                                    >
-                                                        {({ processing }) => (
-                                                            <Button
-                                                                type="submit"
-                                                                variant="outline"
-                                                                size="sm"
-                                                                disabled={
-                                                                    processing
-                                                                }
-                                                                onClick={(
-                                                                    event,
-                                                                ) => {
-                                                                    if (
-                                                                        !confirm(
-                                                                            'Rotate this secret? The previous secret stops working immediately.',
-                                                                        )
-                                                                    ) {
-                                                                        event.preventDefault();
-                                                                    }
-                                                                }}
-                                                            >
-                                                                <KeyRound className="size-3.5" />
-                                                                Rotate secret
-                                                            </Button>
-                                                        )}
-                                                    </Form>
-                                                ) : null}
+                                                <p className="font-medium">
+                                                    {item.name}
+                                                </p>
+                                                <p className="mt-0.5 font-mono text-xs text-muted-foreground">
+                                                    {item.id}
+                                                </p>
                                             </td>
-                                        ) : null}
-                                    </tr>
-                                ))}
+                                            <td className="px-4">
+                                                <StatusBadge
+                                                    status={item.status}
+                                                />
+                                            </td>
+                                            <td className="px-4">
+                                                <StatusBadge
+                                                    status={heartbeat.label}
+                                                    tone={heartbeat.tone}
+                                                />
+                                            </td>
+                                            <td className="px-4 text-muted-foreground">
+                                                {item.addon_version ??
+                                                    'Not reported'}
+                                            </td>
+                                            <td className="px-4 text-muted-foreground">
+                                                {item.cron_php_version ?? '—'}
+                                            </td>
+                                            <td className="px-4 text-muted-foreground">
+                                                {item.last_heartbeat_at
+                                                    ? formatDateTime(
+                                                          item.last_heartbeat_at,
+                                                          timezone,
+                                                      )
+                                                    : '—'}
+                                            </td>
+                                            <td className="px-4 tabular-nums">
+                                                {item.diagnostic_runs_count}
+                                            </td>
+                                            {canManage ? (
+                                                <td className="px-4">
+                                                    {item.status === 'active' &&
+                                                    item.tenant_id ? (
+                                                        <Form
+                                                            action={`/integrations/${item.id}/auto-collect`}
+                                                            method="put"
+                                                            options={{
+                                                                preserveScroll: true,
+                                                            }}
+                                                            className="flex items-center gap-2"
+                                                        >
+                                                            {({
+                                                                processing,
+                                                            }) => (
+                                                                <>
+                                                                    <input
+                                                                        type="hidden"
+                                                                        name="auto_collect_enabled"
+                                                                        value={
+                                                                            item.auto_collect_enabled
+                                                                                ? '0'
+                                                                                : '1'
+                                                                        }
+                                                                    />
+                                                                    <label className="inline-flex items-center gap-2 text-xs text-muted-foreground">
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            checked={
+                                                                                item.auto_collect_enabled
+                                                                            }
+                                                                            disabled={
+                                                                                processing
+                                                                            }
+                                                                            onChange={(
+                                                                                event,
+                                                                            ) => {
+                                                                                event.currentTarget.form?.requestSubmit();
+                                                                            }}
+                                                                            className="size-4 rounded border-input"
+                                                                        />
+                                                                        {item.auto_collect_enabled
+                                                                            ? 'On'
+                                                                            : 'Off'}
+                                                                    </label>
+                                                                </>
+                                                            )}
+                                                        </Form>
+                                                    ) : (
+                                                        <span className="text-xs text-muted-foreground">
+                                                            —
+                                                        </span>
+                                                    )}
+                                                </td>
+                                            ) : null}
+                                            {canManage ? (
+                                                <td className="px-4">
+                                                    {item.status === 'active' &&
+                                                    item.tenant_id ? (
+                                                        <Form
+                                                            action={`/integrations/${item.id}/rotate`}
+                                                            method="post"
+                                                            options={{
+                                                                preserveScroll: true,
+                                                            }}
+                                                        >
+                                                            {({
+                                                                processing,
+                                                            }) => (
+                                                                <Button
+                                                                    type="submit"
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    disabled={
+                                                                        processing
+                                                                    }
+                                                                    onClick={(
+                                                                        event,
+                                                                    ) => {
+                                                                        if (
+                                                                            !confirm(
+                                                                                'Rotate this secret? The previous secret stops working immediately.',
+                                                                            )
+                                                                        ) {
+                                                                            event.preventDefault();
+                                                                        }
+                                                                    }}
+                                                                >
+                                                                    <KeyRound className="size-3.5" />
+                                                                    Rotate
+                                                                    secret
+                                                                </Button>
+                                                            )}
+                                                        </Form>
+                                                    ) : null}
+                                                </td>
+                                            ) : null}
+                                        </tr>
+                                    );
+                                })}
                             </tbody>
                         </table>
                         <Pagination links={integrations.links} />
