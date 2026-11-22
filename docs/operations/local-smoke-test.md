@@ -27,11 +27,23 @@ php artisan whmcs:sample-snapshot {integration-uuid} --fixture=schema_1_1_positi
 # Simulate a missed heartbeat, then open heartbeat.missed
 php artisan whmcs:sample-snapshot --heartbeat --stale
 php artisan whmcs:heartbeats:check
+
+# Local/testing QA accounts (staff + starter/growth/pro owners). Writes credentials
+# JSON to --output only; never prints passwords, TOTP secrets, or recovery codes.
+# Requires plan monthly prices already set in the platform plan editor / DB.
+php artisan qa:provision-accounts --output=/absolute/path/qa-accounts.json
+
+# Send reports to one tenant immediately (force bypasses schedule/due + idempotency;
+# value report still requires the reports.value entitlement).
+php artisan findings:send-weekly-digest --tenant={tenant-uuid} --force
+php artisan reports:send-value-report --tenant={tenant-uuid} --force
 ```
 
 `whmcs:sample-integration` creates or reuses a **Local demo WHMCS** integration for the first (or given) active tenant. Credentials are generated and stored encrypted; they are never printed.
 
 `whmcs:sample-snapshot` loads a fixture from `tests/Fixtures/snapshots/`, signs it like the WHMCS addon, and dispatches it through the real HTTP kernel path (routing, middleware, validation, ingest, deterministic rules, continuity).
+
+`qa:provision-accounts` refuses outside `local`/`testing`. Re-running rotates passwords and 2FA secrets for the QA emails only and refreshes plan entitlement snapshots on their subscriptions.
 
 ## Where to click in the UI
 

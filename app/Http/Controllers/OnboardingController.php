@@ -138,7 +138,7 @@ class OnboardingController extends Controller
 
         if (! $summary['ready']) {
             return redirect()->route('onboarding.show')
-                ->withErrors(['first_scan' => 'Wait for the first diagnostic scan to finish analyzing.']);
+                ->withErrors(['first_scan' => 'Wait for the first diagnostic scan to finish processing.']);
         }
 
         return $this->completeStep($request, $access, $audit, $onboardingProgress, 'first_scan', 'tenant.onboarding.first_scan_completed');

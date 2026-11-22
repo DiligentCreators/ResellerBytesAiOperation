@@ -105,17 +105,24 @@ class OnboardingProgress
     }
 
     /**
+     * First-scan step is ready once the latest run has been processed by the
+     * synchronous rule engine (status received), finished AI analysis, or
+     * failed AI analysis. AI analysis remains optional when OpenAI is unset.
+     *
      * @return array{ready: bool, issues_count: int, one_click_count: int, has_analyzed_run: bool}
      */
     public function firstScanSummary(Tenant $tenant): array
     {
-        $analyzedRun = DiagnosticRun::query()
+        $latestRun = DiagnosticRun::query()
             ->where('tenant_id', $tenant->id)
-            ->where('status', 'analyzed')
-            ->latest('analysis_completed_at')
+            ->latest('received_at')
             ->first();
 
-        if ($analyzedRun === null) {
+        // queued/analyzing means rules ran but AI is still in flight — keep waiting
+        // so the configured AI path is unchanged for operators who enable it.
+        $readyStatuses = ['received', 'analyzed', 'analysis_failed'];
+
+        if ($latestRun === null || ! in_array($latestRun->status, $readyStatuses, true)) {
             return [
                 'ready' => false,
                 'issues_count' => 0,
@@ -124,15 +131,18 @@ class OnboardingProgress
             ];
         }
 
+        // Prefer rule-engine findings for the count shown during onboarding.
         $issuesCount = DiagnosticFinding::query()
-            ->where('diagnostic_run_id', $analyzedRun->id)
+            ->where('diagnostic_run_id', $latestRun->id)
             ->where('tenant_id', $tenant->id)
+            ->where('source', 'rule')
             ->active()
             ->count();
 
         $oneClickCount = DiagnosticFinding::query()
-            ->where('diagnostic_run_id', $analyzedRun->id)
+            ->where('diagnostic_run_id', $latestRun->id)
             ->where('tenant_id', $tenant->id)
+            ->where('source', 'rule')
             ->active()
             ->where('fix_mode', 'one_click')
             ->count();
@@ -141,7 +151,7 @@ class OnboardingProgress
             'ready' => true,
             'issues_count' => $issuesCount,
             'one_click_count' => $oneClickCount,
-            'has_analyzed_run' => true,
+            'has_analyzed_run' => $latestRun->status === 'analyzed',
         ];
     }
 

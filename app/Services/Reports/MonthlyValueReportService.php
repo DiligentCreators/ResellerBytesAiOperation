@@ -30,7 +30,7 @@ class MonthlyValueReportService
     /**
      * @return array{tenants: int, recipients: int, skipped_entitlement: int, skipped_window: int, skipped_idempotent: int}
      */
-    public function send(?CarbonInterface $now = null): array
+    public function send(?CarbonInterface $now = null, ?string $tenantId = null, bool $force = false): array
     {
         $now = CarbonImmutable::instance(($now ?? now('UTC'))->utc());
         $daysBefore = $this->daysBeforeRenewal();
@@ -40,10 +40,14 @@ class MonthlyValueReportService
         $skippedWindow = 0;
         $skippedIdempotent = 0;
 
-        Tenant::query()
-            ->where('status', Tenant::STATUS_ACTIVE)
+        $query = Tenant::query()->where('status', Tenant::STATUS_ACTIVE);
+        if ($tenantId !== null) {
+            $query->whereKey($tenantId);
+        }
+
+        $query
             ->orderBy('id')
-            ->chunkById(50, function ($chunk) use ($now, $daysBefore, &$tenants, &$recipients, &$skippedEntitlement, &$skippedWindow, &$skippedIdempotent): void {
+            ->chunkById(50, function ($chunk) use ($now, $daysBefore, $force, &$tenants, &$recipients, &$skippedEntitlement, &$skippedWindow, &$skippedIdempotent): void {
                 foreach ($chunk as $tenant) {
                     $tenants++;
 
@@ -60,7 +64,7 @@ class MonthlyValueReportService
                         continue;
                     }
 
-                    if (! $this->isWithinSendWindow($tenant, $subscription, $now, $daysBefore)) {
+                    if (! $force && ! $this->isWithinSendWindow($tenant, $subscription, $now, $daysBefore)) {
                         $skippedWindow++;
 
                         continue;
@@ -69,10 +73,14 @@ class MonthlyValueReportService
                     $periodStart = CarbonImmutable::instance($subscription->current_period_starts_at ?? $now)->utc()->startOfDay();
                     $periodEnd = CarbonImmutable::instance($subscription->current_period_ends_at)->utc()->startOfDay();
 
-                    if ($this->alreadySent($tenant->id, $periodStart)) {
+                    if (! $force && $this->alreadySent($tenant->id, $periodStart)) {
                         $skippedIdempotent++;
 
                         continue;
+                    }
+
+                    if ($force) {
+                        $this->forgetSendRecord($tenant->id, $periodStart);
                     }
 
                     $summary = $this->metrics->build($tenant, $periodStart, $now);
@@ -161,6 +169,15 @@ class MonthlyValueReportService
             ->where('type', TenantReportSend::TYPE_MONTHLY_VALUE)
             ->whereDate('period_start', $periodStart->toDateString())
             ->exists();
+    }
+
+    private function forgetSendRecord(string $tenantId, CarbonInterface $periodStart): void
+    {
+        TenantReportSend::query()
+            ->where('tenant_id', $tenantId)
+            ->where('type', TenantReportSend::TYPE_MONTHLY_VALUE)
+            ->whereDate('period_start', $periodStart->toDateString())
+            ->delete();
     }
 
     /**

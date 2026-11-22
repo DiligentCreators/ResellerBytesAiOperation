@@ -130,8 +130,8 @@ function FirstScanWaiter({
                 Waiting for the first diagnostic scan
             </div>
             <p className="text-sm text-muted-foreground">
-                Run a manual diagnostic from the WHMCS addon once. When analysis
-                finishes, we will show what we found.
+                Run a manual diagnostic from the WHMCS addon once. When the scan
+                is processed, we will show the rule findings we detected.
             </p>
             <Button asChild size="sm" variant="outline">
                 <Link href={fixCenterUrl}>Preview Fix Center</Link>

@@ -19,12 +19,12 @@ class FindingsWeeklyDigestService
     /**
      * @return array{tenants: int, recipients: int, skipped_clean: int, skipped_schedule: int, skipped_idempotent: int}
      */
-    public function send(?CarbonInterface $since = null): array
+    public function send(?CarbonInterface $since = null, ?string $tenantId = null, bool $force = false): array
     {
         // $since is retained for BC with callers; schedule/idempotency drive the real period.
         unset($since);
 
-        return $this->weeklyReports->send();
+        return $this->weeklyReports->send(null, $tenantId, $force);
     }
 
     /**

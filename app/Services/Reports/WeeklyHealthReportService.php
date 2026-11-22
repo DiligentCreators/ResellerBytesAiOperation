@@ -25,7 +25,7 @@ class WeeklyHealthReportService
     /**
      * @return array{tenants: int, recipients: int, skipped_clean: int, skipped_schedule: int, skipped_idempotent: int}
      */
-    public function send(?CarbonInterface $now = null): array
+    public function send(?CarbonInterface $now = null, ?string $tenantId = null, bool $force = false): array
     {
         $now = CarbonImmutable::instance(($now ?? now('UTC'))->utc());
         $tenants = 0;
@@ -34,24 +34,32 @@ class WeeklyHealthReportService
         $skippedSchedule = 0;
         $skippedIdempotent = 0;
 
-        Tenant::query()
-            ->where('status', Tenant::STATUS_ACTIVE)
+        $query = Tenant::query()->where('status', Tenant::STATUS_ACTIVE);
+        if ($tenantId !== null) {
+            $query->whereKey($tenantId);
+        }
+
+        $query
             ->orderBy('id')
-            ->chunkById(50, function ($chunk) use ($now, &$tenants, &$recipients, &$skippedClean, &$skippedSchedule, &$skippedIdempotent): void {
+            ->chunkById(50, function ($chunk) use ($now, $force, &$tenants, &$recipients, &$skippedClean, &$skippedSchedule, &$skippedIdempotent): void {
                 foreach ($chunk as $tenant) {
                     $tenants++;
 
-                    if (! $this->isDue($tenant, $now)) {
+                    if (! $force && ! $this->isDue($tenant, $now)) {
                         $skippedSchedule++;
 
                         continue;
                     }
 
                     $period = $this->periodFor($tenant, $now);
-                    if ($this->alreadySent($tenant->id, $period['start'])) {
+                    if (! $force && $this->alreadySent($tenant->id, $period['start'])) {
                         $skippedIdempotent++;
 
                         continue;
+                    }
+
+                    if ($force) {
+                        $this->forgetSendRecord($tenant->id, $period['start']);
                     }
 
                     $digest = $this->buildDigest($tenant, $period['start'], $period['end']);
@@ -154,6 +162,15 @@ class WeeklyHealthReportService
             ->where('type', TenantReportSend::TYPE_WEEKLY)
             ->whereDate('period_start', $periodStart->toDateString())
             ->exists();
+    }
+
+    private function forgetSendRecord(string $tenantId, CarbonInterface $periodStart): void
+    {
+        TenantReportSend::query()
+            ->where('tenant_id', $tenantId)
+            ->where('type', TenantReportSend::TYPE_WEEKLY)
+            ->whereDate('period_start', $periodStart->toDateString())
+            ->delete();
     }
 
     /**

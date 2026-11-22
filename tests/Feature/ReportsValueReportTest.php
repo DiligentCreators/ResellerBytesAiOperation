@@ -10,6 +10,7 @@ use App\Services\Mail\CentralOutboundMailer;
 use App\Services\PlatformSettings;
 use App\Services\Reports\MonthlyValueReportService;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 
 function createValueReportWorkspace(bool $entitled = true, ?Carbon $periodEndsAt = null): array
 {
@@ -97,6 +98,57 @@ it('sends the monthly value report only for entitled workspaces N days before re
 
 it('exposes the reports:send-value-report artisan command', function () {
     $this->artisan('reports:send-value-report')->assertSuccessful();
+});
+
+it('sends a value report for one entitled tenant with --tenant and --force outside the window', function () {
+    Carbon::setTestNow('2026-11-10 10:00:00');
+    app(PlatformSettings::class)->set('reports.value_report_days_before_renewal', 3);
+
+    $pro = createValueReportWorkspace(true, Carbon::parse('2026-11-22 00:00:00', 'UTC'));
+    $starter = createValueReportWorkspace(false, Carbon::parse('2026-11-22 00:00:00', 'UTC'));
+
+    $recipients = [];
+    $mailer = Mockery::mock(CentralOutboundMailer::class);
+    $mailer->shouldReceive('send')
+        ->andReturnUsing(function (string $to) use (&$recipients): void {
+            $recipients[] = $to;
+        });
+    app()->instance(CentralOutboundMailer::class, $mailer);
+
+    $this->artisan('reports:send-value-report', [
+        '--tenant' => $pro['tenant']->id,
+        '--force' => true,
+    ])->assertSuccessful();
+
+    expect($recipients)->toBe([$pro['owner']->email])
+        ->and(TenantReportSend::query()->where('tenant_id', $pro['tenant']->id)->where('type', TenantReportSend::TYPE_MONTHLY_VALUE)->count())->toBe(1);
+
+    // Entitlement gating still applies under --force.
+    $this->artisan('reports:send-value-report', [
+        '--tenant' => $starter['tenant']->id,
+        '--force' => true,
+    ])->assertSuccessful();
+
+    expect($recipients)->toBe([$pro['owner']->email])
+        ->and(TenantReportSend::query()->where('tenant_id', $starter['tenant']->id)->count())->toBe(0);
+
+    // Force bypasses idempotency for a second immediate send.
+    $this->artisan('reports:send-value-report', [
+        '--tenant' => $pro['tenant']->id,
+        '--force' => true,
+    ])->assertSuccessful();
+
+    expect($recipients)->toBe([$pro['owner']->email, $pro['owner']->email]);
+
+    Carbon::setTestNow();
+});
+
+it('fails reports:send-value-report when --tenant does not match an active tenant', function () {
+    $this->artisan('reports:send-value-report', [
+        '--tenant' => (string) Str::uuid(),
+    ])
+        ->expectsOutputToContain('No active tenant matched')
+        ->assertFailed();
 });
 
 it('skips value reports for workspaces with no active subscription data safely', function () {
