@@ -24,12 +24,20 @@ it('seeds unpriced inactive purchasable tiers and an active contact-sales tier o
             ->and($plan->is_contact_sales)->toBeFalse();
     }
 
+    $starter = Plan::query()->where('code', 'starter')->firstOrFail();
+    $growth = Plan::query()->where('code', 'growth')->firstOrFail();
+    $business = Plan::query()->where('code', 'business')->firstOrFail();
     $enterprise = Plan::query()->where('code', 'enterprise')->firstOrFail();
+
+    expect($starter->entitlements['reports.value'])->toBeFalse()
+        ->and($growth->entitlements['reports.value'])->toBeFalse()
+        ->and($business->entitlements['reports.value'])->toBeTrue();
 
     expect($enterprise->is_active)->toBeTrue()
         ->and($enterprise->is_contact_sales)->toBeTrue()
         ->and($enterprise->price_monthly_minor)->toBeNull()
-        ->and($enterprise->price_yearly_minor)->toBeNull();
+        ->and($enterprise->price_yearly_minor)->toBeNull()
+        ->and($enterprise->entitlements['reports.value'])->toBeTrue();
 });
 
 it('preserves admin-set prices, active flags, and names when seeded twice', function () {

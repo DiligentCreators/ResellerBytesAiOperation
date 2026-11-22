@@ -13,7 +13,7 @@ use App\Models\WhmcsIntegration;
 use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
 
-function createReportsPageWorkspace(): array
+function createReportsPageWorkspace(array $entitlements = []): array
 {
     $owner = User::factory()->withTwoFactor()->create(['email_verified_at' => now()]);
     $tenant = Tenant::create([
@@ -30,19 +30,21 @@ function createReportsPageWorkspace(): array
         'accepted_at' => now(),
     ]);
 
+    $planEntitlements = array_replace_recursive([
+        'diagnostics.analysis' => true,
+        'reports.value' => true,
+        'limits' => [
+            'members' => 5,
+            'integrations' => 2,
+            'diagnostics_per_period' => 100,
+            'retention_days' => 30,
+            'history_days' => 90,
+        ],
+    ], $entitlements);
+
     $plan = Plan::factory()->create([
         'code' => 'reports-page-'.uniqid(),
-        'entitlements' => [
-            'diagnostics.analysis' => true,
-            'reports.value' => true,
-            'limits' => [
-                'members' => 5,
-                'integrations' => 2,
-                'diagnostics_per_period' => 100,
-                'retention_days' => 30,
-                'history_days' => 90,
-            ],
-        ],
+        'entitlements' => $planEntitlements,
     ]);
 
     TenantSubscription::create([
@@ -176,6 +178,45 @@ it('shows cancel value reminder props on the billing page', function () {
             ->where('cancelValueReminder.issues_fixed', 0)
             ->where('cancelValueReminder.open_critical', 1)
             ->where('cancelValueReminder.time_saved_hours_display', '1.0'));
+});
+
+it('shows cancel value reminder for growth workspaces without reports.value', function () {
+    $this->withoutVite();
+    $workspace = createReportsPageWorkspace([
+        'reports.value' => false,
+    ]);
+
+    DiagnosticFinding::create([
+        'diagnostic_run_id' => DiagnosticRun::create([
+            'integration_id' => $workspace['integration']->id,
+            'tenant_id' => $workspace['tenant']->id,
+            'snapshot_uuid' => (string) Str::uuid(),
+            'schema_version' => '1.0',
+            'addon_version' => '1.0.0',
+            'status' => 'analyzed',
+            'collected_at' => now(),
+            'received_at' => now(),
+            'payload' => [],
+            'payload_sha256' => str_repeat('c', 64),
+        ])->id,
+        'tenant_id' => $workspace['tenant']->id,
+        'fingerprint' => hash('sha256', 'cancel-critical-growth'),
+        'category' => 'security',
+        'severity' => 'critical',
+        'title' => 'Open critical',
+        'summary' => 'Still open',
+        'evidence' => [],
+        'status' => DiagnosticFinding::STATUS_OPEN,
+    ]);
+
+    $this->actingAs($workspace['owner'])
+        ->get(route('billing.settings.show', $workspace['tenant']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('billing/settings')
+            ->where('cancelValueReminder.open_critical', 1)
+            ->where('cancelValueReminder.issues_fixed', 0)
+            ->has('cancelValueReminder.time_saved_hours_display'));
 });
 
 it('does not expose another tenant report show page', function () {

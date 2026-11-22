@@ -79,7 +79,7 @@ class PlanSeeder extends Seeder
                     'fixes.bulk' => true,
                     'fixes.auto' => false,
                     'alerts.channels' => true,
-                    'reports.value' => true,
+                    'reports.value' => false,
                     'limits' => [
                         'members' => 10,
                         'integrations' => 3,

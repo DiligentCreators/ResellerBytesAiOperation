@@ -494,7 +494,7 @@ function PlanFields({
                     }
                     disabled={disabled}
                 />
-                Monthly value report (Growth+)
+                Monthly value report (Pro)
             </label>
             <label className="flex items-center gap-2 text-sm">
                 <input

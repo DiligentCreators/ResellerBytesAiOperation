@@ -117,7 +117,8 @@ it('requests approves and verifies a health version ping', function () {
         ->post('/safe-actions/'.$execution->id.'/approve', [
             'approval_reason' => 'Weekly health check before change window',
         ])
-        ->assertRedirect();
+        ->assertRedirect()
+        ->assertSessionHas('status', 'Safe action approved, executed, and audited.');
 
     $execution->refresh();
     expect($execution->status)->toBe(SafeActionExecution::STATUS_VERIFIED)
@@ -188,7 +189,11 @@ it('queues diagnostic collect for the WHMCS addon after approval', function () {
         ->post('/safe-actions/'.$execution->id.'/approve', [
             'approval_reason' => 'Need a fresh signed diagnostic after patching',
         ])
-        ->assertRedirect();
+        ->assertRedirect()
+        ->assertSessionHas(
+            'status',
+            'Safe action approved and queued. The WHMCS addon will run it on its next check-in; the result appears here.',
+        );
 
     $execution->refresh();
     $integration->refresh();

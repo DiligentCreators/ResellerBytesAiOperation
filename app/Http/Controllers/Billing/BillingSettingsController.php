@@ -104,15 +104,17 @@ class BillingSettingsController extends Controller
             ->where('severity', 'critical')
             ->count();
 
+        $cancelValueReminder = [
+            'time_saved_hours_display' => $timeSaved['hours_display'],
+            'time_saved_value_display' => $timeSaved['value_display'],
+            'hourly_rate_usd' => $timeSaved['hourly_rate_usd'],
+            'issues_fixed' => $issuesFixed,
+            'open_critical' => $openCritical,
+        ];
+
         return Inertia::render('billing/settings', [
             'tenant' => ['id' => $tenant->id, 'name' => $tenant->name],
-            'cancelValueReminder' => [
-                'time_saved_hours_display' => $timeSaved['hours_display'],
-                'time_saved_value_display' => $timeSaved['value_display'],
-                'hourly_rate_usd' => $timeSaved['hourly_rate_usd'],
-                'issues_fixed' => $issuesFixed,
-                'open_critical' => $openCritical,
-            ],
+            'cancelValueReminder' => $cancelValueReminder,
             'subscription' => $subscription ? [
                 'id' => $subscription->id,
                 'plan_code' => $subscription->plan_code,

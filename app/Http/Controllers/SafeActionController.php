@@ -160,7 +160,7 @@ class SafeActionController extends Controller
         }
 
         try {
-            $executor->approve($safeAction, $request->user(), $request->string('approval_reason')->toString());
+            $execution = $executor->approve($safeAction, $request->user(), $request->string('approval_reason')->toString());
         } catch (\Throwable $exception) {
             throw ValidationException::withMessages([
                 'approval_reason' => $exception->getMessage(),
@@ -168,8 +168,20 @@ class SafeActionController extends Controller
         }
 
         return redirect()
-            ->route('safe-actions.show', $safeAction)
-            ->with('status', 'Safe action approved, executed, and audited.');
+            ->route('safe-actions.show', $execution)
+            ->with('status', $this->approvalStatusMessage($execution));
+    }
+
+    private function approvalStatusMessage(SafeActionExecution $execution): string
+    {
+        if (in_array($execution->status, [
+            SafeActionExecution::STATUS_COMPLETED,
+            SafeActionExecution::STATUS_VERIFIED,
+        ], true)) {
+            return 'Safe action approved, executed, and audited.';
+        }
+
+        return 'Safe action approved and queued. The WHMCS addon will run it on its next check-in; the result appears here.';
     }
 
     private function authorizeExecution(SafeActionExecution $execution): void
