@@ -48,9 +48,9 @@ class FixLogExportController extends Controller
             fputcsv($output, $fixLog->csvHeaders());
 
             $fixLog->baseQuery($tenant, $filters)
-                ->chunk(200, function ($executions) use ($output, $fixLog): void {
+                ->chunk(200, function ($executions) use ($output, $fixLog, $tenant): void {
                     foreach ($executions as $execution) {
-                        fputcsv($output, $fixLog->csvRow($execution));
+                        fputcsv($output, $fixLog->csvRow($execution, $tenant));
                     }
                 });
 

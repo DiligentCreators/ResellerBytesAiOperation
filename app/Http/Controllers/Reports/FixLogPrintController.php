@@ -48,7 +48,7 @@ class FixLogPrintController extends Controller
             ],
             'generated_at' => now('UTC')->toIso8601String(),
             'filters' => $filters,
-            'rows' => $fixLog->presentRows($rows),
+            'rows' => $fixLog->presentRows($rows, $tenant),
         ]);
     }
 }

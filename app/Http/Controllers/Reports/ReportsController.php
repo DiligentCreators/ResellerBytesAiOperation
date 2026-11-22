@@ -90,7 +90,7 @@ class ReportsController extends Controller
                     'name' => $integration->name,
                 ]),
             'fixLog' => [
-                'data' => $fixLog->presentRows($fixes->items()),
+                'data' => $fixLog->presentRows($fixes->items(), $tenant),
                 'meta' => [
                     'current_page' => $fixes->currentPage(),
                     'last_page' => $fixes->lastPage(),

@@ -4,7 +4,9 @@ namespace App\Services\Reports;
 
 use App\Models\SafeActionExecution;
 use App\Models\Tenant;
+use App\Support\BillingDates;
 use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -100,15 +102,17 @@ class FixLogQuery
             'rejection_reason',
             'result',
             'minutes_saved',
+            'late_result_at',
+            'late_result_count',
         ];
     }
 
     /**
      * @return list<string|int|null>
      */
-    public function csvRow(SafeActionExecution $execution): array
+    public function csvRow(SafeActionExecution $execution, Tenant $tenant): array
     {
-        $row = $this->presentRow($execution);
+        $row = $this->presentRow($execution, $tenant);
 
         return [
             $row['date'],
@@ -125,6 +129,8 @@ class FixLogQuery
             $this->csvSafe($row['rejection_reason']),
             $this->csvSafe($row['result']),
             $row['minutes_saved'],
+            $row['late_result_at'],
+            $row['late_result_count'],
         ];
     }
 
@@ -151,11 +157,11 @@ class FixLogQuery
      *     minutes_saved: int|null
      * }>
      */
-    public function presentRows(iterable $executions): array
+    public function presentRows(iterable $executions, Tenant $tenant): array
     {
         $rows = [];
         foreach ($executions as $execution) {
-            $rows[] = $this->presentRow($execution);
+            $rows[] = $this->presentRow($execution, $tenant);
         }
 
         return $rows;
@@ -183,7 +189,7 @@ class FixLogQuery
      *     minutes_saved: int|null
      * }
      */
-    public function presentRow(SafeActionExecution $execution): array
+    public function presentRow(SafeActionExecution $execution, Tenant $tenant): array
     {
         $finding = $execution->finding;
         $issue = ($finding !== null ? $finding->title : null)
@@ -221,7 +227,7 @@ class FixLogQuery
             'rejected_by' => $rejectedBy,
             'rejected_at' => $isRejection ? $execution->rejected_at?->toIso8601String() : null,
             'rejection_reason' => $isRejection ? $execution->rejection_reason : null,
-            'result' => $this->formatResult($execution, $lateResultCount),
+            'result' => $this->formatResult($execution, $lateResultCount, $tenant),
             'late_result_status' => $lateResultStatus,
             'late_result_at' => $lateResultAt,
             'late_result_count' => $lateResultCount,
@@ -229,7 +235,7 @@ class FixLogQuery
         ];
     }
 
-    private function formatResult(SafeActionExecution $execution, int $lateResultCount): string
+    private function formatResult(SafeActionExecution $execution, int $lateResultCount, Tenant $tenant): string
     {
         if ($lateResultCount < 1 || $execution->late_result_status === null) {
             return $execution->status;
@@ -241,21 +247,45 @@ class FixLogQuery
             default => $execution->status,
         };
 
-        $parts = [
-            sprintf(
-                '%s - addon later reported %s',
-                $statusLabel,
-                $execution->late_result_status,
-            ),
-        ];
+        $prefix = sprintf(
+            '%s - addon later reported %s',
+            $statusLabel,
+            $execution->late_result_status,
+        );
 
-        if ($execution->late_result_at !== null) {
-            $parts[] = $execution->late_result_at->toIso8601String();
+        $countLabel = $lateResultCount === 1
+            ? '1 late result'
+            : sprintf('%d late results', $lateResultCount);
+
+        if ($execution->late_result_at === null) {
+            return sprintf('%s (%s)', $prefix, $countLabel);
         }
 
-        $parts[] = (string) $lateResultCount;
+        return sprintf(
+            '%s (%s, latest %s)',
+            $prefix,
+            $countLabel,
+            $this->formatLateResultAt($execution->late_result_at, $tenant),
+        );
+    }
 
-        return implode(' · ', $parts);
+    private function formatLateResultAt(CarbonInterface $lateResultAt, Tenant $tenant): string
+    {
+        $timezone = BillingDates::timezone($tenant);
+
+        try {
+            $local = CarbonImmutable::instance($lateResultAt)->timezone($timezone);
+        } catch (\Throwable) {
+            $local = CarbonImmutable::instance($lateResultAt)->timezone('UTC');
+        }
+
+        $currentYear = CarbonImmutable::now($local->timezoneName)->year;
+
+        if ($local->year === $currentYear) {
+            return $local->format('M j, g:i A');
+        }
+
+        return $local->format('M j, Y, g:i A');
     }
 
     private function isRejectionStatus(string $status): bool
