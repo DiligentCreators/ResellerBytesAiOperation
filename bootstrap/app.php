@@ -25,6 +25,7 @@ use App\Console\Commands\RevokeWhmcsIntegration;
 use App\Console\Commands\RotateWhmcsIntegrationSecret;
 use App\Console\Commands\VerifyAuditAnchorCheckpoint;
 use App\Console\Commands\VerifyAuditIntegrity;
+use App\Http\Middleware\AuthenticateWhmcsIntegration;
 use App\Http\Middleware\CaptureOperationalMetrics;
 use App\Http\Middleware\EnsureRegistrationIsOpen;
 use App\Http\Middleware\HandleAppearance;
@@ -40,6 +41,7 @@ use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Middleware\SubstituteBindings;
+use Illuminate\Routing\Middleware\ThrottleRequests;
 use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -84,6 +86,13 @@ return Application::configure(basePath: dirname(__DIR__))
             'webhooks/kelviq',
         ]);
         $middleware->alias(['central.permission' => RequireCentralPermission::class]);
+
+        // Keep WHMCS HMAC auth outside throttle/bindings so rejection logging sees
+        // downstream 404/429 responses after a request has been authenticated.
+        $middleware->prependToPriorityList(
+            before: ThrottleRequests::class,
+            prepend: AuthenticateWhmcsIntegration::class,
+        );
 
         $middleware->api(append: [
             CaptureOperationalMetrics::class,

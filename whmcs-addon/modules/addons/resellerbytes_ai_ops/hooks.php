@@ -5,6 +5,7 @@ use ResellerBytesAiOps\CronMonitor;
 use ResellerBytesAiOps\FailureCode;
 use ResellerBytesAiOps\RuntimeRoots;
 use ResellerBytesAiOps\SignedApiClient;
+use ResellerBytesAiOps\Text;
 use ResellerBytesAiOps\WhmcsActivityLogger;
 use WHMCS\Database\Capsule;
 
@@ -15,10 +16,14 @@ if (! defined('WHMCS')) {
 require_once __DIR__.'/lib/CredentialsFile.php';
 require_once __DIR__.'/lib/RuntimeRoots.php';
 require_once __DIR__.'/lib/FailureCode.php';
+require_once __DIR__.'/lib/FailureHint.php';
+require_once __DIR__.'/lib/Text.php';
 require_once __DIR__.'/lib/WhmcsDataSource.php';
 require_once __DIR__.'/lib/CapsuleWhmcsDataSource.php';
 require_once __DIR__.'/lib/SnapshotRedactor.php';
 require_once __DIR__.'/lib/DiagnosticCollector.php';
+require_once __DIR__.'/lib/HttpTransport.php';
+require_once __DIR__.'/lib/CurlHttpTransport.php';
 require_once __DIR__.'/lib/SignedApiClient.php';
 require_once __DIR__.'/lib/LocalApiClient.php';
 require_once __DIR__.'/lib/WhmcsLocalApiClient.php';
@@ -63,7 +68,7 @@ add_hook('AfterCronJob', 1, static function (): void {
                 ->where('setting', 'Version')
                 ->value('value');
             if (is_string($version) && $version !== '') {
-                $whmcsVersion = substr($version, 0, 32);
+                $whmcsVersion = Text::truncateBytes($version, 32);
             }
         }
 

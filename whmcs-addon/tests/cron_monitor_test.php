@@ -41,6 +41,11 @@ namespace ResellerBytesAiOps {
             return $GLOBALS['rb_mock_http_statuses'][$index] ?? ($GLOBALS['rb_mock_http_status'] ?? 202);
         }
 
+        function curl_errno(object $handle): int
+        {
+            return (int) ($GLOBALS['rb_mock_curl_errno'] ?? 0);
+        }
+
         function curl_close(object $handle): void {}
     }
 }
@@ -50,10 +55,13 @@ namespace {
     use ResellerBytesAiOps\SignedApiClient;
 
     require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/FailureCode.php';
+    require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/Text.php';
     require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/WhmcsDataSource.php';
     require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/CapsuleWhmcsDataSource.php';
     require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/SnapshotRedactor.php';
     require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/DiagnosticCollector.php';
+    require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/HttpTransport.php';
+    require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/CurlHttpTransport.php';
     require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/SignedApiClient.php';
     require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/LocalApiClient.php';
     require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/WhmcsLocalApiClient.php';
@@ -128,7 +136,7 @@ namespace {
 
     assertCronCondition(count($GLOBALS['rb_activity_logs']) === 1, 'First failure should log once.');
     assertCronCondition(
-        $GLOBALS['rb_activity_logs'][0] === 'ResellerBytes AI Ops cron monitor failed: heartbeat_response_invalid',
+        $GLOBALS['rb_activity_logs'][0] === 'ResellerBytes AI Ops cron monitor failed: http_status_server_error',
         'Snake_case failure codes must be logged as-is.',
     );
 

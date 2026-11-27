@@ -56,6 +56,10 @@ it('downloads an addon archive with a verifiable Ed25519 signature and expected 
     expect($archive->locateName('resellerbytes_ai_ops/lib/CredentialsFile.php'))->not->toBeFalse();
     expect($archive->locateName('resellerbytes_ai_ops/lib/RuntimeRoots.php'))->not->toBeFalse();
     expect($archive->locateName('resellerbytes_ai_ops/lib/FailureCode.php'))->not->toBeFalse();
+    expect($archive->locateName('resellerbytes_ai_ops/lib/FailureHint.php'))->not->toBeFalse();
+    expect($archive->locateName('resellerbytes_ai_ops/lib/Text.php'))->not->toBeFalse();
+    expect($archive->locateName('resellerbytes_ai_ops/lib/HttpTransport.php'))->not->toBeFalse();
+    expect($archive->locateName('resellerbytes_ai_ops/lib/CurlHttpTransport.php'))->not->toBeFalse();
     expect($archive->locateName('resellerbytes_ai_ops/lib/DiagnosticCollector.php'))->not->toBeFalse();
     expect($archive->locateName('resellerbytes_ai_ops/lib/SignedApiClient.php'))->not->toBeFalse();
     if (is_file(base_path('whmcs-addon/modules/addons/resellerbytes_ai_ops/hooks.php'))) {
@@ -94,6 +98,7 @@ it('downloads an addon archive with a verifiable Ed25519 signature and expected 
     expect($signature)->not->toBeFalse();
     expect($installation)->toContain('crons/cron.php via PHP CLI');
     expect($installation)->toContain('is REQUIRED for heartbeats, auto-collect and approved Safe Actions');
+    expect($installation)->toContain('Reason code');
     expect($installation)->not->toContain('Do not configure cron');
 
     $signedPayload = "resellerbytes-ai-ops-package-v1\nversion={$version}\n{$manifest}\n";

@@ -178,6 +178,9 @@ First-run safety
 - The addon does not modify customer, invoice, payment, hosting, domain,
   20i provisioning, or ResellerClub registrar records.
 
+Troubleshooting
+- If Run diagnostics once fails, the red alert and Utilities > Logs > Activity Log include a sanitized Reason code (letters and underscores only). See the addon README troubleshooting table for that code.
+
 Rollback
 1. Revoke the integration in the ResellerBytes AI Operations dashboard.
 2. Deactivate the addon in WHMCS.

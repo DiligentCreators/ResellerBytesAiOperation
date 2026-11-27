@@ -114,6 +114,36 @@ try {
         static fn () => CredentialsFile::load($credentialsPath, $whmcsRoot, $documentRoot),
         'World-readable credentials file was accepted.',
     );
+
+    chmod($credentialsPath, 0600);
+    file_put_contents($credentialsPath, '{not-json');
+    try {
+        CredentialsFile::load($credentialsPath, $whmcsRoot, $documentRoot);
+        throw new RuntimeException('Invalid JSON credentials file was accepted.');
+    } catch (RuntimeException $exception) {
+        assertSameValue('credentials_file_invalid_json', $exception->getMessage(), 'Invalid JSON must use credentials_file_invalid_json.');
+    }
+
+    file_put_contents($credentialsPath, json_encode(['integration_id' => $credentials['integration_id']], JSON_THROW_ON_ERROR));
+    chmod($credentialsPath, 0600);
+    try {
+        CredentialsFile::load($credentialsPath, $whmcsRoot, $documentRoot);
+        throw new RuntimeException('Invalid structure credentials file was accepted.');
+    } catch (RuntimeException $exception) {
+        assertSameValue('credentials_file_invalid_structure', $exception->getMessage(), 'Missing secret must use credentials_file_invalid_structure.');
+    }
+
+    file_put_contents($credentialsPath, json_encode([
+        'integration_id' => 'not-a-uuid',
+        'secret' => $credentials['secret'],
+    ], JSON_THROW_ON_ERROR));
+    chmod($credentialsPath, 0600);
+    try {
+        CredentialsFile::load($credentialsPath, $whmcsRoot, $documentRoot);
+        throw new RuntimeException('Invalid values credentials file was accepted.');
+    } catch (RuntimeException $exception) {
+        assertSameValue('credentials_file_invalid_values', $exception->getMessage(), 'Invalid UUID must use credentials_file_invalid_values.');
+    }
 } finally {
     if (is_link($symlinkPath)) {
         unlink($symlinkPath);

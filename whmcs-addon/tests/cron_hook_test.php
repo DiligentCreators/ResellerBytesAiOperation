@@ -35,6 +35,11 @@ namespace ResellerBytesAiOps {
             return $GLOBALS['rb_mock_http_status'] ?? 202;
         }
 
+        function curl_errno(object $handle): int
+        {
+            return (int) ($GLOBALS['rb_mock_curl_errno'] ?? 0);
+        }
+
         function curl_close(object $handle): void {}
     }
 }
