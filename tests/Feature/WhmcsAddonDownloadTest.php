@@ -121,14 +121,14 @@ it('labels the download zip with the packaged addon version even when config is 
 
     $response = $this->actingAs($user)->get('/whmcs-addon/download');
 
-    $response->assertDownload('resellerbytes-ai-ops-whmcs-v1.2.3.zip');
+    $response->assertDownload('resellerbytes-ai-ops-whmcs-v1.2.4.zip');
 
     $file = $response->baseResponse->getFile();
     expect($file)->not->toBeNull();
 
     $archive = new ZipArchive;
     expect($archive->open($file->getPathname()))->toBeTrue();
-    expect(trim($archive->getFromName('VERSION.txt')))->toBe('1.2.3');
+    expect(trim($archive->getFromName('VERSION.txt')))->toBe('1.2.4');
     $archive->close();
 });
 

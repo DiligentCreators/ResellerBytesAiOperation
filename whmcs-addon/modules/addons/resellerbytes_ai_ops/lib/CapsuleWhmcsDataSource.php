@@ -7,6 +7,37 @@ use WHMCS\Database\Capsule;
 
 final class CapsuleWhmcsDataSource implements WhmcsDataSource
 {
+    /**
+     * Real WHMCS tblmodulequeue columns selected for the table fallback.
+     *
+     * @var list<string>
+     */
+    public const MODULE_QUEUE_COLUMNS = [
+        'id',
+        'service_type',
+        'service_id',
+        'module_name',
+        'module_action',
+        'created_at',
+        'last_attempt',
+        'num_retries',
+        'last_attempt_error',
+    ];
+
+    private ?string $lastModuleQueueError = null;
+
+    private ActivityLogger $activity;
+
+    public function __construct(?ActivityLogger $activity = null)
+    {
+        $this->activity = $activity ?? new WhmcsActivityLogger;
+    }
+
+    public function lastModuleQueueError(): ?string
+    {
+        return $this->lastModuleQueueError;
+    }
+
     public function configurationValue(string $setting): ?string
     {
         try {
@@ -121,6 +152,8 @@ final class CapsuleWhmcsDataSource implements WhmcsDataSource
 
     public function moduleQueueFromTable(): ?array
     {
+        $this->lastModuleQueueError = null;
+
         try {
             if (! class_exists(Capsule::class)) {
                 return null;
@@ -130,7 +163,7 @@ final class CapsuleWhmcsDataSource implements WhmcsDataSource
                 ->where('completed', 0)
                 ->orderBy('id')
                 ->limit(50)
-                ->get(['id', 'service_type', 'service_id', 'module_name', 'module_action', 'created_at', 'last_attempt', 'num_retries', 'last_error']);
+                ->get(self::MODULE_QUEUE_COLUMNS);
 
             $items = [];
             foreach ($rows as $row) {
@@ -143,14 +176,55 @@ final class CapsuleWhmcsDataSource implements WhmcsDataSource
                     'action' => (string) ($row->module_action ?? 'other'),
                     'age_minutes' => $age,
                     'retries' => (int) ($row->num_retries ?? 0),
-                    'error' => (string) ($row->last_error ?? ''),
+                    'error' => (string) ($row->last_attempt_error ?? ''),
                 ];
             }
 
             return $items;
-        } catch (Throwable) {
+        } catch (Throwable $throwable) {
+            $this->lastModuleQueueError = $this->summarizeThrowable($throwable);
+            $this->activity->log(
+                'ResellerBytes AI Ops: module queue collection failed ('.$this->lastModuleQueueError.')'
+            );
+
             return null;
         }
+    }
+
+    /**
+     * Sanitized exception summary: short class name + SQLSTATE/code only.
+     * Never includes SQL text, bind values, hosts, or credentials.
+     */
+    private function summarizeThrowable(Throwable $throwable): string
+    {
+        $shortClass = (new \ReflectionClass($throwable))->getShortName();
+        $sqlState = null;
+        $code = $throwable->getCode();
+
+        if (is_string($code) && preg_match('/\A[0-9A-Z]{5}\z/', $code) === 1) {
+            $sqlState = $code;
+        }
+
+        if ($sqlState === null && $throwable instanceof \PDOException && is_array($throwable->errorInfo)) {
+            $candidate = $throwable->errorInfo[0] ?? null;
+            if (is_string($candidate) && preg_match('/\A[0-9A-Z]{5}\z/', $candidate) === 1) {
+                $sqlState = $candidate;
+            }
+        }
+
+        if ($sqlState !== null) {
+            return $shortClass.' SQLSTATE '.$sqlState;
+        }
+
+        if (is_int($code) && $code !== 0) {
+            return $shortClass.' '.$code;
+        }
+
+        if (is_string($code) && $code !== '' && preg_match('/\A[0-9A-Za-z._-]{1,32}\z/', $code) === 1) {
+            return $shortClass.' '.$code;
+        }
+
+        return $shortClass;
     }
 
     public function billingAggregates(): ?array

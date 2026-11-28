@@ -9,7 +9,7 @@ final class SignedApiClient
 {
     private const BASE_URL = 'https://ops.resellerbytes.com';
 
-    public const ADDON_VERSION = '1.2.3';
+    public const ADDON_VERSION = '1.2.4';
 
     private const MAX_RESPONSE_BYTES = 16384;
 

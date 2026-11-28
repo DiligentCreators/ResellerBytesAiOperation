@@ -21,6 +21,8 @@ require_once __DIR__.'/lib/FailureHint.php';
 require_once __DIR__.'/lib/Text.php';
 require_once __DIR__.'/lib/Identifier.php';
 require_once __DIR__.'/lib/WhmcsDataSource.php';
+require_once __DIR__.'/lib/ActivityLogger.php';
+require_once __DIR__.'/lib/WhmcsActivityLogger.php';
 require_once __DIR__.'/lib/CapsuleWhmcsDataSource.php';
 require_once __DIR__.'/lib/SnapshotRedactor.php';
 require_once __DIR__.'/lib/DiagnosticCollector.php';
@@ -30,8 +32,6 @@ require_once __DIR__.'/lib/ApiClientException.php';
 require_once __DIR__.'/lib/SignedApiClient.php';
 require_once __DIR__.'/lib/LocalApiClient.php';
 require_once __DIR__.'/lib/WhmcsLocalApiClient.php';
-require_once __DIR__.'/lib/ActivityLogger.php';
-require_once __DIR__.'/lib/WhmcsActivityLogger.php';
 require_once __DIR__.'/lib/FakeLocalApiClient.php';
 require_once __DIR__.'/lib/RemediationRunner.php';
 
