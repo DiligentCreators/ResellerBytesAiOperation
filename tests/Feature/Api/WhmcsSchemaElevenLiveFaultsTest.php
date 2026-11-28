@@ -27,7 +27,7 @@ function makeSignedLiveFaultsSnapshot(WhmcsIntegration $integration, array $payl
     $snapshot = [
         'snapshot_uuid' => (string) Str::uuid(),
         'schema_version' => '1.1',
-        'addon_version' => '1.2.2',
+        'addon_version' => '1.2.3',
         'collected_at' => now()->utc()->format('Y-m-d\TH:i:s\Z'),
         'payload' => $payload,
     ];
@@ -217,3 +217,63 @@ test('still accepts a clean schema 1.1 snapshot after live-fault hardening', fun
     $this->call('POST', '/api/v1/whmcs/diagnostic-snapshots', [], [], [], $signed['headers'], $signed['body'])
         ->assertAccepted();
 });
+
+test('accepts schema 1.1 module_queue.by_action of integer zeros', function () {
+    $integration = createLiveFaultsIntegration();
+    $payload = json_decode(
+        (string) file_get_contents(base_path('tests/Fixtures/snapshots/schema_1_1_clean.json')),
+        true,
+        512,
+        JSON_THROW_ON_ERROR,
+    );
+
+    expect($payload['whmcs']['module_queue']['by_action'])->toBe([
+        'create' => 0,
+        'suspend' => 0,
+        'unsuspend' => 0,
+        'terminate' => 0,
+        'other' => 0,
+    ]);
+
+    $signed = makeSignedLiveFaultsSnapshot($integration, $payload);
+
+    $this->call('POST', '/api/v1/whmcs/diagnostic-snapshots', [], [], [], $signed['headers'], $signed['body'])
+        ->assertAccepted();
+});
+
+test('rejects empty or malformed module_queue.by_action with the five field keys', function (array|object $byAction) {
+    $integration = createLiveFaultsIntegration();
+    $payload = liveFaultsBasePayload();
+    $payload['whmcs']['module_queue']['by_action'] = $byAction;
+
+    $signed = makeSignedLiveFaultsSnapshot($integration, $payload);
+    $response = $this->call(
+        'POST',
+        '/api/v1/whmcs/diagnostic-snapshots',
+        [],
+        [],
+        [],
+        $signed['headers'],
+        $signed['body'],
+    );
+
+    $response->assertUnprocessable();
+    $errors = $response->json('errors');
+    expect($errors)->toBeArray()
+        ->and($errors)->toHaveKey('payload.whmcs.module_queue.by_action.create')
+        ->and($errors)->toHaveKey('payload.whmcs.module_queue.by_action.suspend')
+        ->and($errors)->toHaveKey('payload.whmcs.module_queue.by_action.unsuspend')
+        ->and($errors)->toHaveKey('payload.whmcs.module_queue.by_action.terminate')
+        ->and($errors)->toHaveKey('payload.whmcs.module_queue.by_action.other');
+})->with([
+    'empty list' => [[]],
+    'empty object' => [(object) []],
+    'list shaped' => [[0, 0, 0, 0, 0]],
+    'object of objects' => [[
+        'create' => ['count' => 0],
+        'suspend' => ['count' => 0],
+        'unsuspend' => ['count' => 0],
+        'terminate' => ['count' => 0],
+        'other' => ['count' => 0],
+    ]],
+]);

@@ -14,13 +14,13 @@ final class WhmcsAddonVersion
             $path = base_path('whmcs-addon/modules/addons/resellerbytes_ai_ops/lib/SignedApiClient.php');
 
             if (! is_file($path)) {
-                return (string) config('services.whmcs_addon.version', '1.2.2');
+                return (string) config('services.whmcs_addon.version', '1.2.3');
             }
 
             $contents = file_get_contents($path);
 
             if ($contents === false) {
-                return (string) config('services.whmcs_addon.version', '1.2.2');
+                return (string) config('services.whmcs_addon.version', '1.2.3');
             }
 
             if (! preg_match(
@@ -28,7 +28,7 @@ final class WhmcsAddonVersion
                 $contents,
                 $matches,
             )) {
-                return (string) config('services.whmcs_addon.version', '1.2.2');
+                return (string) config('services.whmcs_addon.version', '1.2.3');
             }
 
             return $matches[1];
