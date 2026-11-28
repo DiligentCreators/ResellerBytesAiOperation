@@ -374,7 +374,8 @@ class FixCenterIssueBuilder
 
         return match ($finding->status) {
             DiagnosticFinding::STATUS_IN_PROGRESS => 'fixing',
-            DiagnosticFinding::STATUS_RESOLVED, DiagnosticFinding::STATUS_ACCEPTED_RISK => 'fixed',
+            DiagnosticFinding::STATUS_RESOLVED => 'fixed',
+            DiagnosticFinding::STATUS_ACCEPTED_RISK => 'ignored',
             default => 'open',
         };
     }

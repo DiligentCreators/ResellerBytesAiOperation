@@ -22,7 +22,7 @@ use RuntimeException;
 function makeSignedHeartbeat(WhmcsIntegration $integration, array $overrides = [], ?string $nonce = null, ?int $timestamp = null): array
 {
     $payload = array_replace_recursive([
-        'addon_version' => '1.2.0',
+        'addon_version' => '1.2.1',
         'whmcs_version' => '8.13.7',
         'cli_php_version' => '8.1.34',
         'sent_at' => now()->utc()->format('Y-m-d\TH:i:s\Z'),
@@ -108,7 +108,7 @@ test('accepts a signed system heartbeat and stores heartbeat metadata', function
         ->and($fresh->last_cron_at)->not->toBeNull()
         ->and($fresh->cron_php_version)->toBe('8.2.12')
         ->and($fresh->last_daily_cron_at)->toBeNull()
-        ->and($fresh->addon_version)->toBe('1.2.0')
+        ->and($fresh->addon_version)->toBe('1.2.1')
         ->and($fresh->heartbeat_state)->toBe(WhmcsIntegration::HEARTBEAT_STATE_OK)
         ->and(AuditEvent::where('event_type', 'whmcs_heartbeat.accepted')->count())->toBe(1);
 });
@@ -202,7 +202,7 @@ test('auto-collect due logic honours interval and daily cap', function () {
         'integration_id' => $integration->id,
         'snapshot_uuid' => (string) Str::uuid(),
         'schema_version' => '1.1',
-        'addon_version' => '1.2.0',
+        'addon_version' => '1.2.1',
         'status' => 'received',
         'collected_at' => now(),
         'received_at' => now(),
@@ -213,7 +213,7 @@ test('auto-collect due logic honours interval and daily cap', function () {
         'integration_id' => $integration->id,
         'snapshot_uuid' => (string) Str::uuid(),
         'schema_version' => '1.1',
-        'addon_version' => '1.2.0',
+        'addon_version' => '1.2.1',
         'status' => 'received',
         'collected_at' => now(),
         'received_at' => now(),
@@ -308,7 +308,7 @@ test('heartbeats check reopens a resolved heartbeat.missed finding on the latest
         'tenant_id' => $integration->tenant_id,
         'snapshot_uuid' => (string) Str::uuid(),
         'schema_version' => '1.1',
-        'addon_version' => '1.2.0',
+        'addon_version' => '1.2.1',
         'status' => 'analyzed',
         'collected_at' => now('UTC'),
         'received_at' => now('UTC'),

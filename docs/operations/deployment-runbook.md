@@ -42,7 +42,7 @@ Required application settings:
 - OPENAI_API_KEY from a dedicated OpenAI API project
 - OPENAI_MODEL=gpt-5.6-sol
 - OPENAI_REASONING_EFFORT=medium
-- WHMCS_ADDON_VERSION=1.0.0
+- WHMCS_ADDON_VERSION=1.2.1
 - OPERATIONS_OWNER_EMAIL set to the verified, TOTP-enrolled sole central super-admin account
 - DB_MIGRATION_USERNAME/DB_MIGRATION_PASSWORD and DB_READONLY_USERNAME/DB_READONLY_PASSWORD configured separately from DB_USERNAME/DB_PASSWORD
 - DB_OPERATIONS_USERNAME/DB_OPERATIONS_PASSWORD configured for the dedicated billing-operations identity after the PostgreSQL role-separation rehearsal
@@ -109,16 +109,15 @@ Leaving SSR enabled while the daemon is down causes deploy activation to fail wi
 
 1. Sign in to the ResellerBytes AI Operations dashboard.
 2. Open WHMCS Addon & Setup and download the versioned ZIP package.
-3. WHMCS does not provide a built-in addon ZIP uploader. 20i documents browser-based uploads through File Manager without FTP. If your File Manager exposes an Extract action, upload and extract the ZIP into modules/addons. Otherwise, extract it locally and upload the four PHP files through File Manager, preserving the resellerbytes_ai_ops/lib folder structure.
+3. WHMCS does not provide a built-in addon ZIP uploader. 20i documents browser-based uploads through File Manager without FTP. If your File Manager exposes an Extract action, upload and extract the ZIP into modules/addons. Otherwise, extract it locally and upload the whole resellerbytes_ai_ops folder including hooks.php and lib/ through File Manager, preserving paths.
 4. Confirm modules/addons/resellerbytes_ai_ops/resellerbytes_ai_ops.php exists.
 5. In WHMCS Admin, open Configuration > System Settings > Addon Modules.
 6. Activate ResellerBytes AI Operations.
 7. Configure the absolute external credentials-file path.
 8. Restrict Addon Access Control to trusted administrator roles.
-9. Open Addons > ResellerBytes AI Operations and run diagnostics once manually.
-10. Confirm the snapshot is visible in the operations dashboard, AI analysis completes, and the evidence matches the submitted sanitized payload.
-
-Do not enable cron or recurring collection during the initial pilot.
+9. Ensure a WHMCS system cron runs crons/cron.php via PHP CLI (for example every 5 minutes). The cron user must be able to read the 0600 credentials file. This cron is REQUIRED for heartbeats, auto-collect, and approved Safe Actions. Heartbeats never change WHMCS business data.
+10. Open Addons > ResellerBytes AI Operations and run diagnostics once manually.
+11. Confirm the snapshot is visible in the operations dashboard, AI analysis completes, and the evidence matches the submitted sanitized payload.
 
 ## 7. Rollback
 

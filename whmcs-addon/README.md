@@ -1,6 +1,6 @@
 # ResellerBytes AI Operations — WHMCS Addon
 
-This addon is the WHMCS-side, read-only diagnostic collector for WHMCS 8.13.7 and PHP 8.1+. It is intentionally manual-only in the first pilot.
+This addon is the WHMCS-side diagnostic collector and signed agent for WHMCS 8.13.7 and PHP 8.1+. Heartbeats, auto-collect, and approved Safe Actions require the WHMCS system cron.
 
 ## Safety boundary
 
@@ -9,14 +9,14 @@ The addon:
 - Collects a small allowlist of technical runtime signals.
 - Reads the WHMCS Version and SystemURL settings through the WHMCS settings model, and executes one read-only SELECT VERSION() query to identify the database server version.
 - Checks whether configuration.php is writable; it never reads the file contents.
-- Sends one signed HTTPS POST to https://ops.resellerbytes.com/api/v1/whmcs/diagnostic-snapshots.
-- Does not query customer, invoice, transaction, payment, hosting, domain, or registrar records.
+- Sends signed HTTPS POSTs to https://ops.resellerbytes.com for diagnostic snapshots, heartbeats, and approved Safe Action polling.
+- Does not query customer, invoice, transaction, payment, hosting, domain, or registrar records for diagnostics.
 - Issues no SQL writes, creates no custom WHMCS tables, and does not modify business records. WHMCS stores the non-secret credentials-file path in its standard addon settings when an administrator configures the module.
-- Does not execute shell commands or call WHMCS business APIs.
-- Does not install a hook or register a cron task.
+- Does not execute shell commands or call WHMCS business APIs outside the allowlisted Safe Action set.
+- Registers WHMCS cron hooks so heartbeats, auto-collect, and approved Safe Actions run when the system cron executes crons/cron.php. Heartbeats never change WHMCS business data.
 - Does not change the existing 20i provisioning or ResellerClub registrar modules.
 
-The collector explicitly reports what it cannot observe, including the system-cron PHP runtime, module status, hosting-panel configuration, and certificate verification. Missing visibility is not reported as healthy.
+The collector explicitly reports what it cannot observe, including the system-cron PHP runtime when not running under CLI, module status, hosting-panel configuration, and certificate verification. Missing visibility is not reported as healthy.
 
 ## Package authenticity
 
@@ -63,16 +63,15 @@ Never commit the credentials file or paste its contents into tickets, chat, or l
 Do not install this addon on production until the Laravel API is deployed, the integration secret has been created, and the production-pilot checklist has been approved.
 
 1. Take and verify a restorable WHMCS files/database backup.
-2. WHMCS does not provide a built-in ZIP addon-module uploader. Use 20i File Manager to upload without FTP. If the panel offers Extract, extract the ZIP into /modules/addons. Otherwise extract it locally, create /modules/addons/resellerbytes_ai_ops and its lib subfolder, then upload the four PHP files through File Manager while preserving paths. The resulting path must be /modules/addons/resellerbytes_ai_ops/resellerbytes_ai_ops.php.
+2. WHMCS does not provide a built-in ZIP addon-module uploader. Use 20i File Manager to upload without FTP. If the panel offers Extract, extract the ZIP into /modules/addons. Otherwise extract it locally and upload the whole resellerbytes_ai_ops folder including hooks.php and lib/ through File Manager while preserving paths. The resulting path must be /modules/addons/resellerbytes_ai_ops/resellerbytes_ai_ops.php.
 3. Verify the ZIP signature and compare its signing-key fingerprint with the authenticated operations dashboard before extracting or installing.
 4. Create the credentials JSON file outside the web root and set its permissions to 0600.
 5. In WHMCS, activate ResellerBytes AI Operations under Addon Modules.
 6. Configure the absolute credentials-file path.
 7. Grant addon access only to trusted administrator roles.
-8. Open the addon page and run Run diagnostics once manually.
-9. Confirm the accepted snapshot and inspect its exact payload in the operations application.
-
-Do not configure a cron or recurring run during the first pilot. A successful manual run is required before any separate scheduling decision.
+8. Ensure a WHMCS system cron runs crons/cron.php via PHP CLI (for example every 5 minutes). The cron user must be able to read the 0600 credentials file. This cron is REQUIRED for heartbeats, auto-collect, and approved Safe Actions.
+9. Open the addon page and run Run diagnostics once manually.
+10. Confirm the accepted snapshot and inspect its exact payload in the operations application.
 
 ## Rollback
 
@@ -85,8 +84,39 @@ Do not configure a cron or recurring run during the first pilot. A successful ma
 
 Deactivation does not delete or modify the external credentials file.
 
+## Troubleshooting failure codes
+
+When **Run diagnostics once** or **Apply approved Safe Actions** fails, the red alert includes `Reason code: <code>.` plus a short hint. The same sanitized code is written to **Utilities → Logs → Activity Log** (for example `ResellerBytes AI Ops manual diagnostics failed: http_status_unauthenticated`). Codes contain only letters and underscores — never paths, secrets, or response bodies.
+
+| Code                                                                                                                                      | Meaning                                       | What to check                                                               |
+| ----------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- | --------------------------------------------------------------------------- |
+| `credentials_file_not_configured`                                                                                                         | Credentials path setting is empty             | Set the absolute credentials JSON path in Addon Modules                     |
+| `credentials_file_path_must_be_absolute`                                                                                                  | Path is not absolute                          | Use a path beginning with `/`                                               |
+| `credentials_file_root_paths_unavailable`                                                                                                 | WHMCS/document roots could not be resolved    | Confirm ROOTDIR and the web document root are valid                         |
+| `credentials_file_unavailable`                                                                                                            | File missing or unreadable                    | Confirm the file exists and the PHP user can read it                        |
+| `credentials_file_symlink_not_allowed`                                                                                                    | Path resolves through a symlink               | Point at the real file path                                                 |
+| `credentials_file_must_be_outside_web_root`                                                                                               | File is inside WHMCS or the web root          | Move it outside both roots                                                  |
+| `credentials_file_permissions_invalid`                                                                                                    | Mode is not exactly 0600                      | `chmod 0600` the credentials file                                           |
+| `credentials_file_size_invalid`                                                                                                           | File too small or too large                   | Keep a small JSON object with only the two required keys                    |
+| `credentials_file_unreadable`                                                                                                             | Read failed                                   | Fix ownership/permissions for the PHP runtime user                          |
+| `credentials_file_invalid_json`                                                                                                           | File is not JSON                              | Validate the JSON syntax                                                    |
+| `credentials_file_invalid_structure`                                                                                                      | Unexpected JSON shape                         | Object with exactly `integration_id` and `secret`                           |
+| `credentials_file_invalid_values`                                                                                                         | UUID/secret format invalid                    | Use a UUID and the current hex secret from Ops                              |
+| `http_dns_failed`                                                                                                                         | DNS lookup failed                             | Check nameservers and outbound DNS                                          |
+| `http_connect_failed`                                                                                                                     | TCP connect failed                            | Check firewall egress to ops.resellerbytes.com:443                          |
+| `http_timeout`                                                                                                                            | Request timed out                             | Check latency/firewall and retry                                            |
+| `http_tls_failed`                                                                                                                         | TLS/certificate failure                       | Update CA bundle; avoid HTTPS interception                                  |
+| `http_transport_failed`                                                                                                                   | Other cURL transport failure                  | Verify the PHP cURL extension and HTTPS egress                              |
+| `http_status_unauthenticated`                                                                                                             | Signature or integration rejected             | Confirm the integration is active; rotate and rewrite credentials if unsure |
+| `http_status_forbidden`                                                                                                                   | Subscription/quota/suspension                 | Check workspace subscription, diagnostics allowance, and tenant status      |
+| `http_status_validation_failed`                                                                                                           | Payload schema rejected                       | Update the addon to a supported version                                     |
+| `http_status_rate_limited`                                                                                                                | Too many requests                             | Wait and retry                                                              |
+| `http_status_server_error`                                                                                                                | Upstream 5xx                                  | Retry later                                                                 |
+| `http_response_too_large`                                                                                                                 | Success response exceeded 16 KB               | Retry later or contact support                                              |
+| `diagnostic_response_invalid` / `heartbeat_response_invalid` / `pending_actions_response_invalid` / `safe_action_result_response_invalid` | Success HTTP status but unexpected JSON shape | Update the addon                                                            |
+
 ## Automated checks
 
-The command php tests/credentials_file_test.php exercises the external-file, web-root and symlink exclusion, absolute-path enforcement, and exact file-permission protections. The command php tests/diagnostic_collector_test.php verifies the allowlisted payload, sanitized system URL, read-only database-version query, and explicit collector limitations. The command php tests/signed_api_client_test.php verifies the HMAC canonical request signature, request headers, fixed HTTPS destination, and TLS/redirect settings without making a network request.
+The command php tests/credentials_file_test.php exercises the external-file, web-root and symlink exclusion, absolute-path enforcement, and exact file-permission protections. The command php tests/diagnostic_collector_test.php verifies the allowlisted payload, sanitized system URL, read-only database-version query, and explicit collector limitations. The command php tests/signed_api_client_test.php verifies the HMAC canonical request signature, request headers, fixed HTTPS destination, and TLS/redirect settings without making a network request. Additional scripts cover HTTP failure codes, failure hints, manual admin output, and UTF-8 text truncation.
 
-The repository CI syntax-checks every addon PHP file and runs all three standalone tests using PHP 8.1, matching the WHMCS web runtime baseline.
+The repository CI syntax-checks every addon PHP file and runs the standalone tests using PHP 8.1, matching the WHMCS web runtime baseline.

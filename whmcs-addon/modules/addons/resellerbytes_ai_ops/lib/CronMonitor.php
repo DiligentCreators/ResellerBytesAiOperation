@@ -62,11 +62,11 @@ final class CronMonitor
 
             $GLOBALS['resellerbytes_ai_ops_last_cron_failure'] = null;
         } catch (Throwable $exception) {
-            $message = $exception->getMessage();
-            if ($previousFailure !== $message) {
-                $this->logFailure('ResellerBytes AI Ops cron monitor failed: '.$message);
+            $code = FailureCode::sanitize($exception->getMessage());
+            if ($previousFailure !== $code) {
+                $this->logFailure('ResellerBytes AI Ops cron monitor failed: '.$code);
             }
-            $GLOBALS['resellerbytes_ai_ops_last_cron_failure'] = $message;
+            $GLOBALS['resellerbytes_ai_ops_last_cron_failure'] = $code;
         } finally {
             if (is_resource($lockHandle)) {
                 $this->releaseLock($lockHandle);

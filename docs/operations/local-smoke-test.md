@@ -43,6 +43,12 @@ php artisan qa:provision-accounts --output=/absolute/path/qa-accounts.json
 # value report still requires the reports.value entitlement).
 php artisan findings:send-weekly-digest --tenant={tenant-uuid} --force
 php artisan reports:send-value-report --tenant={tenant-uuid} --force
+
+# Merge active duplicate findings (canonical fingerprint per integration).
+# Dry-run by default — prints groups and changes nothing. Pass --apply to resolve
+# losers via workflow (keeps rule over AI, newest wins; never deletes rows).
+php artisan findings:merge-duplicates
+php artisan findings:merge-duplicates --tenant={tenant-uuid} --apply
 ```
 
 `whmcs:sample-integration` creates or reuses a **Local demo WHMCS** integration for the first (or given) active tenant. Credentials are generated and stored encrypted; they are never printed.

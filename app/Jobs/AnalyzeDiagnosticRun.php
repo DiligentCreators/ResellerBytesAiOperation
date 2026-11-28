@@ -193,10 +193,32 @@ class AnalyzeDiagnosticRun implements ShouldQueue
             $continuity = app(FindingContinuityService::class);
 
             foreach ($result['findings'] as $findingData) {
-                $findingData = $continuity->stabilizeFindingData($findingData);
-                $fingerprint = $continuity->fingerprintFor($findingData);
+                $identity = $continuity->resolveAiFindingIdentity($findingData);
+                $findingData = $identity['finding_data'];
+                $fingerprint = $identity['fingerprint'];
+                $issueKey = $identity['issue_key'];
 
                 if (isset($createdFingerprints[$fingerprint])) {
+                    continue;
+                }
+
+                // Rule wins within a run: skip mapped AI rows when a rule finding
+                // already covers the same issue_key or fingerprint.
+                $existingRule = DiagnosticFinding::query()
+                    ->where('diagnostic_run_id', $lockedRun->id)
+                    ->where('source', DeterministicFindingDetector::SOURCE)
+                    ->where(function (Builder $query) use ($fingerprint, $issueKey): void {
+                        $query->where('fingerprint', $fingerprint);
+                        if ($issueKey !== null) {
+                            $query->orWhere('issue_key', $issueKey);
+                        }
+                    })
+                    ->first();
+
+                if ($existingRule !== null) {
+                    $continuity->appendAiSummaryIfUseful($existingRule, (string) $findingData['summary']);
+                    $createdFingerprints[$fingerprint] = true;
+
                     continue;
                 }
 
@@ -210,7 +232,9 @@ class AnalyzeDiagnosticRun implements ShouldQueue
                     'diagnostic_run_id' => $lockedRun->id,
                     'tenant_id' => $lockedRun->tenant_id,
                     'fingerprint' => $fingerprint,
+                    'issue_key' => $issueKey,
                     'source' => DiagnosticFinding::SOURCE_AI,
+                    'fix_mode' => $identity['fix_mode'],
                     'category' => $findingData['category'],
                     'severity' => $findingData['severity'],
                     'title' => $findingData['title'],
@@ -230,7 +254,7 @@ class AnalyzeDiagnosticRun implements ShouldQueue
                     ]);
                 }
 
-                $continuity->inheritActiveWorkflow($finding);
+                $continuity->supersedePriorOpenCopies($finding);
                 app(CriticalFindingAlertGate::class)->maybeRaise($finding);
             }
 

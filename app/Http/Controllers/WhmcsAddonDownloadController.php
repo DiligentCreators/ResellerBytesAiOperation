@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Support\WhmcsAddonPackageSigner;
+use App\Support\WhmcsAddonVersion;
 use FilesystemIterator;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
@@ -69,7 +70,7 @@ class WhmcsAddonDownloadController extends Controller
 
             sort($manifest, SORT_STRING);
 
-            $version = (string) config('services.whmcs_addon.version', '1.2.0');
+            $version = WhmcsAddonVersion::packaged();
             $manifestContents = implode("\n", $manifest)."\n";
             $signedPayload = $this->canonicalSignedPayload($version, $manifest);
             $signature = $signer->sign($signedPayload);
@@ -95,7 +96,7 @@ class WhmcsAddonDownloadController extends Controller
             throw $exception;
         }
 
-        $version = preg_replace('/[^0-9A-Za-z._-]/', '-', (string) config('services.whmcs_addon.version', '1.2.0'));
+        $version = preg_replace('/[^0-9A-Za-z._-]/', '-', WhmcsAddonVersion::packaged());
 
         $download = response()->download(
             $temporaryPath,
@@ -144,16 +145,16 @@ Package authenticity
 Important: WHMCS does not provide a built-in ZIP addon-module uploader.
 Use the 20i File Manager to upload files without an FTP client. If your
 File Manager offers an Extract action, upload and extract this ZIP into
-modules/addons. If it does not, extract the ZIP on your computer, create
-the resellerbytes_ai_ops folder and its lib subfolder in modules/addons,
-then upload the four PHP files through File Manager while preserving paths.
+modules/addons. If it does not, extract the ZIP on your computer and
+upload the whole resellerbytes_ai_ops folder including hooks.php and lib/
+through File Manager while preserving paths.
 
 Installation
 1. Take and verify a restorable WHMCS files and database backup.
 2. Verify the package signature and fingerprint returned by the authenticated signing-key fingerprint endpoint.
 3. Open your hosting control panel's File Manager.
 4. Open the WHMCS installation directory, then modules/addons.
-5. If File Manager offers Extract, upload and extract this ZIP into modules/addons. Otherwise, extract the ZIP locally and upload the four PHP files while preserving paths.
+5. If File Manager offers Extract, upload and extract this ZIP into modules/addons. Otherwise, extract the ZIP locally and upload the whole resellerbytes_ai_ops folder including hooks.php and lib/ while preserving paths.
 6. Confirm this exact path exists:
    modules/addons/resellerbytes_ai_ops/resellerbytes_ai_ops.php
 7. In WHMCS Admin, open Configuration > System Settings > Addon Modules.
@@ -170,10 +171,15 @@ Credentials
 - Never paste the secret into the WHMCS addon configuration field.
 
 First-run safety
-- The first release is manual-only and read-only.
-- Do not configure cron or recurring execution.
+- Upload the whole resellerbytes_ai_ops folder including hooks.php and lib/.
+- A WHMCS system cron running crons/cron.php via PHP CLI (for example every 5 minutes) is REQUIRED for heartbeats, auto-collect and approved Safe Actions.
+- The cron user must be able to read the 0600 credentials file.
+- Heartbeats never change WHMCS business data.
 - The addon does not modify customer, invoice, payment, hosting, domain,
   20i provisioning, or ResellerClub registrar records.
+
+Troubleshooting
+- If Run diagnostics once fails, the red alert and Utilities > Logs > Activity Log include a sanitized Reason code (letters and underscores only). See the addon README troubleshooting table for that code.
 
 Rollback
 1. Revoke the integration in the ResellerBytes AI Operations dashboard.

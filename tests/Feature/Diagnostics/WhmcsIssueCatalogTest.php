@@ -125,6 +125,7 @@ it('detects positive schema 1.0 issues and ignores clean snapshots', function ()
         ->and($positiveKeys)->toContain('security.config_writable')
         ->and($positiveKeys)->toContain('php.extension_missing')
         ->and($positiveKeys)->toContain('php.version_unsupported')
+        ->and($positiveKeys)->toContain('php.version_eol')
         ->and($positiveKeys)->toContain('security.patch_lag')
         ->and($positiveKeys)->toContain('whmcs.version_outdated');
 
@@ -137,7 +138,8 @@ it('detects positive schema 1.0 issues and ignores clean snapshots', function ()
     expect($cleanKeys)->not->toContain('php.display_errors_on')
         ->and($cleanKeys)->not->toContain('security.config_writable')
         ->and($cleanKeys)->not->toContain('php.extension_missing')
-        ->and($cleanKeys)->not->toContain('php.version_unsupported');
+        ->and($cleanKeys)->not->toContain('php.version_unsupported')
+        ->and($cleanKeys)->not->toContain('php.version_eol');
 });
 
 it('detects schema 1.1 positives and skips findings when aggregate blocks are missing', function () {
@@ -188,6 +190,7 @@ it('detects schema 1.1 positives and skips findings when aggregate blocks are mi
         'db.size_growth',
         'addon.outdated',
         'security.patch_lag',
+        'php.version_eol',
     ] as $key) {
         expect($positiveKeys)->toContain($key);
     }

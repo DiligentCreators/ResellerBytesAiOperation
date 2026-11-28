@@ -10,6 +10,7 @@ use App\Models\SafeActionExecution;
 use App\Models\TenantMembership;
 use App\Models\User;
 use App\Models\WhmcsIntegration;
+use App\Services\Diagnostics\FindingContinuityService;
 use App\Services\Diagnostics\WhmcsIssueCatalog;
 use App\Services\PlatformSettings;
 use App\Services\Tenancy\TenantEntitlementService;
@@ -29,6 +30,7 @@ class AutoFixRunner
         private readonly PlatformSettings $settings,
         private readonly TenantEntitlementService $entitlements,
         private readonly TenantNotificationService $notifications,
+        private readonly FindingContinuityService $continuity,
     ) {}
 
     /**
@@ -208,8 +210,18 @@ class AutoFixRunner
 
     private function hasActiveAutoExecution(DiagnosticFinding $finding, string $actionKey): bool
     {
+        $finding->loadMissing('diagnosticRun');
+        $integrationId = $finding->diagnosticRun?->integration_id;
+        $findingIds = $integrationId !== null
+            ? $this->continuity->relatedFindingIds($finding, $integrationId)
+            : [(string) $finding->id];
+
+        if ($findingIds === []) {
+            $findingIds = [(string) $finding->id];
+        }
+
         return SafeActionExecution::query()
-            ->where('finding_id', $finding->id)
+            ->whereIn('finding_id', $findingIds)
             ->where('action_key', $actionKey)
             ->where('mode', SafeActionExecution::MODE_AUTO)
             ->whereIn('status', [

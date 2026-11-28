@@ -17,6 +17,7 @@ class GuidedFixService
 {
     public function __construct(
         private readonly FindingWorkflowService $workflow,
+        private readonly FindingContinuityService $continuity,
         private readonly AuditEventWriter $audit,
         private readonly SafeActionMinutesSavedCalculator $minutesSaved,
         private readonly TenantEntitlementService $entitlements,
@@ -39,9 +40,23 @@ class GuidedFixService
             return [];
         }
 
+        $finding->loadMissing('diagnosticRun');
+        $integrationId = $finding->diagnosticRun?->integration_id;
+        $findingIds = $integrationId !== null
+            ? $this->continuity->relatedFindingIds($finding, $integrationId)
+            : [(string) $finding->id];
+
+        if ($findingIds === []) {
+            $findingIds = [(string) $finding->id];
+        }
+
         $completed = GuidedFixStep::query()
-            ->where('finding_id', $finding->id)
+            ->whereIn('finding_id', $findingIds)
+            ->whereNotNull('completed_at')
+            ->orderByDesc('completed_at')
+            ->orderByDesc('id')
             ->get()
+            ->unique('step_index')
             ->keyBy('step_index');
 
         $steps = [];

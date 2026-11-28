@@ -5,6 +5,7 @@ namespace {
     use ResellerBytesAiOps\SnapshotRedactor;
     use ResellerBytesAiOps\WhmcsDataSource;
 
+    require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/Text.php';
     require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/WhmcsDataSource.php';
     require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/SnapshotRedactor.php';
     require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/CapsuleWhmcsDataSource.php';

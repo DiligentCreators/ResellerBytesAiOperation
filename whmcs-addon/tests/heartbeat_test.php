@@ -35,6 +35,11 @@ namespace ResellerBytesAiOps {
             return $GLOBALS['rb_mock_http_status'] ?? 202;
         }
 
+        function curl_errno(object $handle): int
+        {
+            return (int) ($GLOBALS['rb_mock_curl_errno'] ?? 0);
+        }
+
         function curl_close(object $handle): void {}
     }
 }
@@ -42,6 +47,8 @@ namespace ResellerBytesAiOps {
 namespace {
     use ResellerBytesAiOps\SignedApiClient;
 
+    require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/HttpTransport.php';
+    require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/CurlHttpTransport.php';
     require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/SignedApiClient.php';
 
     function assertHeartbeatCondition(bool $condition, string $message): void

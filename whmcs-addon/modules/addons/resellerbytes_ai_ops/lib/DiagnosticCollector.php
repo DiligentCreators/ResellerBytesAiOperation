@@ -79,12 +79,12 @@ final class DiagnosticCollector
         $serverSoftware = $_SERVER['SERVER_SOFTWARE'] ?? '';
         if (is_string($serverSoftware)
             && preg_match('/\A([A-Za-z0-9._-]+)/', $serverSoftware, $matches) === 1) {
-            $system['web_server'] = substr($matches[1], 0, 64);
+            $system['web_server'] = Text::truncateBytes($matches[1], 64);
         }
 
         $databaseVersion = $this->safe(fn (): ?string => $this->dataSource->databaseVersion());
         if (is_string($databaseVersion) && $databaseVersion !== '') {
-            $system['database_version'] = substr($databaseVersion, 0, 64);
+            $system['database_version'] = Text::truncateBytes($databaseVersion, 64);
             $this->addCapability('database_server_version');
         }
 
@@ -94,7 +94,7 @@ final class DiagnosticCollector
         }
 
         $php = [
-            'memory_limit' => substr((string) (ini_get('memory_limit') ?: 'unknown'), 0, 32),
+            'memory_limit' => Text::truncateBytes((string) (ini_get('memory_limit') ?: 'unknown'), 32),
             'extensions' => $this->extensionStatus(),
         ];
 
@@ -469,7 +469,7 @@ final class DiagnosticCollector
         $version = $this->safe(fn (): ?string => $this->dataSource->configurationValue('Version'));
 
         return is_string($version) && $version !== ''
-            ? substr($version, 0, 32)
+            ? Text::truncateBytes($version, 32)
             : 'unknown';
     }
 
@@ -509,7 +509,7 @@ final class DiagnosticCollector
             $version = ioncube_loader_version();
 
             return is_string($version) && $version !== ''
-                ? substr($version, 0, 32)
+                ? Text::truncateBytes($version, 32)
                 : null;
         } catch (Throwable) {
             return null;

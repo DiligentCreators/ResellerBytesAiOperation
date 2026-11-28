@@ -2,7 +2,11 @@
 
 use ResellerBytesAiOps\CredentialsFile;
 use ResellerBytesAiOps\CronMonitor;
+use ResellerBytesAiOps\FailureCode;
+use ResellerBytesAiOps\RuntimeRoots;
 use ResellerBytesAiOps\SignedApiClient;
+use ResellerBytesAiOps\Text;
+use ResellerBytesAiOps\WhmcsActivityLogger;
 use WHMCS\Database\Capsule;
 
 if (! defined('WHMCS')) {
@@ -10,10 +14,16 @@ if (! defined('WHMCS')) {
 }
 
 require_once __DIR__.'/lib/CredentialsFile.php';
+require_once __DIR__.'/lib/RuntimeRoots.php';
+require_once __DIR__.'/lib/FailureCode.php';
+require_once __DIR__.'/lib/FailureHint.php';
+require_once __DIR__.'/lib/Text.php';
 require_once __DIR__.'/lib/WhmcsDataSource.php';
 require_once __DIR__.'/lib/CapsuleWhmcsDataSource.php';
 require_once __DIR__.'/lib/SnapshotRedactor.php';
 require_once __DIR__.'/lib/DiagnosticCollector.php';
+require_once __DIR__.'/lib/HttpTransport.php';
+require_once __DIR__.'/lib/CurlHttpTransport.php';
 require_once __DIR__.'/lib/SignedApiClient.php';
 require_once __DIR__.'/lib/LocalApiClient.php';
 require_once __DIR__.'/lib/WhmcsLocalApiClient.php';
@@ -45,10 +55,11 @@ add_hook('AfterCronJob', 1, static function (): void {
             return;
         }
 
+        $whmcsRoot = defined('ROOTDIR') ? (string) ROOTDIR : '';
         $credentials = CredentialsFile::load(
             $credentialsPath,
-            defined('ROOTDIR') ? (string) ROOTDIR : '',
-            (string) ($_SERVER['DOCUMENT_ROOT'] ?? ''),
+            $whmcsRoot,
+            RuntimeRoots::documentRootFor(PHP_SAPI, $_SERVER, $whmcsRoot),
         );
 
         $whmcsVersion = 'unknown';
@@ -57,7 +68,7 @@ add_hook('AfterCronJob', 1, static function (): void {
                 ->where('setting', 'Version')
                 ->value('value');
             if (is_string($version) && $version !== '') {
-                $whmcsVersion = substr($version, 0, 32);
+                $whmcsVersion = Text::truncateBytes($version, 32);
             }
         }
 
@@ -85,7 +96,19 @@ add_hook('AfterCronJob', 1, static function (): void {
             'sent_at' => gmdate('Y-m-d\TH:i:s\Z'),
             'cron_kind' => $cronKind,
         ], $lockDirectory);
+
+        $GLOBALS['resellerbytes_ai_ops_last_hook_failure'] = null;
     } catch (Throwable $exception) {
         // Heartbeat / auto-collect / remediation failures must never interrupt WHMCS cron.
+        try {
+            $code = FailureCode::sanitize($exception->getMessage());
+            $previousFailure = $GLOBALS['resellerbytes_ai_ops_last_hook_failure'] ?? null;
+            if ($previousFailure !== $code) {
+                (new WhmcsActivityLogger)->log('ResellerBytes AI Ops cron hook failed: '.$code);
+            }
+            $GLOBALS['resellerbytes_ai_ops_last_hook_failure'] = $code;
+        } catch (Throwable $ignored) {
+            // Activity logging must never interrupt WHMCS cron either.
+        }
     }
 });

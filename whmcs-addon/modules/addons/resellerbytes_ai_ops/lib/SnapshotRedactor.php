@@ -39,7 +39,7 @@ final class SnapshotRedactor
         ) ?? $redacted;
 
         if (strlen($redacted) > self::MAX_LENGTH) {
-            $redacted = substr($redacted, 0, self::MAX_LENGTH);
+            $redacted = Text::truncateBytes($redacted, self::MAX_LENGTH);
         }
 
         return $redacted;

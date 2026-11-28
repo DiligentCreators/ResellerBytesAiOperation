@@ -13,6 +13,7 @@ use App\Models\TenantSubscription;
 use App\Models\User;
 use App\Services\Billing\PlanChangeClassifier;
 use App\Services\Billing\SubscriptionManagementService;
+use App\Services\Diagnostics\FixedIssueCounter;
 use App\Services\Health\TimeSavedCalculator;
 use App\Services\Tenancy\TenantAccess;
 use App\Services\Tenancy\TenantRoleAuthorization;
@@ -91,12 +92,8 @@ class BillingSettingsController extends Controller
             : now('UTC')->subDays(30);
         $periodEnd = now('UTC');
         $timeSaved = app(TimeSavedCalculator::class)->forTenantPeriod($tenant, $periodStart, $periodEnd);
-        $issuesFixed = DiagnosticFinding::query()
-            ->where('tenant_id', $tenant->id)
-            ->where('status', DiagnosticFinding::STATUS_RESOLVED)
-            ->where('resolved_at', '>=', $periodStart)
-            ->where('resolved_at', '<=', $periodEnd)
-            ->count();
+        // Same definition as Fix Center fixed tab: current issues, all time for this workspace.
+        $issuesFixed = app(FixedIssueCounter::class)->countForTenant($tenant);
         $openCritical = DiagnosticFinding::query()
             ->where('tenant_id', $tenant->id)
             ->currentIssues()
@@ -108,6 +105,9 @@ class BillingSettingsController extends Controller
             'time_saved_hours_display' => $timeSaved['hours_display'],
             'time_saved_value_display' => $timeSaved['value_display'],
             'hourly_rate_usd' => $timeSaved['hourly_rate_usd'],
+            'time_saved_period_label' => $subscription?->current_period_starts_at
+                ? 'this billing period'
+                : 'the last 30 days',
             'issues_fixed' => $issuesFixed,
             'open_critical' => $openCritical,
         ];

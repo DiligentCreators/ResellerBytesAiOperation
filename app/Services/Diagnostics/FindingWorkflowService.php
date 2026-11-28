@@ -17,7 +17,7 @@ class FindingWorkflowService
     /**
      * @param  array{status?: string, assignee_user_id?: int|null, status_note?: string|null}  $input
      */
-    public function update(DiagnosticFinding $finding, User $actor, array $input): DiagnosticFinding
+    public function update(DiagnosticFinding $finding, ?User $actor, array $input): DiagnosticFinding
     {
         return DB::transaction(function () use ($finding, $actor, $input): DiagnosticFinding {
             /** @var DiagnosticFinding $locked */
@@ -60,8 +60,8 @@ class FindingWorkflowService
             $locked->save();
 
             $this->audit->append([
-                'actor_type' => 'user',
-                'actor_id' => (string) $actor->id,
+                'actor_type' => $actor !== null ? 'user' : 'system',
+                'actor_id' => $actor !== null ? (string) $actor->id : null,
                 'event_type' => 'diagnostic_finding.workflow_updated',
                 'subject_type' => 'diagnostic_finding',
                 'subject_id' => $locked->id,

@@ -2,6 +2,7 @@
 
 namespace App\Support\PlatformSettings;
 
+use App\Support\WhmcsAddonVersion;
 use InvalidArgumentException;
 
 final class PlatformSettingsRegistry
@@ -170,7 +171,7 @@ final class PlatformSettingsRegistry
                 label: 'WHMCS addon latest version',
                 help: 'Published addon version string used for update checks. Defaults to the packaged addon version.',
                 type: PlatformSettingDefinition::TYPE_STRING,
-                default: static fn (): string => (string) (config('monitoring.addon_latest_version') ?: config('services.whmcs_addon.version', '1.1.0')),
+                default: static fn (): string => (string) (config('monitoring.addon_latest_version') ?: WhmcsAddonVersion::packaged()),
                 rules: ['string', 'max:40'],
             ),
             new PlatformSettingDefinition(
@@ -235,6 +236,15 @@ final class PlatformSettingsRegistry
                 help: 'JSON map of WHMCS major.minor to min/max PHP versions used by php.version_unsupported.',
                 type: PlatformSettingDefinition::TYPE_JSON,
                 default: static fn (): array => (array) config('monitoring.php_support_matrix', []),
+                rules: ['array'],
+            ),
+            new PlatformSettingDefinition(
+                key: 'monitoring.php_eol_branches',
+                group: 'monitoring',
+                label: 'PHP end-of-life branches',
+                help: 'JSON list of PHP major.minor branches treated as end-of-life by php.version_eol (e.g. 7.4, 8.0, 8.1).',
+                type: PlatformSettingDefinition::TYPE_JSON,
+                default: static fn (): array => (array) config('monitoring.php_eol_branches', []),
                 rules: ['array'],
             ),
             new PlatformSettingDefinition(

@@ -37,7 +37,7 @@ final class CapsuleWhmcsDataSource implements WhmcsDataSource
             $version = $rows[0]->version ?? null;
 
             return is_string($version) && $version !== ''
-                ? substr($version, 0, 64)
+                ? Text::truncateBytes($version, 64)
                 : null;
         } catch (Throwable) {
             return null;

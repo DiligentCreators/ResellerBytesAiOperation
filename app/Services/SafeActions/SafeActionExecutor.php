@@ -48,6 +48,7 @@ class SafeActionExecutor
         }
 
         if ($finding !== null) {
+            $finding = $this->continuity->resolveToCurrentCopy($finding);
             $this->assertFindingBelongsToIntegration($finding, $integration);
             $this->assertActionBoundToFinding($actionKey, $definition, $finding);
         }
@@ -751,7 +752,12 @@ class SafeActionExecutor
         }
 
         $finding = DiagnosticFinding::query()->find($execution->finding_id);
-        if ($finding === null || ! $finding->isActive()) {
+        if ($finding === null) {
+            return;
+        }
+
+        $finding = $this->continuity->resolveToCurrentCopy($finding);
+        if (! $finding->isActive()) {
             return;
         }
 
@@ -917,8 +923,11 @@ class SafeActionExecutor
             if ($execution->finding_id !== null) {
                 $finding = DiagnosticFinding::query()->find($execution->finding_id);
                 $actor = User::query()->find($execution->approved_by_user_id ?? $execution->requested_by_user_id);
-                if ($finding !== null && $actor !== null && $finding->isActive()) {
-                    $this->continuity->resolveProvenSiblings($finding, $actor, $execution->action_key);
+                if ($finding !== null && $actor !== null) {
+                    $finding = $this->continuity->resolveToCurrentCopy($finding);
+                    if ($finding->isActive()) {
+                        $this->continuity->resolveProvenSiblings($finding, $actor, $execution->action_key);
+                    }
                 }
             }
 

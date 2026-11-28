@@ -53,7 +53,7 @@ function createSnapshotVerificationWorkspace(): array
         'status' => 'active',
         'secret' => bin2hex(random_bytes(32)),
         'secret_version' => 1,
-        'addon_version' => '1.2.0',
+        'addon_version' => '1.2.1',
         'last_seen_at' => now()->subHour(),
     ]);
 
@@ -69,7 +69,7 @@ function createSnapshotVerificationWorkspace(): array
         'tenant_id' => $tenant->id,
         'snapshot_uuid' => (string) Str::uuid(),
         'schema_version' => '1.1',
-        'addon_version' => '1.2.0',
+        'addon_version' => '1.2.1',
         'status' => 'analyzed',
         'collected_at' => now()->subHour(),
         'received_at' => now()->subHour(),
@@ -116,7 +116,7 @@ function makeSignedVerifySnapshot(WhmcsIntegration $integration, string $fixture
     $payload = [
         'snapshot_uuid' => (string) Str::uuid(),
         'schema_version' => '1.1',
-        'addon_version' => '1.2.0',
+        'addon_version' => '1.2.1',
         'collected_at' => now()->utc()->format('Y-m-d\TH:i:s\Z'),
         'payload' => array_replace_recursive($basePayload, $overrides['payload'] ?? []),
     ];

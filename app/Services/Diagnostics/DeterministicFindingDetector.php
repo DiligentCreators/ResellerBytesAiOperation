@@ -82,6 +82,9 @@ class DeterministicFindingDetector
                 }
                 $presentFingerprints[$fingerprint] = true;
 
+                // Rule wins: remove same-run AI duplicates for this fingerprint/issue_key.
+                $aiSummaries = $this->replaceSameRunAiDuplicates($lockedRun, $fingerprint, $issue->key);
+
                 $finding = DiagnosticFinding::create([
                     'diagnostic_run_id' => $lockedRun->id,
                     'tenant_id' => $lockedRun->tenant_id,
@@ -98,6 +101,10 @@ class DeterministicFindingDetector
                     'confidence' => 1,
                     'status' => DiagnosticFinding::STATUS_OPEN,
                 ]);
+
+                foreach ($aiSummaries as $aiSummary) {
+                    $this->continuity->appendAiSummaryIfUseful($finding, $aiSummary);
+                }
 
                 $steps = $catalog['guided_steps'] ?? [];
                 if (is_array($steps)) {
@@ -119,7 +126,7 @@ class DeterministicFindingDetector
                     }
                 }
 
-                $this->continuity->inheritActiveWorkflow($finding);
+                $this->continuity->supersedePriorOpenCopies($finding);
                 $this->criticalAlerts->maybeRaise($finding);
                 $created[] = $finding;
             }
@@ -143,6 +150,38 @@ class DeterministicFindingDetector
         }
 
         return $created;
+    }
+
+    /**
+     * Keep one active row per fingerprint per run by removing same-run AI duplicates.
+     * Does not touch audit_events.
+     *
+     * @return list<string>
+     */
+    private function replaceSameRunAiDuplicates(
+        DiagnosticRun $run,
+        string $fingerprint,
+        string $issueKey,
+    ): array {
+        $summaries = [];
+
+        DiagnosticFinding::query()
+            ->where('diagnostic_run_id', $run->id)
+            ->where('source', DiagnosticFinding::SOURCE_AI)
+            ->where(function (Builder $query) use ($fingerprint, $issueKey): void {
+                $query->where('fingerprint', $fingerprint)
+                    ->orWhere('issue_key', $issueKey);
+            })
+            ->each(function (DiagnosticFinding $aiFinding) use (&$summaries): void {
+                if (is_string($aiFinding->summary) && trim($aiFinding->summary) !== '') {
+                    $summaries[] = $aiFinding->summary;
+                }
+
+                $aiFinding->recommendations()->delete();
+                $aiFinding->delete();
+            });
+
+        return $summaries;
     }
 
     /**

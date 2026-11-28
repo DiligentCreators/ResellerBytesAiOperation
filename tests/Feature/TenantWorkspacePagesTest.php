@@ -55,5 +55,8 @@ it('renders tenant settings memberships and notifications as Inertia pages', fun
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('tenants/notifications')
-            ->has('notifications.data', 1));
+            ->has('notifications.data', 1)
+            ->where('notifications.data.0.event_type', 'diagnostics.run.completed')
+            ->has('notifications.data.0.title')
+            ->has('notifications.data.0.message'));
 });

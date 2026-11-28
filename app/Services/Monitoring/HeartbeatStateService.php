@@ -267,7 +267,7 @@ class HeartbeatStateService
             }
         }
 
-        $this->continuity->inheritActiveWorkflow($finding);
+        $this->continuity->supersedePriorOpenCopies($finding);
     }
 
     private function findMissedFindingForRefresh(

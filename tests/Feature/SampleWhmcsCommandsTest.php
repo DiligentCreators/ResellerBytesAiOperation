@@ -82,7 +82,7 @@ it('dispatches the positive fixture through the signed API path and creates rule
     $this->artisan('whmcs:sample-integration', ['tenant' => $tenant->id])->assertSuccessful();
     $integration = WhmcsIntegration::query()->sole();
 
-    config(['monitoring.addon_latest_version' => '1.2.0']);
+    config(['monitoring.addon_latest_version' => '1.2.1']);
 
     $this->artisan('whmcs:sample-snapshot', [
         'integration' => $integration->id,
@@ -111,7 +111,7 @@ it('opens heartbeat.missed after --stale followed by whmcs:heartbeats:check', fu
     $integration = WhmcsIntegration::query()->sole();
 
     config([
-        'monitoring.addon_latest_version' => '1.2.0',
+        'monitoring.addon_latest_version' => '1.2.1',
         'monitoring.heartbeat_stale_minutes' => 30,
     ]);
 

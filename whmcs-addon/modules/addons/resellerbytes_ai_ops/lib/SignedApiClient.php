@@ -9,9 +9,26 @@ final class SignedApiClient
 {
     private const BASE_URL = 'https://ops.resellerbytes.com';
 
-    public const ADDON_VERSION = '1.2.0';
+    public const ADDON_VERSION = '1.2.1';
 
     private const MAX_RESPONSE_BYTES = 16384;
+
+    /** @var list<int> */
+    private const TLS_ERRNOS = [
+        35, 51, 53, 54, 58, 59, 60, 64, 66, 77, 80, 82, 83, 90, 91,
+    ];
+
+    /** @var list<int> */
+    private const CONNECT_ERRNOS = [
+        7, 5, 45,
+    ];
+
+    private HttpTransport $transport;
+
+    public function __construct(?HttpTransport $transport = null)
+    {
+        $this->transport = $transport ?? new CurlHttpTransport;
+    }
 
     /**
      * @param  array{integration_id: string, secret: string}  $credentials
@@ -35,13 +52,13 @@ final class SignedApiClient
                 throw new RuntimeException('diagnostic_response_invalid');
             }
 
-            throw new RuntimeException('diagnostic_submission_failed');
+            throw $exception;
         }
 
         if (! in_array($response['http_status'], [200, 202], true)
             || ! isset($response['json']['data']['duplicate'])
             || ! is_bool($response['json']['data']['duplicate'])) {
-            throw new RuntimeException('diagnostic_submission_failed');
+            throw new RuntimeException('diagnostic_response_invalid');
         }
 
         return [
@@ -75,13 +92,13 @@ final class SignedApiClient
                 throw new RuntimeException('heartbeat_response_invalid');
             }
 
-            throw new RuntimeException('heartbeat_submission_failed');
+            throw $exception;
         }
 
         if (! in_array($response['http_status'], [200, 202], true)
             || ! isset($response['json']['data']['accepted'])
             || ! is_bool($response['json']['data']['accepted'])) {
-            throw new RuntimeException('heartbeat_submission_failed');
+            throw new RuntimeException('heartbeat_response_invalid');
         }
 
         return [
@@ -98,12 +115,20 @@ final class SignedApiClient
      */
     public function listPendingSafeActions(array $credentials): array
     {
-        $response = $this->request($credentials, 'GET', '/api/v1/whmcs/safe-actions/pending', null);
+        try {
+            $response = $this->request($credentials, 'GET', '/api/v1/whmcs/safe-actions/pending', null);
+        } catch (RuntimeException $exception) {
+            if ($exception->getMessage() === 'http_response_invalid') {
+                throw new RuntimeException('pending_actions_response_invalid');
+            }
+
+            throw $exception;
+        }
 
         if ($response['http_status'] !== 200
             || ! isset($response['json']['data']['actions'])
             || ! is_array($response['json']['data']['actions'])) {
-            throw new RuntimeException('pending_actions_fetch_failed');
+            throw new RuntimeException('pending_actions_response_invalid');
         }
 
         return [
@@ -123,18 +148,26 @@ final class SignedApiClient
             throw new RuntimeException('invalid_execution_id');
         }
 
-        $response = $this->request(
-            $credentials,
-            'POST',
-            '/api/v1/whmcs/safe-actions/'.$executionId.'/result',
-            $payload,
-        );
+        try {
+            $response = $this->request(
+                $credentials,
+                'POST',
+                '/api/v1/whmcs/safe-actions/'.$executionId.'/result',
+                $payload,
+            );
+        } catch (RuntimeException $exception) {
+            if ($exception->getMessage() === 'http_response_invalid') {
+                throw new RuntimeException('safe_action_result_response_invalid');
+            }
+
+            throw $exception;
+        }
 
         if ($response['http_status'] !== 200
             || ! isset($response['json']['data']['id'], $response['json']['data']['status'])
             || ! is_string($response['json']['data']['id'])
             || ! is_string($response['json']['data']['status'])) {
-            throw new RuntimeException('safe_action_result_failed');
+            throw new RuntimeException('safe_action_result_response_invalid');
         }
 
         return [
@@ -165,7 +198,11 @@ final class SignedApiClient
 
         if ($jsonBody !== null) {
             try {
-                $body = json_encode($jsonBody, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
+                $flags = JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES;
+                if (defined('JSON_INVALID_UTF8_SUBSTITUTE')) {
+                    $flags |= JSON_INVALID_UTF8_SUBSTITUTE;
+                }
+                $body = json_encode($jsonBody, $flags);
             } catch (JsonException $exception) {
                 throw new RuntimeException('request_encoding_failed');
             }
@@ -187,13 +224,7 @@ final class SignedApiClient
 
         $signature = hash_hmac('sha256', $canonicalMessage, $credentials['secret']);
         $url = self::BASE_URL.$path;
-        $handle = curl_init($url);
 
-        if ($handle === false) {
-            throw new RuntimeException('http_client_initialization_failed');
-        }
-
-        $responseBody = '';
         $headers = [
             'Accept: application/json',
             'Content-Type: application/json',
@@ -205,16 +236,6 @@ final class SignedApiClient
 
         $options = [
             CURLOPT_HTTPHEADER => $headers,
-            CURLOPT_RETURNTRANSFER => false,
-            CURLOPT_WRITEFUNCTION => static function ($handle, string $chunk) use (&$responseBody): int {
-                if (strlen($responseBody) + strlen($chunk) > self::MAX_RESPONSE_BYTES) {
-                    return 0;
-                }
-
-                $responseBody .= $chunk;
-
-                return strlen($chunk);
-            },
             CURLOPT_CONNECTTIMEOUT => max(1, $connectTimeout),
             CURLOPT_TIMEOUT => max(1, $timeout),
             CURLOPT_FOLLOWLOCATION => false,
@@ -235,18 +256,25 @@ final class SignedApiClient
             $options[CURLOPT_POSTFIELDS] = $body;
         }
 
-        if (! curl_setopt_array($handle, $options)) {
-            curl_close($handle);
+        $result = $this->transport->execute($url, $options, self::MAX_RESPONSE_BYTES);
+        $httpStatus = (int) $result['http_status'];
+        $responseBody = (string) $result['body'];
+        $responseTooLarge = (bool) $result['response_too_large'];
 
-            throw new RuntimeException('http_client_configuration_failed');
+        if (! $result['executed'] && ! $responseTooLarge) {
+            throw new RuntimeException($this->transportFailureCode((int) $result['errno']));
         }
 
-        $executed = curl_exec($handle);
-        $httpStatus = (int) curl_getinfo($handle, CURLINFO_HTTP_CODE);
-        curl_close($handle);
+        if ($httpStatus < 200 || $httpStatus > 299) {
+            throw new RuntimeException($this->httpStatusFailureCode($httpStatus));
+        }
 
-        if ($executed !== true || $responseBody === '') {
-            throw new RuntimeException('http_request_failed');
+        if ($responseTooLarge) {
+            throw new RuntimeException('http_response_too_large');
+        }
+
+        if ($responseBody === '') {
+            throw new RuntimeException('http_response_empty');
         }
 
         try {
@@ -263,6 +291,64 @@ final class SignedApiClient
             'http_status' => $httpStatus,
             'json' => $response,
         ];
+    }
+
+    private function transportFailureCode(int $errno): string
+    {
+        if ($errno === 6) {
+            return 'http_dns_failed';
+        }
+
+        if ($errno === 28) {
+            return 'http_timeout';
+        }
+
+        if (in_array($errno, self::TLS_ERRNOS, true)) {
+            return 'http_tls_failed';
+        }
+
+        if (in_array($errno, self::CONNECT_ERRNOS, true)) {
+            return 'http_connect_failed';
+        }
+
+        return 'http_transport_failed';
+    }
+
+    private function httpStatusFailureCode(int $status): string
+    {
+        if ($status === 400) {
+            return 'http_status_bad_request';
+        }
+
+        if ($status === 401) {
+            return 'http_status_unauthenticated';
+        }
+
+        if ($status === 403) {
+            return 'http_status_forbidden';
+        }
+
+        if ($status === 404) {
+            return 'http_status_not_found';
+        }
+
+        if ($status === 409) {
+            return 'http_status_conflict';
+        }
+
+        if ($status === 422) {
+            return 'http_status_validation_failed';
+        }
+
+        if ($status === 429) {
+            return 'http_status_rate_limited';
+        }
+
+        if ($status >= 500 && $status <= 599) {
+            return 'http_status_server_error';
+        }
+
+        return 'http_status_unexpected';
     }
 
     private function uuidV4(): string
