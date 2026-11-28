@@ -88,32 +88,32 @@ Deactivation does not delete or modify the external credentials file.
 
 When **Run diagnostics once** or **Apply approved Safe Actions** fails, the red alert includes `Reason code: <code>.` plus a short hint. The same sanitized code is written to **Utilities → Logs → Activity Log** (for example `ResellerBytes AI Ops manual diagnostics failed: http_status_unauthenticated`). Codes contain only letters and underscores — never paths, secrets, or response bodies.
 
-| Code | Meaning | What to check |
-| --- | --- | --- |
-| `credentials_file_not_configured` | Credentials path setting is empty | Set the absolute credentials JSON path in Addon Modules |
-| `credentials_file_path_must_be_absolute` | Path is not absolute | Use a path beginning with `/` |
-| `credentials_file_root_paths_unavailable` | WHMCS/document roots could not be resolved | Confirm ROOTDIR and the web document root are valid |
-| `credentials_file_unavailable` | File missing or unreadable | Confirm the file exists and the PHP user can read it |
-| `credentials_file_symlink_not_allowed` | Path resolves through a symlink | Point at the real file path |
-| `credentials_file_must_be_outside_web_root` | File is inside WHMCS or the web root | Move it outside both roots |
-| `credentials_file_permissions_invalid` | Mode is not exactly 0600 | `chmod 0600` the credentials file |
-| `credentials_file_size_invalid` | File too small or too large | Keep a small JSON object with only the two required keys |
-| `credentials_file_unreadable` | Read failed | Fix ownership/permissions for the PHP runtime user |
-| `credentials_file_invalid_json` | File is not JSON | Validate the JSON syntax |
-| `credentials_file_invalid_structure` | Unexpected JSON shape | Object with exactly `integration_id` and `secret` |
-| `credentials_file_invalid_values` | UUID/secret format invalid | Use a UUID and the current hex secret from Ops |
-| `http_dns_failed` | DNS lookup failed | Check nameservers and outbound DNS |
-| `http_connect_failed` | TCP connect failed | Check firewall egress to ops.resellerbytes.com:443 |
-| `http_timeout` | Request timed out | Check latency/firewall and retry |
-| `http_tls_failed` | TLS/certificate failure | Update CA bundle; avoid HTTPS interception |
-| `http_transport_failed` | Other cURL transport failure | Verify the PHP cURL extension and HTTPS egress |
-| `http_status_unauthenticated` | Signature or integration rejected | Confirm the integration is active; rotate and rewrite credentials if unsure |
-| `http_status_forbidden` | Subscription/quota/suspension | Check workspace subscription, diagnostics allowance, and tenant status |
-| `http_status_validation_failed` | Payload schema rejected | Update the addon to a supported version |
-| `http_status_rate_limited` | Too many requests | Wait and retry |
-| `http_status_server_error` | Upstream 5xx | Retry later |
-| `http_response_too_large` | Success response exceeded 16 KB | Retry later or contact support |
-| `diagnostic_response_invalid` / `heartbeat_response_invalid` / `pending_actions_response_invalid` / `safe_action_result_response_invalid` | Success HTTP status but unexpected JSON shape | Update the addon |
+| Code                                                                                                                                      | Meaning                                       | What to check                                                               |
+| ----------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- | --------------------------------------------------------------------------- |
+| `credentials_file_not_configured`                                                                                                         | Credentials path setting is empty             | Set the absolute credentials JSON path in Addon Modules                     |
+| `credentials_file_path_must_be_absolute`                                                                                                  | Path is not absolute                          | Use a path beginning with `/`                                               |
+| `credentials_file_root_paths_unavailable`                                                                                                 | WHMCS/document roots could not be resolved    | Confirm ROOTDIR and the web document root are valid                         |
+| `credentials_file_unavailable`                                                                                                            | File missing or unreadable                    | Confirm the file exists and the PHP user can read it                        |
+| `credentials_file_symlink_not_allowed`                                                                                                    | Path resolves through a symlink               | Point at the real file path                                                 |
+| `credentials_file_must_be_outside_web_root`                                                                                               | File is inside WHMCS or the web root          | Move it outside both roots                                                  |
+| `credentials_file_permissions_invalid`                                                                                                    | Mode is not exactly 0600                      | `chmod 0600` the credentials file                                           |
+| `credentials_file_size_invalid`                                                                                                           | File too small or too large                   | Keep a small JSON object with only the two required keys                    |
+| `credentials_file_unreadable`                                                                                                             | Read failed                                   | Fix ownership/permissions for the PHP runtime user                          |
+| `credentials_file_invalid_json`                                                                                                           | File is not JSON                              | Validate the JSON syntax                                                    |
+| `credentials_file_invalid_structure`                                                                                                      | Unexpected JSON shape                         | Object with exactly `integration_id` and `secret`                           |
+| `credentials_file_invalid_values`                                                                                                         | UUID/secret format invalid                    | Use a UUID and the current hex secret from Ops                              |
+| `http_dns_failed`                                                                                                                         | DNS lookup failed                             | Check nameservers and outbound DNS                                          |
+| `http_connect_failed`                                                                                                                     | TCP connect failed                            | Check firewall egress to ops.resellerbytes.com:443                          |
+| `http_timeout`                                                                                                                            | Request timed out                             | Check latency/firewall and retry                                            |
+| `http_tls_failed`                                                                                                                         | TLS/certificate failure                       | Update CA bundle; avoid HTTPS interception                                  |
+| `http_transport_failed`                                                                                                                   | Other cURL transport failure                  | Verify the PHP cURL extension and HTTPS egress                              |
+| `http_status_unauthenticated`                                                                                                             | Signature or integration rejected             | Confirm the integration is active; rotate and rewrite credentials if unsure |
+| `http_status_forbidden`                                                                                                                   | Subscription/quota/suspension                 | Check workspace subscription, diagnostics allowance, and tenant status      |
+| `http_status_validation_failed`                                                                                                           | Payload schema rejected                       | Update the addon to a supported version                                     |
+| `http_status_rate_limited`                                                                                                                | Too many requests                             | Wait and retry                                                              |
+| `http_status_server_error`                                                                                                                | Upstream 5xx                                  | Retry later                                                                 |
+| `http_response_too_large`                                                                                                                 | Success response exceeded 16 KB               | Retry later or contact support                                              |
+| `diagnostic_response_invalid` / `heartbeat_response_invalid` / `pending_actions_response_invalid` / `safe_action_result_response_invalid` | Success HTTP status but unexpected JSON shape | Update the addon                                                            |
 
 ## Automated checks
 
