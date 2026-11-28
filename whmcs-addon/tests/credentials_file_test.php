@@ -42,6 +42,7 @@ $credentials = [
 $json = json_encode($credentials, JSON_THROW_ON_ERROR);
 file_put_contents($credentialsPath, $json);
 chmod($credentialsPath, 0600);
+clearstatcache(true, $credentialsPath);
 
 try {
     $loaded = CredentialsFile::load(
@@ -55,6 +56,7 @@ try {
 
     file_put_contents($insidePath, $json);
     chmod($insidePath, 0600);
+    clearstatcache(true, $insidePath);
 
     assertCredentialsFailure(
         static fn () => CredentialsFile::load($insidePath, $whmcsRoot, $documentRoot),
@@ -102,6 +104,7 @@ try {
     unlink($externalSymlinkPath);
 
     chmod($credentialsPath, 0400);
+    clearstatcache(true, $credentialsPath);
 
     assertCredentialsFailure(
         static fn () => CredentialsFile::load($credentialsPath, $whmcsRoot, $documentRoot),
@@ -109,6 +112,7 @@ try {
     );
 
     chmod($credentialsPath, 0644);
+    clearstatcache(true, $credentialsPath);
 
     assertCredentialsFailure(
         static fn () => CredentialsFile::load($credentialsPath, $whmcsRoot, $documentRoot),
@@ -116,6 +120,7 @@ try {
     );
 
     chmod($credentialsPath, 0600);
+    clearstatcache(true, $credentialsPath);
     file_put_contents($credentialsPath, '{not-json');
     try {
         CredentialsFile::load($credentialsPath, $whmcsRoot, $documentRoot);
@@ -126,6 +131,7 @@ try {
 
     file_put_contents($credentialsPath, json_encode(['integration_id' => $credentials['integration_id']], JSON_THROW_ON_ERROR));
     chmod($credentialsPath, 0600);
+    clearstatcache(true, $credentialsPath);
     try {
         CredentialsFile::load($credentialsPath, $whmcsRoot, $documentRoot);
         throw new RuntimeException('Invalid structure credentials file was accepted.');
@@ -138,6 +144,7 @@ try {
         'secret' => $credentials['secret'],
     ], JSON_THROW_ON_ERROR));
     chmod($credentialsPath, 0600);
+    clearstatcache(true, $credentialsPath);
     try {
         CredentialsFile::load($credentialsPath, $whmcsRoot, $documentRoot);
         throw new RuntimeException('Invalid values credentials file was accepted.');
