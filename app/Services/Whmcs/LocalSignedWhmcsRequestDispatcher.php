@@ -13,7 +13,7 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class LocalSignedWhmcsRequestDispatcher
 {
-    public const ADDON_VERSION = '1.2.3';
+    public const ADDON_VERSION = '1.2.4';
 
     /**
      * @param  array<string, mixed>  $jsonBody

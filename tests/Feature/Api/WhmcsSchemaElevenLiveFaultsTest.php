@@ -27,7 +27,7 @@ function makeSignedLiveFaultsSnapshot(WhmcsIntegration $integration, array $payl
     $snapshot = [
         'snapshot_uuid' => (string) Str::uuid(),
         'schema_version' => '1.1',
-        'addon_version' => '1.2.3',
+        'addon_version' => '1.2.4',
         'collected_at' => now()->utc()->format('Y-m-d\TH:i:s\Z'),
         'payload' => $payload,
     ];
@@ -277,3 +277,102 @@ test('rejects empty or malformed module_queue.by_action with the five field keys
         'other' => ['count' => 0],
     ]],
 ]);
+
+test('accepts schema 1.1 whmcs block without module_queue', function () {
+    $integration = createLiveFaultsIntegration();
+    $payload = liveFaultsBasePayload();
+    unset($payload['whmcs']['module_queue']);
+    $payload['collector']['capabilities'] = array_values(array_filter(
+        $payload['collector']['capabilities'] ?? [],
+        static fn ($capability): bool => $capability !== 'module_queue',
+    ));
+
+    $signed = makeSignedLiveFaultsSnapshot($integration, $payload);
+
+    $this->call('POST', '/api/v1/whmcs/diagnostic-snapshots', [], [], [], $signed['headers'], $signed['body'])
+        ->assertAccepted();
+});
+
+test('accepts schema 1.1 whmcs without module_queue and module_queue_unavailable limitation', function () {
+    $integration = createLiveFaultsIntegration();
+    $payload = liveFaultsBasePayload();
+    unset($payload['whmcs']['module_queue']);
+    $payload['collector']['capabilities'] = array_values(array_filter(
+        $payload['collector']['capabilities'] ?? [],
+        static fn ($capability): bool => $capability !== 'module_queue',
+    ));
+    $payload['collector']['limitations'][] = 'module_queue_unavailable';
+
+    $signed = makeSignedLiveFaultsSnapshot($integration, $payload);
+
+    $this->call('POST', '/api/v1/whmcs/diagnostic-snapshots', [], [], [], $signed['headers'], $signed['body'])
+        ->assertAccepted();
+});
+
+test('accepts schema 1.1 module_queue with complete integer-zero by_action', function () {
+    $integration = createLiveFaultsIntegration();
+    $payload = liveFaultsBasePayload();
+    $payload['whmcs']['module_queue'] = [
+        'source' => 'api',
+        'pending_count' => 0,
+        'oldest_age_minutes' => null,
+        'by_action' => [
+            'create' => 0,
+            'suspend' => 0,
+            'unsuspend' => 0,
+            'terminate' => 0,
+            'other' => 0,
+        ],
+        'items' => [],
+    ];
+
+    $signed = makeSignedLiveFaultsSnapshot($integration, $payload);
+
+    $this->call('POST', '/api/v1/whmcs/diagnostic-snapshots', [], [], [], $signed['headers'], $signed['body'])
+        ->assertAccepted();
+});
+
+test('rejects module_queue when by_action is missing the other child', function () {
+    $integration = createLiveFaultsIntegration();
+    $payload = liveFaultsBasePayload();
+    $payload['whmcs']['module_queue']['by_action'] = [
+        'create' => 0,
+        'suspend' => 0,
+        'unsuspend' => 0,
+        'terminate' => 0,
+    ];
+
+    $signed = makeSignedLiveFaultsSnapshot($integration, $payload);
+    $response = $this->call(
+        'POST',
+        '/api/v1/whmcs/diagnostic-snapshots',
+        [],
+        [],
+        [],
+        $signed['headers'],
+        $signed['body'],
+    );
+
+    $response->assertUnprocessable();
+    expect($response->json('errors'))->toHaveKey('payload.whmcs.module_queue.by_action.other');
+});
+
+test('rejects module_queue when by_action is missing entirely', function () {
+    $integration = createLiveFaultsIntegration();
+    $payload = liveFaultsBasePayload();
+    unset($payload['whmcs']['module_queue']['by_action']);
+
+    $signed = makeSignedLiveFaultsSnapshot($integration, $payload);
+    $response = $this->call(
+        'POST',
+        '/api/v1/whmcs/diagnostic-snapshots',
+        [],
+        [],
+        [],
+        $signed['headers'],
+        $signed['body'],
+    );
+
+    $response->assertUnprocessable();
+    expect($response->json('errors'))->toHaveKey('payload.whmcs.module_queue.by_action');
+});

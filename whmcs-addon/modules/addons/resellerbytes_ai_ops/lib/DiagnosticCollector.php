@@ -32,6 +32,8 @@ final class DiagnosticCollector
 
     private WhmcsDataSource $dataSource;
 
+    private ActivityLogger $activity;
+
     /** @var list<string> */
     private array $capabilities = [];
 
@@ -42,9 +44,10 @@ final class DiagnosticCollector
 
     private bool $sawLocalApiFailure = false;
 
-    public function __construct(?WhmcsDataSource $dataSource = null)
+    public function __construct(?WhmcsDataSource $dataSource = null, ?ActivityLogger $activity = null)
     {
-        $this->dataSource = $dataSource ?? new CapsuleWhmcsDataSource;
+        $this->dataSource = $dataSource ?? new CapsuleWhmcsDataSource($activity);
+        $this->activity = $activity ?? new WhmcsActivityLogger;
     }
 
     /**
@@ -299,52 +302,134 @@ final class DiagnosticCollector
     {
         try {
             $api = $this->dataSource->localApi('GetModuleQueue');
-            $normalized = $this->normalizeModuleQueueItems($api);
-            $source = 'api';
+            $apiSuccess = is_array($api) && strtolower((string) ($api['result'] ?? '')) === 'success';
 
-            if ($normalized === null || ($normalized['pending_count'] === 0 && $normalized['items'] === [])) {
-                if ($api === null || (is_array($api) && strtolower((string) ($api['result'] ?? '')) !== 'success')) {
-                    $this->sawLocalApiFailure = true;
-                }
-
-                $tableRows = $this->dataSource->moduleQueueFromTable();
-                if ($tableRows === null) {
-                    $this->sawDbFailure = true;
-
-                    return null;
-                }
-
-                $source = 'table';
-                $normalized = $this->normalizeModuleQueueItems(['queue' => $tableRows])
+            if ($apiSuccess) {
+                $normalized = $this->normalizeModuleQueueItems($api)
                     ?? [
                         'items' => [],
                         'pending_count' => 0,
                         'by_action' => $this->emptyModuleQueueByAction(),
                     ];
+
+                return $this->buildModuleQueueBlock('api', $normalized);
             }
 
-            $byAction = $normalized['by_action'] ?? $this->emptyModuleQueueByAction();
-            $oldest = null;
-            $normalizedItems = [];
-            foreach ($normalized['items'] as $item) {
-                $item['action'] = $this->moduleActionKey((string) ($item['action'] ?? 'other'));
-                $age = (int) ($item['age_minutes'] ?? 0);
-                $oldest = $oldest === null ? $age : max($oldest, $age);
-                $normalizedItems[] = $item;
+            $this->sawLocalApiFailure = true;
+
+            $tableRows = $this->dataSource->moduleQueueFromTable();
+            if ($tableRows === null) {
+                $this->sawDbFailure = true;
+                $this->addLimitation('module_queue_unavailable');
+                $this->logModuleQueueFailure($this->moduleQueueFailureReason());
+
+                return null;
             }
 
-            return [
-                'source' => $source,
-                'pending_count' => $normalized['pending_count'],
-                'oldest_age_minutes' => $oldest,
-                'by_action' => $byAction,
-                'items' => array_slice($normalizedItems, 0, self::ID_LIMIT),
-            ];
-        } catch (Throwable) {
+            $normalized = $this->normalizeModuleQueueItems(['queue' => $tableRows])
+                ?? [
+                    'items' => [],
+                    'pending_count' => 0,
+                    'by_action' => $this->emptyModuleQueueByAction(),
+                ];
+
+            return $this->buildModuleQueueBlock('table', $normalized);
+        } catch (Throwable $throwable) {
             $this->sawDbFailure = true;
+            $this->addLimitation('module_queue_unavailable');
+            $this->logModuleQueueFailure($this->summarizeThrowable($throwable));
 
             return null;
         }
+    }
+
+    /**
+     * @param  array{items: list<array<string, mixed>>, pending_count: int, by_action: array{create: int, suspend: int, unsuspend: int, terminate: int, other: int}}  $normalized
+     * @return array<string, mixed>
+     */
+    private function buildModuleQueueBlock(string $source, array $normalized): array
+    {
+        $byAction = $normalized['by_action'] ?? $this->emptyModuleQueueByAction();
+        $oldest = null;
+        $normalizedItems = [];
+        foreach ($normalized['items'] as $item) {
+            $item['action'] = $this->moduleActionKey((string) ($item['action'] ?? 'other'));
+            $age = (int) ($item['age_minutes'] ?? 0);
+            $oldest = $oldest === null ? $age : max($oldest, $age);
+            $normalizedItems[] = $item;
+        }
+
+        return [
+            'source' => $source,
+            'pending_count' => $normalized['pending_count'],
+            'oldest_age_minutes' => $oldest,
+            'by_action' => $byAction,
+            'items' => array_slice($normalizedItems, 0, self::ID_LIMIT),
+        ];
+    }
+
+    private function moduleQueueFailureReason(): ?string
+    {
+        if ($this->dataSource instanceof CapsuleWhmcsDataSource) {
+            return $this->dataSource->lastModuleQueueError();
+        }
+
+        if (method_exists($this->dataSource, 'lastModuleQueueError')) {
+            $reason = $this->dataSource->lastModuleQueueError();
+
+            return is_string($reason) && $reason !== '' ? $reason : null;
+        }
+
+        return null;
+    }
+
+    private function logModuleQueueFailure(?string $reason): void
+    {
+        if ($this->dataSource instanceof CapsuleWhmcsDataSource
+            && is_string($reason)
+            && $reason !== ''
+            && $this->dataSource->lastModuleQueueError() === $reason) {
+            // CapsuleWhmcsDataSource already logged this sanitized reason.
+            return;
+        }
+
+        $suffix = is_string($reason) && $reason !== '' ? ' ('.$reason.')' : '';
+        $this->activity->log('ResellerBytes AI Ops: module queue collection failed'.$suffix);
+    }
+
+    /**
+     * Sanitized exception summary: short class name + SQLSTATE/code only.
+     */
+    private function summarizeThrowable(Throwable $throwable): string
+    {
+        $shortClass = (new \ReflectionClass($throwable))->getShortName();
+        $sqlState = null;
+        $code = $throwable->getCode();
+
+        if (is_string($code) && preg_match('/\A[0-9A-Z]{5}\z/', $code) === 1) {
+            $sqlState = $code;
+        }
+
+        if ($sqlState === null && $throwable instanceof \PDOException && is_array($throwable->errorInfo)) {
+            $candidate = $throwable->errorInfo[0] ?? null;
+            if (is_string($candidate) && preg_match('/\A[0-9A-Z]{5}\z/', $candidate) === 1) {
+                $sqlState = $candidate;
+            }
+        }
+
+        if ($sqlState !== null) {
+            return $shortClass.' SQLSTATE '.$sqlState;
+        }
+
+        if (is_int($code) && $code !== 0) {
+            return $shortClass.' '.$code;
+        }
+
+        if (is_string($code) && $code !== '' && preg_match('/\A[0-9A-Za-z._-]{1,32}\z/', $code) === 1) {
+            return $shortClass.' '.$code;
+        }
+
+        return $shortClass;
     }
 
     /**
@@ -438,7 +523,7 @@ final class DiagnosticCollector
                 'action' => $actionKey,
                 'age_minutes' => (int) $ageMinutes,
                 'retries' => (int) ($row['retries'] ?? $row['num_retries'] ?? $row['attempts'] ?? 0),
-                'error' => SnapshotRedactor::redact((string) ($row['error'] ?? $row['last_error'] ?? $row['errorMsg'] ?? $row['errormsg'] ?? $row['failure_reason'] ?? '')),
+                'error' => SnapshotRedactor::redact((string) ($row['error'] ?? $row['last_attempt_error'] ?? $row['lastAttemptError'] ?? $row['last_error'] ?? $row['errorMsg'] ?? $row['errormsg'] ?? $row['failure_reason'] ?? '')),
             ];
         }
 

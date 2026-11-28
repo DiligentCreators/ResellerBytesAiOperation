@@ -1,6 +1,8 @@
 <?php
 
 namespace {
+    use ResellerBytesAiOps\ActivityLogger;
+    use ResellerBytesAiOps\CapsuleWhmcsDataSource;
     use ResellerBytesAiOps\DiagnosticCollector;
     use ResellerBytesAiOps\Identifier;
     use ResellerBytesAiOps\SnapshotRedactor;
@@ -9,6 +11,8 @@ namespace {
     require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/Text.php';
     require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/Identifier.php';
     require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/WhmcsDataSource.php';
+    require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/ActivityLogger.php';
+    require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/WhmcsActivityLogger.php';
     require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/SnapshotRedactor.php';
     require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/CapsuleWhmcsDataSource.php';
     require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/DiagnosticCollector.php';
@@ -20,11 +24,28 @@ namespace {
         }
     }
 
+    final class RecordingActivityLogger implements ActivityLogger
+    {
+        /** @var list<string> */
+        public array $messages = [];
+
+        public function log(string $message): void
+        {
+            $this->messages[] = $message;
+        }
+    }
+
     final class FakeWhmcsDataSource implements WhmcsDataSource
     {
         public bool $failBilling = false;
 
         public bool $failLocalApi = false;
+
+        public bool $failModuleQueueTable = false;
+
+        public int $moduleQueueFromTableCalls = 0;
+
+        public ?string $recordedModuleQueueError = null;
 
         /** @var list<array<string, mixed>>|null */
         public ?array $moduleQueueRows = null;
@@ -88,6 +109,12 @@ namespace {
 
         public function moduleQueueFromTable(): ?array
         {
+            $this->moduleQueueFromTableCalls++;
+
+            if ($this->failModuleQueueTable) {
+                return null;
+            }
+
             if ($this->moduleQueueTableRows !== null) {
                 return $this->moduleQueueTableRows;
             }
@@ -100,9 +127,14 @@ namespace {
                     'module_action' => 'SuspendAccount',
                     'created_at' => gmdate('Y-m-d H:i:s', time() - 600),
                     'num_retries' => 1,
-                    'error' => 'suspend failed',
+                    'last_attempt_error' => 'suspend failed',
                 ],
             ];
+        }
+
+        public function lastModuleQueueError(): ?string
+        {
+            return $this->recordedModuleQueueError;
         }
 
         public function billingAggregates(): ?array
@@ -448,12 +480,34 @@ namespace {
 
         $emptyQueue = new FakeWhmcsDataSource;
         $emptyQueue->moduleQueueRows = [];
-        $emptyQueue->moduleQueueTableRows = [];
+        $emptyQueue->moduleQueueTableRows = [
+            [
+                'id' => 1,
+                'service_type' => 'service',
+                'service_id' => 1,
+                'module_action' => 'CreateAccount',
+                'created_at' => gmdate('Y-m-d H:i:s', time() - 60),
+                'num_retries' => 0,
+                'last_attempt_error' => 'should-not-be-used',
+            ],
+        ];
         $emptyPayload = (new DiagnosticCollector($emptyQueue))->collect();
         $emptyByAction = $emptyPayload['whmcs']['module_queue']['by_action'] ?? null;
         assertCollectorCondition(
+            ($emptyPayload['whmcs']['module_queue']['source'] ?? null) === 'api',
+            'API success empty queue must use source api.',
+        );
+        assertCollectorCondition(
+            $emptyQueue->moduleQueueFromTableCalls === 0,
+            'API success empty queue must not call table fallback.',
+        );
+        assertCollectorCondition(
             ($emptyPayload['whmcs']['module_queue']['pending_count'] ?? null) === 0,
             'Empty queue pending_count must be 0.',
+        );
+        assertCollectorCondition(
+            ($emptyPayload['whmcs']['module_queue']['items'] ?? null) === [],
+            'Empty queue items must be [].',
         );
         assertCollectorCondition(
             $emptyByAction === [
@@ -464,6 +518,103 @@ namespace {
                 'other' => 0,
             ],
             'Empty queue must still emit five integer-zero by_action keys.',
+        );
+
+        $apiFailEmptyTable = new FakeWhmcsDataSource;
+        $apiFailEmptyTable->failLocalApi = true;
+        $apiFailEmptyTable->moduleQueueTableRows = [];
+        $apiFailEmptyPayload = (new DiagnosticCollector($apiFailEmptyTable))->collect();
+        assertCollectorCondition(
+            ($apiFailEmptyPayload['whmcs']['module_queue']['source'] ?? null) === 'table',
+            'API failure + empty table must use source table.',
+        );
+        assertCollectorCondition(
+            ($apiFailEmptyPayload['whmcs']['module_queue']['pending_count'] ?? null) === 0,
+            'API failure + empty table pending_count must be 0.',
+        );
+        assertCollectorCondition(
+            ($apiFailEmptyPayload['whmcs']['module_queue']['by_action'] ?? null) === [
+                'create' => 0,
+                'suspend' => 0,
+                'unsuspend' => 0,
+                'terminate' => 0,
+                'other' => 0,
+            ],
+            'API failure + empty table must emit five integer-zero by_action keys.',
+        );
+
+        $apiAndTableFail = new FakeWhmcsDataSource;
+        $apiAndTableFail->failLocalApi = true;
+        $apiAndTableFail->failModuleQueueTable = true;
+        $apiAndTableFail->recordedModuleQueueError = 'QueryException SQLSTATE 42S22';
+        $failLogger = new RecordingActivityLogger;
+        $apiAndTableFailPayload = (new DiagnosticCollector($apiAndTableFail, $failLogger))->collect();
+        assertCollectorCondition(
+            ! isset($apiAndTableFailPayload['whmcs']['module_queue']),
+            'API+table failure must omit module_queue block.',
+        );
+        assertCollectorCondition(
+            in_array('module_queue_unavailable', $apiAndTableFailPayload['collector']['limitations'] ?? [], true),
+            'module_queue_unavailable limitation missing after API+table failure.',
+        );
+        assertCollectorCondition(
+            count($failLogger->messages) === 1,
+            'Module queue failure must log exactly once.',
+        );
+        assertCollectorCondition(
+            strpos($failLogger->messages[0], 'module queue collection failed') !== false,
+            'Module queue failure log message missing expected prefix.',
+        );
+        assertCollectorCondition(
+            strpos($failLogger->messages[0], 'QueryException SQLSTATE 42S22') !== false,
+            'Module queue failure log missing sanitized reason.',
+        );
+        assertCollectorCondition(
+            strpos($failLogger->messages[0], 'SELECT') === false
+            && strpos($failLogger->messages[0], 'tblmodulequeue') === false,
+            'Module queue failure log must not include SQL text.',
+        );
+
+        $tableErrorRows = new FakeWhmcsDataSource;
+        $tableErrorRows->failLocalApi = true;
+        $tableErrorRows->moduleQueueTableRows = [
+            [
+                'id' => 88,
+                'service_type' => 'service',
+                'service_id' => 501,
+                'module_action' => 'SuspendAccount',
+                'created_at' => gmdate('Y-m-d H:i:s', time() - 120),
+                'num_retries' => 2,
+                'last_attempt_error' => 'provisioning timeout',
+            ],
+        ];
+        $tableErrorPayload = (new DiagnosticCollector($tableErrorRows))->collect();
+        assertCollectorCondition(
+            ($tableErrorPayload['whmcs']['module_queue']['items'][0]['error'] ?? null) === 'provisioning timeout',
+            'last_attempt_error must map to item error.',
+        );
+
+        assertCollectorCondition(
+            [
+                'id',
+                'service_type',
+                'service_id',
+                'module_name',
+                'module_action',
+                'created_at',
+                'last_attempt',
+                'num_retries',
+                'last_attempt_error',
+            ] === CapsuleWhmcsDataSource::MODULE_QUEUE_COLUMNS,
+            'MODULE_QUEUE_COLUMNS constant is incorrect.',
+        );
+        assertCollectorCondition(
+            in_array('last_attempt_error', CapsuleWhmcsDataSource::MODULE_QUEUE_COLUMNS, true),
+            'MODULE_QUEUE_COLUMNS must include last_attempt_error.',
+        );
+        assertCollectorCondition(
+            ! in_array('last_error', CapsuleWhmcsDataSource::MODULE_QUEUE_COLUMNS, true),
+            'MODULE_QUEUE_COLUMNS must not include last_error.',
         );
 
         $allOmitted = new FakeWhmcsDataSource;
