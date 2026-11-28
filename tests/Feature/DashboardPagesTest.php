@@ -29,7 +29,8 @@ it('renders the WHMCS addon setup page with download capability props', function
             ->component('whmcs-addon/setup')
             ->where('addonVersion', WhmcsAddonVersion::packaged())
             ->has('downloadAvailable')
-            ->has('aiConfigured'));
+            ->has('aiConfigured')
+            ->has('signingFingerprint'));
 });
 
 it('documents the WHMCS system cron on the setup page and no longer discourages cron', function () {
@@ -38,7 +39,11 @@ it('documents the WHMCS system cron on the setup page and no longer discourages 
     expect($source)->not->toContain('Do not configure a')
         ->and($source)->toContain('cron')
         ->and($source)->toContain('crons/cron.php')
-        ->and($source)->toContain('Tested with WHMCS 8.13');
+        ->and($source)->toContain('Tested with WHMCS 8.13')
+        ->and($source)->toContain('Connect WHMCS (step by step)')
+        ->and($source)->toContain('InfoTip')
+        ->and($source)->toContain('helpText.connectionKey')
+        ->and($source)->toContain('helpText.scheduledTask');
 });
 
 it('renders the setup page addonVersion from the packaged source when config is drifted', function () {
@@ -78,5 +83,6 @@ it('exposes last scan clean health on the dashboard', function () {
             ->has('health.sparkline')
             ->has('needsYouNow')
             ->has('timeSaved')
-            ->has('installations'));
+            ->has('installations')
+            ->has('nextStep'));
 });

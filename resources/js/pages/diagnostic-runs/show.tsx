@@ -37,17 +37,17 @@ export default function DiagnosticRunShow({ run }: Props) {
 
     return (
         <>
-            <Head title="Diagnostic Snapshot" />
+            <Head title="Health check" />
             <div className="space-y-6">
                 <Link
                     href="/diagnostic-runs"
                     className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
                 >
                     <ArrowLeft className="size-4" aria-hidden />
-                    All diagnostic runs
+                    Check history
                 </Link>
                 <PageHeader
-                    title="Diagnostic snapshot"
+                    title="Health check"
                     description={run.snapshot_uuid}
                     actions={<StatusBadge status={run.status} />}
                 />

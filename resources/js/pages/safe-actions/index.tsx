@@ -1,10 +1,12 @@
 import { Form, Head, Link, usePage } from '@inertiajs/react';
 import { ShieldCheck } from 'lucide-react';
 import { EmptyState } from '@/components/empty-state';
+import { InfoTip } from '@/components/info-tip';
 import { PageHeader } from '@/components/page-header';
 import { Pagination } from '@/components/pagination';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
+import { helpText } from '@/lib/help-text';
 import { store } from '@/actions/App/Http/Controllers/SafeActionController';
 
 type ActionDef = {
@@ -53,14 +55,14 @@ export default function SafeActionsIndex({
 
     return (
         <>
-            <Head title="Safe Actions" />
+            <Head title="Approvals" />
             <div className="space-y-6">
                 <PageHeader
-                    title="Safe Actions"
+                    title="Approvals"
                     description="Allowlisted, human-approved, audited actions only. No free-form AI repairs and no WHMCS writes from the model."
                     actions={
                         <Button variant="outline" size="sm" asChild>
-                            <Link href="/fix-center">Open Fix Center</Link>
+                            <Link href="/fix-center">See what to fix</Link>
                         </Button>
                     }
                 />
@@ -73,9 +75,17 @@ export default function SafeActionsIndex({
 
                 {executable.length > 0 ? (
                     <section className="rounded-lg border border-border bg-card p-5 shadow-xs">
-                        <h2 className="text-sm font-semibold">
-                            Request an allowlisted action
+                        <h2 className="flex flex-wrap items-center gap-1.5 text-sm font-semibold">
+                            Fix it for me
+                            <InfoTip
+                                label="Fix it for me"
+                                text={helpText.fixItForMe}
+                            />
                         </h2>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                            Request an allowlisted action. Nothing runs until
+                            you approve it.
+                        </p>
                         <Form
                             {...store.form()}
                             className="mt-4 grid gap-4 sm:grid-cols-2"
@@ -161,8 +171,8 @@ export default function SafeActionsIndex({
                 {executions.data.length === 0 ? (
                     <EmptyState
                         icon={ShieldCheck}
-                        title="No safe action history yet"
-                        description="Approved actions appear here with audit timestamps and verification evidence."
+                        title="No approvals yet."
+                        description="They appear when you ask for a one-click fix."
                     />
                 ) : (
                     <div className="overflow-hidden rounded-lg border border-border bg-card shadow-xs">

@@ -7,25 +7,42 @@ import {
     Link2,
     ShieldCheck,
 } from 'lucide-react';
+import { InfoTip } from '@/components/info-tip';
 import { PageHeader } from '@/components/page-header';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
+import { helpText } from '@/lib/help-text';
 
 type Props = {
     addonVersion: string;
     downloadAvailable: boolean;
     downloadUnavailableReason: string;
     aiConfigured: boolean;
+    signingFingerprint?: string | null;
 };
 
-const steps = [
+type SetupStep = {
+    title: string;
+    body: string;
+    tip?: { label: string; text: string };
+};
+
+const steps: SetupStep[] = [
     {
         title: 'Create an integration',
         body: 'Open Integrations and create a connection for this WHMCS installation. Copy the one-time integration ID and secret shown after create (or rotate).',
+        tip: {
+            label: 'Connection key',
+            text: helpText.connectionKey,
+        },
     },
     {
         title: 'Download the addon package',
         body: 'Download the signed ZIP from this page. It contains only the addon module files, never credentials.',
+        tip: {
+            label: 'Download is genuine',
+            text: helpText.downloadFingerprint,
+        },
     },
     {
         title: 'Upload into WHMCS',
@@ -38,10 +55,18 @@ const steps = [
     {
         title: 'Point to your credentials file',
         body: 'Create a JSON credentials file outside the WHMCS web root (permissions 0600). In the addon settings, enter only the absolute path to that file. Never paste the secret into WHMCS.',
+        tip: {
+            label: 'Connection file',
+            text: helpText.connectionFile,
+        },
     },
     {
         title: 'Confirm the WHMCS system cron is running',
         body: 'Make sure the normal WHMCS system cron is running crons/cron.php via PHP CLI about every 5 minutes. This is how we know your WHMCS is online and how automatic checks run. The cron user must be able to read the 0600 credentials file.',
+        tip: {
+            label: 'Scheduled task (cron)',
+            text: helpText.scheduledTask,
+        },
     },
     {
         title: 'Run a manual diagnostic',
@@ -54,17 +79,18 @@ export default function WhmcsAddonSetup({
     downloadAvailable,
     downloadUnavailableReason,
     aiConfigured,
+    signingFingerprint = null,
 }: Props) {
     const { auth } = usePage().props;
     const canManage = auth.can_manage_integrations;
 
     return (
         <>
-            <Head title="WHMCS Addon & Setup" />
+            <Head title="Connect WHMCS (step by step)" />
             <div className="space-y-6">
                 <PageHeader
-                    title="Connect your WHMCS"
-                    description="Install the read-only diagnostic addon on your WHMCS control panel and link it to this workspace."
+                    title="Connect WHMCS (step by step)"
+                    description="3 steps: download, create your connection key, paste it on your server. Takes about 10 minutes."
                 />
 
                 <section className="rounded-lg border border-border bg-card p-5 shadow-xs">
@@ -147,11 +173,46 @@ export default function WhmcsAddonSetup({
                                     </Link>
                                 </Button>
                             </div>
+                            {signingFingerprint ? (
+                                <p className="mt-4 flex flex-wrap items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                                    Download is genuine
+                                    <InfoTip
+                                        label="Download is genuine"
+                                        text={helpText.downloadFingerprint}
+                                    />
+                                    <code className="ml-1 font-mono text-[11px] font-normal break-all">
+                                        {signingFingerprint}
+                                    </code>
+                                </p>
+                            ) : null}
                         </div>
                     </div>
                 </section>
 
                 <section className="rounded-lg border border-border bg-card p-5 shadow-xs">
+                    <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
+                        <span className="inline-flex items-center gap-1.5">
+                            Connection key
+                            <InfoTip
+                                label="Connection key"
+                                text={helpText.connectionKey}
+                            />
+                        </span>
+                        <span className="inline-flex items-center gap-1.5">
+                            Connection file
+                            <InfoTip
+                                label="Connection file"
+                                text={helpText.connectionFile}
+                            />
+                        </span>
+                        <span className="inline-flex items-center gap-1.5">
+                            Scheduled task (cron)
+                            <InfoTip
+                                label="Scheduled task (cron)"
+                                text={helpText.scheduledTask}
+                            />
+                        </span>
+                    </div>
                     <div className="mb-4 flex items-center gap-2">
                         <FolderOpen
                             className="size-4 text-slate-brand"
@@ -168,8 +229,14 @@ export default function WhmcsAddonSetup({
                                     {index + 1}
                                 </span>
                                 <div className="pt-0.5">
-                                    <p className="text-sm font-medium">
+                                    <p className="flex flex-wrap items-center gap-1.5 text-sm font-medium">
                                         {step.title}
+                                        {step.tip ? (
+                                            <InfoTip
+                                                label={step.tip.label}
+                                                text={step.tip.text}
+                                            />
+                                        ) : null}
                                     </p>
                                     <p className="mt-1 text-sm leading-6 text-muted-foreground">
                                         {step.body}
@@ -186,8 +253,12 @@ export default function WhmcsAddonSetup({
                             className="size-4 text-slate-brand"
                             aria-hidden
                         />
-                        <h2 className="text-sm font-semibold">
-                            Credentials file requirements
+                        <h2 className="flex items-center gap-1.5 text-sm font-semibold">
+                            Connection file
+                            <InfoTip
+                                label="Connection file"
+                                text={helpText.connectionFile}
+                            />
                         </h2>
                     </div>
                     <ul className="list-disc space-y-2 pl-5 text-sm leading-6 text-muted-foreground">

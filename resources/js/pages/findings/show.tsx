@@ -8,12 +8,14 @@ import {
     ShieldAlert,
 } from 'lucide-react';
 import { useState } from 'react';
+import { InfoTip } from '@/components/info-tip';
 import { PageHeader } from '@/components/page-header';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
 import { useClipboard } from '@/hooks/use-clipboard';
 import { useWorkspaceTimezone } from '@/hooks/use-workspace-timezone';
 import { formatDateTime } from '@/lib/dates';
+import { helpText } from '@/lib/help-text';
 import { update as updateFinding } from '@/actions/App/Http/Controllers/FindingController';
 import { store as storeSafeAction } from '@/actions/App/Http/Controllers/SafeActionController';
 import { recheck } from '@/routes/findings';
@@ -189,7 +191,7 @@ export default function FindingShow({
                     actions={
                         <div className="flex flex-wrap items-center gap-2">
                             <Button variant="outline" size="sm" asChild>
-                                <Link href="/fix-center">Open Fix Center</Link>
+                                <Link href="/fix-center">See what to fix</Link>
                             </Button>
                             <StatusBadge status={finding.severity} />
                             <StatusBadge status={finding.status} />
@@ -422,8 +424,12 @@ export default function FindingShow({
                             {({ processing }) => (
                                 <>
                                     <label className="space-y-1.5 text-sm">
-                                        <span className="font-medium">
+                                        <span className="inline-flex items-center gap-1.5 font-medium">
                                             Status
+                                            <InfoTip
+                                                label="Accepted"
+                                                text={helpText.accepted}
+                                            />
                                         </span>
                                         <select
                                             name="status"

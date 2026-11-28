@@ -134,7 +134,7 @@ function FirstScanWaiter({
                 is processed, we will show the rule findings we detected.
             </p>
             <Button asChild size="sm" variant="outline">
-                <Link href={fixCenterUrl}>Preview Fix Center</Link>
+                <Link href={fixCenterUrl}>Preview fix issues</Link>
             </Button>
         </div>
     );
@@ -204,11 +204,11 @@ function HeartbeatChecker({
             >
                 <div className="flex items-center gap-2 font-medium">
                     <CheckCircle2 className="size-4" aria-hidden />
-                    First heartbeat received
+                    First contact received
                 </div>
                 <p className="mt-1 text-muted-foreground dark:text-emerald-100/80">
-                    Your WHMCS install is talking to ResellerBytes. Continue to
-                    the first scan.
+                    Your WHMCS is talking to ResellerBytes. Continue to the
+                    first scan.
                 </p>
             </div>
         );
@@ -221,11 +221,11 @@ function HeartbeatChecker({
                     className="size-4 animate-spin text-brand"
                     aria-hidden
                 />
-                Waiting for first heartbeat
+                Waiting to hear from your WHMCS
             </div>
             <p className="text-sm text-muted-foreground">
-                Checks every 5 seconds. Keep the WHMCS cron running and confirm
-                the addon can reach this app over HTTPS.
+                This page updates by itself. Keep the WHMCS scheduled task
+                running and confirm the addon can reach this app over HTTPS.
             </p>
             {status.show_troubleshooting ? (
                 <div
@@ -242,8 +242,8 @@ function HeartbeatChecker({
                             blocked by a firewall.
                         </li>
                         <li>
-                            Re-check the credentials file path and that the
-                            addon is activated.
+                            Re-check the connection file path and that the addon
+                            is activated.
                         </li>
                     </ul>
                 </div>
@@ -410,9 +410,8 @@ export default function OnboardingIndex({
                 {currentStep === 'whmcs' && (
                     <div className="flex flex-col gap-5">
                         <p className="text-sm text-muted-foreground">
-                            Download the signed addon, create a connection, set
-                            up the WHMCS system cron, then wait for the first
-                            heartbeat.
+                            3 steps: download, create your connection key, paste
+                            it on your server. Takes about 10 minutes.
                         </p>
 
                         {!twoFactorEnabled ? (
@@ -459,12 +458,13 @@ export default function OnboardingIndex({
                             </li>
                             <li className="rounded-md border border-border p-4">
                                 <p className="font-medium">
-                                    2. Create the installation and copy
-                                    credentials
+                                    2. Connect this WHMCS and copy the
+                                    connection file
                                 </p>
                                 <p className="mt-1 text-muted-foreground">
-                                    Credentials are shown once. Save them into a
-                                    JSON file outside the WHMCS web root.
+                                    The connection key is shown once. Save it
+                                    into a connection file outside the WHMCS web
+                                    root.
                                 </p>
                                 <Button
                                     asChild
@@ -477,16 +477,17 @@ export default function OnboardingIndex({
                                             className="size-4"
                                             aria-hidden
                                         />
-                                        Open Installations
+                                        My WHMCS
                                     </Link>
                                 </Button>
                                 {credentials ? (
                                     <div className="mt-3 rounded-md border border-warning/30 bg-warning-soft/30 p-3 text-xs">
                                         <p className="font-medium">
-                                            Credentials ready (shown once)
+                                            Connection ready (shown once)
                                         </p>
                                         <p className="mt-1 break-all">
-                                            ID: {credentials.integration_id}
+                                            Connection ID:{' '}
+                                            {credentials.integration_id}
                                         </p>
                                     </div>
                                 ) : null}
@@ -494,12 +495,12 @@ export default function OnboardingIndex({
                             <li className="rounded-md border border-border p-4">
                                 <p className="font-medium">
                                     3. Activate in WHMCS and point to the
-                                    credentials file
+                                    connection file
                                 </p>
                                 <p className="mt-1 text-muted-foreground">
                                     Activate ResellerBytes AI Operations under
                                     Addon Modules, then enter only the absolute
-                                    path to your credentials file.
+                                    path to your connection file.
                                 </p>
                             </li>
                             <li className="rounded-md border border-border p-4">
@@ -570,7 +571,7 @@ export default function OnboardingIndex({
                                                     disabled={processing}
                                                 >
                                                     {processing && <Spinner />}
-                                                    Open Fix Center
+                                                    See what to fix
                                                 </Button>
                                             </>
                                         )}

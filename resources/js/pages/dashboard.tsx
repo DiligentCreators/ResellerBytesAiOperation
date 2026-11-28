@@ -9,7 +9,6 @@ import {
     Clock3,
     Download,
     HeartPulse,
-    Info,
     LayoutGrid,
     Server,
     ShieldAlert,
@@ -17,19 +16,16 @@ import {
 } from 'lucide-react';
 import { EmptyState } from '@/components/empty-state';
 import { HealthSparkline } from '@/components/health-sparkline';
+import { InfoTip } from '@/components/info-tip';
 import { PageHeader } from '@/components/page-header';
 import { SeverityBadge } from '@/components/severity-badge';
 import { StatCard } from '@/components/stat-card';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-    Tooltip,
-    TooltipContent,
-    TooltipTrigger,
-} from '@/components/ui/tooltip';
 import { useWorkspaceTimezone } from '@/hooks/use-workspace-timezone';
 import { formatDateTime } from '@/lib/dates';
+import { helpText } from '@/lib/help-text';
 import {
     dismissGettingStarted,
     show as onboarding,
@@ -140,6 +136,13 @@ type Props = {
     };
     onboarding?: OnboardingChecklist | null;
     gettingStarted?: GettingStartedChecklist | null;
+    nextStep?: {
+        key: string;
+        title: string;
+        description: string;
+        cta_label: string;
+        cta_href: string;
+    } | null;
 };
 
 function heartbeatBadge(state: HeartbeatState): {
@@ -148,13 +151,13 @@ function heartbeatBadge(state: HeartbeatState): {
 } {
     switch (state) {
         case 'ok':
-            return { label: 'Healthy', tone: 'success' };
+            return { label: 'Online', tone: 'success' };
         case 'stale':
-            return { label: 'Stale', tone: 'warning' };
+            return { label: 'Quiet for 30 min', tone: 'warning' };
         case 'down':
-            return { label: 'Down', tone: 'danger' };
+            return { label: 'Offline', tone: 'danger' };
         default:
-            return { label: 'Waiting', tone: 'neutral' };
+            return { label: 'Waiting for first contact', tone: 'neutral' };
     }
 }
 
@@ -169,6 +172,7 @@ export default function Dashboard({
     addon,
     onboarding: onboardingState,
     gettingStarted = null,
+    nextStep = null,
 }: Props) {
     const { auth } = usePage().props;
     const timezone = useWorkspaceTimezone();
@@ -187,36 +191,85 @@ export default function Dashboard({
 
     return (
         <>
-            <Head title="Overview" />
+            <Head title="Home" />
             <div className="flex flex-col gap-6">
                 <PageHeader
-                    title="Overview"
-                    description={`Good to see you, ${firstName}. Read-only health visibility for your WHMCS installation.`}
+                    title="Home"
+                    description={`Good to see you, ${firstName}. Read-only health visibility for your WHMCS.`}
                     actions={
                         <div className="flex flex-wrap gap-2">
                             <Button variant="outline" asChild>
-                                <Link href="/reports/trends">Trends</Link>
+                                <Link href="/reports/trends">
+                                    Progress over time
+                                </Link>
                             </Button>
                             <Button asChild>
                                 <Link href="/whmcs-addon/setup">
                                     <Download className="size-4" aria-hidden />
-                                    WHMCS Addon & Setup
+                                    Connect WHMCS
                                 </Link>
                             </Button>
                         </div>
                     }
                 />
 
+                {nextStep ? (
+                    <section
+                        className="rounded-lg border border-brand/30 bg-brand-50/70 p-5 shadow-xs dark:bg-brand/10"
+                        data-testid="next-step-card"
+                        data-next-step={nextStep.key}
+                        aria-labelledby="next-step-title"
+                    >
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="min-w-0">
+                                <p className="text-xs font-semibold tracking-wide text-brand uppercase">
+                                    Next step
+                                </p>
+                                <h2
+                                    id="next-step-title"
+                                    className="mt-1 text-lg font-semibold tracking-tight"
+                                >
+                                    {nextStep.title}
+                                </h2>
+                                <p className="mt-1 text-sm text-muted-foreground">
+                                    {nextStep.description}
+                                </p>
+                            </div>
+                            <Button asChild className="shrink-0">
+                                <Link
+                                    href={nextStep.cta_href}
+                                    data-testid="next-step-cta"
+                                >
+                                    {nextStep.cta_label}
+                                </Link>
+                            </Button>
+                        </div>
+                    </section>
+                ) : null}
+
                 {onboardingState?.needed && (
                     <section className="rounded-lg border border-dashed border-input bg-brand-50/60 p-5">
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                             <div>
                                 <h2 className="text-sm font-semibold">
-                                    Finish workspace setup
+                                    Finish setup (
+                                    {
+                                        (
+                                            [
+                                                'workspace',
+                                                'plan',
+                                                'whmcs',
+                                                'first_scan',
+                                            ] as const
+                                        ).filter(
+                                            (key) =>
+                                                !onboardingState.steps[key],
+                                        ).length
+                                    }{' '}
+                                    steps left)
                                 </h2>
                                 <p className="mt-1 text-sm text-muted-foreground">
-                                    Complete onboarding to connect billing and
-                                    WHMCS.
+                                    Complete setup to connect billing and WHMCS.
                                 </p>
                                 <ul className="mt-3 space-y-1.5 text-sm">
                                     {(
@@ -224,7 +277,7 @@ export default function Dashboard({
                                             ['workspace', 'Workspace details'],
                                             ['plan', 'Choose a plan'],
                                             ['whmcs', 'Connect WHMCS'],
-                                            ['first_scan', 'First scan'],
+                                            ['first_scan', 'First check'],
                                         ] as const
                                     ).map(([key, label]) => (
                                         <li
@@ -248,37 +301,38 @@ export default function Dashboard({
                                 </ul>
                             </div>
                             <Button asChild size="sm">
-                                <Link href={onboarding()}>
-                                    Continue onboarding
-                                </Link>
+                                <Link href={onboarding()}>Continue setup</Link>
                             </Button>
                         </div>
                     </section>
                 )}
 
                 {gettingStarted?.visible ? (
-                    <section className="rounded-lg border border-border bg-card p-5 shadow-xs">
+                    <section
+                        className="rounded-lg border border-border bg-card p-5 shadow-xs"
+                        data-testid="getting-started"
+                    >
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                            <div>
+                            <div className="min-w-0 flex-1">
                                 <h2 className="text-sm font-semibold">
-                                    Getting started
+                                    Your first steps
                                 </h2>
                                 <p className="mt-1 text-sm text-muted-foreground">
-                                    A few quick wins after onboarding.
+                                    Do these three and you are set.
                                 </p>
                                 <ul className="mt-3 space-y-2 text-sm">
                                     {(
                                         [
                                             [
                                                 'alert_channel',
-                                                'Add an alert channel',
+                                                'Get alerts by email or Slack',
                                                 tenantId
                                                     ? `/tenants/${tenantId}/alerts`
                                                     : '/dashboard',
                                             ],
                                             [
                                                 'first_fix',
-                                                'Run your first fix',
+                                                'Fix your first issue',
                                                 '/fix-center',
                                             ],
                                             [
@@ -289,35 +343,46 @@ export default function Dashboard({
                                                     : '/dashboard',
                                             ],
                                         ] as const
-                                    ).map(([key, label, href]) => (
-                                        <li
-                                            key={key}
-                                            className="flex items-center justify-between gap-3"
-                                        >
-                                            <span className="flex items-center gap-2">
-                                                {gettingStarted.items[key] ? (
-                                                    <CheckCircle2
-                                                        className="size-4 text-success-fg"
-                                                        aria-hidden
-                                                    />
+                                    ).map(([key, label, href]) => {
+                                        const done = gettingStarted.items[key];
+
+                                        return (
+                                            <li key={key}>
+                                                {done ? (
+                                                    <div
+                                                        className="flex items-center gap-2 rounded-md px-2 py-2 text-muted-foreground"
+                                                        data-getting-started-row={
+                                                            key
+                                                        }
+                                                        data-complete="true"
+                                                    >
+                                                        <CheckCircle2
+                                                            className="size-4 text-success-fg"
+                                                            aria-hidden
+                                                        />
+                                                        <span className="line-through">
+                                                            {label}
+                                                        </span>
+                                                    </div>
                                                 ) : (
-                                                    <Circle
-                                                        className="size-4 text-slate-brand"
-                                                        aria-hidden
-                                                    />
+                                                    <Link
+                                                        href={href}
+                                                        className="flex items-center gap-2 rounded-md px-2 py-2 font-medium text-foreground hover:bg-muted focus-visible:ring-2 focus-visible:ring-brand/40 focus-visible:outline-none"
+                                                        data-getting-started-row={
+                                                            key
+                                                        }
+                                                        data-complete="false"
+                                                    >
+                                                        <Circle
+                                                            className="size-4 text-slate-brand"
+                                                            aria-hidden
+                                                        />
+                                                        <span>{label}</span>
+                                                    </Link>
                                                 )}
-                                                {label}
-                                            </span>
-                                            {!gettingStarted.items[key] ? (
-                                                <Link
-                                                    href={href}
-                                                    className="text-sm font-medium text-primary hover:underline"
-                                                >
-                                                    Open
-                                                </Link>
-                                            ) : null}
-                                        </li>
-                                    ))}
+                                            </li>
+                                        );
+                                    })}
                                 </ul>
                             </div>
                             <Button
@@ -371,28 +436,11 @@ export default function Dashboard({
                                         <CardTitle className="text-sm font-medium text-muted-foreground">
                                             Health score
                                         </CardTitle>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <button
-                                                    type="button"
-                                                    className="inline-flex size-5 items-center justify-center rounded-sm text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-                                                    aria-label="About the health score"
-                                                    data-testid="health-score-info"
-                                                >
-                                                    <Info
-                                                        className="size-3.5"
-                                                        aria-hidden
-                                                    />
-                                                </button>
-                                            </TooltipTrigger>
-                                            <TooltipContent className="max-w-xs">
-                                                100 means nothing needs
-                                                attention. Each open problem
-                                                lowers the score, critical
-                                                problems the most. Fix problems
-                                                to bring it back up.
-                                            </TooltipContent>
-                                        </Tooltip>
+                                        <InfoTip
+                                            label="Health score"
+                                            text={helpText.healthScore}
+                                            data-testid="health-score-info"
+                                        />
                                     </div>
                                     {score != null ? (
                                         <p className="mt-2 text-3xl font-semibold tracking-tight">
@@ -428,7 +476,7 @@ export default function Dashboard({
                                                         href="/fix-center"
                                                         className="text-brand underline-offset-2 hover:underline"
                                                     >
-                                                        Fix Center
+                                                        Fix issues
                                                     </Link>
                                                     .
                                                 </>
@@ -493,9 +541,15 @@ export default function Dashboard({
                     <Card className="md:col-span-1 xl:col-span-1">
                         <CardHeader className="pb-2">
                             <div className="flex items-start justify-between gap-2">
-                                <CardTitle className="text-sm font-medium text-muted-foreground">
-                                    Needs you now
-                                </CardTitle>
+                                <div className="flex items-center gap-1.5">
+                                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                                        Needs your attention
+                                    </CardTitle>
+                                    <InfoTip
+                                        label="Needs your attention"
+                                        text={helpText.needsYourAttention}
+                                    />
+                                </div>
                                 <Wrench
                                     className="size-4 text-slate-brand"
                                     aria-hidden
@@ -535,10 +589,10 @@ export default function Dashboard({
                                                     <Link href="/fix-center">
                                                         {item.primary_action ===
                                                         'start_guide'
-                                                            ? 'Start guide'
+                                                            ? 'Show me how'
                                                             : item.primary_action ===
                                                                 'fix_now'
-                                                              ? 'Fix now'
+                                                              ? 'Fix it for me'
                                                               : 'Review'}
                                                     </Link>
                                                 </Button>
@@ -553,9 +607,15 @@ export default function Dashboard({
                     <Card>
                         <CardHeader className="pb-2">
                             <div className="flex items-start justify-between gap-2">
-                                <CardTitle className="text-sm font-medium text-muted-foreground">
-                                    Time saved this month
-                                </CardTitle>
+                                <div className="flex items-center gap-1.5">
+                                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                                        Time you saved this month
+                                    </CardTitle>
+                                    <InfoTip
+                                        label="Time you saved this month"
+                                        text={helpText.timeSaved}
+                                    />
+                                </div>
                                 <Clock3
                                     className="size-4 text-slate-brand"
                                     aria-hidden
@@ -571,22 +631,20 @@ export default function Dashboard({
                             <p className="mt-1 text-sm text-muted-foreground">
                                 {timeSaved
                                     ? `≈ $${timeSaved.value_display} at $${timeSaved.hourly_rate_usd}/hr`
-                                    : 'Verified fixes will appear here'}
+                                    : 'Shows after your first fix is confirmed'}
                             </p>
                             {recovered ? (
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <p className="mt-3 rounded-md bg-success-soft px-2.5 py-1.5 text-xs text-success-fg">
-                                            Paid in WHMCS (last 7 days): $
-                                            {recovered.display}
-                                        </p>
-                                    </TooltipTrigger>
-                                    <TooltipContent className="max-w-xs">
-                                        Total of invoices marked paid in your
-                                        WHMCS in the last 7 days, from your
-                                        latest check.
-                                    </TooltipContent>
-                                </Tooltip>
+                                <p className="mt-3 rounded-md bg-success-soft px-2.5 py-1.5 text-xs text-success-fg">
+                                    <span className="inline-flex items-center gap-1.5">
+                                        Paid in WHMCS (last 7 days): $
+                                        {recovered.display}
+                                        <InfoTip
+                                            label="Paid in WHMCS (last 7 days)"
+                                            text={helpText.paidInWhmcs}
+                                            className="text-success-fg hover:text-success-fg"
+                                        />
+                                    </span>
+                                </p>
                             ) : null}
                         </CardContent>
                     </Card>
@@ -594,9 +652,15 @@ export default function Dashboard({
                     <Card>
                         <CardHeader className="pb-2">
                             <div className="flex items-start justify-between gap-2">
-                                <CardTitle className="text-sm font-medium text-muted-foreground">
-                                    Installations
-                                </CardTitle>
+                                <div className="flex items-center gap-1.5">
+                                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                                        My WHMCS
+                                    </CardTitle>
+                                    <InfoTip
+                                        label="Heartbeat"
+                                        text={helpText.connectionBadge}
+                                    />
+                                </div>
                                 <Server
                                     className="size-4 text-slate-brand"
                                     aria-hidden
@@ -736,9 +800,9 @@ export default function Dashboard({
                     <Card className="xl:col-span-2">
                         <CardHeader>
                             <div>
-                                <CardTitle>Recent diagnostic runs</CardTitle>
+                                <CardTitle>Recent health checks</CardTitle>
                                 <p className="mt-1 text-xs text-muted-foreground">
-                                    Latest snapshots received from WHMCS.
+                                    Each row is one check of your WHMCS.
                                 </p>
                             </div>
                             <Button variant="ghost" size="sm" asChild>
@@ -761,7 +825,7 @@ export default function Dashboard({
                                     action={
                                         <Button size="sm" asChild>
                                             <Link href="/whmcs-addon/setup">
-                                                View setup instructions
+                                                Connect WHMCS
                                             </Link>
                                         </Button>
                                     }
@@ -770,7 +834,7 @@ export default function Dashboard({
                                 <div className="overflow-x-auto">
                                     <table className="w-full text-left text-sm">
                                         <caption className="sr-only">
-                                            Recent diagnostic runs
+                                            Recent health checks
                                         </caption>
                                         <thead className="border-b border-border bg-surface text-xs font-medium text-muted-foreground">
                                             <tr>
@@ -778,31 +842,31 @@ export default function Dashboard({
                                                     scope="col"
                                                     className="h-9 px-4"
                                                 >
-                                                    Installation
+                                                    Site
                                                 </th>
                                                 <th
                                                     scope="col"
                                                     className="h-9 px-4"
                                                 >
-                                                    WHMCS
+                                                    WHMCS version
                                                 </th>
                                                 <th
                                                     scope="col"
                                                     className="h-9 px-4"
                                                 >
-                                                    Received
+                                                    Checked
                                                 </th>
                                                 <th
                                                     scope="col"
                                                     className="h-9 px-4"
                                                 >
-                                                    Findings
+                                                    Issues
                                                 </th>
                                                 <th
                                                     scope="col"
                                                     className="h-9 px-4"
                                                 >
-                                                    Status
+                                                    Result
                                                 </th>
                                             </tr>
                                         </thead>
@@ -870,7 +934,7 @@ export default function Dashboard({
                                         asChild
                                     >
                                         <Link href="/fix-center">
-                                            Open Fix Center
+                                            See what to fix
                                         </Link>
                                     </Button>
                                 ) : health?.last_scan_clean ? (
@@ -920,7 +984,7 @@ export default function Dashboard({
                                         <Link
                                             href={`/tenants/${tenantId}/billing`}
                                         >
-                                            Open billing
+                                            Plan and billing
                                         </Link>
                                     </Button>
                                 </div>
@@ -945,7 +1009,7 @@ export default function Dashboard({
                             AI analysis:{' '}
                             {addon.ai_configured
                                 ? 'Configured'
-                                : 'API key not configured — snapshots can still be received, but analysis will remain pending.'}
+                                : 'API key not configured. Snapshots can still be received, but analysis will remain pending.'}
                         </p>
                         <div className="mt-4 flex flex-wrap gap-2">
                             {addon.download_available ? (

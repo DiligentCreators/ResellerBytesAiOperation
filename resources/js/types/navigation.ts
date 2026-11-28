@@ -9,6 +9,7 @@ export type BreadcrumbItem = {
 export type NavChildItem = {
     title: string;
     href: string;
+    children?: NavChildItem[];
 };
 
 export type NavItem = {
@@ -22,6 +23,7 @@ export type NavItem = {
 export type SharedNavChild = {
     title: string;
     href: string;
+    children?: SharedNavChild[];
 };
 
 export type SharedNavItem = {

@@ -7,6 +7,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Models\WhmcsHealthSnapshot;
 use App\Models\WhmcsIntegration;
+use App\Services\Dashboard\TopOpenFindingSelector;
 use App\Services\Diagnostics\WhmcsIssueCatalog;
 use App\Services\Tenancy\TenantRecordQuery;
 
@@ -15,6 +16,7 @@ class HealthDashboardPresenter
     public function __construct(
         private readonly TenantRecordQuery $tenantRecords,
         private readonly TimeSavedCalculator $timeSaved,
+        private readonly TopOpenFindingSelector $topOpenFindingSelector,
     ) {}
 
     /**
@@ -324,48 +326,21 @@ class HealthDashboardPresenter
             return null;
         }
 
-        $findings = $this->tenantRecords->findings($user)
-            ->currentIssues()
-            ->active()
-            ->notIgnored()
-            ->get();
+        $top = $this->topOpenFindingSelector->select(
+            $this->tenantRecords->findings($user)
+                ->currentIssues()
+                ->active()
+                ->notIgnored()
+                ->get(),
+        );
 
-        if ($findings->isEmpty()) {
-            return null;
-        }
-
-        $ranked = $findings->map(function ($finding): array {
-            $issueKey = $finding->issue_key;
-            $priority = is_string($issueKey) && $issueKey !== ''
-                ? WhmcsIssueCatalog::getInt($issueKey, 'priority', 999)
-                : 999;
-            $severityRank = match (strtolower((string) $finding->severity)) {
-                'critical' => 1,
-                'warning' => 2,
-                default => 3,
-            };
-
-            return [
-                'id' => (string) $finding->id,
-                'title' => is_string($issueKey) && $issueKey !== ''
-                    ? (WhmcsIssueCatalog::getString($issueKey, 'title') ?? $finding->title)
-                    : $finding->title,
-                'severity_rank' => $severityRank,
-                'priority' => $priority,
-            ];
-        })->sortBy([
-            ['severity_rank', 'asc'],
-            ['priority', 'asc'],
-        ])->values();
-
-        $top = $ranked->first();
-        if (! is_array($top)) {
+        if ($top === null) {
             return null;
         }
 
         return [
-            'id' => (string) $top['id'],
-            'title' => (string) $top['title'],
+            'id' => $top['id'],
+            'title' => $top['title'],
         ];
     }
 

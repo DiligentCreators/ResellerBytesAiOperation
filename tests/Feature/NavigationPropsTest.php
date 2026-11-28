@@ -33,14 +33,19 @@ it('shares the five customer navigation items for workspace owners', function ()
             ->has('navigation.customer', 5)
             ->where('navigation.customer.0.title', 'Home')
             ->where('navigation.customer.0.href', '/dashboard')
-            ->where('navigation.customer.1.title', 'Fix Center')
-            ->where('navigation.customer.2.title', 'Reports')
-            ->where('navigation.customer.3.title', 'Installations')
-            ->where('navigation.customer.3.href', '/integrations')
-            ->where('navigation.customer.3.children.3.title', 'History')
-            ->where('navigation.customer.3.children.3.href', '/diagnostic-runs')
+            ->where('navigation.customer.1.title', 'Fix issues')
+            ->where('navigation.customer.2.title', 'My WHMCS')
+            ->where('navigation.customer.2.href', '/integrations')
+            ->where('navigation.customer.2.children.2.title', 'Check history')
+            ->where('navigation.customer.2.children.2.href', '/diagnostic-runs')
+            ->where('navigation.customer.3.title', 'Reports')
             ->where('navigation.customer.4.title', 'Settings')
-            ->where('navigation.customer.4.children.3.title', 'Auto-fix')
+            ->where('navigation.customer.4.children.3.title', 'Inbox')
+            ->where('navigation.customer.4.children.5.title', 'Advanced')
+            ->where('navigation.customer.4.children.5.children.0.title', 'Auto-fix')
+            ->where('navigation.customer.4.children.5.children.0.href', "/tenants/{$tenant->id}/auto-fix")
+            ->where('navigation.customer.4.children.5.children.1.title', 'Backup connection')
+            ->where('navigation.customer.4.children.5.children.1.href', '/integrations#host-connection')
             ->where('navigation.platform', []));
 });
 
@@ -68,10 +73,10 @@ it('shares platform navigation for central staff without customer workspace', fu
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->where('navigation.customer', [])
-            ->where('navigation.platform.0.title', 'Overview / MRR')
-            ->where('navigation.platform.1.title', 'Plan catalog')
-            ->where('navigation.platform.2.title', 'Gateway')
-            ->where('navigation.platform.3.title', 'Platform settings')
-            ->where('navigation.platform.4.title', 'Mail')
-            ->where('navigation.platform.5.title', 'AI and signing'));
+            ->where('navigation.platform.0.title', 'Admin > Money')
+            ->where('navigation.platform.0.children.0.title', 'Overview / MRR')
+            ->where('navigation.platform.1.title', 'Admin > System')
+            ->where('navigation.platform.1.children.0.title', 'Platform settings')
+            ->where('navigation.platform.1.children.1.title', 'Mail')
+            ->where('navigation.platform.1.children.2.title', 'AI and signing'));
 });

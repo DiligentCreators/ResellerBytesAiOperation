@@ -11,7 +11,11 @@ import {
 } from '@/components/ui/sidebar';
 import { useCurrentUrl } from '@/hooks/use-current-url';
 import { cn } from '@/lib/utils';
-import type { NavItem } from '@/types';
+import type { NavChildItem, NavItem } from '@/types';
+
+function childPath(href: string): string {
+    return href.split('#')[0] ?? href;
+}
 
 export function NavMain({
     items,
@@ -20,11 +24,33 @@ export function NavMain({
     items: NavItem[];
     label?: string;
 }) {
-    const { isCurrentUrl } = useCurrentUrl();
+    const { isCurrentUrl, isCurrentOrParentUrl } = useCurrentUrl();
 
     if (items.length === 0) {
         return null;
     }
+
+    const pathIsActive = (path: string): boolean => {
+        if (isCurrentUrl(path)) {
+            return true;
+        }
+
+        // Highlight parents for detail routes (e.g. /findings/123)
+        // without treating /reports as a prefix of /reports/trends.
+        return path !== '/' && isCurrentOrParentUrl(`${path}/`);
+    };
+
+    const childOrDescendantActive = (child: NavChildItem): boolean => {
+        if (pathIsActive(childPath(child.href))) {
+            return true;
+        }
+
+        return (
+            child.children?.some((nested) =>
+                pathIsActive(childPath(nested.href)),
+            ) ?? false
+        );
+    };
 
     return (
         <SidebarGroup className="px-3 pt-4">
@@ -39,12 +65,11 @@ export function NavMain({
                         typeof item.href === 'string'
                             ? item.href
                             : item.href.url;
+
                     const active =
-                        isCurrentUrl(href) ||
+                        pathIsActive(href) ||
                         (item.children?.some((child) =>
-                            isCurrentUrl(
-                                child.href.split('#')[0] ?? child.href,
-                            ),
+                            childOrDescendantActive(child),
                         ) ??
                             false);
 
@@ -76,11 +101,64 @@ export function NavMain({
                             {item.children && item.children.length > 0 ? (
                                 <SidebarMenuSub>
                                     {item.children.map((child) => {
-                                        const childPath =
-                                            child.href.split('#')[0] ??
-                                            child.href;
-                                        const childActive =
-                                            isCurrentUrl(childPath);
+                                        if (
+                                            child.children &&
+                                            child.children.length > 0
+                                        ) {
+                                            return (
+                                                <SidebarMenuSubItem
+                                                    key={child.title}
+                                                >
+                                                    <p className="px-2 pt-2 pb-1 text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">
+                                                        {child.title}
+                                                    </p>
+                                                    <SidebarMenuSub className="mx-0 border-l-0 px-0">
+                                                        {child.children.map(
+                                                            (nested) => {
+                                                                const nestedActive =
+                                                                    pathIsActive(
+                                                                        childPath(
+                                                                            nested.href,
+                                                                        ),
+                                                                    );
+
+                                                                return (
+                                                                    <SidebarMenuSubItem
+                                                                        key={
+                                                                            nested.title
+                                                                        }
+                                                                    >
+                                                                        <SidebarMenuSubButton
+                                                                            asChild
+                                                                            isActive={
+                                                                                nestedActive
+                                                                            }
+                                                                            size="sm"
+                                                                        >
+                                                                            <Link
+                                                                                href={
+                                                                                    nested.href
+                                                                                }
+                                                                            >
+                                                                                <span>
+                                                                                    {
+                                                                                        nested.title
+                                                                                    }
+                                                                                </span>
+                                                                            </Link>
+                                                                        </SidebarMenuSubButton>
+                                                                    </SidebarMenuSubItem>
+                                                                );
+                                                            },
+                                                        )}
+                                                    </SidebarMenuSub>
+                                                </SidebarMenuSubItem>
+                                            );
+                                        }
+
+                                        const childActive = pathIsActive(
+                                            childPath(child.href),
+                                        );
 
                                         return (
                                             <SidebarMenuSubItem

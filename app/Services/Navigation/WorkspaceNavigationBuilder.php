@@ -14,8 +14,8 @@ class WorkspaceNavigationBuilder
      * Build shared navigation props for customer and platform sidebars.
      *
      * @return array{
-     *     customer: list<array{title: string, href: string, children?: list<array{title: string, href: string}>}>,
-     *     platform: list<array{title: string, href: string}>
+     *     customer: list<array{title: string, href: string, children?: list<array{title: string, href: string, children?: list<array{title: string, href: string}>}>}>,
+     *     platform: list<array{title: string, href: string, children?: list<array{title: string, href: string}>}>
      * }
      */
     public function forRequest(Request $request): array
@@ -38,7 +38,7 @@ class WorkspaceNavigationBuilder
     }
 
     /**
-     * @return list<array{title: string, href: string, children?: list<array{title: string, href: string}>}>
+     * @return list<array{title: string, href: string, children?: list<array{title: string, href: string, children?: list<array{title: string, href: string}>}>}>
      */
     private function customerItems(?string $tenantId): array
     {
@@ -48,21 +48,28 @@ class WorkspaceNavigationBuilder
                 'href' => '/dashboard',
             ],
             [
-                'title' => 'Fix Center',
+                'title' => 'Fix issues',
                 'href' => '/fix-center',
+                'children' => [
+                    ['title' => 'Full issue list', 'href' => '/findings'],
+                    ['title' => 'Approvals', 'href' => '/safe-actions'],
+                ],
+            ],
+            [
+                'title' => 'My WHMCS',
+                'href' => '/integrations',
+                'children' => [
+                    ['title' => 'Connect WHMCS (step by step)', 'href' => '/whmcs-addon/setup'],
+                    ['title' => 'Download the addon', 'href' => '/whmcs-addon/download'],
+                    ['title' => 'Check history', 'href' => '/diagnostic-runs'],
+                ],
             ],
             [
                 'title' => 'Reports',
                 'href' => '/reports',
-            ],
-            [
-                'title' => 'Installations',
-                'href' => '/integrations',
                 'children' => [
-                    ['title' => 'Addon setup', 'href' => '/whmcs-addon/setup'],
-                    ['title' => 'Download', 'href' => '/whmcs-addon/download'],
-                    ['title' => 'Host connection', 'href' => '/integrations#host-connection'],
-                    ['title' => 'History', 'href' => '/diagnostic-runs'],
+                    ['title' => 'Progress over time', 'href' => '/reports/trends'],
+                    ['title' => 'Fix log', 'href' => '/reports#fix-log'],
                 ],
             ],
         ];
@@ -72,12 +79,19 @@ class WorkspaceNavigationBuilder
                 'title' => 'Settings',
                 'href' => "/tenants/{$tenantId}/settings",
                 'children' => [
-                    ['title' => 'Workspace', 'href' => "/tenants/{$tenantId}/settings"],
-                    ['title' => 'Members', 'href' => "/tenants/{$tenantId}/memberships"],
+                    ['title' => 'Account', 'href' => "/tenants/{$tenantId}/settings"],
+                    ['title' => 'Team', 'href' => "/tenants/{$tenantId}/memberships"],
                     ['title' => 'Alerts', 'href' => "/tenants/{$tenantId}/alerts"],
-                    ['title' => 'Auto-fix', 'href' => "/tenants/{$tenantId}/auto-fix"],
-                    ['title' => 'Billing and invoices', 'href' => "/tenants/{$tenantId}/billing"],
-                    ['title' => 'Notifications', 'href' => "/tenants/{$tenantId}/notifications"],
+                    ['title' => 'Inbox', 'href' => "/tenants/{$tenantId}/notifications"],
+                    ['title' => 'Plan and billing', 'href' => "/tenants/{$tenantId}/billing"],
+                    [
+                        'title' => 'Advanced',
+                        'href' => "/tenants/{$tenantId}/auto-fix",
+                        'children' => [
+                            ['title' => 'Auto-fix', 'href' => "/tenants/{$tenantId}/auto-fix"],
+                            ['title' => 'Backup connection', 'href' => '/integrations#host-connection'],
+                        ],
+                    ],
                 ],
             ];
         }
@@ -86,31 +100,55 @@ class WorkspaceNavigationBuilder
     }
 
     /**
-     * @return list<array{title: string, href: string}>
+     * @return list<array{title: string, href: string, children?: list<array{title: string, href: string}>}>
      */
     private function platformItems(?User $user): array
     {
         $permissions = $this->authorization->permissions($user);
         $items = [];
 
+        $money = [];
         if (in_array('billing', $permissions, true)) {
-            $items[] = ['title' => 'Overview / MRR', 'href' => '/platform/billing'];
-            $items[] = ['title' => 'Plan catalog', 'href' => '/platform/billing/plans'];
-            $items[] = ['title' => 'Gateway', 'href' => '/platform/billing/gateway'];
+            $money[] = ['title' => 'Overview / MRR', 'href' => '/platform/billing'];
+            $money[] = ['title' => 'Plan catalog', 'href' => '/platform/billing/plans'];
+            $money[] = ['title' => 'Gateway', 'href' => '/platform/billing/gateway'];
         }
 
         if (in_array('billing.settings.manage', $permissions, true)) {
-            $items[] = ['title' => 'Billing settings', 'href' => '/platform/billing/settings'];
+            $money[] = ['title' => 'Billing settings', 'href' => '/platform/billing/settings'];
         }
 
+        if ($money !== []) {
+            $items[] = [
+                'title' => 'Admin > Money',
+                'href' => $money[0]['href'],
+                'children' => $money,
+            ];
+        }
+
+        $system = [];
         if (in_array('settings', $permissions, true)) {
-            $items[] = ['title' => 'Platform settings', 'href' => '/platform/settings'];
-            $items[] = ['title' => 'Mail', 'href' => '/platform/mail-settings'];
-            $items[] = ['title' => 'AI and signing', 'href' => '/platform/ai-settings'];
+            $system[] = ['title' => 'Platform settings', 'href' => '/platform/settings'];
+            $system[] = ['title' => 'Mail', 'href' => '/platform/mail-settings'];
+            $system[] = ['title' => 'AI and signing', 'href' => '/platform/ai-settings'];
+        }
+
+        if ($system !== []) {
+            $items[] = [
+                'title' => 'Admin > System',
+                'href' => $system[0]['href'],
+                'children' => $system,
+            ];
         }
 
         if ($this->authorization->isSuperAdmin($user)) {
-            $items[] = ['title' => 'Staff', 'href' => '/platform/staff'];
+            $items[] = [
+                'title' => 'Admin > People',
+                'href' => '/platform/staff',
+                'children' => [
+                    ['title' => 'Staff', 'href' => '/platform/staff'],
+                ],
+            ];
         }
 
         return $items;

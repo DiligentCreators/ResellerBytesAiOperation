@@ -1,7 +1,9 @@
 import { Form, Head } from '@inertiajs/react';
 import { Clock3, Palette, Shield } from 'lucide-react';
 import InputError from '@/components/input-error';
+import { InfoTip } from '@/components/info-tip';
 import { PageHeader } from '@/components/page-header';
+import { helpText } from '@/lib/help-text';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -50,10 +52,10 @@ export default function TenantSettings({
 
     return (
         <>
-            <Head title="Workspace settings" />
+            <Head title="Account settings" />
             <div className="space-y-6">
                 <PageHeader
-                    title="Workspace settings"
+                    title="Account settings"
                     description={`Branding and display preferences for ${tenant.name}.`}
                 />
 
@@ -193,13 +195,20 @@ export default function TenantSettings({
                                         className="mt-1 size-4 rounded border border-input"
                                     />
                                     <div className="space-y-1">
-                                        <Label
-                                            htmlFor="require_two_factor"
-                                            className="text-sm leading-5 font-normal"
-                                        >
-                                            Require two-factor authentication
-                                            for everyone in this workspace
-                                        </Label>
+                                        <div className="flex items-center gap-1.5">
+                                            <Label
+                                                htmlFor="require_two_factor"
+                                                className="text-sm leading-5 font-normal"
+                                            >
+                                                Require two-factor
+                                                authentication for everyone in
+                                                this workspace
+                                            </Label>
+                                            <InfoTip
+                                                label="Require two-factor authentication"
+                                                text={helpText.requireTwoFactor}
+                                            />
+                                        </div>
                                         <p className="text-xs text-muted-foreground">
                                             Optional. When on, team members must
                                             set up a code from an authenticator

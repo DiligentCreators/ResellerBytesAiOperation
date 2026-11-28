@@ -90,23 +90,23 @@ export default function TenantNotifications({ tenant, notifications }: Props) {
 
     return (
         <>
-            <Head title="Notifications" />
+            <Head title="Inbox" />
             <div className="space-y-6">
                 <PageHeader
-                    title="Notifications"
+                    title="Inbox"
                     description={`Workspace alerts for ${tenantName}.`}
                 />
 
                 {items.length === 0 ? (
                     <EmptyState
                         icon={Bell}
-                        title="No notifications yet"
+                        title="All quiet."
                         description="Operational alerts for this workspace will show up here."
                         action={
                             tenantId ? (
                                 <Button size="sm" asChild>
                                     <Link href={alertsIndex.url(tenantId)}>
-                                        Add an alert channel
+                                        Set up alerts
                                     </Link>
                                 </Button>
                             ) : undefined

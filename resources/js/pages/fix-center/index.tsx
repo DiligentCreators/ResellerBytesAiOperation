@@ -2,6 +2,7 @@ import { Form, Head, Link, router, usePage } from '@inertiajs/react';
 import { CheckCircle2, Wrench } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { EmptyState } from '@/components/empty-state';
+import { InfoTip } from '@/components/info-tip';
 import { PageHeader } from '@/components/page-header';
 import { Pagination } from '@/components/pagination';
 import { SeverityBadge } from '@/components/severity-badge';
@@ -20,6 +21,7 @@ import {
     reject,
     store as storeSafeAction,
 } from '@/actions/App/Http/Controllers/SafeActionController';
+import { helpText } from '@/lib/help-text';
 
 type GuidedStep = {
     step_index: number;
@@ -107,8 +109,8 @@ type Props = {
 };
 
 const tabs = [
-    { value: 'open', label: 'Open' },
-    { value: 'fixing', label: 'Fixing' },
+    { value: 'open', label: 'To fix' },
+    { value: 'fixing', label: 'In progress' },
     { value: 'fixed', label: 'Fixed' },
     { value: 'ignored', label: 'Ignored' },
 ] as const;
@@ -258,11 +260,39 @@ export default function FixCenterIndex({
 
     return (
         <>
-            <Head title="Fix Center" />
+            <Head title="Fix issues" />
             <div className="space-y-6">
                 <PageHeader
-                    title="Fix Center"
-                    description="One place to see WHMCS issues and fix them — guided steps or one-click when your plan allows."
+                    title="Fix issues"
+                    description="One place to see WHMCS issues and fix them. Guided steps or one-click when your plan allows."
+                    actions={
+                        <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                            <span className="inline-flex items-center gap-1.5">
+                                Critical
+                                <InfoTip
+                                    label="Critical"
+                                    text={helpText.severityCritical}
+                                    side="bottom"
+                                />
+                            </span>
+                            <span className="inline-flex items-center gap-1.5">
+                                Warning
+                                <InfoTip
+                                    label="Warning"
+                                    text={helpText.severityWarning}
+                                    side="bottom"
+                                />
+                            </span>
+                            <span className="inline-flex items-center gap-1.5">
+                                Info
+                                <InfoTip
+                                    label="Info"
+                                    text={helpText.severityInfo}
+                                    side="bottom"
+                                />
+                            </span>
+                        </div>
+                    }
                 />
 
                 {flash?.status ? (
@@ -354,7 +384,7 @@ export default function FixCenterIndex({
                         action={
                             <Button size="sm" asChild>
                                 <Link href="/integrations">
-                                    Check installations
+                                    Check my WHMCS now
                                 </Link>
                             </Button>
                         }
@@ -439,7 +469,7 @@ export default function FixCenterIndex({
                                                         openDrawer(issue, 'fix')
                                                     }
                                                 >
-                                                    Fix now
+                                                    Fix it for me
                                                 </Button>
                                             ) : null}
                                             {issue.fix_state !==
@@ -456,7 +486,7 @@ export default function FixCenterIndex({
                                                         )
                                                     }
                                                 >
-                                                    Start guide
+                                                    Show me how
                                                 </Button>
                                             ) : null}
                                             {issue.fix_state !==
@@ -578,7 +608,13 @@ export default function FixCenterIndex({
                     {activeIssue && drawerMode === 'guide' ? (
                         <>
                             <SheetHeader>
-                                <SheetTitle>{activeIssue.title}</SheetTitle>
+                                <SheetTitle className="flex flex-wrap items-center gap-1.5">
+                                    {activeIssue.title}
+                                    <InfoTip
+                                        label="Show me how"
+                                        text={helpText.showMeHow}
+                                    />
+                                </SheetTitle>
                                 <SheetDescription>
                                     Follow these steps in WHMCS, then ask us to
                                     check again.{' '}
@@ -681,15 +717,22 @@ export default function FixCenterIndex({
                                     onSuccess={() => closeDrawer()}
                                 >
                                     {({ processing }) => (
-                                        <Button
-                                            type="submit"
-                                            disabled={
-                                                processing ||
-                                                !activeIssue.can_guide
-                                            }
-                                        >
-                                            I did it, check again
-                                        </Button>
+                                        <div className="flex items-center gap-1.5">
+                                            <Button
+                                                type="submit"
+                                                disabled={
+                                                    processing ||
+                                                    !activeIssue.can_guide
+                                                }
+                                            >
+                                                I did it, check again
+                                            </Button>
+                                            <InfoTip
+                                                label="Check again"
+                                                text={helpText.checkAgain}
+                                                side="left"
+                                            />
+                                        </div>
                                     )}
                                 </Form>
                             </SheetFooter>
@@ -699,11 +742,18 @@ export default function FixCenterIndex({
                     {activeIssue && drawerMode === 'fix' ? (
                         <>
                             <SheetHeader>
-                                <SheetTitle>
+                                <SheetTitle className="flex items-center gap-1.5">
                                     {activeIssue.fix_state ===
                                     'awaiting_verification'
                                         ? 'Fix applied - awaiting verification'
-                                        : 'Fix now'}
+                                        : 'Fix it for me'}
+                                    {activeIssue.fix_state !==
+                                    'awaiting_verification' ? (
+                                        <InfoTip
+                                            label="Fix it for me"
+                                            text={helpText.fixItForMe}
+                                        />
+                                    ) : null}
                                 </SheetTitle>
                                 <SheetDescription>
                                     {activeIssue.fix_state ===
