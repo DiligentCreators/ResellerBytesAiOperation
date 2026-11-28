@@ -2,10 +2,12 @@ import { Form, Head, Link } from '@inertiajs/react';
 import { Sparkles, Wrench } from 'lucide-react';
 import InputError from '@/components/input-error';
 import { EmptyState } from '@/components/empty-state';
+import { InfoTip } from '@/components/info-tip';
 import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { helpText } from '@/lib/help-text';
 
 type Installation = {
     id: string;
@@ -87,6 +89,15 @@ export default function TenantAutoFixSettings({
                 <PageHeader
                     title="Auto-fix"
                     description={`Allowlisted automatic fixes for ${tenant.name}.`}
+                    actions={
+                        <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                            Fix it for me
+                            <InfoTip
+                                label="Fix it for me"
+                                text={helpText.fixItForMe}
+                            />
+                        </span>
+                    }
                 />
 
                 {status ? (

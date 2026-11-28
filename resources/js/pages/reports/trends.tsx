@@ -2,6 +2,7 @@ import { Head, Link, router } from '@inertiajs/react';
 import { LineChart } from 'lucide-react';
 import { useState } from 'react';
 import { HealthTrendChart } from '@/components/health-trend-chart';
+import { InfoTip } from '@/components/info-tip';
 import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
 import {
@@ -11,6 +12,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { helpText } from '@/lib/help-text';
 
 type TrendPoint = {
     date: string;
@@ -63,10 +65,10 @@ export default function HealthTrends({
 
     return (
         <>
-            <Head title="Health trends" />
+            <Head title="Progress over time" />
             <div className="flex flex-col gap-6">
                 <PageHeader
-                    title="Health trends"
+                    title="Progress over time"
                     description={`Score and key metrics for ${tenant.name}. Retention up to ${max_history_days} days on your plan.`}
                     actions={
                         <div className="flex flex-wrap gap-2">
@@ -129,8 +131,26 @@ export default function HealthTrends({
                             className="size-4 text-slate-brand"
                             aria-hidden
                         />
-                        <h2 className="text-sm font-semibold">
+                        <h2 className="flex flex-wrap items-center gap-1.5 text-sm font-semibold">
                             {metricLabels[metric]} · last {range_days} days
+                            {metric === 'score' ? (
+                                <InfoTip
+                                    label="Health score"
+                                    text={helpText.healthScore}
+                                />
+                            ) : null}
+                            {metric === 'critical_count' ? (
+                                <InfoTip
+                                    label="Critical"
+                                    text={helpText.severityCritical}
+                                />
+                            ) : null}
+                            {metric === 'warning_count' ? (
+                                <InfoTip
+                                    label="Warning"
+                                    text={helpText.severityWarning}
+                                />
+                            ) : null}
                         </h2>
                     </div>
                     <HealthTrendChart points={points} metric={metric} />
@@ -148,13 +168,34 @@ export default function HealthTrends({
                                         Date
                                     </th>
                                     <th className="h-9 px-4" scope="col">
-                                        Score
+                                        <span className="inline-flex items-center gap-1.5">
+                                            Score
+                                            <InfoTip
+                                                label="Health score"
+                                                text={helpText.healthScore}
+                                                side="bottom"
+                                            />
+                                        </span>
                                     </th>
                                     <th className="h-9 px-4" scope="col">
-                                        Critical
+                                        <span className="inline-flex items-center gap-1.5">
+                                            Critical
+                                            <InfoTip
+                                                label="Critical"
+                                                text={helpText.severityCritical}
+                                                side="bottom"
+                                            />
+                                        </span>
                                     </th>
                                     <th className="h-9 px-4" scope="col">
-                                        Warning
+                                        <span className="inline-flex items-center gap-1.5">
+                                            Warning
+                                            <InfoTip
+                                                label="Warning"
+                                                text={helpText.severityWarning}
+                                                side="bottom"
+                                            />
+                                        </span>
                                     </th>
                                     <th className="h-9 px-4" scope="col">
                                         Overdue

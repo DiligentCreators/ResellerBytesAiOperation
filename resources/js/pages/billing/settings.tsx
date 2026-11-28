@@ -3,8 +3,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { StatusBadge } from '@/components/status-badge';
+import { InfoTip } from '@/components/info-tip';
 import InputError from '@/components/input-error';
+import { CountryCombobox } from '@/components/country-combobox';
 import { formatDate, formatDateTime } from '@/lib/dates';
+import { helpText } from '@/lib/help-text';
 import { formatMoney } from '@/lib/money';
 
 type ScheduledChange = {
@@ -138,11 +141,11 @@ export default function BillingSettingsPage(props: Props) {
 
     return (
         <>
-            <Head title="Billing settings" />
+            <Head title="Plan and billing" />
             <div className="mx-auto max-w-5xl space-y-8 p-6">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight">
-                        Billing
+                        Plan and billing
                     </h1>
                     <p className="mt-2 text-sm text-muted-foreground">
                         {tenant.name}
@@ -242,6 +245,13 @@ export default function BillingSettingsPage(props: Props) {
                                     Cancels at period end
                                 </p>
                             )}
+                            <div className="mt-2 flex items-center gap-1.5 text-sm font-medium">
+                                Plan limits
+                                <InfoTip
+                                    label="Plan limits"
+                                    text={helpText.planLimits}
+                                />
+                            </div>
                             <div className="mt-2 grid gap-4 md:grid-cols-3">
                                 <UsageBar
                                     label="Members"
@@ -427,24 +437,16 @@ export default function BillingSettingsPage(props: Props) {
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="country">Country</Label>
-                                    <select
+                                    <CountryCombobox
                                         id="country"
                                         name="country"
+                                        countries={countries}
                                         defaultValue={
                                             billingDetails.country ?? 'US'
                                         }
                                         disabled={!canManage}
-                                        className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
-                                    >
-                                        {countries.map((country) => (
-                                            <option
-                                                key={country.code}
-                                                value={country.code}
-                                            >
-                                                {country.name}
-                                            </option>
-                                        ))}
-                                    </select>
+                                        required
+                                    />
                                 </div>
                                 <div className="space-y-2 md:col-span-2">
                                     <Label htmlFor="address_line1">

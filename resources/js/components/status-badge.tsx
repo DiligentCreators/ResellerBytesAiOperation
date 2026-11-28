@@ -55,13 +55,15 @@ const statusToneMap: Record<string, StatusTone> = {
 
 const statusLabelMap: Record<string, string> = {
     trial_started_no_charge: 'Trial started - no charge',
+    open: 'To fix',
     in_progress: 'In progress',
-    accepted_risk: 'Accepted risk',
+    resolved: 'Fixed',
+    accepted_risk: 'Accepted',
     still_present: 'Still present',
     latest_not_analyzed: 'Latest not analyzed',
     same_run: 'Same run',
     no_newer_run: 'No newer run',
-    absent: 'Cleared on latest',
+    absent: 'Gone in the latest check',
 };
 
 type StatusBadgeProps = {

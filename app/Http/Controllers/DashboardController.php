@@ -8,6 +8,7 @@ use App\Models\Tenant;
 use App\Models\TenantMembership;
 use App\Models\User;
 use App\Services\Ai\OpenAiConfiguration;
+use App\Services\Dashboard\NextStepPresenter;
 use App\Services\Health\HealthDashboardPresenter;
 use App\Services\Tenancy\GettingStartedChecklist;
 use App\Services\Tenancy\OnboardingProgress;
@@ -26,6 +27,7 @@ class DashboardController extends Controller
         OnboardingProgress $onboardingProgress,
         GettingStartedChecklist $gettingStartedChecklist,
         HealthDashboardPresenter $healthPresenter,
+        NextStepPresenter $nextStepPresenter,
     ): Response {
         /** @var User|null $user */
         $user = Auth::user();
@@ -89,6 +91,7 @@ class DashboardController extends Controller
             ],
             'onboarding' => $this->onboardingChecklist($user, $onboardingProgress),
             'gettingStarted' => $gettingStartedChecklist->forOwner($user),
+            'nextStep' => $nextStepPresenter->forUser($user),
         ]);
     }
 

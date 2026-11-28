@@ -2,6 +2,7 @@ import { Form, Head, Link, usePage } from '@inertiajs/react';
 import { Copy, KeyRound, Server } from 'lucide-react';
 import { useState } from 'react';
 import { EmptyState } from '@/components/empty-state';
+import { InfoTip } from '@/components/info-tip';
 import InputError from '@/components/input-error';
 import { PageHeader } from '@/components/page-header';
 import { Pagination } from '@/components/pagination';
@@ -11,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useWorkspaceTimezone } from '@/hooks/use-workspace-timezone';
 import { formatDateTime } from '@/lib/dates';
+import { helpText } from '@/lib/help-text';
 import { edit as editSecurity } from '@/routes/security';
 import type { IntegrationCredentialsFlash } from '@/types/auth';
 
@@ -46,11 +48,11 @@ function heartbeatBadge(state: HeartbeatState): {
         case 'ok':
             return { label: 'Online', tone: 'success' };
         case 'stale':
-            return { label: 'Stale', tone: 'warning' };
+            return { label: 'Quiet for 30 min', tone: 'warning' };
         case 'down':
-            return { label: 'Down', tone: 'danger' };
+            return { label: 'Offline', tone: 'danger' };
         default:
-            return { label: 'Waiting for first heartbeat', tone: 'neutral' };
+            return { label: 'Waiting for first contact', tone: 'neutral' };
     }
 }
 
@@ -86,30 +88,30 @@ export default function IntegrationsIndex({ integrations }: Props) {
 
     return (
         <>
-            <Head title="Installations" />
+            <Head title="My WHMCS" />
             <div className="space-y-6">
                 <PageHeader
-                    title="Installations"
-                    description="Connected WHMCS installations, addon setup, host connection, and diagnostic activity."
+                    title="My WHMCS"
+                    description="Connect your WHMCS sites, download the addon, and manage backup connection details."
                 />
 
                 {showCredentials && credentials ? (
                     <section className="rounded-lg border border-warning/30 bg-warning-soft/30 p-5 shadow-xs">
                         <h2 className="text-sm font-semibold">
                             {credentials.action === 'rotated'
-                                ? 'New integration secret'
-                                : 'Integration credentials'}
+                                ? 'New connection key'
+                                : 'Connection details'}
                         </h2>
                         <p className="mt-1 text-sm text-muted-foreground">
-                            Shown once only. Copy these values into a
-                            credentials JSON file on your WHMCS server (mode
-                            0600, outside the web root). Never paste the secret
-                            into WHMCS addon settings.
+                            Shown once only. Copy these values into a connection
+                            file on your WHMCS server (mode 0600, outside the
+                            web root). Never paste the connection key into WHMCS
+                            addon settings.
                         </p>
                         <div className="mt-4 space-y-3">
                             <div>
                                 <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                                    Installation
+                                    Site name
                                 </p>
                                 <p className="mt-1 text-sm font-medium">
                                     {credentials.name}
@@ -117,7 +119,7 @@ export default function IntegrationsIndex({ integrations }: Props) {
                             </div>
                             <div>
                                 <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                                    Integration ID
+                                    Connection ID
                                 </p>
                                 <div className="mt-1 flex items-center gap-2 rounded-lg border border-border bg-surface p-3">
                                     <code className="min-w-0 flex-1 text-sm break-all">
@@ -131,15 +133,19 @@ export default function IntegrationsIndex({ integrations }: Props) {
                                             )
                                         }
                                         className="rounded-md p-2 hover:bg-card"
-                                        aria-label="Copy integration ID"
+                                        aria-label="Copy connection ID"
                                     >
                                         <Copy className="size-4" />
                                     </button>
                                 </div>
                             </div>
                             <div>
-                                <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                                    Secret
+                                <p className="flex items-center gap-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                                    Connection key
+                                    <InfoTip
+                                        label="Connection key"
+                                        text={helpText.connectionKey}
+                                    />
                                 </p>
                                 <div className="mt-1 flex items-center gap-2 rounded-lg border border-border bg-surface p-3">
                                     <code className="min-w-0 flex-1 text-sm break-all">
@@ -153,15 +159,19 @@ export default function IntegrationsIndex({ integrations }: Props) {
                                             )
                                         }
                                         className="rounded-md p-2 hover:bg-card"
-                                        aria-label="Copy secret"
+                                        aria-label="Copy connection key"
                                     >
                                         <Copy className="size-4" />
                                     </button>
                                 </div>
                             </div>
                             <div>
-                                <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                                    Credentials JSON
+                                <p className="flex items-center gap-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                                    Connection file
+                                    <InfoTip
+                                        label="Connection file"
+                                        text={helpText.connectionFile}
+                                    />
                                 </p>
                                 <div className="mt-1 flex items-start gap-2 rounded-lg border border-border bg-surface p-3">
                                     <pre className="min-w-0 flex-1 overflow-x-auto text-xs leading-5">
@@ -177,7 +187,7 @@ export default function IntegrationsIndex({ integrations }: Props) {
                                             )
                                         }
                                         className="rounded-md p-2 hover:bg-card"
-                                        aria-label="Copy credentials JSON"
+                                        aria-label="Copy connection file"
                                     >
                                         <Copy className="size-4" />
                                     </button>
@@ -190,18 +200,19 @@ export default function IntegrationsIndex({ integrations }: Props) {
                             className="mt-4"
                             onClick={() => setDismissedCredentials(true)}
                         >
-                            I have saved these credentials
+                            I saved the connection file
                         </Button>
                     </section>
                 ) : null}
 
                 {canManage ? (
                     <section className="rounded-lg border border-border bg-card p-5 shadow-xs">
-                        <h2 className="text-sm font-semibold">Connect WHMCS</h2>
+                        <h2 className="text-sm font-semibold">
+                            Connect your WHMCS
+                        </h2>
                         <p className="mt-1 text-sm text-muted-foreground">
-                            Create an integration for your workspace. The secret
-                            is shown once so you can place it on your WHMCS
-                            server.
+                            3 steps: download, create your connection key, paste
+                            it on your server. Takes about 10 minutes.
                         </p>
                         {!auth.two_factor_enabled ? (
                             <p className="mt-3 text-xs text-muted-foreground">
@@ -224,15 +235,13 @@ export default function IntegrationsIndex({ integrations }: Props) {
                             {({ errors, processing }) => (
                                 <>
                                     <div className="grid gap-2">
-                                        <Label htmlFor="name">
-                                            Installation name
-                                        </Label>
+                                        <Label htmlFor="name">Site name</Label>
                                         <Input
                                             id="name"
                                             name="name"
                                             required
                                             maxLength={120}
-                                            placeholder="Production WHMCS"
+                                            placeholder="Main billing"
                                         />
                                         <InputError message={errors.name} />
                                     </div>
@@ -275,7 +284,7 @@ export default function IntegrationsIndex({ integrations }: Props) {
                                         />
                                     ) : null}
                                     <Button type="submit" disabled={processing}>
-                                        Create integration
+                                        Connect this WHMCS
                                     </Button>
                                 </>
                             )}
@@ -318,10 +327,10 @@ export default function IntegrationsIndex({ integrations }: Props) {
                 {integrations.data.length === 0 ? (
                     <EmptyState
                         icon={Server}
-                        title="No WHMCS connected yet"
+                        title="No WHMCS connected"
                         description={
                             canManage
-                                ? 'Create an integration above, then install the WHMCS addon and credentials JSON on your WHMCS server.'
+                                ? 'Connect one to start.'
                                 : 'Ask a workspace owner or admin to connect WHMCS, then download the addon from Setup.'
                         }
                     />
@@ -329,39 +338,62 @@ export default function IntegrationsIndex({ integrations }: Props) {
                     <div className="overflow-hidden rounded-lg border border-border bg-card shadow-xs">
                         <div className="border-b border-border px-5 py-4">
                             <h2 className="text-sm font-semibold">
-                                Registered installations
+                                Connected WHMCS sites
                             </h2>
                         </div>
                         <table className="w-full text-left text-sm">
                             <caption className="sr-only">
-                                WHMCS integrations
+                                Connected WHMCS sites
                             </caption>
                             <thead className="border-b border-border bg-surface text-xs font-medium text-muted-foreground">
                                 <tr>
                                     <th scope="col" className="h-9 px-4">
-                                        Installation
+                                        Name
                                     </th>
                                     <th scope="col" className="h-9 px-4">
                                         Status
                                     </th>
                                     <th scope="col" className="h-9 px-4">
-                                        Heartbeat
+                                        <span className="inline-flex items-center gap-1.5 font-medium">
+                                            Connection
+                                            <InfoTip
+                                                label="Connection"
+                                                text={helpText.connectionBadge}
+                                                side="bottom"
+                                            />
+                                        </span>
                                     </th>
                                     <th scope="col" className="h-9 px-4">
-                                        Addon
+                                        Addon version
                                     </th>
                                     <th scope="col" className="h-9 px-4">
-                                        Cron PHP
+                                        <span className="inline-flex items-center gap-1.5 font-medium">
+                                            Cron PHP
+                                            <InfoTip
+                                                label="Cron PHP"
+                                                text={helpText.scheduledTask}
+                                                side="bottom"
+                                            />
+                                        </span>
                                     </th>
                                     <th scope="col" className="h-9 px-4">
-                                        Last heartbeat
+                                        Last contact
                                     </th>
                                     <th scope="col" className="h-9 px-4">
-                                        Snapshots
+                                        Last check
                                     </th>
                                     {canManage ? (
                                         <th scope="col" className="h-9 px-4">
-                                            Auto-collect
+                                            <span className="inline-flex items-center gap-1.5 font-medium">
+                                                Auto-collect
+                                                <InfoTip
+                                                    label="Auto-collect"
+                                                    text={
+                                                        helpText.automaticChecks
+                                                    }
+                                                    side="bottom"
+                                                />
+                                            </span>
                                         </th>
                                     ) : null}
                                     {canManage ? (
@@ -500,7 +532,7 @@ export default function IntegrationsIndex({ integrations }: Props) {
                                                                     ) => {
                                                                         if (
                                                                             !confirm(
-                                                                                'Rotate this secret? The previous secret stops working immediately.',
+                                                                                'Reset this connection key? The previous key stops working immediately.',
                                                                             )
                                                                         ) {
                                                                             event.preventDefault();
@@ -508,8 +540,9 @@ export default function IntegrationsIndex({ integrations }: Props) {
                                                                     }}
                                                                 >
                                                                     <KeyRound className="size-3.5" />
-                                                                    Rotate
-                                                                    secret
+                                                                    Reset
+                                                                    connection
+                                                                    key
                                                                 </Button>
                                                             )}
                                                         </Form>
@@ -525,15 +558,66 @@ export default function IntegrationsIndex({ integrations }: Props) {
                     </div>
                 )}
 
+                {canManage ? (
+                    <section className="rounded-lg border border-border bg-card p-5 shadow-xs">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div className="min-w-0">
+                                <div className="flex items-center gap-1.5">
+                                    <h2 className="text-sm font-semibold">
+                                        Addon package
+                                    </h2>
+                                </div>
+                                <p className="mt-1 text-sm text-muted-foreground">
+                                    Download the signed addon from Setup, then
+                                    check the download is genuine before you
+                                    install.
+                                </p>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2">
+                                <Button variant="secondary" size="sm" asChild>
+                                    <Link href="/whmcs-addon/setup">
+                                        Setup guide
+                                    </Link>
+                                </Button>
+                                <Button size="sm" asChild>
+                                    <a href="/whmcs-addon/download">
+                                        Download addon
+                                    </a>
+                                </Button>
+                            </div>
+                        </div>
+                        <p className="mt-4 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                            Check the download is genuine
+                            <InfoTip
+                                label="Check the download is genuine"
+                                text={helpText.downloadFingerprint}
+                            />
+                        </p>
+                    </section>
+                ) : null}
+
                 {canManage && integrations.data.length > 0 ? (
                     <section
                         id="host-connection"
                         className="scroll-mt-6 space-y-4"
                     >
-                        <PageHeader
-                            title="Host connection"
-                            description="Store encrypted FTP credentials once for allowlisted Safe Action fallbacks when the WHMCS web user cannot chmod or write .user.ini. Passwords are never included in diagnostic snapshots."
-                        />
+                        <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+                            <div className="min-w-0">
+                                <div className="flex items-center gap-1.5">
+                                    <h2 className="text-xl font-semibold tracking-tight">
+                                        Backup connection (optional)
+                                    </h2>
+                                    <InfoTip
+                                        label="Backup connection (optional)"
+                                        text={helpText.backupConnection}
+                                    />
+                                </div>
+                                <p className="mt-1 text-sm text-muted-foreground">
+                                    Only needed if a fix cannot be applied
+                                    automatically. Skip this for now.
+                                </p>
+                            </div>
+                        </div>
                         {integrations.data.map((item) =>
                             item.tenant_id && item.status === 'active' ? (
                                 <div

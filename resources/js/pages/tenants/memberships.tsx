@@ -2,7 +2,9 @@ import { Form, Head, router } from '@inertiajs/react';
 import { UserPlus, Users } from 'lucide-react';
 import InputError from '@/components/input-error';
 import { EmptyState } from '@/components/empty-state';
+import { InfoTip } from '@/components/info-tip';
 import { PageHeader } from '@/components/page-header';
+import { helpText } from '@/lib/help-text';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,6 +28,26 @@ type Props = {
     status?: string;
 };
 
+const roleDescriptions: Record<string, string> = {
+    owner: 'everything',
+    admin: 'manage connections and fixes',
+    operator: 'view and fix',
+    viewer: 'view only',
+    billing: 'invoices only',
+};
+
+function roleOptionLabel(role: string): string {
+    const description = roleDescriptions[role];
+
+    if (description) {
+        const label = role.charAt(0).toUpperCase() + role.slice(1);
+
+        return `${label}: ${description}`;
+    }
+
+    return role;
+}
+
 export default function TenantMemberships({
     tenant,
     memberships,
@@ -34,10 +56,10 @@ export default function TenantMemberships({
 }: Props) {
     return (
         <>
-            <Head title="Team members" />
+            <Head title="Team" />
             <div className="space-y-6">
                 <PageHeader
-                    title="Team members"
+                    title="Team"
                     description={`Invite and manage access for ${tenant.name}.`}
                 />
 
@@ -78,7 +100,13 @@ export default function TenantMemberships({
                                     <InputError message={errors.email} />
                                 </div>
                                 <div className="grid gap-2">
-                                    <Label htmlFor="role">Role</Label>
+                                    <div className="flex items-center gap-1.5">
+                                        <Label htmlFor="role">Role</Label>
+                                        <InfoTip
+                                            label="Team roles"
+                                            text={helpText.roles}
+                                        />
+                                    </div>
                                     <select
                                         id="role"
                                         name="role"
@@ -87,7 +115,7 @@ export default function TenantMemberships({
                                     >
                                         {roles.map((role) => (
                                             <option key={role} value={role}>
-                                                {role}
+                                                {roleOptionLabel(role)}
                                             </option>
                                         ))}
                                     </select>
@@ -106,8 +134,8 @@ export default function TenantMemberships({
                 {memberships.data.length === 0 ? (
                     <EmptyState
                         icon={Users}
-                        title="No members yet"
-                        description="Invite a teammate to collaborate in this workspace."
+                        title="It is just you."
+                        description="Invite a teammate so alerts do not depend on one person."
                     />
                 ) : (
                     <div className="overflow-hidden rounded-lg border border-border bg-card shadow-xs">

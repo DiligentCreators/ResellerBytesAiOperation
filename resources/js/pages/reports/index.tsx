@@ -1,5 +1,6 @@
 import { Form, Head, Link, router } from '@inertiajs/react';
 import { Download, LineChart, Printer } from 'lucide-react';
+import { InfoTip } from '@/components/info-tip';
 import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,6 +14,7 @@ import {
 } from '@/components/ui/select';
 import { useWorkspaceTimezone } from '@/hooks/use-workspace-timezone';
 import { formatDate, formatDateTime } from '@/lib/dates';
+import { helpText } from '@/lib/help-text';
 
 function formString(value: FormDataEntryValue | null): string {
     return typeof value === 'string' ? value : '';
@@ -147,7 +149,7 @@ export default function ReportsIndex({
                                 href={`/reports/trends?tenant_id=${tenant.id}`}
                             >
                                 <LineChart className="mr-2 size-4" />
-                                Health trends
+                                Progress over time
                             </Link>
                         </Button>
                     }
@@ -269,7 +271,10 @@ export default function ReportsIndex({
                 </section>
 
                 <section className="space-y-4">
-                    <div className="flex flex-wrap items-end justify-between gap-3">
+                    <div
+                        id="fix-log"
+                        className="flex scroll-mt-6 flex-wrap items-end justify-between gap-3"
+                    >
                         <h2 className="text-base font-semibold">Fix log</h2>
                         <div className="flex flex-wrap gap-2">
                             <Button variant="outline" size="sm" asChild>
@@ -310,7 +315,13 @@ export default function ReportsIndex({
                         }}
                     >
                         <div className="space-y-1">
-                            <Label htmlFor="mode">Mode</Label>
+                            <div className="flex items-center gap-1.5">
+                                <Label htmlFor="mode">How it was fixed</Label>
+                                <InfoTip
+                                    label="How it was fixed"
+                                    text={helpText.fixLogHowFixed}
+                                />
+                            </div>
                             <Select
                                 name="mode"
                                 defaultValue={filters.mode ?? 'all'}
@@ -428,7 +439,16 @@ export default function ReportsIndex({
                                             Issue
                                         </th>
                                         <th className="px-2 py-2 font-medium">
-                                            Mode
+                                            <span className="inline-flex items-center gap-1.5">
+                                                How it was fixed
+                                                <InfoTip
+                                                    label="How it was fixed"
+                                                    text={
+                                                        helpText.fixLogHowFixed
+                                                    }
+                                                    side="bottom"
+                                                />
+                                            </span>
                                         </th>
                                         <th className="px-2 py-2 font-medium">
                                             Decision

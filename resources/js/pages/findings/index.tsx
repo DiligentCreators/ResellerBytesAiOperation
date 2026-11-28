@@ -1,11 +1,13 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { CheckCircle2, ShieldAlert } from 'lucide-react';
 import { EmptyState } from '@/components/empty-state';
+import { InfoTip } from '@/components/info-tip';
 import { PageHeader } from '@/components/page-header';
 import { Pagination } from '@/components/pagination';
 import { SeverityBadge } from '@/components/severity-badge';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
+import { helpText } from '@/lib/help-text';
 
 type Finding = {
     id: string;
@@ -37,10 +39,10 @@ type Props = {
 const statusFilters = [
     { value: 'all', label: 'Current' },
     { value: 'active', label: 'Active' },
-    { value: 'open', label: 'Open' },
+    { value: 'open', label: 'To fix' },
     { value: 'in_progress', label: 'In progress' },
-    { value: 'resolved', label: 'Resolved' },
-    { value: 'accepted_risk', label: 'Accepted risk' },
+    { value: 'resolved', label: 'Fixed' },
+    { value: 'accepted_risk', label: 'Accepted' },
     { value: 'history', label: 'History' },
 ] as const;
 
@@ -54,14 +56,14 @@ export default function FindingsIndex({ findings, filters, health }: Props) {
 
     return (
         <>
-            <Head title="Findings" />
+            <Head title="Full issue list" />
             <div className="space-y-6">
                 <PageHeader
-                    title="Findings"
+                    title="Full issue list"
                     description="One current issue per installation signal. History keeps older scan rows. Approve → Apply in WHMCS → Verify scan."
                     actions={
                         <Button variant="outline" size="sm" asChild>
-                            <Link href="/fix-center">Open Fix Center</Link>
+                            <Link href="/fix-center">See what to fix</Link>
                         </Button>
                     }
                 />
@@ -88,21 +90,46 @@ export default function FindingsIndex({ findings, filters, health }: Props) {
                 ) : null}
 
                 <div className="flex flex-wrap gap-2">
-                    {statusFilters.map((filter) => (
-                        <Button
-                            key={filter.value}
-                            type="button"
-                            size="sm"
-                            variant={
-                                filters.status === filter.value
-                                    ? 'default'
-                                    : 'outline'
-                            }
-                            onClick={() => setStatus(filter.value)}
-                        >
-                            {filter.label}
-                        </Button>
-                    ))}
+                    {statusFilters.map((filter) =>
+                        filter.value === 'accepted_risk' ? (
+                            <div
+                                key={filter.value}
+                                className="inline-flex items-center gap-1"
+                            >
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant={
+                                        filters.status === filter.value
+                                            ? 'default'
+                                            : 'outline'
+                                    }
+                                    onClick={() => setStatus(filter.value)}
+                                >
+                                    {filter.label}
+                                </Button>
+                                <InfoTip
+                                    label="Accepted"
+                                    text={helpText.accepted}
+                                    side="bottom"
+                                />
+                            </div>
+                        ) : (
+                            <Button
+                                key={filter.value}
+                                type="button"
+                                size="sm"
+                                variant={
+                                    filters.status === filter.value
+                                        ? 'default'
+                                        : 'outline'
+                                }
+                                onClick={() => setStatus(filter.value)}
+                            >
+                                {filter.label}
+                            </Button>
+                        ),
+                    )}
                 </div>
 
                 {findings.data.length === 0 ? (
@@ -132,7 +159,7 @@ export default function FindingsIndex({ findings, filters, health }: Props) {
                             ) : (
                                 <Button size="sm" asChild>
                                     <Link href="/fix-center">
-                                        Open Fix Center
+                                        See what to fix
                                     </Link>
                                 </Button>
                             )
@@ -141,7 +168,9 @@ export default function FindingsIndex({ findings, filters, health }: Props) {
                 ) : (
                     <div className="overflow-hidden rounded-lg border border-border bg-card shadow-xs">
                         <table className="w-full text-left text-sm">
-                            <caption className="sr-only">Findings</caption>
+                            <caption className="sr-only">
+                                Full issue list
+                            </caption>
                             <thead className="border-b border-border bg-surface text-xs font-medium text-muted-foreground">
                                 <tr>
                                     <th scope="col" className="h-9 px-4">

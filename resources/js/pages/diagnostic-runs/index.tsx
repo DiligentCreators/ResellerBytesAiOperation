@@ -1,12 +1,14 @@
 import { Head, Link } from '@inertiajs/react';
 import { Activity } from 'lucide-react';
 import { EmptyState } from '@/components/empty-state';
+import { InfoTip } from '@/components/info-tip';
 import { PageHeader } from '@/components/page-header';
 import { Pagination } from '@/components/pagination';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
 import { useWorkspaceTimezone } from '@/hooks/use-workspace-timezone';
 import { formatDateTime } from '@/lib/dates';
+import { helpText } from '@/lib/help-text';
 
 type Run = {
     id: string;
@@ -29,11 +31,20 @@ export default function DiagnosticRunsIndex({ runs }: Props) {
 
     return (
         <>
-            <Head title="History" />
+            <Head title="Check history" />
             <div className="space-y-6">
                 <PageHeader
-                    title="History"
+                    title="Check history"
                     description="Sanitized diagnostic snapshots received from your WHMCS installations."
+                    actions={
+                        <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                            Automatic checks
+                            <InfoTip
+                                label="Automatic checks"
+                                text={helpText.automaticChecks}
+                            />
+                        </span>
+                    }
                 />
 
                 {runs.data.length === 0 ? (

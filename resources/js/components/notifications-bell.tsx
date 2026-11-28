@@ -47,7 +47,7 @@ export function NotificationsBell() {
                     </Link>
                 </Button>
             </TooltipTrigger>
-            <TooltipContent>Notifications</TooltipContent>
+            <TooltipContent>Inbox</TooltipContent>
         </Tooltip>
     );
 }

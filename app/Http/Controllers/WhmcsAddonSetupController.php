@@ -22,6 +22,7 @@ class WhmcsAddonSetupController extends Controller
                 ? 'PHP ZIP extension must be enabled by the platform before the addon can be downloaded.'
                 : 'Addon download is temporarily unavailable. Contact ResellerBytes support if this continues.',
             'aiConfigured' => $openAi->isConfigured(),
+            'signingFingerprint' => $signingConfigured ? $signer->fingerprint() : null,
         ]);
     }
 }

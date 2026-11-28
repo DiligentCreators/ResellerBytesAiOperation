@@ -114,7 +114,7 @@ export default function SafeActionShow({
                     actions={
                         <div className="flex flex-wrap gap-2">
                             <Button variant="outline" size="sm" asChild>
-                                <Link href="/fix-center">Open Fix Center</Link>
+                                <Link href="/fix-center">See what to fix</Link>
                             </Button>
                             <StatusBadge status={execution.status} />
                             <StatusBadge status={execution.risk_level} />

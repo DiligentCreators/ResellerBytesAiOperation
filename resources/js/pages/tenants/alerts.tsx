@@ -1,6 +1,7 @@
 import { Form, Head, router } from '@inertiajs/react';
 import { BellRing, Plus } from 'lucide-react';
 import { useState } from 'react';
+import { InfoTip } from '@/components/info-tip';
 import InputError from '@/components/input-error';
 import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
@@ -8,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useWorkspaceTimezone } from '@/hooks/use-workspace-timezone';
 import { formatDateTime } from '@/lib/dates';
+import { helpText } from '@/lib/help-text';
 
 type Channel = {
     id: string;
@@ -68,11 +70,22 @@ export default function TenantAlerts({
 
     return (
         <>
-            <Head title="Alert channels" />
+            <Head title="Alerts" />
             <div className="space-y-6">
                 <PageHeader
-                    title="Alert channels"
+                    title="Alerts"
                     description={`Immediate critical alerts for ${tenant.name}.`}
+                    actions={
+                        channelTypes.includes('webhook') ? (
+                            <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                                Webhook
+                                <InfoTip
+                                    label="Webhook"
+                                    text={helpText.webhook}
+                                />
+                            </span>
+                        ) : null
+                    }
                 />
 
                 {status ? (
@@ -89,8 +102,9 @@ export default function TenantAlerts({
                         role="status"
                         className="rounded-md border border-border bg-card px-4 py-3 text-sm"
                     >
-                        <p className="font-medium">
+                        <p className="flex items-center gap-1.5 font-medium">
                             Webhook signing secret (shown once)
+                            <InfoTip label="Webhook" text={helpText.webhook} />
                         </p>
                         <p className="mt-1 font-mono text-xs break-all">
                             {createdSigningSecret.secret}
@@ -283,7 +297,8 @@ export default function TenantAlerts({
                     </div>
                     {deliveries.length === 0 ? (
                         <p className="px-5 py-8 text-sm text-muted-foreground">
-                            No deliveries yet.
+                            Nothing sent yet. Add an email or Slack to get
+                            alerts.
                         </p>
                     ) : (
                         <div className="overflow-x-auto">
@@ -361,7 +376,10 @@ function ChannelFields({
         <>
             {!hideType ? (
                 <div className="grid gap-2">
-                    <Label htmlFor="type">Type</Label>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                        <Label htmlFor="type">Type</Label>
+                        <InfoTip label="Webhook" text={helpText.webhook} />
+                    </div>
                     <select
                         id="type"
                         name="type"

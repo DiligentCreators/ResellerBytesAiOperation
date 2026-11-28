@@ -1,10 +1,12 @@
 import { Head, Link, usePage } from '@inertiajs/react';
 import { ArrowLeft, Check } from 'lucide-react';
 import { useState } from 'react';
+import { InfoTip } from '@/components/info-tip';
 import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatDate } from '@/lib/dates';
+import { helpText } from '@/lib/help-text';
 import { formatMoney } from '@/lib/money';
 import { show as onboarding } from '@/routes/onboarding';
 import { dashboard } from '@/routes';
@@ -73,40 +75,49 @@ export default function BillingPlans({
                     title="Choose a plan"
                     description="Select entitlements for this workspace. You can change plans later from billing settings."
                     actions={
-                        hasMonthly && hasYearly ? (
-                            <div
-                                className="inline-flex rounded-lg bg-muted p-1"
-                                role="radiogroup"
-                                aria-label="Billing period"
-                            >
-                                <button
-                                    type="button"
-                                    role="radio"
-                                    aria-checked={!periodIsYearly}
-                                    onClick={() => setYearly(false)}
-                                    className={`h-8 rounded-md px-4 text-sm font-medium ${
-                                        !periodIsYearly
-                                            ? 'bg-white text-foreground shadow-xs'
-                                            : 'text-muted-foreground'
-                                    }`}
+                        <div className="flex flex-wrap items-center gap-3">
+                            <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                                Plan limits
+                                <InfoTip
+                                    label="Plan limits"
+                                    text={helpText.planLimits}
+                                />
+                            </span>
+                            {hasMonthly && hasYearly ? (
+                                <div
+                                    className="inline-flex rounded-lg bg-muted p-1"
+                                    role="radiogroup"
+                                    aria-label="Billing period"
                                 >
-                                    Monthly
-                                </button>
-                                <button
-                                    type="button"
-                                    role="radio"
-                                    aria-checked={periodIsYearly}
-                                    onClick={() => setYearly(true)}
-                                    className={`h-8 rounded-md px-4 text-sm font-medium ${
-                                        periodIsYearly
-                                            ? 'bg-white text-foreground shadow-xs'
-                                            : 'text-muted-foreground'
-                                    }`}
-                                >
-                                    Yearly
-                                </button>
-                            </div>
-                        ) : null
+                                    <button
+                                        type="button"
+                                        role="radio"
+                                        aria-checked={!periodIsYearly}
+                                        onClick={() => setYearly(false)}
+                                        className={`h-8 rounded-md px-4 text-sm font-medium ${
+                                            !periodIsYearly
+                                                ? 'bg-white text-foreground shadow-xs'
+                                                : 'text-muted-foreground'
+                                        }`}
+                                    >
+                                        Monthly
+                                    </button>
+                                    <button
+                                        type="button"
+                                        role="radio"
+                                        aria-checked={periodIsYearly}
+                                        onClick={() => setYearly(true)}
+                                        className={`h-8 rounded-md px-4 text-sm font-medium ${
+                                            periodIsYearly
+                                                ? 'bg-white text-foreground shadow-xs'
+                                                : 'text-muted-foreground'
+                                        }`}
+                                    >
+                                        Yearly
+                                    </button>
+                                </div>
+                            ) : null}
+                        </div>
                     }
                 />
 

@@ -48,13 +48,16 @@ const footerNavItems: NavItem[] = [
 
 const customerIcons: Record<string, LucideIcon> = {
     Home,
-    'Fix Center': Wrench,
+    'Fix issues': Wrench,
+    'My WHMCS': Plug,
     Reports: FileText,
-    Installations: Plug,
     Settings,
 };
 
 const platformIcons: Record<string, LucideIcon> = {
+    'Admin > Money': CreditCard,
+    'Admin > System': SlidersHorizontal,
+    'Admin > People': Users,
     'Overview / MRR': LayoutGrid,
     'Plan catalog': Layers,
     Gateway: Receipt,
