@@ -316,21 +316,18 @@ final class DiagnosticCollector
 
                 $source = 'table';
                 $normalized = $this->normalizeModuleQueueItems(['queue' => $tableRows])
-                    ?? ['items' => [], 'pending_count' => 0];
+                    ?? [
+                        'items' => [],
+                        'pending_count' => 0,
+                        'by_action' => $this->emptyModuleQueueByAction(),
+                    ];
             }
 
-            $byAction = [
-                'create' => 0,
-                'suspend' => 0,
-                'unsuspend' => 0,
-                'terminate' => 0,
-                'other' => 0,
-            ];
+            $byAction = $normalized['by_action'] ?? $this->emptyModuleQueueByAction();
             $oldest = null;
             $normalizedItems = [];
             foreach ($normalized['items'] as $item) {
                 $item['action'] = $this->moduleActionKey((string) ($item['action'] ?? 'other'));
-                $byAction[$item['action']]++;
                 $age = (int) ($item['age_minutes'] ?? 0);
                 $oldest = $oldest === null ? $age : max($oldest, $age);
                 $normalizedItems[] = $item;
@@ -351,8 +348,22 @@ final class DiagnosticCollector
     }
 
     /**
+     * @return array{create: int, suspend: int, unsuspend: int, terminate: int, other: int}
+     */
+    private function emptyModuleQueueByAction(): array
+    {
+        return [
+            'create' => 0,
+            'suspend' => 0,
+            'unsuspend' => 0,
+            'terminate' => 0,
+            'other' => 0,
+        ];
+    }
+
+    /**
      * @param  array<string, mixed>|null  $api
-     * @return array{items: list<array<string, mixed>>, pending_count: int}|null
+     * @return array{items: list<array<string, mixed>>, pending_count: int, by_action: array{create: int, suspend: int, unsuspend: int, terminate: int, other: int}}|null
      */
     private function normalizeModuleQueueItems(?array $api): ?array
     {
@@ -368,11 +379,28 @@ final class DiagnosticCollector
             return null;
         }
 
+        if (! array_is_list($raw)) {
+            if (isset($raw['queueitem']) && is_array($raw['queueitem'])) {
+                $raw = [$raw['queueitem']];
+            } elseif (isset($raw['queueItem']) && is_array($raw['queueItem'])) {
+                $raw = [$raw['queueItem']];
+            } else {
+                $raw = [$raw];
+            }
+        }
+
         $items = [];
         $pendingCount = 0;
+        $byAction = $this->emptyModuleQueueByAction();
         foreach (array_slice($raw, 0, self::ID_LIMIT) as $row) {
             if (! is_array($row)) {
                 continue;
+            }
+
+            if (isset($row['queueitem']) && is_array($row['queueitem'])) {
+                $row = $row['queueitem'];
+            } elseif (isset($row['queueItem']) && is_array($row['queueItem'])) {
+                $row = $row['queueItem'];
             }
 
             $pendingCount++;
@@ -393,6 +421,9 @@ final class DiagnosticCollector
             }
 
             $rawAction = (string) ($row['action'] ?? $row['module_action'] ?? $row['moduleAction'] ?? 'other');
+            $actionKey = $this->moduleActionKey($rawAction);
+            $byAction[$actionKey] = (int) $byAction[$actionKey] + 1;
+
             $id = (int) ($row['id'] ?? $row['queueid'] ?? $row['queueId'] ?? 0);
             $serviceId = (int) ($row['service_id'] ?? $row['serviceId'] ?? $row['serviceid'] ?? $row['relid'] ?? $row['relId'] ?? 0);
 
@@ -404,7 +435,7 @@ final class DiagnosticCollector
                 'id' => $id,
                 'service_type' => $serviceType,
                 'service_id' => $serviceId,
-                'action' => $this->moduleActionKey($rawAction),
+                'action' => $actionKey,
                 'age_minutes' => (int) $ageMinutes,
                 'retries' => (int) ($row['retries'] ?? $row['num_retries'] ?? $row['attempts'] ?? 0),
                 'error' => SnapshotRedactor::redact((string) ($row['error'] ?? $row['last_error'] ?? $row['errorMsg'] ?? $row['errormsg'] ?? $row['failure_reason'] ?? '')),
@@ -414,6 +445,7 @@ final class DiagnosticCollector
         return [
             'items' => $items,
             'pending_count' => $pendingCount,
+            'by_action' => $byAction,
         ];
     }
 

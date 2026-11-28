@@ -29,6 +29,9 @@ namespace {
         /** @var list<array<string, mixed>>|null */
         public ?array $moduleQueueRows = null;
 
+        /** @var list<array<string, mixed>>|null */
+        public ?array $moduleQueueTableRows = null;
+
         /** @var array<string, mixed>|null */
         public ?array $gatewayOverride = null;
 
@@ -85,6 +88,10 @@ namespace {
 
         public function moduleQueueFromTable(): ?array
         {
+            if ($this->moduleQueueTableRows !== null) {
+                return $this->moduleQueueTableRows;
+            }
+
             return [
                 [
                     'id' => 99,
@@ -349,6 +356,176 @@ namespace {
         assertCollectorCondition(
             ($zeroPayload['whmcs']['module_queue']['items'][0]['id'] ?? null) === 56,
             'queueid fallback for id was not applied.',
+        );
+        assertCollectorCondition(
+            ($zeroPayload['whmcs']['module_queue']['by_action'] ?? null) === [
+                'create' => 1,
+                'suspend' => 1,
+                'unsuspend' => 0,
+                'terminate' => 0,
+                'other' => 0,
+            ],
+            'by_action must count omitted service_id 0 rows.',
+        );
+
+        $realShaped = new FakeWhmcsDataSource;
+        $realShaped->moduleQueueRows = [
+            [
+                'id' => 1,
+                'serviceType' => 'service',
+                'serviceId' => 101,
+                'moduleAction' => 'CreateAccount',
+                'createdAt' => gmdate('Y-m-d H:i:s', time() - 60),
+                'attempts' => 0,
+                'errorMsg' => '',
+            ],
+            [
+                'id' => 2,
+                'serviceType' => 'service',
+                'serviceId' => 102,
+                'moduleAction' => 'SuspendAccount',
+                'createdAt' => gmdate('Y-m-d H:i:s', time() - 120),
+                'attempts' => 1,
+                'errorMsg' => '',
+            ],
+            [
+                'id' => 3,
+                'serviceType' => 'service',
+                'serviceId' => 103,
+                'moduleAction' => 'UnsuspendAccount',
+                'createdAt' => gmdate('Y-m-d H:i:s', time() - 180),
+                'attempts' => 0,
+                'errorMsg' => '',
+            ],
+            [
+                'id' => 4,
+                'serviceType' => 'service',
+                'serviceId' => 104,
+                'moduleAction' => 'TerminateAccount',
+                'createdAt' => gmdate('Y-m-d H:i:s', time() - 240),
+                'attempts' => 0,
+                'errorMsg' => '',
+            ],
+            [
+                'id' => 5,
+                'serviceType' => 'service',
+                'serviceId' => 105,
+                'moduleAction' => 'ChangePackage',
+                'createdAt' => gmdate('Y-m-d H:i:s', time() - 300),
+                'attempts' => 0,
+                'errorMsg' => '',
+            ],
+            [
+                'id' => 6,
+                'serviceType' => 'service',
+                'serviceId' => 106,
+                'moduleAction' => '',
+                'createdAt' => gmdate('Y-m-d H:i:s', time() - 360),
+                'attempts' => 0,
+                'errorMsg' => '',
+            ],
+        ];
+        $realPayload = (new DiagnosticCollector($realShaped))->collect();
+        $realByAction = $realPayload['whmcs']['module_queue']['by_action'] ?? null;
+        assertCollectorCondition(
+            is_array($realByAction)
+            && array_keys($realByAction) === ['create', 'suspend', 'unsuspend', 'terminate', 'other']
+            && $realByAction === [
+                'create' => 1,
+                'suspend' => 1,
+                'unsuspend' => 1,
+                'terminate' => 1,
+                'other' => 2,
+            ],
+            'Real GetModuleQueue actions were not mapped into by_action integers.',
+        );
+        foreach ($realByAction as $actionKey => $actionCount) {
+            assertCollectorCondition(
+                is_int($actionCount),
+                'by_action.'.$actionKey.' must be an integer.',
+            );
+        }
+
+        $emptyQueue = new FakeWhmcsDataSource;
+        $emptyQueue->moduleQueueRows = [];
+        $emptyQueue->moduleQueueTableRows = [];
+        $emptyPayload = (new DiagnosticCollector($emptyQueue))->collect();
+        $emptyByAction = $emptyPayload['whmcs']['module_queue']['by_action'] ?? null;
+        assertCollectorCondition(
+            ($emptyPayload['whmcs']['module_queue']['pending_count'] ?? null) === 0,
+            'Empty queue pending_count must be 0.',
+        );
+        assertCollectorCondition(
+            $emptyByAction === [
+                'create' => 0,
+                'suspend' => 0,
+                'unsuspend' => 0,
+                'terminate' => 0,
+                'other' => 0,
+            ],
+            'Empty queue must still emit five integer-zero by_action keys.',
+        );
+
+        $allOmitted = new FakeWhmcsDataSource;
+        $allOmitted->moduleQueueRows = [
+            [
+                'id' => 71,
+                'serviceType' => 'service',
+                'serviceId' => 0,
+                'moduleAction' => 'ModuleCreate',
+                'createdAt' => gmdate('Y-m-d H:i:s', time() - 45),
+                'attempts' => 0,
+                'errorMsg' => 'orphan create',
+            ],
+            [
+                'id' => 72,
+                'serviceType' => 'service',
+                'serviceid' => 0,
+                'moduleAction' => 'ChangePackage',
+                'createdAt' => gmdate('Y-m-d H:i:s', time() - 90),
+                'attempts' => 0,
+                'errorMsg' => 'orphan other',
+            ],
+        ];
+        $allOmittedPayload = (new DiagnosticCollector($allOmitted))->collect();
+        assertCollectorCondition(
+            ($allOmittedPayload['whmcs']['module_queue']['pending_count'] ?? null) === 2,
+            'All-omitted rows must still increment pending_count.',
+        );
+        assertCollectorCondition(
+            ($allOmittedPayload['whmcs']['module_queue']['items'] ?? null) === [],
+            'All-omitted rows must produce an empty items list.',
+        );
+        assertCollectorCondition(
+            ($allOmittedPayload['whmcs']['module_queue']['by_action'] ?? null) === [
+                'create' => 1,
+                'suspend' => 0,
+                'unsuspend' => 0,
+                'terminate' => 0,
+                'other' => 1,
+            ],
+            'Omitted rows with real actions must still increment by_action.',
+        );
+
+        $encodedQueue = json_encode($realPayload['whmcs']['module_queue'], JSON_THROW_ON_ERROR);
+        $decodedQueue = json_decode($encodedQueue, true, 512, JSON_THROW_ON_ERROR);
+        foreach (['create', 'suspend', 'unsuspend', 'terminate', 'other'] as $actionKey) {
+            assertCollectorCondition(
+                array_key_exists($actionKey, $decodedQueue['by_action'] ?? []),
+                'JSON by_action missing key '.$actionKey.'.',
+            );
+            assertCollectorCondition(
+                is_int($decodedQueue['by_action'][$actionKey]),
+                'JSON by_action.'.$actionKey.' must decode as an integer number.',
+            );
+            assertCollectorCondition(
+                ! is_string($decodedQueue['by_action'][$actionKey]),
+                'JSON by_action.'.$actionKey.' must not be a string.',
+            );
+        }
+        assertCollectorCondition(
+            count($decodedQueue['by_action']) === 5,
+            'JSON by_action must not include extra keys.',
         );
 
         $dirtyGateways = new FakeWhmcsDataSource;
