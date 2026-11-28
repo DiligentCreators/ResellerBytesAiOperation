@@ -410,27 +410,22 @@ export default function OnboardingIndex({
                 {currentStep === 'whmcs' && (
                     <div className="flex flex-col gap-5">
                         <p className="text-sm text-muted-foreground">
-                            Download the signed addon, create an installation,
-                            then wait for the first heartbeat.
+                            Download the signed addon, create a connection, set
+                            up the WHMCS system cron, then wait for the first
+                            heartbeat.
                         </p>
 
                         {!twoFactorEnabled ? (
-                            <div
-                                role="status"
-                                className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100"
-                            >
-                                <p>
-                                    Creating an installation requires the
-                                    workspace owner to confirm two-factor
-                                    authentication (TOTP) first.
-                                </p>
+                            <p className="text-xs text-muted-foreground">
+                                Tip: turn on{' '}
                                 <Link
                                     href={editSecurity()}
-                                    className="mt-2 inline-flex font-medium underline underline-offset-4 hover:no-underline"
+                                    className="underline underline-offset-2 hover:no-underline"
                                 >
-                                    Enable 2FA
-                                </Link>
-                            </div>
+                                    two-factor authentication
+                                </Link>{' '}
+                                in Settings for extra security.
+                            </p>
                         ) : null}
 
                         <ol className="space-y-4 text-sm">
@@ -505,6 +500,17 @@ export default function OnboardingIndex({
                                     Activate ResellerBytes AI Operations under
                                     Addon Modules, then enter only the absolute
                                     path to your credentials file.
+                                </p>
+                            </li>
+                            <li className="rounded-md border border-border p-4">
+                                <p className="font-medium">
+                                    4. Confirm the WHMCS system cron is running
+                                </p>
+                                <p className="mt-1 text-muted-foreground">
+                                    Make sure the normal WHMCS system cron runs
+                                    crons/cron.php via PHP CLI about every 5
+                                    minutes. This is how we know your WHMCS is
+                                    online and how automatic checks run.
                                 </p>
                             </li>
                         </ol>

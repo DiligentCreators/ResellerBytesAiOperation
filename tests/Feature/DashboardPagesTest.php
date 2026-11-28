@@ -32,6 +32,15 @@ it('renders the WHMCS addon setup page with download capability props', function
             ->has('aiConfigured'));
 });
 
+it('documents the WHMCS system cron on the setup page and no longer discourages cron', function () {
+    $source = file_get_contents(resource_path('js/pages/whmcs-addon/setup.tsx'));
+
+    expect($source)->not->toContain('Do not configure a')
+        ->and($source)->toContain('cron')
+        ->and($source)->toContain('crons/cron.php')
+        ->and($source)->toContain('Tested with WHMCS 8.13');
+});
+
 it('renders the setup page addonVersion from the packaged source when config is drifted', function () {
     config(['services.whmcs_addon.version' => '1.1.0']);
 

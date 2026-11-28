@@ -94,6 +94,7 @@ type Props = {
     };
     filters: { tab: string };
     counts: { open: number; fixing: number; fixed: number; ignored: number };
+    last_scan_clean?: boolean;
     entitlements: {
         fixes_guided: boolean;
         fixes_one_click: boolean;
@@ -116,6 +117,7 @@ export default function FixCenterIndex({
     issues,
     filters,
     counts,
+    last_scan_clean = false,
     entitlements,
     fixes_enabled,
     fixes_unavailable_message,
@@ -329,16 +331,26 @@ export default function FixCenterIndex({
                 {issues.data.length === 0 ? (
                     <EmptyState
                         icon={
-                            filters.tab === 'fixed' || filters.tab === 'open'
+                            filters.tab === 'fixed' ||
+                            filters.tab === 'open' ||
+                            last_scan_clean
                                 ? CheckCircle2
                                 : Wrench
                         }
                         title={
-                            filters.tab === 'open'
-                                ? 'No open issues'
-                                : `No ${filters.tab} issues`
+                            filters.tab === 'open' && last_scan_clean
+                                ? 'All clear. Your last check found no problems.'
+                                : filters.tab === 'open'
+                                  ? 'Nothing to fix right now.'
+                                  : `No ${filters.tab} issues`
                         }
-                        description="When a scan finds something to fix, it shows up here in plain language."
+                        description={
+                            filters.tab === 'open' && last_scan_clean
+                                ? 'We check your WHMCS automatically and will list problems here if anything appears.'
+                                : filters.tab === 'open'
+                                  ? 'We check your WHMCS automatically and will list problems here.'
+                                  : 'When a scan finds something to fix, it shows up here in plain language.'
+                        }
                         action={
                             <Button size="sm" asChild>
                                 <Link href="/integrations">
@@ -380,7 +392,12 @@ export default function FixCenterIndex({
                                             <div className="min-w-0 space-y-1">
                                                 <div className="flex flex-wrap items-center gap-2">
                                                     <h2 className="text-sm font-semibold text-foreground">
-                                                        {issue.title}
+                                                        <Link
+                                                            href={`/findings/${issue.id}`}
+                                                            className="hover:text-brand hover:underline"
+                                                        >
+                                                            {issue.title}
+                                                        </Link>
                                                     </h2>
                                                     <SeverityBadge
                                                         severity={
@@ -564,7 +581,13 @@ export default function FixCenterIndex({
                                 <SheetTitle>{activeIssue.title}</SheetTitle>
                                 <SheetDescription>
                                     Follow these steps in WHMCS, then ask us to
-                                    check again.
+                                    check again.{' '}
+                                    <Link
+                                        href={`/findings/${activeIssue.id}`}
+                                        className="text-brand underline-offset-2 hover:underline"
+                                    >
+                                        Details
+                                    </Link>
                                 </SheetDescription>
                             </SheetHeader>
                             <div className="space-y-4 px-4">
@@ -686,12 +709,23 @@ export default function FixCenterIndex({
                                     {activeIssue.fix_state ===
                                     'awaiting_verification'
                                         ? 'The fix was applied. Waiting for the next scan to verify.'
-                                        : 'Preview what will change, approve, then watch status until verified.'}
+                                        : 'Preview what will change, approve, then watch status until verified.'}{' '}
+                                    <Link
+                                        href={`/findings/${activeIssue.id}`}
+                                        className="text-brand underline-offset-2 hover:underline"
+                                    >
+                                        Details
+                                    </Link>
                                 </SheetDescription>
                             </SheetHeader>
                             <div className="space-y-4 px-4">
                                 <p className="text-sm font-medium">
-                                    {activeIssue.title}
+                                    <Link
+                                        href={`/findings/${activeIssue.id}`}
+                                        className="hover:text-brand hover:underline"
+                                    >
+                                        {activeIssue.title}
+                                    </Link>
                                 </p>
                                 {selectedAction ? (
                                     <div className="space-y-2 rounded-md border border-border p-3 text-sm">
@@ -941,7 +975,13 @@ export default function FixCenterIndex({
                             <SheetHeader>
                                 <SheetTitle>{activeIssue.title}</SheetTitle>
                                 <SheetDescription>
-                                    {activeIssue.why_it_matters}
+                                    {activeIssue.why_it_matters}{' '}
+                                    <Link
+                                        href={`/findings/${activeIssue.id}`}
+                                        className="text-brand underline-offset-2 hover:underline"
+                                    >
+                                        Details
+                                    </Link>
                                 </SheetDescription>
                             </SheetHeader>
                             <div className="space-y-3 px-4 text-sm">

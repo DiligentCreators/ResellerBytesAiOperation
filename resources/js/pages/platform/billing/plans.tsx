@@ -448,7 +448,7 @@ function PlanFields({
                     }
                     disabled={disabled}
                 />
-                One-click fixes (Growth+)
+                One-click fixes (Growth)
             </label>
             <label className="flex items-center gap-2 text-sm">
                 <input
@@ -458,7 +458,7 @@ function PlanFields({
                     defaultChecked={plan?.entitlements['fixes.bulk'] ?? false}
                     disabled={disabled}
                 />
-                Bulk fixes (Growth+)
+                Bulk fixes (Growth)
             </label>
             <label className="flex items-center gap-2 text-sm">
                 <input
@@ -468,7 +468,7 @@ function PlanFields({
                     defaultChecked={plan?.entitlements['fixes.auto'] ?? false}
                     disabled={disabled}
                 />
-                Auto-fix policies (Pro)
+                Auto-fix policies (Business)
             </label>
             <label className="flex items-center gap-2 text-sm">
                 <input
@@ -480,7 +480,7 @@ function PlanFields({
                     }
                     disabled={disabled}
                 />
-                Alert channels (Growth+)
+                Alert channels (Growth)
             </label>
             <label className="flex items-center gap-2 text-sm">
                 <input
@@ -492,7 +492,7 @@ function PlanFields({
                     }
                     disabled={disabled}
                 />
-                Monthly value report (Pro)
+                Monthly value report (Business)
             </label>
             <label className="flex items-center gap-2 text-sm">
                 <input

@@ -32,8 +32,8 @@ class WhmcsIntegrationProvisioner
             throw new InvalidArgumentException('The integration name must contain between 1 and 120 characters.');
         }
 
-        if ($owner->email_verified_at === null || $owner->two_factor_confirmed_at === null || $owner->two_factor_secret === null) {
-            throw new InvalidArgumentException('The owner must be an existing account with verified email and confirmed TOTP MFA.');
+        if ($owner->email_verified_at === null) {
+            throw new InvalidArgumentException('The owner must be an existing account with a verified email.');
         }
 
         $tenantId = $tenantId !== null ? trim($tenantId) : null;

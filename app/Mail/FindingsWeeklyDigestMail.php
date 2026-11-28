@@ -64,7 +64,7 @@ class FindingsWeeklyDigestMail extends Mailable
         ];
 
         if (($this->digest['recovered_display'] ?? null) !== null) {
-            $lines[] = '<li>$ recovered (when available): $'.e((string) $this->digest['recovered_display']).'</li>';
+            $lines[] = '<li>Paid in WHMCS (last 7 days): $'.e((string) $this->digest['recovered_display']).'</li>';
         }
 
         $lines[] = '<li>Outside-heartbeat incidents caught: '.e((string) (int) ($this->digest['outside_heartbeat_incidents'] ?? 0)).'</li>';
@@ -85,7 +85,7 @@ class FindingsWeeklyDigestMail extends Mailable
             && (int) ($this->digest['awaiting_safe_actions'] ?? 0) === 0
             && (int) ($this->digest['needs_recheck'] ?? 0) === 0
         ) {
-            $lines[] = '<p><strong>Last scan clean</strong> — no active findings need attention this week.</p>';
+            $lines[] = '<p><strong>All clear.</strong> Your last check found no problems that need attention this week.</p>';
         } else {
             if ($topOpen !== []) {
                 $lines[] = '<p>Top open issues:</p><ol>';

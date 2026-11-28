@@ -39,8 +39,8 @@ export default function DiagnosticRunsIndex({ runs }: Props) {
                 {runs.data.length === 0 ? (
                     <EmptyState
                         icon={Activity}
-                        title="No diagnostic runs yet"
-                        description="Once the WHMCS addon submits a snapshot, it will appear here."
+                        title="No checks yet."
+                        description="In WHMCS open the ResellerBytes AI Operations addon and press Run diagnostics once, or wait for the next automatic check."
                         action={
                             <Button size="sm" asChild>
                                 <Link href="/whmcs-addon/setup">

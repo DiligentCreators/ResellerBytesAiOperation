@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\Tenants\UpdateAutoFixPolicyRequest;
 use App\Models\AutoFixPolicy;
+use App\Models\Plan;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Models\WhmcsIntegration;
@@ -83,6 +84,7 @@ class TenantAutoFixSettingsController extends Controller
             ],
             'canManage' => $canManage,
             'proEnabled' => $autoEnabled,
+            'requiredPlanName' => Plan::requiredPlanLabel('fixes.auto'),
             'billingPlansUrl' => route('billing.plans'),
             'integrationsUrl' => route('integrations.index'),
             'installations' => $installations,

@@ -42,6 +42,7 @@ type Props = {
     deliveries: Delivery[];
     canManage: boolean;
     channelsEntitled: boolean;
+    requiredPlanName?: string;
     eventKeys: string[];
     channelTypes: string[];
     status?: string;
@@ -54,6 +55,7 @@ export default function TenantAlerts({
     deliveries,
     canManage,
     channelsEntitled,
+    requiredPlanName = 'a higher plan',
     eventKeys,
     channelTypes,
     status,
@@ -101,11 +103,13 @@ export default function TenantAlerts({
 
                 {!channelsEntitled ? (
                     <div className="rounded-md border border-border bg-muted/40 px-4 py-3 text-sm">
-                        <p className="font-medium">Upgrade to Growth+</p>
+                        <p className="font-medium">
+                            Upgrade to {requiredPlanName}
+                        </p>
                         <p className="mt-1 text-muted-foreground">
                             Starter includes in-app notifications only. Email,
                             Slack, Discord, and webhook alert channels are
-                            available on Growth and higher plans.
+                            available on {requiredPlanName} and higher plans.
                         </p>
                         <Button
                             type="button"

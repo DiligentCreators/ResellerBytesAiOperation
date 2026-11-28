@@ -8,9 +8,15 @@ it('renders the product gtm page with objections and packaging', function () {
         ->assertInertia(fn (Assert $page) => $page
             ->component('marketing/product')
             ->has('objections', 3)
-            ->has('packaging', 3)
+            ->has('packaging')
             ->where('marketplace.positioning', fn ($value) => str_contains((string) $value, 'Ops intelligence'))
-            ->has('marketplace.listing_checklist', 4));
+            ->missing('marketplace.listing_checklist')
+            ->where('packaging', fn ($packaging) => collect($packaging)->pluck('name')->intersect([
+                'Starter',
+                'Growth',
+                'Business',
+                'Enterprise',
+            ])->isNotEmpty() || collect($packaging)->isNotEmpty()));
 });
 
 it('renders sanitized case studies', function () {

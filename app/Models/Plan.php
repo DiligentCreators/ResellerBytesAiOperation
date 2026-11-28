@@ -162,4 +162,34 @@ class Plan extends Model
             ->orderBy('sort_order')
             ->orderBy('id');
     }
+
+    /**
+     * Display name of the lowest active public plan that includes a boolean entitlement.
+     */
+    public static function lowestPublicNameForFeature(string $entitlementKey): ?string
+    {
+        $plans = static::query()
+            ->where('is_active', true)
+            ->where('is_public', true)
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get(['name', 'entitlements']);
+
+        foreach ($plans as $plan) {
+            $entitlements = is_array($plan->entitlements) ? $plan->entitlements : [];
+            if (($entitlements[$entitlementKey] ?? false) === true) {
+                return is_string($plan->name) && $plan->name !== '' ? $plan->name : null;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Customer-facing upgrade label for an entitlement (falls back when none match).
+     */
+    public static function requiredPlanLabel(string $entitlementKey, string $fallback = 'a higher plan'): string
+    {
+        return static::lowestPublicNameForFeature($entitlementKey) ?? $fallback;
+    }
 }

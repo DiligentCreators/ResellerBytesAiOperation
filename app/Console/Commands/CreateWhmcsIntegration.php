@@ -12,7 +12,7 @@ use InvalidArgumentException;
 
 class CreateWhmcsIntegration extends Command
 {
-    protected $signature = 'whmcs:integration:create {name : A recognizable name for this WHMCS installation} {--owner= : Verified MFA-enabled owner account email} {--tenant= : Optional active tenant UUID for tenant-scoped provisioning}';
+    protected $signature = 'whmcs:integration:create {name : A recognizable name for this WHMCS installation} {--owner= : Verified owner account email} {--tenant= : Optional active tenant UUID for tenant-scoped provisioning}';
 
     protected $description = 'Create an owned WHMCS integration and display its secret once';
 
@@ -37,12 +37,10 @@ class CreateWhmcsIntegration extends Command
         $owner = User::query()
             ->where('email', $ownerEmail)
             ->whereNotNull('email_verified_at')
-            ->whereNotNull('two_factor_confirmed_at')
-            ->whereNotNull('two_factor_secret')
             ->first();
 
         if ($owner === null) {
-            $this->error('The owner must be an existing account with verified email and confirmed TOTP MFA.');
+            $this->error('The owner must be an existing account with a verified email.');
 
             return self::FAILURE;
         }

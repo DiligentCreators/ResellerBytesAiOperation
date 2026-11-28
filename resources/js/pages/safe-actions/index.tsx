@@ -39,12 +39,14 @@ type Props = {
     };
     actions: ActionDef[];
     integrations: Integration[];
+    requiredPlanName?: string;
 };
 
 export default function SafeActionsIndex({
     executions,
     actions,
     integrations,
+    requiredPlanName = 'a higher plan',
 }: Props) {
     const { flash } = usePage().props as { flash?: { status?: string | null } };
     const executable = integrations.filter((item) => item.can_execute);
@@ -152,7 +154,7 @@ export default function SafeActionsIndex({
                     <EmptyState
                         icon={ShieldCheck}
                         title="Safe Actions unavailable"
-                        description="You need an operator role and a plan with the safe_actions entitlement (Growth / Agency+)."
+                        description={`You need an operator role and a plan with Safe Actions (${requiredPlanName} or higher).`}
                     />
                 )}
 

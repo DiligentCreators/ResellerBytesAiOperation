@@ -25,7 +25,7 @@ const steps = [
     },
     {
         title: 'Download the addon package',
-        body: 'Download the signed ZIP from this page. It contains only the addon module files — never credentials.',
+        body: 'Download the signed ZIP from this page. It contains only the addon module files, never credentials.',
     },
     {
         title: 'Upload into WHMCS',
@@ -37,11 +37,15 @@ const steps = [
     },
     {
         title: 'Point to your credentials file',
-        body: 'Create a JSON credentials file outside the WHMCS web root (permissions 0600). In the addon settings, enter only the absolute path to that file — never paste the secret into WHMCS.',
+        body: 'Create a JSON credentials file outside the WHMCS web root (permissions 0600). In the addon settings, enter only the absolute path to that file. Never paste the secret into WHMCS.',
+    },
+    {
+        title: 'Confirm the WHMCS system cron is running',
+        body: 'Make sure the normal WHMCS system cron is running crons/cron.php via PHP CLI about every 5 minutes. This is how we know your WHMCS is online and how automatic checks run. The cron user must be able to read the 0600 credentials file.',
     },
     {
         title: 'Run a manual diagnostic',
-        body: 'Open Addons → ResellerBytes AI Operations in WHMCS, run diagnostics once, then confirm the snapshot appears under Diagnostic Runs here.',
+        body: 'Open Addons → ResellerBytes AI Operations in WHMCS, press Run diagnostics once, then confirm the snapshot appears under Diagnostic Runs here.',
     },
 ];
 
@@ -81,13 +85,14 @@ export default function WhmcsAddonSetup({
                                 </span>
                             </div>
                             <p className="mt-1 text-sm text-muted-foreground">
-                                WHMCS 8.13.7 · PHP 8.1+ · cURL · Signed ZIP
-                                package
+                                Tested with WHMCS 8.13. Needs PHP 8.1 or higher
+                                and the cURL extension. Signed download.
                             </p>
                             <p className="mt-3 text-sm leading-6">
-                                This package is read-only. It does not change
-                                customers, invoices, payments, hosting, domains,
-                                or your existing registrar/hosting modules.
+                                This package is read-only. The addon never
+                                changes customers, invoices, payments, hosting,
+                                domains or registrar modules. Approved fixes
+                                only run after a human approves them.
                             </p>
                             <p className="mt-3 text-sm leading-6 text-muted-foreground">
                                 Diagnostics collect technical aggregates only:
@@ -237,8 +242,11 @@ export default function WhmcsAddonSetup({
                         </h2>
                     </div>
                     <p className="text-sm leading-6 text-muted-foreground">
-                        The addon is manual and read-only. Do not configure a
-                        WHMCS cron for it in this release.
+                        The addon never changes customers, invoices, payments,
+                        hosting, domains or registrar modules. Approved fixes
+                        only run after a human approves them. Heartbeats and
+                        automatic checks rely on the WHMCS system cron
+                        (crons/cron.php via PHP CLI).
                     </p>
                     <p className="mt-3 text-sm leading-6 text-muted-foreground">
                         To roll back: rotate or revoke the integration here,

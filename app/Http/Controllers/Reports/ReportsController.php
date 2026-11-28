@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Reports;
 
 use App\Http\Controllers\Controller;
+use App\Models\Plan;
 use App\Models\SafeActionExecution;
 use App\Models\Tenant;
 use App\Models\TenantMembership;
@@ -72,6 +73,7 @@ class ReportsController extends Controller
                 'timezone' => $tenant->timezone ?: config('app.timezone', 'UTC'),
             ],
             'status' => $request->session()->get('status'),
+            'requiredPlanName' => Plan::requiredPlanLabel('reports.value'),
             'reports' => $reports,
             'filters' => [
                 'mode' => $filters['mode'] ?? null,

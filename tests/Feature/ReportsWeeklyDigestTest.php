@@ -212,7 +212,9 @@ it('builds weekly report content with health score time saved and fix links', fu
     expect($mailable->render())->toContain('Start guided fix')
         ->and($mailable->render())->not->toContain('>Fix now<')
         ->and($mailable->render())->toContain('Health score')
-        ->and($mailable->render())->toContain('Time saved');
+        ->and($mailable->render())->toContain('Time saved')
+        ->and($mailable->render())->toContain('Paid in WHMCS (last 7 days)')
+        ->and($mailable->render())->not->toContain('$ recovered');
 
     Carbon::setTestNow();
 });
