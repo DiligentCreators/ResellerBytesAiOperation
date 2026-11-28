@@ -39,7 +39,7 @@ it('renders the setup page addonVersion from the packaged source when config is 
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('whmcs-addon/setup')
-            ->where('addonVersion', '1.2.1'));
+            ->where('addonVersion', '1.2.2'));
 });
 
 it('renders the authenticated integrations, diagnostic runs, and findings pages', function () {

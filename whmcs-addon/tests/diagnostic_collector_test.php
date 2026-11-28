@@ -2,10 +2,12 @@
 
 namespace {
     use ResellerBytesAiOps\DiagnosticCollector;
+    use ResellerBytesAiOps\Identifier;
     use ResellerBytesAiOps\SnapshotRedactor;
     use ResellerBytesAiOps\WhmcsDataSource;
 
     require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/Text.php';
+    require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/Identifier.php';
     require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/WhmcsDataSource.php';
     require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/SnapshotRedactor.php';
     require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/CapsuleWhmcsDataSource.php';
@@ -23,6 +25,12 @@ namespace {
         public bool $failBilling = false;
 
         public bool $failLocalApi = false;
+
+        /** @var list<array<string, mixed>>|null */
+        public ?array $moduleQueueRows = null;
+
+        /** @var array<string, mixed>|null */
+        public ?array $gatewayOverride = null;
 
         public function configurationValue(string $setting): ?string
         {
@@ -45,19 +53,21 @@ namespace {
             }
 
             if ($command === 'GetModuleQueue') {
+                $queue = $this->moduleQueueRows ?? [
+                    [
+                        'id' => 11,
+                        'serviceType' => 'service',
+                        'serviceId' => 101,
+                        'moduleAction' => 'ModuleCreate',
+                        'createdAt' => gmdate('Y-m-d H:i:s', time() - 10800),
+                        'attempts' => 2,
+                        'errorMsg' => 'Module create failed for user@example.com at 203.0.113.10',
+                    ],
+                ];
+
                 return [
                     'result' => 'success',
-                    'queue' => [
-                        [
-                            'id' => 11,
-                            'serviceType' => 'service',
-                            'serviceId' => 101,
-                            'moduleAction' => 'ModuleCreate',
-                            'createdAt' => gmdate('Y-m-d H:i:s', time() - 10800),
-                            'attempts' => 2,
-                            'errorMsg' => 'Module create failed for user@example.com at 203.0.113.10',
-                        ],
-                    ],
+                    'queue' => $queue,
                 ];
             }
 
@@ -148,6 +158,10 @@ namespace {
 
         public function gatewayAggregates(): ?array
         {
+            if ($this->gatewayOverride !== null) {
+                return $this->gatewayOverride;
+            }
+
             return [
                 'active' => ['paypal'],
                 'failures_7d' => [],
@@ -282,6 +296,101 @@ namespace {
         assertCollectorCondition(
             ($apiFailPayload['whmcs']['module_queue']['source'] ?? null) === 'table',
             'Module queue did not fall back to table when local API failed.',
+        );
+
+        $serviceidOnly = new FakeWhmcsDataSource;
+        $serviceidOnly->moduleQueueRows = [
+            [
+                'id' => 42,
+                'serviceType' => 'service',
+                'serviceid' => 777,
+                'moduleAction' => 'ModuleCreate',
+                'createdAt' => gmdate('Y-m-d H:i:s', time() - 120),
+                'attempts' => 0,
+                'errorMsg' => 'pending',
+            ],
+        ];
+        $serviceidPayload = (new DiagnosticCollector($serviceidOnly))->collect();
+        assertCollectorCondition(
+            ($serviceidPayload['whmcs']['module_queue']['items'][0]['service_id'] ?? null) === 777,
+            'Lowercase serviceid was not mapped to service_id.',
+        );
+
+        $zeroService = new FakeWhmcsDataSource;
+        $zeroService->moduleQueueRows = [
+            [
+                'id' => 55,
+                'serviceType' => 'service',
+                'service_id' => 0,
+                'moduleAction' => 'ModuleSuspend',
+                'createdAt' => gmdate('Y-m-d H:i:s', time() - 60),
+                'attempts' => 1,
+                'errorMsg' => 'orphan queue row',
+            ],
+            [
+                'queueid' => 56,
+                'serviceType' => 'service',
+                'serviceid' => 200,
+                'moduleAction' => 'ModuleCreate',
+                'createdAt' => gmdate('Y-m-d H:i:s', time() - 30),
+                'attempts' => 0,
+                'errorMsg' => 'ok',
+            ],
+        ];
+        $zeroPayload = (new DiagnosticCollector($zeroService))->collect();
+        assertCollectorCondition(
+            ($zeroPayload['whmcs']['module_queue']['pending_count'] ?? null) === 2,
+            'pending_count must include omitted service_id 0 rows.',
+        );
+        assertCollectorCondition(
+            count($zeroPayload['whmcs']['module_queue']['items'] ?? []) === 1,
+            'service_id 0 rows must be omitted from items.',
+        );
+        assertCollectorCondition(
+            ($zeroPayload['whmcs']['module_queue']['items'][0]['id'] ?? null) === 56,
+            'queueid fallback for id was not applied.',
+        );
+
+        $dirtyGateways = new FakeWhmcsDataSource;
+        $dirtyGateways->gatewayOverride = [
+            'active' => ['PayPal (Recommended)', 'stripe'],
+            'failures_7d' => ['PayPal (Recommended)' => 3, 'paypal & express' => 2],
+            'signature_failures_7d' => [],
+            'unmatched_success_7d' => ['Foo/Bar' => 1],
+        ];
+        $gatewayPayload = (new DiagnosticCollector($dirtyGateways))->collect();
+        assertCollectorCondition(
+            in_array('PayPal Recommended', $gatewayPayload['whmcs']['gateways']['active'] ?? [], true),
+            'Gateway display name was not sanitized.',
+        );
+        assertCollectorCondition(
+            ($gatewayPayload['whmcs']['gateways']['failures_7d']['PayPal Recommended'] ?? null) === 3,
+            'Gateway map key was not sanitized.',
+        );
+        assertCollectorCondition(
+            ($gatewayPayload['whmcs']['gateways']['failures_7d']['paypal express'] ?? null) === 2,
+            'Gateway map key with ampersand was not sanitized.',
+        );
+        assertCollectorCondition(
+            ($gatewayPayload['whmcs']['gateways']['unmatched_success_7d']['Foo Bar'] ?? null) === 1,
+            'Gateway map key with slash was not sanitized.',
+        );
+
+        assertCollectorCondition(
+            Identifier::sanitize('PayPal (Recommended)') === 'PayPal Recommended',
+            'Identifier::sanitize did not normalize parentheses.',
+        );
+        assertCollectorCondition(
+            DiagnosticCollector::parseIoncubeVersion('13.0.2 VPS') === '13.0.2',
+            'ionCube version with suffix was not extracted.',
+        );
+        assertCollectorCondition(
+            DiagnosticCollector::parseIoncubeVersion('v13.0.2') === '13.0.2',
+            'ionCube version with leading v was not extracted.',
+        );
+        assertCollectorCondition(
+            DiagnosticCollector::parseIoncubeVersion('13.0.2') === '13.0.2',
+            'Clean ionCube version was altered.',
         );
     } finally {
         $configurationFile = $root.DIRECTORY_SEPARATOR.'configuration.php';

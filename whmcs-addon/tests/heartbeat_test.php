@@ -49,6 +49,7 @@ namespace {
 
     require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/HttpTransport.php';
     require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/CurlHttpTransport.php';
+    require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/ApiClientException.php';
     require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/SignedApiClient.php';
 
     function assertHeartbeatCondition(bool $condition, string $message): void

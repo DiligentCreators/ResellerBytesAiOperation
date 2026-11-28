@@ -56,12 +56,14 @@ namespace {
 
     require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/FailureCode.php';
     require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/Text.php';
+    require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/Identifier.php';
     require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/WhmcsDataSource.php';
     require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/CapsuleWhmcsDataSource.php';
     require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/SnapshotRedactor.php';
     require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/DiagnosticCollector.php';
     require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/HttpTransport.php';
     require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/CurlHttpTransport.php';
+    require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/ApiClientException.php';
     require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/SignedApiClient.php';
     require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/LocalApiClient.php';
     require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/WhmcsLocalApiClient.php';

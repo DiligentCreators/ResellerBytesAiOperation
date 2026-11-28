@@ -1,5 +1,6 @@
 <?php
 
+use ResellerBytesAiOps\ApiClientException;
 use ResellerBytesAiOps\CredentialsFile;
 use ResellerBytesAiOps\DiagnosticCollector;
 use ResellerBytesAiOps\FailureCode;
@@ -18,12 +19,14 @@ require_once __DIR__.'/lib/RuntimeRoots.php';
 require_once __DIR__.'/lib/FailureCode.php';
 require_once __DIR__.'/lib/FailureHint.php';
 require_once __DIR__.'/lib/Text.php';
+require_once __DIR__.'/lib/Identifier.php';
 require_once __DIR__.'/lib/WhmcsDataSource.php';
 require_once __DIR__.'/lib/CapsuleWhmcsDataSource.php';
 require_once __DIR__.'/lib/SnapshotRedactor.php';
 require_once __DIR__.'/lib/DiagnosticCollector.php';
 require_once __DIR__.'/lib/HttpTransport.php';
 require_once __DIR__.'/lib/CurlHttpTransport.php';
+require_once __DIR__.'/lib/ApiClientException.php';
 require_once __DIR__.'/lib/SignedApiClient.php';
 require_once __DIR__.'/lib/LocalApiClient.php';
 require_once __DIR__.'/lib/WhmcsLocalApiClient.php';
@@ -85,9 +88,14 @@ function resellerbytes_ai_ops_output(array $vars): void
 
     if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['run_diagnostics'])) {
         try {
-            if (isset($GLOBALS['resellerbytes_ai_ops_test_force_exception'])
-                && is_string($GLOBALS['resellerbytes_ai_ops_test_force_exception'])) {
-                throw new RuntimeException($GLOBALS['resellerbytes_ai_ops_test_force_exception']);
+            if (isset($GLOBALS['resellerbytes_ai_ops_test_force_exception'])) {
+                $forced = $GLOBALS['resellerbytes_ai_ops_test_force_exception'];
+                if ($forced instanceof Throwable) {
+                    throw $forced;
+                }
+                if (is_string($forced)) {
+                    throw new RuntimeException($forced);
+                }
             }
 
             $whmcsRoot = defined('ROOTDIR') ? (string) ROOTDIR : '';
@@ -106,18 +114,25 @@ function resellerbytes_ai_ops_output(array $vars): void
             $messageType = 'success';
         } catch (Throwable $exception) {
             $code = FailureCode::sanitize($exception->getMessage());
-            (new WhmcsActivityLogger)->log('ResellerBytes AI Ops manual diagnostics failed: '.$code);
+            $fieldsLog = $exception instanceof ApiClientException ? $exception->fieldsLogSuffix() : '';
+            $fieldsAlert = $exception instanceof ApiClientException ? $exception->fieldsAlertSuffix() : '';
+            (new WhmcsActivityLogger)->log('ResellerBytes AI Ops manual diagnostics failed: '.$code.$fieldsLog);
             $message = 'Diagnostics were not submitted. Verify the credentials file path, file permissions, HTTPS connectivity, and API configuration.'
-                .' Reason code: '.$code.'. '.FailureHint::hint($code);
+                .' Reason code: '.$code.'. '.FailureHint::hint($code).$fieldsAlert;
             $messageType = 'danger';
         }
     }
 
     if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['apply_safe_actions'])) {
         try {
-            if (isset($GLOBALS['resellerbytes_ai_ops_test_force_exception'])
-                && is_string($GLOBALS['resellerbytes_ai_ops_test_force_exception'])) {
-                throw new RuntimeException($GLOBALS['resellerbytes_ai_ops_test_force_exception']);
+            if (isset($GLOBALS['resellerbytes_ai_ops_test_force_exception'])) {
+                $forced = $GLOBALS['resellerbytes_ai_ops_test_force_exception'];
+                if ($forced instanceof Throwable) {
+                    throw $forced;
+                }
+                if (is_string($forced)) {
+                    throw new RuntimeException($forced);
+                }
             }
 
             $whmcsRoot = defined('ROOTDIR') ? (string) ROOTDIR : '';
@@ -174,9 +189,11 @@ function resellerbytes_ai_ops_output(array $vars): void
             }
         } catch (Throwable $exception) {
             $code = FailureCode::sanitize($exception->getMessage());
-            (new WhmcsActivityLogger)->log('ResellerBytes AI Ops Safe Actions apply failed: '.$code);
+            $fieldsLog = $exception instanceof ApiClientException ? $exception->fieldsLogSuffix() : '';
+            $fieldsAlert = $exception instanceof ApiClientException ? $exception->fieldsAlertSuffix() : '';
+            (new WhmcsActivityLogger)->log('ResellerBytes AI Ops Safe Actions apply failed: '.$code.$fieldsLog);
             $message = 'Approved Safe Actions could not be applied. Verify credentials, HTTPS connectivity, and that this addon version supports Safe Actions.'
-                .' Reason code: '.$code.'. '.FailureHint::hint($code);
+                .' Reason code: '.$code.'. '.FailureHint::hint($code).$fieldsAlert;
             $messageType = 'danger';
         }
     }

@@ -1,6 +1,8 @@
 <?php
 
 namespace {
+    use ResellerBytesAiOps\ApiClientException;
+
     function generate_token(string $type = 'plain'): string
     {
         return 'test-csrf-token';
@@ -90,6 +92,33 @@ namespace {
         'Dirty throwables must log unexpected_error only.',
     );
     assertManualOutput(! str_contains($GLOBALS['rb_activity_logs'][0], $dirtyPath), 'Activity log must never contain a filesystem path.');
+
+    $fieldKey = 'payload.whmcs.module_queue.items.0.service_id';
+    $secretLookingMessage = 'The field /var/www/secret/key.json must be at least 1.';
+    $GLOBALS['rb_activity_logs'] = [];
+    $GLOBALS['resellerbytes_ai_ops_test_force_exception'] = new ApiClientException(
+        'http_status_validation_failed',
+        [$fieldKey],
+    );
+    $_POST = ['run_diagnostics' => '1', 'token' => 'test-csrf-token'];
+    ob_start();
+    resellerbytes_ai_ops_output(['credentials_file' => '', 'modulelink' => 'addonmodules.php?module=resellerbytes_ai_ops']);
+    $validationOutput = ob_get_clean();
+    unset($GLOBALS['resellerbytes_ai_ops_test_force_exception']);
+
+    assertManualOutput(
+        str_contains($validationOutput, 'Reason code: http_status_validation_failed.'),
+        'Validation failures must surface the reason code.',
+    );
+    assertManualOutput(
+        str_contains($validationOutput, 'Fields: '.$fieldKey),
+        'Validation alert must include sanitized field keys.',
+    );
+    assertManualOutput(! str_contains($validationOutput, $secretLookingMessage), 'Alert must never echo validation message text.');
+    assertManualOutput(
+        $GLOBALS['rb_activity_logs'][0] === 'ResellerBytes AI Ops manual diagnostics failed: http_status_validation_failed fields: '.$fieldKey,
+        'Activity log must append field keys without message values.',
+    );
 
     echo "WHMCS addon manual output tests passed.\n";
 }

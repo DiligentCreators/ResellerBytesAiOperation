@@ -47,6 +47,7 @@ namespace {
 
     require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/HttpTransport.php';
     require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/CurlHttpTransport.php';
+    require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/ApiClientException.php';
     require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/SignedApiClient.php';
 
     function assertSignedClientCondition(bool $condition, string $message): void
@@ -91,7 +92,7 @@ namespace {
     assertSignedClientCondition($headers['X-RB-Integration'] === $integrationId, 'Integration identifier was not sent.');
     assertSignedClientCondition($snapshot['schema_version'] === '1.1', 'Snapshot schema version is incorrect.');
     assertSignedClientCondition($snapshot['addon_version'] === SignedApiClient::ADDON_VERSION, 'Addon version constant was not sent.');
-    assertSignedClientCondition(SignedApiClient::ADDON_VERSION === '1.2.1', 'Addon version constant is incorrect.');
+    assertSignedClientCondition(SignedApiClient::ADDON_VERSION === '1.2.2', 'Addon version constant is incorrect.');
     assertSignedClientCondition($snapshot['payload']['system']['whmcs_version'] === '8.13.7-release.1', 'Diagnostic payload was not sent.');
     assertSignedClientCondition(strpos($body, $secret) === false, 'The HMAC secret was included in the request body.');
 
