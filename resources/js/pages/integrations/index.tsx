@@ -77,7 +77,6 @@ export default function IntegrationsIndex({ integrations }: Props) {
     const timezone = useWorkspaceTimezone();
     const credentials = flash?.integration_credentials ?? null;
     const canManage = auth.can_manage_integrations;
-    const ownerHasConfirmedTwoFactor = Boolean(auth.two_factor_enabled);
     const isPlatformOperator = auth.is_platform_operator;
     const manageableTenants = (auth.tenants ?? []).filter((tenant) =>
         ['owner', 'admin'].includes(tenant.role),
@@ -204,23 +203,17 @@ export default function IntegrationsIndex({ integrations }: Props) {
                             is shown once so you can place it on your WHMCS
                             server.
                         </p>
-                        {!ownerHasConfirmedTwoFactor ? (
-                            <div
-                                role="status"
-                                className="mt-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100"
-                            >
-                                <p>
-                                    The workspace owner must confirm two-factor
-                                    authentication (TOTP) before creating an
-                                    integration.
-                                </p>
+                        {!auth.two_factor_enabled ? (
+                            <p className="mt-3 text-xs text-muted-foreground">
+                                Tip: turn on{' '}
                                 <Link
                                     href={editSecurity()}
-                                    className="mt-2 inline-flex font-medium underline underline-offset-4 hover:no-underline"
+                                    className="underline underline-offset-2 hover:no-underline"
                                 >
-                                    Enable 2FA
-                                </Link>
-                            </div>
+                                    two-factor authentication
+                                </Link>{' '}
+                                in Settings for extra security.
+                            </p>
                         ) : null}
                         <Form
                             action="/integrations"
@@ -240,9 +233,6 @@ export default function IntegrationsIndex({ integrations }: Props) {
                                             required
                                             maxLength={120}
                                             placeholder="Production WHMCS"
-                                            disabled={
-                                                !ownerHasConfirmedTwoFactor
-                                            }
                                         />
                                         <InputError message={errors.name} />
                                     </div>
@@ -255,9 +245,6 @@ export default function IntegrationsIndex({ integrations }: Props) {
                                                 id="tenant_id"
                                                 name="tenant_id"
                                                 required
-                                                disabled={
-                                                    !ownerHasConfirmedTwoFactor
-                                                }
                                                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                                                 defaultValue=""
                                             >
@@ -287,13 +274,7 @@ export default function IntegrationsIndex({ integrations }: Props) {
                                             value={manageableTenants[0].id}
                                         />
                                     ) : null}
-                                    <Button
-                                        type="submit"
-                                        disabled={
-                                            processing ||
-                                            !ownerHasConfirmedTwoFactor
-                                        }
-                                    >
+                                    <Button type="submit" disabled={processing}>
                                         Create integration
                                     </Button>
                                 </>

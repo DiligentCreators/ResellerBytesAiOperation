@@ -8,7 +8,6 @@ type Props = {
     marketplace: {
         positioning: string;
         one_liner: string;
-        listing_checklist: string[];
     };
 };
 
@@ -38,7 +37,7 @@ export default function ProductPage({
                     <p className="mt-3 max-w-2xl text-sm text-muted-foreground">
                         {marketplace.positioning} WHMCS keeps running. We
                         detect, prioritize, explain, and deliver safe next
-                        actions — with audit and multi-site workflow.
+                        actions, with audit and multi-site workflow.
                     </p>
                     <div className="mt-8 flex flex-wrap gap-3">
                         <Button asChild>
@@ -47,27 +46,40 @@ export default function ProductPage({
                             </Link>
                         </Button>
                         <Button variant="outline" asChild>
-                            <Link href={pricing.url()}>View packaging</Link>
+                            <Link href={pricing.url()}>See prices</Link>
                         </Button>
                         <Button variant="ghost" asChild>
                             <Link href={caseStudies.url()}>Case studies</Link>
                         </Button>
                     </div>
 
-                    <section className="mt-16 grid gap-6 sm:grid-cols-3">
-                        {packaging.map((tier) => (
-                            <div
-                                key={tier.code}
-                                className="rounded-lg border border-border bg-card/80 p-5"
+                    <section className="mt-16">
+                        <div className="flex flex-wrap items-end justify-between gap-3">
+                            <h2 className="text-2xl font-semibold tracking-tight">
+                                Plans
+                            </h2>
+                            <Link
+                                href={pricing.url()}
+                                className="text-sm text-brand underline-offset-2 hover:underline"
                             >
-                                <h2 className="text-sm font-semibold">
-                                    {tier.name}
-                                </h2>
-                                <p className="mt-2 text-sm text-muted-foreground">
-                                    {tier.summary}
-                                </p>
-                            </div>
-                        ))}
+                                See prices
+                            </Link>
+                        </div>
+                        <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+                            {packaging.map((tier) => (
+                                <div
+                                    key={tier.code}
+                                    className="rounded-lg border border-border bg-card/80 p-5"
+                                >
+                                    <h3 className="text-sm font-semibold">
+                                        {tier.name}
+                                    </h3>
+                                    <p className="mt-2 text-sm text-muted-foreground">
+                                        {tier.summary}
+                                    </p>
+                                </div>
+                            ))}
+                        </div>
                     </section>
 
                     <section className="mt-16">
@@ -89,17 +101,6 @@ export default function ProductPage({
                                 </div>
                             ))}
                         </div>
-                    </section>
-
-                    <section className="mt-16 rounded-lg border border-dashed border-border p-6">
-                        <h2 className="text-sm font-semibold">
-                            Marketplace / partner listing checklist
-                        </h2>
-                        <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
-                            {marketplace.listing_checklist.map((item) => (
-                                <li key={item}>{item}</li>
-                            ))}
-                        </ul>
                     </section>
                 </div>
             </div>

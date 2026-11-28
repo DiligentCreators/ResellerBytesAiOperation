@@ -5,10 +5,12 @@ namespace App\Http\Controllers;
 use App\Http\Requests\Tenants\UpdateTenantHourlyRateRequest;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\Audit\AuditEventWriter;
 use App\Services\Health\TimeSavedCalculator;
 use App\Services\PlatformSettings;
 use App\Services\Tenancy\TenantBrandingSettings;
 use App\Services\Tenancy\TenantRoleAuthorization;
+use App\Support\TwoFactorPolicy;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -37,12 +39,17 @@ class TenantSettingsController extends Controller
                 'id' => $tenant->id,
                 'name' => $tenant->name,
                 'hourly_rate_usd' => $tenant->hourly_rate_usd,
+                'require_two_factor' => (bool) $tenant->require_two_factor,
             ],
             'branding' => ((array) $tenant->settings)['branding'] ?? [],
             'hourly_rate' => [
                 'value' => $tenant->hourly_rate_usd,
                 'effective' => $timeSaved->hourlyRateUsd($tenant),
                 'platform_default' => $platformDefault,
+            ],
+            'security' => [
+                'require_two_factor' => (bool) $tenant->require_two_factor,
+                'platform_two_factor_required' => app(TwoFactorPolicy::class)->isPlatformRequirementEnabled(),
             ],
             'canManage' => $canManage,
             'status' => $request->session()->get('status'),
@@ -113,5 +120,56 @@ class TenantSettingsController extends Controller
         }
 
         return back()->with('status', 'Hourly rate updated.');
+    }
+
+    public function updateSecurity(
+        Request $request,
+        Tenant $tenant,
+        TenantRoleAuthorization $authorization,
+        AuditEventWriter $audit,
+    ): RedirectResponse|JsonResponse {
+        /** @var User $user */
+        $user = $request->user();
+        $authorization->require($user, $tenant->id, 'tenant.settings.manage');
+
+        $request->validate([
+            'require_two_factor' => ['sometimes', 'boolean'],
+        ]);
+
+        $requireTwoFactor = $request->boolean('require_two_factor');
+
+        DB::transaction(function () use ($tenant, $requireTwoFactor, $user, $audit, $request): void {
+            $locked = Tenant::query()->whereKey($tenant->id)->lockForUpdate()->firstOrFail();
+            $previous = (bool) $locked->require_two_factor;
+            $locked->forceFill(['require_two_factor' => $requireTwoFactor])->save();
+
+            $audit->append([
+                'actor_type' => 'user',
+                'actor_id' => (string) $user->getKey(),
+                'tenant_id' => $tenant->id,
+                'event_type' => 'tenant.security.updated',
+                'subject_type' => 'tenant',
+                'subject_id' => $tenant->id,
+                'metadata' => [
+                    'require_two_factor' => $requireTwoFactor,
+                    'previous_require_two_factor' => $previous,
+                ],
+                'ip_address' => $request->ip(),
+                'occurred_at' => now(),
+            ]);
+        });
+
+        $tenant->refresh();
+
+        if (! $request->header('X-Inertia')) {
+            return response()->json([
+                'tenant' => [
+                    'id' => $tenant->id,
+                    'require_two_factor' => (bool) $tenant->require_two_factor,
+                ],
+            ]);
+        }
+
+        return back()->with('status', 'Workspace security settings updated.');
     }
 }

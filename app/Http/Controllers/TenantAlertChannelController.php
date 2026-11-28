@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\Tenants\StoreTenantAlertChannelRequest;
 use App\Http\Requests\Tenants\UpdateTenantAlertChannelRequest;
+use App\Models\Plan;
 use App\Models\Tenant;
 use App\Models\TenantAlertChannel;
 use App\Models\TenantAlertDelivery;
@@ -69,6 +70,7 @@ class TenantAlertChannelController extends Controller
             'deliveries' => $deliveries,
             'canManage' => $canManage,
             'channelsEntitled' => $channelsEntitled,
+            'requiredPlanName' => Plan::requiredPlanLabel('alerts.channels'),
             'eventKeys' => array_values(array_filter(
                 (array) config('alerts.event_keys', []),
                 static fn (mixed $key): bool => is_string($key) && $key !== 'alert.test',

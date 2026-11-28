@@ -25,7 +25,7 @@ it('shows the auto-fix settings page for workspace owners with fixes.auto', func
 
     $plan = Plan::factory()->create([
         'code' => 'business-autofix',
-        'name' => 'Agency',
+        'name' => 'Business',
         'entitlements' => [
             'fixes.one_click' => true,
             'fixes.auto' => true,

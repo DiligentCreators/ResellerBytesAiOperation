@@ -93,8 +93,8 @@ class PlanSeeder extends Seeder
             ],
             [
                 'code' => 'business',
-                'name' => 'Agency',
-                'description' => 'Agency packing: staff seats, higher AI budget, and Safe Actions for client estates.',
+                'name' => 'Business',
+                'description' => 'Staff seats, higher AI budget, auto-fix policies, and monthly value reports for growing estates.',
                 'price_monthly_minor' => null,
                 'price_yearly_minor' => null,
                 'trial_days' => 14,

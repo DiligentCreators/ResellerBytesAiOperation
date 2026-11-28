@@ -34,6 +34,7 @@ type Props = {
     tenant: { id: string; name: string };
     canManage: boolean;
     proEnabled: boolean;
+    requiredPlanName?: string;
     billingPlansUrl: string;
     integrationsUrl: string;
     installations: Installation[];
@@ -61,6 +62,7 @@ export default function TenantAutoFixSettings({
     tenant,
     canManage,
     proEnabled,
+    requiredPlanName = 'a higher plan',
     billingPlansUrl,
     integrationsUrl,
     installations,
@@ -105,14 +107,14 @@ export default function TenantAutoFixSettings({
                             />
                             <div className="space-y-2">
                                 <h2 className="text-sm font-semibold">
-                                    Auto-fix is a Pro feature
+                                    Auto-fix is a {requiredPlanName} feature
                                 </h2>
                                 <p className="text-sm text-muted-foreground">
-                                    Upgrade to Pro to enable automatic
-                                    allowlisted fixes after rule detection.
-                                    Refunds, terminations, invoice edits,
-                                    payments, gateway changes, GenInvoices,
-                                    order acceptance, module
+                                    Upgrade to {requiredPlanName} to enable
+                                    automatic allowlisted fixes after rule
+                                    detection. Refunds, terminations, invoice
+                                    edits, payments, gateway changes,
+                                    GenInvoices, order acceptance, module
                                     create/suspend/unsuspend, and upgrades can
                                     never run automatically.
                                 </p>

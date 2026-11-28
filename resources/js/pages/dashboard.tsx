@@ -9,6 +9,7 @@ import {
     Clock3,
     Download,
     HeartPulse,
+    Info,
     LayoutGrid,
     Server,
     ShieldAlert,
@@ -22,6 +23,11 @@ import { StatCard } from '@/components/stat-card';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { useWorkspaceTimezone } from '@/hooks/use-workspace-timezone';
 import { formatDateTime } from '@/lib/dates';
 import {
@@ -107,6 +113,13 @@ type Props = {
         change_vs_last_week?: number | null;
         sparkline?: Array<{ date: string; score: number }>;
         last_scan_clean: boolean;
+        open_critical_count?: number;
+        open_warning_count?: number;
+        open_info_count?: number;
+        open_total_count?: number;
+        top_open_finding?: { id: string; title: string } | null;
+        low_score_message?: string | null;
+        low_score_next_step?: string | null;
     };
     needsYouNow?: NeedsYouNowItem[];
     timeSaved?: {
@@ -323,26 +336,28 @@ export default function Dashboard({
                 {isEmptyWorkspace && !onboardingState?.needed ? (
                     <EmptyState
                         icon={LayoutGrid}
-                        title="Your workspace is ready"
-                        description={
-                            auth.two_factor_enabled
-                                ? 'Connect your first WHMCS installation to start seeing diagnostic activity here.'
-                                : 'Connect your first WHMCS installation after the workspace owner confirms two-factor authentication (TOTP).'
-                        }
+                        title="Welcome. Let us connect your WHMCS."
+                        description="It takes about 10 minutes. We only read technical signals, never customer data."
                         action={
-                            auth.two_factor_enabled ? (
+                            <div className="flex flex-col items-start gap-2">
                                 <Button size="sm" asChild>
                                     <Link href="/integrations">
-                                        Connect an installation
+                                        Connect WHMCS
                                     </Link>
                                 </Button>
-                            ) : (
-                                <Button size="sm" asChild>
-                                    <Link href={editSecurity()}>
-                                        Enable 2FA
-                                    </Link>
-                                </Button>
-                            )
+                                {!auth.two_factor_enabled ? (
+                                    <p className="text-xs text-muted-foreground">
+                                        Tip: turn on{' '}
+                                        <Link
+                                            href={editSecurity()}
+                                            className="underline underline-offset-2 hover:no-underline"
+                                        >
+                                            two-factor authentication
+                                        </Link>{' '}
+                                        in Settings for extra security.
+                                    </p>
+                                ) : null}
+                            </div>
                         }
                     />
                 ) : null}
@@ -352,12 +367,81 @@ export default function Dashboard({
                         <CardHeader className="pb-2">
                             <div className="flex items-start justify-between gap-2">
                                 <div>
-                                    <CardTitle className="text-sm font-medium text-muted-foreground">
-                                        Health score
-                                    </CardTitle>
-                                    <p className="mt-2 text-3xl font-semibold tracking-tight">
-                                        {score != null ? score : '—'}
-                                    </p>
+                                    <div className="flex items-center gap-1.5">
+                                        <CardTitle className="text-sm font-medium text-muted-foreground">
+                                            Health score
+                                        </CardTitle>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <button
+                                                    type="button"
+                                                    className="inline-flex size-5 items-center justify-center rounded-sm text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                                                    aria-label="About the health score"
+                                                    data-testid="health-score-info"
+                                                >
+                                                    <Info
+                                                        className="size-3.5"
+                                                        aria-hidden
+                                                    />
+                                                </button>
+                                            </TooltipTrigger>
+                                            <TooltipContent className="max-w-xs">
+                                                100 means nothing needs
+                                                attention. Each open problem
+                                                lowers the score, critical
+                                                problems the most. Fix problems
+                                                to bring it back up.
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </div>
+                                    {score != null ? (
+                                        <p className="mt-2 text-3xl font-semibold tracking-tight">
+                                            {score}
+                                        </p>
+                                    ) : (
+                                        <p className="mt-2 text-sm font-medium tracking-tight">
+                                            Waiting for your first check
+                                        </p>
+                                    )}
+                                    {score != null &&
+                                    score < 20 &&
+                                    health?.low_score_message ? (
+                                        <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                                            {health.low_score_message}{' '}
+                                            {health.top_open_finding ? (
+                                                <>
+                                                    Next step: fix{' '}
+                                                    <Link
+                                                        href={`/findings/${health.top_open_finding.id}`}
+                                                        className="text-brand underline-offset-2 hover:underline"
+                                                    >
+                                                        '
+                                                        {
+                                                            health
+                                                                .top_open_finding
+                                                                .title
+                                                        }
+                                                        '
+                                                    </Link>{' '}
+                                                    in{' '}
+                                                    <Link
+                                                        href="/fix-center"
+                                                        className="text-brand underline-offset-2 hover:underline"
+                                                    >
+                                                        Fix Center
+                                                    </Link>
+                                                    .
+                                                </>
+                                            ) : (
+                                                <Link
+                                                    href="/fix-center"
+                                                    className="text-brand underline-offset-2 hover:underline"
+                                                >
+                                                    {health.low_score_next_step}
+                                                </Link>
+                                            )}
+                                        </p>
+                                    ) : null}
                                 </div>
                                 <HeartPulse
                                     className="size-4 text-slate-brand"
@@ -421,8 +505,7 @@ export default function Dashboard({
                         <CardContent className="pt-0">
                             {needsYouNow.length === 0 ? (
                                 <p className="text-sm text-muted-foreground">
-                                    Nothing urgent — keep an eye on the next
-                                    scan.
+                                    All clear. We check again automatically.
                                 </p>
                             ) : (
                                 <ul className="space-y-3">
@@ -491,9 +574,19 @@ export default function Dashboard({
                                     : 'Verified fixes will appear here'}
                             </p>
                             {recovered ? (
-                                <p className="mt-3 rounded-md bg-success-soft px-2.5 py-1.5 text-xs text-success-fg">
-                                    Recovered this month: ${recovered.display}
-                                </p>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <p className="mt-3 rounded-md bg-success-soft px-2.5 py-1.5 text-xs text-success-fg">
+                                            Paid in WHMCS (last 7 days): $
+                                            {recovered.display}
+                                        </p>
+                                    </TooltipTrigger>
+                                    <TooltipContent className="max-w-xs">
+                                        Total of invoices marked paid in your
+                                        WHMCS in the last 7 days, from your
+                                        latest check.
+                                    </TooltipContent>
+                                </Tooltip>
                             ) : null}
                         </CardContent>
                     </Card>
@@ -567,11 +660,10 @@ export default function Dashboard({
                         <div className="flex items-center justify-between gap-3">
                             <div>
                                 <h2 className="text-sm font-semibold">
-                                    Multi-install ops board
+                                    All your WHMCS sites
                                 </h2>
                                 <p className="mt-1 text-xs text-muted-foreground">
-                                    Cross-install priority for your WHMCS estate
-                                    — the hero demo for ops buyers.
+                                    Which site needs help first.
                                 </p>
                             </div>
                             <Button variant="ghost" size="sm" asChild>
@@ -665,7 +757,7 @@ export default function Dashboard({
                                     className="rounded-none border-0 border-t border-dashed"
                                     icon={Activity}
                                     title="No operations yet"
-                                    description="Deploy the addon, create an integration, then submit your first manual snapshot."
+                                    description="Download the addon, create a connection, set up the WHMCS cron, then press Run diagnostics once in WHMCS."
                                     action={
                                         <Button size="sm" asChild>
                                             <Link href="/whmcs-addon/setup">
@@ -783,7 +875,8 @@ export default function Dashboard({
                                     </Button>
                                 ) : health?.last_scan_clean ? (
                                     <p className="mt-2 text-xs text-success-fg">
-                                        Last scan clean — no active findings.
+                                        All clear. Your last check found no
+                                        problems.
                                     </p>
                                 ) : (
                                     <p className="mt-2 text-xs text-muted-foreground">
@@ -841,8 +934,9 @@ export default function Dashboard({
                         <div>
                             <CardTitle>WHMCS diagnostic addon</CardTitle>
                             <p className="mt-1 text-xs text-muted-foreground">
-                                Version {addon.version} · Manual-only ·
-                                Read-only collector
+                                Version {addon.version}. Read-only collector.
+                                Needs the WHMCS system cron for heartbeats and
+                                automatic checks.
                             </p>
                         </div>
                     </CardHeader>

@@ -1,5 +1,5 @@
 import { Form, Head } from '@inertiajs/react';
-import { Clock3, Palette } from 'lucide-react';
+import { Clock3, Palette, Shield } from 'lucide-react';
 import InputError from '@/components/input-error';
 import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
@@ -14,12 +14,21 @@ type Branding = {
 };
 
 type Props = {
-    tenant: { id: string; name: string; hourly_rate_usd?: number | null };
+    tenant: {
+        id: string;
+        name: string;
+        hourly_rate_usd?: number | null;
+        require_two_factor?: boolean;
+    };
     branding: Branding;
     hourly_rate?: {
         value: number | null;
         effective: number;
         platform_default: number;
+    };
+    security?: {
+        require_two_factor: boolean;
+        platform_two_factor_required: boolean;
     };
     canManage: boolean;
     status?: string;
@@ -29,9 +38,16 @@ export default function TenantSettings({
     tenant,
     branding,
     hourly_rate,
+    security,
     canManage,
     status,
 }: Props) {
+    const requireTwoFactor =
+        security?.require_two_factor ?? Boolean(tenant.require_two_factor);
+    const platformTwoFactorRequired = Boolean(
+        security?.platform_two_factor_required,
+    );
+
     return (
         <>
             <Head title="Workspace settings" />
@@ -139,6 +155,80 @@ export default function TenantSettings({
                                     <p className="text-sm text-muted-foreground">
                                         You can view branding, but only owners
                                         and admins can change it.
+                                    </p>
+                                )}
+                            </>
+                        )}
+                    </Form>
+                </section>
+
+                <section className="rounded-lg border border-border bg-card shadow-xs">
+                    <div className="flex items-center gap-2 border-b border-border px-5 py-4">
+                        <Shield
+                            className="size-4 text-slate-brand"
+                            aria-hidden
+                        />
+                        <h2 className="text-sm font-semibold">Security</h2>
+                    </div>
+                    <Form
+                        action={`/tenants/${tenant.id}/settings/security`}
+                        method="put"
+                        className="space-y-5 p-5"
+                    >
+                        {({ errors, processing }) => (
+                            <>
+                                <input
+                                    type="hidden"
+                                    name="require_two_factor"
+                                    value="0"
+                                />
+                                <div className="flex items-start gap-3">
+                                    <input
+                                        id="require_two_factor"
+                                        name="require_two_factor"
+                                        type="checkbox"
+                                        value="1"
+                                        defaultChecked={requireTwoFactor}
+                                        disabled={!canManage}
+                                        className="mt-1 size-4 rounded border border-input"
+                                    />
+                                    <div className="space-y-1">
+                                        <Label
+                                            htmlFor="require_two_factor"
+                                            className="text-sm leading-5 font-normal"
+                                        >
+                                            Require two-factor authentication
+                                            for everyone in this workspace
+                                        </Label>
+                                        <p className="text-xs text-muted-foreground">
+                                            Optional. When on, team members must
+                                            set up a code from an authenticator
+                                            app before using the workspace.
+                                        </p>
+                                        {!platformTwoFactorRequired ? (
+                                            <p className="text-xs text-muted-foreground">
+                                                Not enforced while platform 2FA
+                                                requirement is off.
+                                            </p>
+                                        ) : null}
+                                        <InputError
+                                            message={errors.require_two_factor}
+                                        />
+                                    </div>
+                                </div>
+                                {canManage ? (
+                                    <div className="-mx-5 -mb-5 flex justify-end rounded-b-lg border-t border-border bg-surface px-5 py-3">
+                                        <Button
+                                            type="submit"
+                                            disabled={processing}
+                                        >
+                                            Save security
+                                        </Button>
+                                    </div>
+                                ) : (
+                                    <p className="text-sm text-muted-foreground">
+                                        Only owners and admins can change
+                                        workspace security settings.
                                     </p>
                                 )}
                             </>

@@ -91,6 +91,9 @@ class FixCenterController extends Controller
             });
 
         $counts = $this->tabCounts($user);
+        $tenantRecords = app(TenantRecordQuery::class);
+        $lastScanClean = $tenantRecords->runs($user)->where('status', 'analyzed')->exists()
+            && ! $tenantRecords->findings($user)->currentIssues()->active()->exists();
 
         return Inertia::render('fix-center/index', [
             'issues' => $issues,
@@ -98,6 +101,7 @@ class FixCenterController extends Controller
                 'tab' => $tab,
             ],
             'counts' => $counts,
+            'last_scan_clean' => $lastScanClean,
             'entitlements' => [
                 'fixes_guided' => $entitlements['guided'],
                 'fixes_one_click' => $entitlements['one_click'] && $fixesEnabled,

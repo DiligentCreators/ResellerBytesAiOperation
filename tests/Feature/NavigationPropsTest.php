@@ -40,7 +40,7 @@ it('shares the five customer navigation items for workspace owners', function ()
             ->where('navigation.customer.3.children.3.title', 'History')
             ->where('navigation.customer.3.children.3.href', '/diagnostic-runs')
             ->where('navigation.customer.4.title', 'Settings')
-            ->where('navigation.customer.4.children.3.title', 'Auto-fix (Pro)')
+            ->where('navigation.customer.4.children.3.title', 'Auto-fix')
             ->where('navigation.platform', []));
 });
 

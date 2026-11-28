@@ -22,11 +22,28 @@ class HealthDashboardPresenter
      *     score: int|null,
      *     change_vs_last_week: int|null,
      *     sparkline: list<array{date: string, score: int}>,
-     *     last_scan_clean: bool
+     *     last_scan_clean: bool,
+     *     open_critical_count: int,
+     *     open_warning_count: int,
+     *     open_info_count: int,
+     *     open_total_count: int,
+     *     top_open_finding: array{id: string, title: string}|null,
+     *     low_score_message: string|null,
+     *     low_score_next_step: string|null
      * }
      */
     public function healthCard(?User $user, bool $lastScanClean): array
     {
+        $emptyExplanation = [
+            'open_critical_count' => 0,
+            'open_warning_count' => 0,
+            'open_info_count' => 0,
+            'open_total_count' => 0,
+            'top_open_finding' => null,
+            'low_score_message' => null,
+            'low_score_next_step' => null,
+        ];
+
         $tenantIds = $this->tenantIds($user);
         if ($tenantIds === []) {
             return [
@@ -34,6 +51,7 @@ class HealthDashboardPresenter
                 'change_vs_last_week' => null,
                 'sparkline' => [],
                 'last_scan_clean' => $lastScanClean,
+                ...$emptyExplanation,
             ];
         }
 
@@ -77,11 +95,22 @@ class HealthDashboardPresenter
             }
         }
 
+        $openCounts = $this->openFindingCounts($user);
+        $topFinding = $this->topOpenFinding($user);
+        $explanation = $this->lowScoreExplanation($latest, $openCounts, $topFinding);
+
         return [
             'score' => $latest,
             'change_vs_last_week' => ($latest !== null && $weekAgo !== null) ? ($latest - $weekAgo) : null,
             'sparkline' => $sparkline,
             'last_scan_clean' => $lastScanClean,
+            'open_critical_count' => $openCounts['critical'],
+            'open_warning_count' => $openCounts['warning'],
+            'open_info_count' => $openCounts['info'],
+            'open_total_count' => $openCounts['total'],
+            'top_open_finding' => $topFinding,
+            'low_score_message' => $explanation['message'],
+            'low_score_next_step' => $explanation['next_step'],
         ];
     }
 
@@ -258,6 +287,117 @@ class HealthDashboardPresenter
         }
 
         return $items;
+    }
+
+    /**
+     * @return array{critical: int, warning: int, info: int, total: int}
+     */
+    private function openFindingCounts(?User $user): array
+    {
+        if ($user === null) {
+            return ['critical' => 0, 'warning' => 0, 'info' => 0, 'total' => 0];
+        }
+
+        $base = $this->tenantRecords->findings($user)
+            ->currentIssues()
+            ->active()
+            ->notIgnored();
+
+        $critical = (clone $base)->where('severity', 'critical')->count();
+        $warning = (clone $base)->where('severity', 'warning')->count();
+        $info = (clone $base)->where('severity', 'info')->count();
+
+        return [
+            'critical' => $critical,
+            'warning' => $warning,
+            'info' => $info,
+            'total' => $critical + $warning + $info,
+        ];
+    }
+
+    /**
+     * @return array{id: string, title: string}|null
+     */
+    private function topOpenFinding(?User $user): ?array
+    {
+        if ($user === null) {
+            return null;
+        }
+
+        $findings = $this->tenantRecords->findings($user)
+            ->currentIssues()
+            ->active()
+            ->notIgnored()
+            ->get();
+
+        if ($findings->isEmpty()) {
+            return null;
+        }
+
+        $ranked = $findings->map(function ($finding): array {
+            $issueKey = $finding->issue_key;
+            $priority = is_string($issueKey) && $issueKey !== ''
+                ? WhmcsIssueCatalog::getInt($issueKey, 'priority', 999)
+                : 999;
+            $severityRank = match (strtolower((string) $finding->severity)) {
+                'critical' => 1,
+                'warning' => 2,
+                default => 3,
+            };
+
+            return [
+                'id' => (string) $finding->id,
+                'title' => is_string($issueKey) && $issueKey !== ''
+                    ? (WhmcsIssueCatalog::getString($issueKey, 'title') ?? $finding->title)
+                    : $finding->title,
+                'severity_rank' => $severityRank,
+                'priority' => $priority,
+            ];
+        })->sortBy([
+            ['severity_rank', 'asc'],
+            ['priority', 'asc'],
+        ])->values();
+
+        $top = $ranked->first();
+        if (! is_array($top)) {
+            return null;
+        }
+
+        return [
+            'id' => (string) $top['id'],
+            'title' => (string) $top['title'],
+        ];
+    }
+
+    /**
+     * @param  array{critical: int, warning: int, info: int, total: int}  $counts
+     * @param  array{id: string, title: string}|null  $topFinding
+     * @return array{message: string|null, next_step: string|null}
+     */
+    private function lowScoreExplanation(?int $score, array $counts, ?array $topFinding): array
+    {
+        if ($score === null || $score >= 20) {
+            return ['message' => null, 'next_step' => null];
+        }
+
+        $reason = match (true) {
+            $counts['critical'] === 1 => '1 critical problem is open',
+            $counts['critical'] > 1 => sprintf('%d critical problems are open', $counts['critical']),
+            $counts['total'] === 1 => '1 open problem needs attention',
+            $counts['total'] > 1 => sprintf('%d open problems need attention', $counts['total']),
+            default => 'open problems need attention',
+        };
+
+        $message = sprintf('Your score is %d because %s.', $score, $reason);
+
+        $nextStep = $topFinding !== null
+            ? sprintf("Next step: fix '%s' in Fix Center.", $topFinding['title'])
+            : 'Next step: open Fix Center and clear the top problem.';
+
+        return [
+            'message' => $message,
+            'next_step' => $nextStep,
+        ];
     }
 
     /**

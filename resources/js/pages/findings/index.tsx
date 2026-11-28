@@ -75,12 +75,12 @@ export default function FindingsIndex({ findings, filters, health }: Props) {
                             />
                             <div>
                                 <h2 className="text-sm font-semibold text-success-fg">
-                                    Last scan clean
+                                    All clear. Your last check found no
+                                    problems.
                                 </h2>
                                 <p className="mt-1 text-sm text-success-fg/90">
-                                    Analyzed diagnostics show no active
-                                    findings. Keep the weekly digest on and
-                                    re-check after the next WHMCS change window.
+                                    Keep the weekly digest on and re-check after
+                                    the next WHMCS change window.
                                 </p>
                             </div>
                         </div>
@@ -112,12 +112,12 @@ export default function FindingsIndex({ findings, filters, health }: Props) {
                         }
                         title={
                             health.last_scan_clean
-                                ? 'Last scan clean'
+                                ? 'All clear. Your last check found no problems.'
                                 : 'No findings in this view'
                         }
                         description={
                             health.last_scan_clean
-                                ? 'Your latest analyzed WHMCS diagnostics did not produce active findings.'
+                                ? 'We check your WHMCS automatically and will list problems here if anything appears.'
                                 : health.analyzed_runs === 0
                                   ? 'Findings appear after diagnostic analysis has run.'
                                   : 'Try another status filter or wait for the next scan.'

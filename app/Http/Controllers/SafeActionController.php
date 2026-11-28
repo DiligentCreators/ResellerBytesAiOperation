@@ -6,6 +6,7 @@ use App\Http\Requests\ApproveSafeActionRequest;
 use App\Http\Requests\RejectSafeActionRequest;
 use App\Http\Requests\StoreSafeActionRequest;
 use App\Models\DiagnosticFinding;
+use App\Models\Plan;
 use App\Models\SafeActionExecution;
 use App\Models\SafeActionLateResult;
 use App\Models\User;
@@ -54,6 +55,7 @@ class SafeActionController extends Controller
             'executions' => $executions,
             'actions' => array_values($registry->all()),
             'integrations' => $integrations,
+            'requiredPlanName' => Plan::requiredPlanLabel('safe_actions.enabled'),
         ]);
     }
 

@@ -35,7 +35,7 @@ function createAutoFixPolicyWorkspace(array $entitlements = []): array
 
     $plan = Plan::factory()->create([
         'code' => 'pro-autofix-'.uniqid(),
-        'name' => 'Agency',
+        'name' => 'Business',
         'entitlements' => array_merge([
             'fixes.guided' => true,
             'fixes.one_click' => true,

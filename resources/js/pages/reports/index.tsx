@@ -58,6 +58,7 @@ type FixRow = {
 type Props = {
     tenant: { id: string; name: string; timezone?: string };
     reports: ReportRow[];
+    requiredPlanName?: string;
     filters: {
         mode?: string | null;
         result?: string | null;
@@ -90,6 +91,7 @@ function reportTypeLabel(type: string): string {
 export default function ReportsIndex({
     tenant,
     reports,
+    requiredPlanName = 'a higher plan',
     filters,
     integrations,
     fixLog,
@@ -166,7 +168,8 @@ export default function ReportsIndex({
                         <p className="text-sm text-muted-foreground">
                             No reports have been sent yet. Weekly health reports
                             go out on the platform schedule; monthly value
-                            reports require Pro and arrive before renewal.
+                            reports require {requiredPlanName} and arrive before
+                            renewal.
                         </p>
                     ) : (
                         <div className="overflow-x-auto">
@@ -407,7 +410,8 @@ export default function ReportsIndex({
 
                     {fixLog.data.length === 0 ? (
                         <p className="text-sm text-muted-foreground">
-                            No fixes recorded for these filters yet.
+                            No fixes yet. Fixed problems and time saved will
+                            show here.
                         </p>
                     ) : (
                         <div className="overflow-x-auto">

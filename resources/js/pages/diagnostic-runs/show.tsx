@@ -138,7 +138,9 @@ export default function DiagnosticRunShow({ run }: Props) {
                     ) : null}
                     {run.last_scan_clean ? (
                         <div className="mt-4 rounded-md border border-success/20 bg-success-soft px-3 py-2 text-sm text-success-fg">
-                            <p className="font-medium">Last scan clean</p>
+                            <p className="font-medium">
+                                All clear. Your last check found no problems.
+                            </p>
                             <p className="mt-1 text-success-fg/90">
                                 Analysis completed with no evidence-backed
                                 findings for this snapshot.
@@ -173,7 +175,7 @@ export default function DiagnosticRunShow({ run }: Props) {
                     {run.findings.length === 0 ? (
                         <p className="p-5 text-sm text-muted-foreground">
                             {run.last_scan_clean
-                                ? 'Last scan clean — analysis finished with zero findings.'
+                                ? 'All clear. Your last check found no problems.'
                                 : 'No findings have been generated for this snapshot yet. An empty list does not mean the installation is healthy until analysis completes.'}
                         </p>
                     ) : (

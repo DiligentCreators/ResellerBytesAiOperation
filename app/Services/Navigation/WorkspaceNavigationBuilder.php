@@ -75,7 +75,7 @@ class WorkspaceNavigationBuilder
                     ['title' => 'Workspace', 'href' => "/tenants/{$tenantId}/settings"],
                     ['title' => 'Members', 'href' => "/tenants/{$tenantId}/memberships"],
                     ['title' => 'Alerts', 'href' => "/tenants/{$tenantId}/alerts"],
-                    ['title' => 'Auto-fix (Pro)', 'href' => "/tenants/{$tenantId}/auto-fix"],
+                    ['title' => 'Auto-fix', 'href' => "/tenants/{$tenantId}/auto-fix"],
                     ['title' => 'Billing and invoices', 'href' => "/tenants/{$tenantId}/billing"],
                     ['title' => 'Notifications', 'href' => "/tenants/{$tenantId}/notifications"],
                 ],

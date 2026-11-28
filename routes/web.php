@@ -127,6 +127,7 @@ Route::middleware(['auth', 'verified', EnsureTwoFactorEnabled::class])->group(fu
     Route::get('tenants/{tenant}/settings', [TenantSettingsController::class, 'show'])->name('tenants.settings.show');
     Route::put('tenants/{tenant}/settings/branding', [TenantSettingsController::class, 'update'])->middleware('throttle:tenants-settings-branding-update')->name('tenants.settings.branding.update');
     Route::put('tenants/{tenant}/settings/hourly-rate', [TenantSettingsController::class, 'updateHourlyRate'])->middleware('throttle:tenants-settings-branding-update')->name('tenants.settings.hourly-rate.update');
+    Route::put('tenants/{tenant}/settings/security', [TenantSettingsController::class, 'updateSecurity'])->middleware('throttle:tenants-settings-branding-update')->name('tenants.settings.security.update');
     Route::get('tenants/{tenant}/auto-fix', [TenantAutoFixSettingsController::class, 'show'])->name('tenants.auto-fix.show');
     Route::put('tenants/{tenant}/auto-fix', [TenantAutoFixSettingsController::class, 'update'])->middleware('throttle:tenants-auto-fix-update')->name('tenants.auto-fix.update');
     Route::get('tenants/{tenant}/memberships', [TenantMembershipController::class, 'index'])->name('tenants.memberships.index');

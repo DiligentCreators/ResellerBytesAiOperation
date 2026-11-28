@@ -118,7 +118,8 @@ export default function ReportShow({ tenant, report }: Props) {
                     </li>
                     {asString(summary.recovered_display) ? (
                         <li>
-                            $ recovered: ${asString(summary.recovered_display)}
+                            Paid in WHMCS (last 7 days): $
+                            {asString(summary.recovered_display)}
                         </li>
                     ) : null}
                     <li>
