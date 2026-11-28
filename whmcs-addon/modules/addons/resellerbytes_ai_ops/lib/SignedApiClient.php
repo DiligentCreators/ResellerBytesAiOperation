@@ -9,7 +9,7 @@ final class SignedApiClient
 {
     private const BASE_URL = 'https://ops.resellerbytes.com';
 
-    public const ADDON_VERSION = '1.2.1';
+    public const ADDON_VERSION = '1.2.2';
 
     private const MAX_RESPONSE_BYTES = 16384;
 
@@ -266,6 +266,10 @@ final class SignedApiClient
         }
 
         if ($httpStatus < 200 || $httpStatus > 299) {
+            if ($httpStatus === 422) {
+                throw $this->validationFailedException($responseBody);
+            }
+
             throw new RuntimeException($this->httpStatusFailureCode($httpStatus));
         }
 
@@ -349,6 +353,35 @@ final class SignedApiClient
         }
 
         return 'http_status_unexpected';
+    }
+
+    private function validationFailedException(string $responseBody): ApiClientException
+    {
+        $keys = [];
+
+        try {
+            $decoded = json_decode($responseBody, true, 16, JSON_THROW_ON_ERROR);
+            if (is_array($decoded) && isset($decoded['errors']) && is_array($decoded['errors'])) {
+                foreach (array_keys($decoded['errors']) as $key) {
+                    if (! is_string($key)) {
+                        continue;
+                    }
+
+                    if (preg_match('/\A[A-Za-z0-9._*-]{1,120}\z/', $key) !== 1) {
+                        continue;
+                    }
+
+                    $keys[] = $key;
+                    if (count($keys) >= 20) {
+                        break;
+                    }
+                }
+            }
+        } catch (JsonException) {
+            // Body may be HTML or truncated; still surface the status code.
+        }
+
+        return new ApiClientException('http_status_validation_failed', $keys);
     }
 
     private function uuidV4(): string

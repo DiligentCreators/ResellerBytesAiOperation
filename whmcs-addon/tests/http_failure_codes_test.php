@@ -1,6 +1,7 @@
 <?php
 
 namespace {
+    use ResellerBytesAiOps\ApiClientException;
     use ResellerBytesAiOps\FailureCode;
     use ResellerBytesAiOps\HttpTransport;
     use ResellerBytesAiOps\SignedApiClient;
@@ -8,6 +9,7 @@ namespace {
     require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/FailureCode.php';
     require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/HttpTransport.php';
     require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/CurlHttpTransport.php';
+    require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/ApiClientException.php';
     require_once __DIR__.'/../modules/addons/resellerbytes_ai_ops/lib/SignedApiClient.php';
 
     function assertHttpFailure(bool $condition, string $message): void
@@ -130,6 +132,59 @@ namespace {
         ])))->request(credentials(), 'POST', '/api/v1/whmcs/diagnostic-snapshots', ['x' => 1]),
         'http_status_validation_failed',
     );
+
+    $secretLookingMessage = 'The field /var/www/secret/credentials.json must be at least 1.';
+    $fieldKey = 'payload.whmcs.module_queue.items.0.service_id';
+    try {
+        (new SignedApiClient(fakeTransport([
+            'executed' => true,
+            'errno' => 0,
+            'http_status' => 422,
+            'body' => json_encode([
+                'message' => 'The given data was invalid.',
+                'errors' => [
+                    $fieldKey => [$secretLookingMessage],
+                ],
+            ], JSON_THROW_ON_ERROR),
+            'response_too_large' => false,
+        ])))->request(credentials(), 'POST', '/api/v1/whmcs/diagnostic-snapshots', ['x' => 1]);
+        throw new RuntimeException('Expected 422 ApiClientException was not thrown.');
+    } catch (ApiClientException $exception) {
+        assertHttpFailure(
+            $exception->getMessage() === 'http_status_validation_failed',
+            '422 exception message must remain the letters-only failure code.',
+        );
+        assertHttpFailure(
+            FailureCode::sanitize($exception->getMessage()) === 'http_status_validation_failed',
+            'FailureCode::sanitize must keep http_status_validation_failed.',
+        );
+        assertHttpFailure(
+            $exception->fieldKeys() === [$fieldKey],
+            '422 field keys were not extracted from the errors object.',
+        );
+        assertHttpFailure(
+            str_contains($exception->fieldsAlertSuffix(), 'Fields: '.$fieldKey),
+            'Alert suffix must include sanitized field keys.',
+        );
+        assertHttpFailure(
+            str_contains($exception->fieldsLogSuffix(), 'fields: '.$fieldKey),
+            'Log suffix must include sanitized field keys.',
+        );
+        assertHttpFailure(
+            ! str_contains($exception->getMessage(), $secretLookingMessage),
+            'Exception message must never include validation message text.',
+        );
+        assertHttpFailure(
+            ! str_contains($exception->fieldsAlertSuffix(), $secretLookingMessage)
+            && ! str_contains($exception->fieldsLogSuffix(), $secretLookingMessage),
+            'Field key suffixes must never include validation message text.',
+        );
+        assertHttpFailure(
+            ! str_contains($exception->fieldsAlertSuffix(), '/var/www')
+            && ! str_contains($exception->fieldsLogSuffix(), '/var/www'),
+            'Field key suffixes must never include filesystem paths from error values.',
+        );
+    }
 
     expectCode(
         static fn () => (new SignedApiClient(fakeTransport([

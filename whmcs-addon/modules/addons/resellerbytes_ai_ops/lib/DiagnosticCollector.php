@@ -71,7 +71,7 @@ final class DiagnosticCollector
 
         $system = [
             'whmcs_version' => $this->whmcsVersion(),
-            'web_php_version' => PHP_VERSION,
+            'web_php_version' => $this->webPhpVersion(),
             'error_display_disabled' => $this->errorDisplayDisabled(),
             'configuration_file_writable' => $this->configurationFileWritable(),
         ];
@@ -84,8 +84,11 @@ final class DiagnosticCollector
 
         $databaseVersion = $this->safe(fn (): ?string => $this->dataSource->databaseVersion());
         if (is_string($databaseVersion) && $databaseVersion !== '') {
-            $system['database_version'] = Text::truncateBytes($databaseVersion, 64);
-            $this->addCapability('database_server_version');
+            $sanitizedDatabaseVersion = $this->sanitizeDatabaseVersion($databaseVersion);
+            if ($sanitizedDatabaseVersion !== null) {
+                $system['database_version'] = $sanitizedDatabaseVersion;
+                $this->addCapability('database_server_version');
+            }
         }
 
         $systemUrl = $this->safe(fn (): ?string => $this->dataSource->configurationValue('SystemURL'));
@@ -94,7 +97,7 @@ final class DiagnosticCollector
         }
 
         $php = [
-            'memory_limit' => Text::truncateBytes((string) (ini_get('memory_limit') ?: 'unknown'), 32),
+            'memory_limit' => $this->memoryLimit(),
             'extensions' => $this->extensionStatus(),
         ];
 
@@ -203,10 +206,7 @@ final class DiagnosticCollector
 
         $gateways = $this->safe(fn (): ?array => $this->dataSource->gatewayAggregates());
         if (is_array($gateways)) {
-            if (isset($gateways['active']) && is_array($gateways['active'])) {
-                $gateways['active'] = array_values(array_slice($gateways['active'], 0, 30));
-            }
-            $whmcs['gateways'] = $gateways;
+            $whmcs['gateways'] = $this->sanitizeGateways($gateways);
             $this->addCapability('gateway_logs');
         } else {
             $this->sawDbFailure = true;
@@ -214,10 +214,7 @@ final class DiagnosticCollector
 
         $modules = $this->safe(fn (): ?array => $this->dataSource->moduleInventory());
         if (is_array($modules)) {
-            if (isset($modules['registrars']) && is_array($modules['registrars'])) {
-                $modules['registrars'] = array_values(array_slice($modules['registrars'], 0, 30));
-            }
-            $whmcs['modules'] = $modules;
+            $whmcs['modules'] = $this->sanitizeModules($modules);
             $this->addCapability('module_inventory');
         } else {
             $this->addLimitation('module_status_not_collected');
@@ -302,10 +299,10 @@ final class DiagnosticCollector
     {
         try {
             $api = $this->dataSource->localApi('GetModuleQueue');
-            $items = $this->normalizeModuleQueueItems($api);
+            $normalized = $this->normalizeModuleQueueItems($api);
             $source = 'api';
 
-            if ($items === null || $items === []) {
+            if ($normalized === null || ($normalized['pending_count'] === 0 && $normalized['items'] === [])) {
                 if ($api === null || (is_array($api) && strtolower((string) ($api['result'] ?? '')) !== 'success')) {
                     $this->sawLocalApiFailure = true;
                 }
@@ -318,7 +315,8 @@ final class DiagnosticCollector
                 }
 
                 $source = 'table';
-                $items = $this->normalizeModuleQueueItems(['queue' => $tableRows]) ?? [];
+                $normalized = $this->normalizeModuleQueueItems(['queue' => $tableRows])
+                    ?? ['items' => [], 'pending_count' => 0];
             }
 
             $byAction = [
@@ -330,7 +328,7 @@ final class DiagnosticCollector
             ];
             $oldest = null;
             $normalizedItems = [];
-            foreach ($items as $item) {
+            foreach ($normalized['items'] as $item) {
                 $item['action'] = $this->moduleActionKey((string) ($item['action'] ?? 'other'));
                 $byAction[$item['action']]++;
                 $age = (int) ($item['age_minutes'] ?? 0);
@@ -340,7 +338,7 @@ final class DiagnosticCollector
 
             return [
                 'source' => $source,
-                'pending_count' => count($normalizedItems),
+                'pending_count' => $normalized['pending_count'],
                 'oldest_age_minutes' => $oldest,
                 'by_action' => $byAction,
                 'items' => array_slice($normalizedItems, 0, self::ID_LIMIT),
@@ -354,7 +352,7 @@ final class DiagnosticCollector
 
     /**
      * @param  array<string, mixed>|null  $api
-     * @return list<array<string, mixed>>|null
+     * @return array{items: list<array<string, mixed>>, pending_count: int}|null
      */
     private function normalizeModuleQueueItems(?array $api): ?array
     {
@@ -371,10 +369,13 @@ final class DiagnosticCollector
         }
 
         $items = [];
+        $pendingCount = 0;
         foreach (array_slice($raw, 0, self::ID_LIMIT) as $row) {
             if (! is_array($row)) {
                 continue;
             }
+
+            $pendingCount++;
 
             $serviceType = strtolower((string) ($row['service_type'] ?? $row['serviceType'] ?? $row['reltype'] ?? 'service'));
             if ($serviceType === 'hosting') {
@@ -392,11 +393,17 @@ final class DiagnosticCollector
             }
 
             $rawAction = (string) ($row['action'] ?? $row['module_action'] ?? $row['moduleAction'] ?? 'other');
+            $id = (int) ($row['id'] ?? $row['queueid'] ?? $row['queueId'] ?? 0);
+            $serviceId = (int) ($row['service_id'] ?? $row['serviceId'] ?? $row['serviceid'] ?? $row['relid'] ?? $row['relId'] ?? 0);
+
+            if ($id < 1 || $serviceId < 1) {
+                continue;
+            }
 
             $items[] = [
-                'id' => (int) ($row['id'] ?? 0),
+                'id' => $id,
                 'service_type' => $serviceType,
-                'service_id' => (int) ($row['service_id'] ?? $row['serviceId'] ?? $row['relid'] ?? 0),
+                'service_id' => $serviceId,
                 'action' => $this->moduleActionKey($rawAction),
                 'age_minutes' => (int) $ageMinutes,
                 'retries' => (int) ($row['retries'] ?? $row['num_retries'] ?? $row['attempts'] ?? 0),
@@ -404,7 +411,10 @@ final class DiagnosticCollector
             ];
         }
 
-        return $items;
+        return [
+            'items' => $items,
+            'pending_count' => $pendingCount,
+        ];
     }
 
     private function moduleActionKey(string $action): string
@@ -467,10 +477,119 @@ final class DiagnosticCollector
     private function whmcsVersion(): string
     {
         $version = $this->safe(fn (): ?string => $this->dataSource->configurationValue('Version'));
+        if (! is_string($version) || $version === '') {
+            return 'unknown';
+        }
 
-        return is_string($version) && $version !== ''
-            ? Text::truncateBytes($version, 32)
-            : 'unknown';
+        $trimmed = Text::truncateBytes(trim($version), 32);
+        if (preg_match('/\A(?:[0-9]+\.[0-9]+\.[0-9]+(?:-[A-Za-z0-9.]+)?|unknown)\z/', $trimmed) === 1) {
+            return $trimmed;
+        }
+
+        return 'unknown';
+    }
+
+    private function webPhpVersion(): string
+    {
+        $version = trim((string) PHP_VERSION);
+        if (preg_match('/\A[0-9]+\.[0-9]+\.[0-9]+(?:[-+][A-Za-z0-9.]+)?\z/', $version) === 1) {
+            return Text::truncateBytes($version, 32);
+        }
+
+        if (preg_match('/[0-9]+\.[0-9]+\.[0-9]+(?:[-+][A-Za-z0-9.]+)?/', $version, $matches) === 1) {
+            return Text::truncateBytes($matches[0], 32);
+        }
+
+        return Text::truncateBytes($version, 32);
+    }
+
+    private function memoryLimit(): string
+    {
+        $raw = trim((string) (ini_get('memory_limit') ?: 'unknown'));
+        if ($raw === '' || strtolower($raw) === 'unknown') {
+            return 'unknown';
+        }
+
+        if (preg_match('/\A(-?[0-9]+)([kmg])?\z/i', $raw, $matches) === 1) {
+            $suffix = isset($matches[2]) && $matches[2] !== ''
+                ? strtoupper($matches[2])
+                : '';
+
+            return Text::truncateBytes($matches[1].$suffix, 32);
+        }
+
+        return 'unknown';
+    }
+
+    private function sanitizeDatabaseVersion(string $version): ?string
+    {
+        $trimmed = trim($version);
+        if ($trimmed === '') {
+            return null;
+        }
+
+        if (preg_match('/\A[A-Za-z0-9._+-]+/', $trimmed, $matches) !== 1) {
+            return null;
+        }
+
+        return Text::truncateBytes($matches[0], 64);
+    }
+
+    /**
+     * @param  array<string, mixed>  $gateways
+     * @return array<string, mixed>
+     */
+    private function sanitizeGateways(array $gateways): array
+    {
+        if (isset($gateways['active']) && is_array($gateways['active'])) {
+            $gateways['active'] = Identifier::sanitizeNameList($gateways['active']);
+        }
+
+        foreach (['failures_7d', 'signature_failures_7d', 'unmatched_success_7d'] as $mapKey) {
+            if (isset($gateways[$mapKey]) && is_array($gateways[$mapKey])) {
+                $gateways[$mapKey] = Identifier::sanitizeCountMap($gateways[$mapKey]);
+            }
+        }
+
+        return $gateways;
+    }
+
+    /**
+     * @param  array<string, mixed>  $modules
+     * @return array<string, mixed>
+     */
+    private function sanitizeModules(array $modules): array
+    {
+        if (! isset($modules['registrars']) || ! is_array($modules['registrars'])) {
+            return $modules;
+        }
+
+        $registrars = [];
+        foreach (array_slice($modules['registrars'], 0, 30) as $registrar) {
+            if (! is_array($registrar)) {
+                continue;
+            }
+
+            $name = $registrar['name'] ?? null;
+            if (! is_string($name) && ! is_int($name)) {
+                continue;
+            }
+
+            $sanitizedName = Identifier::sanitize((string) $name);
+            if ($sanitizedName === null) {
+                continue;
+            }
+
+            $entry = ['name' => $sanitizedName];
+            if (array_key_exists('version', $registrar)) {
+                $entry['version'] = $registrar['version'];
+            }
+            $registrars[] = $entry;
+        }
+
+        $modules['registrars'] = $registrars;
+
+        return $modules;
     }
 
     private function errorDisplayDisabled(): ?bool
@@ -499,6 +618,27 @@ final class DiagnosticCollector
         return is_file($configurationFile) ? is_writable($configurationFile) : null;
     }
 
+    /**
+     * Extract an allowlisted ionCube version string, or null when none matches.
+     */
+    public static function parseIoncubeVersion(string $version): ?string
+    {
+        $trimmed = trim($version);
+        if ($trimmed === '') {
+            return null;
+        }
+
+        if (preg_match('/\A[0-9]+(?:\.[0-9]+){0,3}\z/', $trimmed) === 1) {
+            return Text::truncateBytes($trimmed, 32);
+        }
+
+        if (preg_match('/[0-9]+(?:\.[0-9]+){0,3}/', $trimmed, $matches) === 1) {
+            return Text::truncateBytes($matches[0], 32);
+        }
+
+        return null;
+    }
+
     private function ioncubeVersion(): ?string
     {
         if (! function_exists('ioncube_loader_version')) {
@@ -509,7 +649,7 @@ final class DiagnosticCollector
             $version = ioncube_loader_version();
 
             return is_string($version) && $version !== ''
-                ? Text::truncateBytes($version, 32)
+                ? self::parseIoncubeVersion($version)
                 : null;
         } catch (Throwable) {
             return null;

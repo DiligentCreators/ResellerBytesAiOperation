@@ -36,9 +36,15 @@ final class CapsuleWhmcsDataSource implements WhmcsDataSource
             $rows = Capsule::connection()->select('SELECT VERSION() AS version');
             $version = $rows[0]->version ?? null;
 
-            return is_string($version) && $version !== ''
-                ? Text::truncateBytes($version, 64)
-                : null;
+            if (! is_string($version) || $version === '') {
+                return null;
+            }
+
+            if (preg_match('/\A[A-Za-z0-9._+-]+/', trim($version), $matches) !== 1) {
+                return null;
+            }
+
+            return Text::truncateBytes($matches[0], 64);
         } catch (Throwable) {
             return null;
         }
@@ -512,7 +518,8 @@ final class CapsuleWhmcsDataSource implements WhmcsDataSource
 
             foreach ($successLogs as $log) {
                 $gateway = (string) ($log->gateway ?? '');
-                if ($gateway === '') {
+                $sanitizedGateway = Identifier::sanitize($gateway);
+                if ($sanitizedGateway === null) {
                     continue;
                 }
                 $hasTxn = Capsule::table('tblaccounts')
@@ -520,15 +527,15 @@ final class CapsuleWhmcsDataSource implements WhmcsDataSource
                     ->where('date', '>=', gmdate('Y-m-d H:i:s', time() - 7 * 86400))
                     ->exists();
                 if (! $hasTxn) {
-                    $unmatched[$gateway] = ($unmatched[$gateway] ?? 0) + 1;
+                    $unmatched[$sanitizedGateway] = ($unmatched[$sanitizedGateway] ?? 0) + 1;
                 }
             }
 
             return [
-                'active' => array_values(array_map('strval', array_slice($active, 0, 30))),
-                'failures_7d' => $failures,
-                'signature_failures_7d' => $signatureFailures,
-                'unmatched_success_7d' => $unmatched,
+                'active' => Identifier::sanitizeNameList(array_map('strval', $active)),
+                'failures_7d' => Identifier::sanitizeCountMap($failures),
+                'signature_failures_7d' => Identifier::sanitizeCountMap($signatureFailures),
+                'unmatched_success_7d' => Identifier::sanitizeCountMap($unmatched),
             ];
         } catch (Throwable) {
             return null;
@@ -551,8 +558,13 @@ final class CapsuleWhmcsDataSource implements WhmcsDataSource
 
             $list = [];
             foreach ($registrars as $name) {
+                $sanitized = Identifier::sanitize((string) $name);
+                if ($sanitized === null) {
+                    continue;
+                }
+
                 $list[] = [
-                    'name' => (string) $name,
+                    'name' => $sanitized,
                     'version' => null,
                 ];
             }
@@ -701,8 +713,9 @@ final class CapsuleWhmcsDataSource implements WhmcsDataSource
         $map = [];
         foreach ($rows as $row) {
             $name = (string) ($row->gateway ?? '');
-            if ($name !== '') {
-                $map[$name] = (int) ($row->cnt ?? 0);
+            $sanitized = Identifier::sanitize($name);
+            if ($sanitized !== null) {
+                $map[$sanitized] = ($map[$sanitized] ?? 0) + (int) ($row->cnt ?? 0);
             }
         }
 

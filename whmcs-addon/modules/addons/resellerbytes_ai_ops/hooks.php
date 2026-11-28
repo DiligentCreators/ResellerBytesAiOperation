@@ -1,5 +1,6 @@
 <?php
 
+use ResellerBytesAiOps\ApiClientException;
 use ResellerBytesAiOps\CredentialsFile;
 use ResellerBytesAiOps\CronMonitor;
 use ResellerBytesAiOps\FailureCode;
@@ -18,12 +19,14 @@ require_once __DIR__.'/lib/RuntimeRoots.php';
 require_once __DIR__.'/lib/FailureCode.php';
 require_once __DIR__.'/lib/FailureHint.php';
 require_once __DIR__.'/lib/Text.php';
+require_once __DIR__.'/lib/Identifier.php';
 require_once __DIR__.'/lib/WhmcsDataSource.php';
 require_once __DIR__.'/lib/CapsuleWhmcsDataSource.php';
 require_once __DIR__.'/lib/SnapshotRedactor.php';
 require_once __DIR__.'/lib/DiagnosticCollector.php';
 require_once __DIR__.'/lib/HttpTransport.php';
 require_once __DIR__.'/lib/CurlHttpTransport.php';
+require_once __DIR__.'/lib/ApiClientException.php';
 require_once __DIR__.'/lib/SignedApiClient.php';
 require_once __DIR__.'/lib/LocalApiClient.php';
 require_once __DIR__.'/lib/WhmcsLocalApiClient.php';
@@ -102,11 +105,13 @@ add_hook('AfterCronJob', 1, static function (): void {
         // Heartbeat / auto-collect / remediation failures must never interrupt WHMCS cron.
         try {
             $code = FailureCode::sanitize($exception->getMessage());
+            $fieldsLog = $exception instanceof ApiClientException ? $exception->fieldsLogSuffix() : '';
+            $dedupeKey = $code.$fieldsLog;
             $previousFailure = $GLOBALS['resellerbytes_ai_ops_last_hook_failure'] ?? null;
-            if ($previousFailure !== $code) {
-                (new WhmcsActivityLogger)->log('ResellerBytes AI Ops cron hook failed: '.$code);
+            if ($previousFailure !== $dedupeKey) {
+                (new WhmcsActivityLogger)->log('ResellerBytes AI Ops cron hook failed: '.$code.$fieldsLog);
             }
-            $GLOBALS['resellerbytes_ai_ops_last_hook_failure'] = $code;
+            $GLOBALS['resellerbytes_ai_ops_last_hook_failure'] = $dedupeKey;
         } catch (Throwable $ignored) {
             // Activity logging must never interrupt WHMCS cron either.
         }
